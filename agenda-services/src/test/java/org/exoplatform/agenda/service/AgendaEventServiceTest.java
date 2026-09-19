@@ -4108,6 +4108,735 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   /**
+   * An attendee the organiser allowed to update the event edits one date of the
+   * series, which is filed in the organiser's own calendar (EXO-90382). They
+   * may change the whole series, so they may change one date of it: the
+   * exceptional occurrence stays in the series' calendar, and the right to add
+   * events to that calendar — which an attendee of somebody else's personal
+   * calendar never has — is not asked, so the edit is stored.
+   * <p>
+   * The call used to end in an {@link IllegalAccessException} all the same,
+   * thrown <b>after</b> the row was written, by the read-back
+   * {@code createEvent} performs before it stores the payload's attendees: at
+   * that instant the new row carried no attendee of its own, so the reader was
+   * refused access to an event they had just been allowed to create. That was
+   * a second, distinct defect on the read path, reported with EXO-90382 and
+   * fixed by EXO-90408, which reads the created row back without asking the
+   * read ACL of it a second time. Per the instruction this pin carried until
+   * then, the {@code assertThrows} has been replaced by an assertion on the
+   * returned event; the two halves are still asserted separately — the
+   * permission check lets the attendee through, and the call now answers with
+   * the occurrence instead of refusing it.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateOccurrenceByAttendeeAllowedToUpdateSeries() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+
+    Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+    seriesInstance.setAllowAttendeeToUpdate(true);
+    Event series = createEvent(seriesInstance, user1IdentityId, testuser2Identity);
+    long seriesId = series.getId();
+    assertEquals(calendar.getId(), series.getCalendarId());
+
+    assertTrue("testuser2 attends the series and may update it",
+               agendaEventService.canUpdateEvent(series, user2IdentityId));
+    assertFalse("testuser2 can't add events to testuser1's personal calendar",
+                agendaEventService.canCreateEvent(calendar, user2IdentityId));
+    assertTrue("The series has no exceptional occurrence yet",
+               agendaEventService.getExceptionalOccurrenceEvents(seriesId, null, user1IdentityId).isEmpty());
+
+    ZonedDateTime periodStart = start.minusDays(1);
+    ZonedDateTime periodEnd = start.plusDays(5);
+    List<Event> occurrences =
+                            agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                          periodStart,
+                                                                          periodEnd,
+                                                                          series.getTimeZoneId(),
+                                                                          0);
+    assertTrue("The series must have several occurrences", occurrences.size() > 1);
+    Event occurrence = occurrences.get(1);
+
+    // EXO-90408: the occurrence is answered with, not refused
+    Event created = createEvent(newOccurrenceInstance(seriesId, occurrence, calendar.getId()), user2IdentityId);
+    assertNotNull("The attendee's occurrence must be returned, not refused", created);
+    assertTrue("The returned occurrence must be the stored row", created.getId() > 0);
+    assertEquals(seriesId, created.getParentId());
+    assertEquals("The returned occurrence stays in the series' calendar", calendar.getId(), created.getCalendarId());
+
+    // And the second read, the one AgendaEventRest.createEvent performs before
+    // answering (RestUtils.getEventByIdAndUser -> the gated getEventById), must
+    // not refuse either. It does not because the occurrence now carries the
+    // series' attendees, so the creator reads it as an attendee of it — dropping
+    // the read-back's gate alone would have moved the 401 one frame outwards
+    Event reRead = agendaEventService.getEventById(created.getId(), series.getTimeZoneId(), user2IdentityId);
+    assertNotNull("The REST layer's own re-read must not refuse the creator either", reRead);
+    assertEquals(created.getId(), reRead.getId());
+
+    // What this change buys: the permission check let the attendee through, so
+    // their edit of that one date is stored in the organiser's calendar
+    List<Event> exceptional = agendaEventService.getExceptionalOccurrenceEvents(seriesId, null, user1IdentityId);
+    assertEquals("The attendee's edit of one date must be stored as an exceptional occurrence of the series",
+                 1,
+                 exceptional.size());
+    assertEquals(seriesId, exceptional.get(0).getParentId());
+    assertEquals("The occurrence stays in the series' calendar", calendar.getId(), exceptional.get(0).getCalendarId());
+  }
+
+  /**
+   * The creator of a series in a space calendar edits one date of it after the
+   * space got a redactor, which took their right to add events there
+   * (EXO-90382). They still update the series, so they still edit one of its
+   * dates: the exceptional occurrence stays in the space calendar and asks for
+   * no creation right there.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateOccurrenceBySpaceEventCreatorNoLongerRedactor() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+
+    Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+    seriesInstance.setCalendarId(spaceCalendar.getId());
+    Event series = createEvent(seriesInstance, user1IdentityId, testuser1Identity);
+    long seriesId = series.getId();
+    assertEquals(spaceCalendar.getId(), series.getCalendarId());
+
+    // A space with a redactor: its other members can no longer add events
+    spaceService.addRedactor(space, testuser3Identity.getRemoteId());
+    assertFalse("testuser1 isn't a redactor of the space any more",
+                agendaEventService.canCreateEvent(spaceCalendar, user1IdentityId));
+    assertTrue("testuser1 created the series and still updates it",
+               agendaEventService.canUpdateEvent(series, user1IdentityId));
+
+    ZonedDateTime periodStart = start.minusDays(1);
+    ZonedDateTime periodEnd = start.plusDays(5);
+    List<Event> occurrences =
+                            agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                          periodStart,
+                                                                          periodEnd,
+                                                                          series.getTimeZoneId(),
+                                                                          0);
+    assertTrue("The series must have several occurrences", occurrences.size() > 1);
+
+    Event created =
+                  createEvent(newOccurrenceInstance(seriesId, occurrences.get(1), spaceCalendar.getId()), user1IdentityId);
+    assertEquals(seriesId, created.getParentId());
+    assertEquals("The occurrence stays in the space calendar", spaceCalendar.getId(), created.getCalendarId());
+    assertTrue("The creator's occurrence must be listed as an exceptional occurrence of the series",
+               agendaEventService.getExceptionalOccurrenceEvents(seriesId, null, user1IdentityId)
+                                 .stream()
+                                 .anyMatch(exceptional -> exceptional.getId() == created.getId()));
+  }
+
+  /**
+   * The relaxation of EXO-90382 grants nothing to somebody with no right over
+   * the series: a stranger filing an exceptional occurrence into the series'
+   * own calendar is refused, and the series keeps every one of its dates. The
+   * calendar being the series' is what makes this pin bite — that is the branch
+   * which no longer asks for a creation right, so the update right on the
+   * series is the only thing left refusing it.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateOccurrenceInTheSeriesCalendarWithoutUpdateRightIsRefused() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user4IdentityId = Long.parseLong(testuser4Identity.getId());
+
+    Event series = createEvent(newEventInstance(start, start.plusHours(1), false), user1IdentityId, testuser1Identity);
+    long seriesId = series.getId();
+
+    assertFalse("testuser4 has no right over testuser1's series",
+                agendaEventService.canUpdateEvent(series, user4IdentityId));
+
+    ZonedDateTime periodStart = start.minusDays(1);
+    ZonedDateTime periodEnd = start.plusDays(5);
+    List<Event> occurrences =
+                            agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                          periodStart,
+                                                                          periodEnd,
+                                                                          series.getTimeZoneId(),
+                                                                          0);
+    assertTrue("The series must have several occurrences", occurrences.size() > 1);
+    Event occurrence = occurrences.get(1);
+
+    try {
+      createEvent(newOccurrenceInstance(seriesId, occurrence, calendar.getId()), user4IdentityId);
+      fail("Shouldn't allow a stranger to create an occurrence of a series they can't update");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertEquals("The occurrence must still be in the series",
+                 occurrences.size(),
+                 agendaEventService.getEventOccurrencesInPeriod(series,
+                                                               periodStart,
+                                                               periodEnd,
+                                                               series.getTimeZoneId(),
+                                                               0)
+                                   .size());
+  }
+
+  /**
+   * Filing an exceptional occurrence into a calendar other than the series' is
+   * a creation there, and keeps the creation right EXO-90382 dropped for the
+   * same-calendar case: the creator of the series, who may update it, is
+   * refused the space calendar they aren't a redactor of, and allowed another
+   * calendar of their own.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateOccurrenceInAnotherCalendarStillNeedsCreateRight() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+
+    Event series = createEvent(newEventInstance(start, start.plusHours(1), false), user1IdentityId, testuser1Identity);
+    long seriesId = series.getId();
+    assertEquals(calendar.getId(), series.getCalendarId());
+
+    spaceService.addRedactor(space, testuser3Identity.getRemoteId());
+    assertTrue("testuser1 created the series and updates it", agendaEventService.canUpdateEvent(series, user1IdentityId));
+    assertFalse("testuser1 isn't a redactor of the space", agendaEventService.canCreateEvent(spaceCalendar, user1IdentityId));
+
+    ZonedDateTime periodStart = start.minusDays(1);
+    ZonedDateTime periodEnd = start.plusDays(5);
+    List<Event> occurrences =
+                            agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                          periodStart,
+                                                                          periodEnd,
+                                                                          series.getTimeZoneId(),
+                                                                          0);
+    assertTrue("The series must have several occurrences", occurrences.size() > 1);
+    Event occurrence = occurrences.get(1);
+
+    // 1. Into a calendar the user can't add events to
+    try {
+      createEvent(newOccurrenceInstance(seriesId, occurrence, spaceCalendar.getId()), user1IdentityId);
+      fail("Shouldn't allow to file an occurrence into a calendar where the user can't create events");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertTrue("Nothing must have been stored",
+               agendaEventService.getExceptionalOccurrenceEvents(seriesId, null, user1IdentityId).isEmpty());
+
+    // 2. Into another calendar of their own, where they may create
+    org.exoplatform.agenda.model.Calendar secondCalendar = new org.exoplatform.agenda.model.Calendar(0,
+                                                                                                    user1IdentityId,
+                                                                                                    false,
+                                                                                                    null,
+                                                                                                    null,
+                                                                                                    null,
+                                                                                                    null,
+                                                                                                    null,
+                                                                                                    null);
+    secondCalendar.setName("Second calendar");
+    secondCalendar = agendaCalendarService.createCalendar(secondCalendar, testuser1Identity.getRemoteId());
+    try {
+      assertTrue("testuser1 may add events to his own second calendar",
+                 agendaEventService.canCreateEvent(secondCalendar, user1IdentityId));
+      Event created = createEvent(newOccurrenceInstance(seriesId, occurrence, secondCalendar.getId()), user1IdentityId);
+      assertEquals(seriesId, created.getParentId());
+      assertEquals(secondCalendar.getId(), created.getCalendarId());
+    } finally {
+      agendaCalendarService.deleteCalendarById(secondCalendar.getId());
+    }
+  }
+
+  /**
+   * Naming a parent is not the same as amending one date of it, and only the
+   * second relaxes the creation right (EXO-90382, review round 1).
+   * <p>
+   * The attacker here is the strongest one the relaxed branch admits: an
+   * attendee the organiser allowed to update <b>one plain, non-repeating</b>
+   * event of their personal calendar. That grant gives {@code canUpdateEvent}
+   * on that event — {@code writeRightOf}'s attendee branch asks for no calendar
+   * access at all — while {@code canCreateEvent} on the organiser's calendar
+   * stays false. They then post an event that is <b>not</b> an occurrence: no
+   * occurrence identifier, its own recurrence, its own summary and dates,
+   * naming that event as parent and that calendar as destination. Without the
+   * {@code isExceptionalOccurrenceOf} guard the write is accepted and a whole
+   * new series appears in the organiser's calendar, expanded over its own
+   * dates.
+   * <p>
+   * Two assertions, and the second is the one that bites: the call is refused,
+   * and nothing of the attacker's lands in the organiser's calendar. Asserting
+   * the refusal alone would not do — the guard's job is to stop the write, and
+   * only the organiser's calendar can say whether it did. (Until EXO-90408 the
+   * refusal assertion was worse than weak: the read-back threw the very same
+   * exception type <b>after</b> a successful write, so it passed on the
+   * mutant.)
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateNonOccurrenceNamingAParentStillNeedsCreateRight() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user4IdentityId = Long.parseLong(testuser4Identity.getId());
+
+    Event hostInstance = newEventInstance(start, start.plusHours(1), false);
+    hostInstance.setRecurrence(null);
+    hostInstance.setAllowAttendeeToUpdate(true);
+    Event host = createEvent(hostInstance, user1IdentityId, testuser4Identity);
+    assertEquals(calendar.getId(), host.getCalendarId());
+    assertNull("The host event is deliberately not a series", agendaEventService.getEventById(host.getId()).getRecurrence());
+    assertTrue("testuser4 may update the event they were invited to",
+               agendaEventService.canUpdateEvent(agendaEventService.getEventById(host.getId()), user4IdentityId));
+    assertFalse("testuser4 can't add events to testuser1's personal calendar",
+                agendaEventService.canCreateEvent(calendar, user4IdentityId));
+
+    Event payload = newEventInstance(start.plusDays(10), start.plusDays(10).plusHours(1), false);
+    payload.setId(0);
+    payload.setParentId(host.getId());
+    payload.setCalendarId(calendar.getId());
+    payload.setOccurrence(null);
+    payload.setSummary("Injected by an attendee");
+    assertNotNull("The payload carries a recurrence of its own", payload.getRecurrence());
+
+    try {
+      createEvent(payload, user4IdentityId);
+      fail("Shouldn't let an attendee file an arbitrary event into a calendar they can't create in");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    List<Event> owned = agendaEventService.getEvents(new EventFilter(Collections.singletonList(user1IdentityId),
+                                                                     start.minusDays(1),
+                                                                     start.plusDays(30)),
+                                                     ZoneOffset.UTC,
+                                                     user1IdentityId);
+    assertTrue("Nothing of the attendee's must land in the organiser's calendar",
+               owned.stream().noneMatch(event -> "Injected by an attendee".equals(event.getSummary())));
+  }
+
+  /**
+   * An exceptional occurrence created with no attendee in the payload takes the
+   * ones its series carries for that date (EXO-90408).
+   * <p>
+   * This is the invariant {@code saveEventExceptionalOccurrence} already keeps
+   * when it detaches a date of a series: an occurrence is the series on one
+   * day, so the people invited to the series are invited to it. Without it the
+   * row is an orphan — no attendee, hence absent from every attendee-keyed
+   * listing, while the series' own expansion drops that date because an
+   * exceptional occurrence exists for it.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateOccurrenceWithoutAttendeesTakesTheSeriesAttendees() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+    long user3IdentityId = Long.parseLong(testuser3Identity.getId());
+
+    Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+    seriesInstance.setAllowAttendeeToUpdate(true);
+    Event series = createEvent(seriesInstance, user1IdentityId, testuser1Identity, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                            start.minusDays(1),
+                                                                            start.plusDays(5),
+                                                                            series.getTimeZoneId(),
+                                                                            0);
+    assertTrue("The series must have several occurrences", occurrences.size() > 1);
+
+    // The payload names nobody: the web UI sends the occurrence it read, but a
+    // client that sends only the dates is just as legitimate
+    Event created = createEvent(newOccurrenceInstance(seriesId, occurrences.get(1), calendar.getId()), user2IdentityId);
+    assertNotNull(created);
+
+    List<Long> inherited = agendaEventAttendeeService.getEventAttendees(created.getId())
+                                                     .getEventAttendees()
+                                                     .stream()
+                                                     .map(EventAttendee::getIdentityId)
+                                                     .sorted()
+                                                     .toList();
+    assertEquals("The occurrence must carry the series' attendees",
+                 Arrays.asList(user1IdentityId, user2IdentityId, user3IdentityId).stream().sorted().toList(),
+                 inherited);
+
+    // And the state those copies end in, which is decided one frame later by
+    // AgendaReplyOnSaveListener on the creation event, not by the arguments
+    // this seeding passes (review round 2): everyone is asked again, and the
+    // one who made the edit is on it
+    List<EventAttendee> rows = agendaEventAttendeeService.getEventAttendees(created.getId()).getEventAttendees();
+    for (EventAttendee row : rows) {
+      if (row.getIdentityId() == user2IdentityId) {
+        assertEquals("The attendee who edited the date is on it", EventAttendeeResponse.ACCEPTED, row.getResponse());
+      } else {
+        assertEquals("and everybody else is asked again for that date",
+                     EventAttendeeResponse.NEEDS_ACTION,
+                     row.getResponse());
+      }
+    }
+  }
+
+  /**
+   * Editing one date of a series does not take that date out of anybody's
+   * calendar (EXO-90408).
+   * <p>
+   * {@code AgendaEvent.getExceptionalOccurenceIdsByPeriod} matches an
+   * exceptional occurrence on its parent alone, so the moment one exists for a
+   * date, {@code filterExceptionalEvents} removes that date from the series'
+   * expansion — for every reader, the organiser included. What replaces it is
+   * the exceptional row itself, and a personal agenda reads by attendee: a row
+   * with no attendee replaces nothing and the date simply disappears.
+   * <p>
+   * The pin therefore asserts through the listing path, for all three readers:
+   * the organiser who owns the calendar, the attendee who made the edit, and
+   * the other invitee who did nothing. Each must find exactly one event on that
+   * date, and it must be the exceptional row.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateOccurrenceKeepsTheDateInEveryAttendeesListing() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+    long user3IdentityId = Long.parseLong(testuser3Identity.getId());
+
+    Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+    seriesInstance.setAllowAttendeeToUpdate(true);
+    Event series = createEvent(seriesInstance, user1IdentityId, testuser1Identity, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                            start.minusDays(1),
+                                                                            start.plusDays(5),
+                                                                            series.getTimeZoneId(),
+                                                                            0);
+    assertTrue("The series must have several occurrences", occurrences.size() > 1);
+    Event occurrence = occurrences.get(1);
+
+    // Everyone sees that date before the edit
+    for (long readerId : new long[] { user1IdentityId, user2IdentityId, user3IdentityId }) {
+      assertEquals("The date must be in the listing of " + readerId + " before the edit",
+                   1,
+                   listOnDayOf(occurrence, readerId).size());
+    }
+
+    Event created = createEvent(newOccurrenceInstance(seriesId, occurrence, calendar.getId()), user2IdentityId);
+    assertNotNull(created);
+
+    for (long readerId : new long[] { user1IdentityId, user2IdentityId, user3IdentityId }) {
+      List<Event> onThatDay = listOnDayOf(occurrence, readerId);
+      assertEquals("The date must still be in the listing of " + readerId + " after the edit", 1, onThatDay.size());
+      assertEquals("And it must be the exceptional occurrence", created.getId(), onThatDay.get(0).getId());
+    }
+  }
+
+  /**
+   * An exceptional occurrence whose payload names attendees keeps exactly
+   * those, and takes none from its series (EXO-90408).
+   * <p>
+   * The series is the fallback for a payload that names nobody; it never
+   * overrides or completes one that does. Dropping somebody from one date of a
+   * series is a legitimate edit, and the seeding must not undo it.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateOccurrenceWithAttendeesKeepsExactlyThose() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user3IdentityId = Long.parseLong(testuser3Identity.getId());
+
+    Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+    Event series = createEvent(seriesInstance, user1IdentityId, testuser1Identity, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                            start.minusDays(1),
+                                                                            start.plusDays(5),
+                                                                            series.getTimeZoneId(),
+                                                                            0);
+    assertTrue("The series must have several occurrences", occurrences.size() > 1);
+
+    // The organiser drops everyone but testuser3 from that one date
+    Event created = createEvent(newOccurrenceInstance(seriesId, occurrences.get(1), calendar.getId()),
+                                user1IdentityId,
+                                testuser3Identity);
+    assertNotNull(created);
+
+    List<Long> attendeeIds = agendaEventAttendeeService.getEventAttendees(created.getId())
+                                                       .getEventAttendees()
+                                                       .stream()
+                                                       .map(EventAttendee::getIdentityId)
+                                                       .toList();
+    assertEquals("Only the attendee the payload names may be on the occurrence",
+                 Collections.singletonList(user3IdentityId),
+                 attendeeIds);
+  }
+
+  /**
+   * An event that is not an exceptional occurrence is left exactly as it was
+   * (EXO-90408): neither an ordinary event created with no attendee, nor an
+   * event that merely names a parent without amending one of its dates, takes
+   * an attendee from anywhere.
+   * <p>
+   * An event with nobody on it is a legitimate event — a note to self in one's
+   * own calendar — and the second case is the one the
+   * {@code isExceptionalOccurrenceOf} guard of EXO-90382 already separates on
+   * the permission side: naming a parent is not amending one date of it, on
+   * this side either.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateNonOccurrenceTakesNoAttendeeFromAnywhere() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+
+    // 1. An ordinary event, nobody invited
+    Event alone = createEvent(newEventInstance(start, start.plusHours(1), false), user1IdentityId);
+    assertTrue("An ordinary event created with no attendee must keep none",
+               agendaEventAttendeeService.getEventAttendees(alone.getId()).getEventAttendees().isEmpty());
+
+    // 2. An event naming a series as parent, but carrying no occurrence
+    // identifier: it is not an amendment of one of its dates
+    Event series = createEvent(newEventInstance(start, start.plusHours(1), false),
+                               user1IdentityId,
+                               testuser2Identity,
+                               testuser3Identity);
+    Event payload = newEventInstance(start.plusDays(10), start.plusDays(10).plusHours(1), false);
+    payload.setId(0);
+    payload.setParentId(series.getId());
+    payload.setCalendarId(calendar.getId());
+    payload.setOccurrence(null);
+    Event child = createEvent(payload, user1IdentityId);
+    assertTrue("Naming a parent must not take the parent's attendees",
+               agendaEventAttendeeService.getEventAttendees(child.getId()).getEventAttendees().isEmpty());
+
+    // 3. An event naming a NON-REPEATING event as parent, and carrying an
+    // occurrence identifier: there is no such thing as one date of it, so the
+    // same guard that refuses the relaxed permission branch refuses the
+    // seeding. Review round 2: the seeding used to make this check for itself,
+    // and more weakly — it asked for a parent and an identifier and never that
+    // the parent be a series
+    Event plainInstance = newEventInstance(start.plusDays(20), start.plusDays(20).plusHours(1), false);
+    plainInstance.setRecurrence(null);
+    Event plain = createEvent(plainInstance, user1IdentityId, testuser2Identity, testuser3Identity);
+    assertNull("The parent of this case must not be a series", plain.getRecurrence());
+    assertFalse("and it must have attendees to take, or the case proves nothing",
+                agendaEventAttendeeService.getEventAttendees(plain.getId()).getEventAttendees().isEmpty());
+
+    Event onAPlainParent = newEventInstance(start.plusDays(21), start.plusDays(21).plusHours(1), false);
+    onAPlainParent.setId(0);
+    onAPlainParent.setParentId(plain.getId());
+    onAPlainParent.setCalendarId(calendar.getId());
+    onAPlainParent.setOccurrence(new EventOccurrence(start.plusDays(21)));
+    Event notAnOccurrence = createEvent(onAPlainParent, user1IdentityId);
+    assertTrue("One date of a non-repeating event does not exist, so nothing is inherited",
+               agendaEventAttendeeService.getEventAttendees(notAnOccurrence.getId()).getEventAttendees().isEmpty());
+  }
+
+  /**
+   * Naming a date the series does not have is not amending one of its dates
+   * either (review round 2 of EXO-90382 + EXO-90408).
+   * <p>
+   * The relaxed branch used to be entered on the payload's <i>shape</i> alone —
+   * a parent with a recurrence, and any non-null occurrence identifier. Both
+   * come from the client, and {@code createEvent} stores the payload's own
+   * start, end and summary verbatim instead of deriving them from the
+   * identifier as {@code createEventExceptionalOccurrence} does. So an
+   * attendee the organiser allowed to update the series, who may not add
+   * events to the organiser's calendar at all, could post an arbitrary event
+   * at an arbitrary date into it by naming the series as parent and any
+   * instant as the date it amends — as often as they liked, since nothing
+   * rejects a second row for the same identifier either.
+   * <p>
+   * Two things made it worse than a stray row, and both are asserted here: an
+   * identifier outside the series strips no date from the series in exchange
+   * ({@code getExceptionalOccurenceIdsByPeriod} matches on a window the row is
+   * not in), so the injection is purely additive; and EXO-90408's seeding puts
+   * every invitee of the series on it, so it lands in their personal agendas
+   * too.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateOccurrenceAtADateTheSeriesDoesNotHaveStillNeedsCreateRight() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+    long user3IdentityId = Long.parseLong(testuser3Identity.getId());
+
+    Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+    seriesInstance.setAllowAttendeeToUpdate(true);
+    Event series = createEvent(seriesInstance, user1IdentityId, testuser1Identity, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+
+    assertTrue("testuser2 attends the series and may update it",
+               agendaEventService.canUpdateEvent(series, user2IdentityId));
+    assertFalse("testuser2 can't add events to testuser1's personal calendar",
+                agendaEventService.canCreateEvent(calendar, user2IdentityId));
+
+    // A date the series never has: it ends two days after it starts
+    ZonedDateTime farAway = start.plusDays(400);
+    Event payload = newEventInstance(farAway, farAway.plusHours(1), false);
+    payload.setId(0);
+    payload.setParentId(seriesId);
+    payload.setCalendarId(calendar.getId());
+    payload.setRecurrence(null);
+    payload.setOccurrence(new EventOccurrence(farAway));
+    payload.setSummary("INJECTED");
+
+    boolean refused = false;
+    try {
+      createEvent(payload, user2IdentityId);
+    } catch (IllegalAccessException e) {
+      refused = true;
+      assertTrue("and be refused for the same reason an ordinary event would be: " + e.getMessage(),
+                 e.getMessage().contains("can't create an event in calendar"));
+    }
+
+    // The effect is asserted first and unconditionally: a refusal assertion
+    // alone cannot tell a refusal from a refusal after a successful write, and
+    // it is the write that matters here
+    for (long readerId : new long[] { user1IdentityId, user2IdentityId, user3IdentityId }) {
+      EventFilter filter = new EventFilter(readerId, null, null, farAway.minusHours(2), farAway.plusHours(3), 0);
+      assertTrue("Nothing of the attendee's must land in the calendar of " + readerId,
+                 agendaEventService.getEvents(filter, ZoneOffset.UTC, readerId).isEmpty());
+    }
+    assertTrue("and the series must have gained no exceptional occurrence",
+               agendaEventService.getExceptionalOccurrenceEvents(seriesId, null, user1IdentityId).isEmpty());
+    assertTrue("An event at a date the series does not have must ask for the creation right", refused);
+  }
+
+  /**
+   * An identifier on a date the series has, at another time of day, is still
+   * an amendment of that date (review round 3 of EXO-90382 + EXO-90408).
+   * <p>
+   * The date check matches on the UTC date, not on the instant, and this is
+   * the half of it that a match on the instant alone would refuse. It is not a
+   * looseness: it is the granularity the rest of the machinery already works
+   * at — {@code getExceptionalOccurrenceEvent} queries the identifier's UTC
+   * day, and {@code filterExceptionalEvents} matches on the UTC date before
+   * anything else — which is why such a row still replaces the computed
+   * occurrence rather than being added beside it, asserted here through the
+   * organiser's own listing. {@code filterExceptionalEvents} names the case in
+   * its own comment: an identifier computed by the previous algorithm.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateOccurrenceAtAnotherTimeOfTheSameDateIsStillThatDate() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+
+    Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+    seriesInstance.setAllowAttendeeToUpdate(true);
+    Event series = createEvent(seriesInstance, user1IdentityId, testuser1Identity, testuser2Identity);
+    long seriesId = series.getId();
+
+    assertFalse("testuser2 can't add events to testuser1's personal calendar",
+                agendaEventService.canCreateEvent(calendar, user2IdentityId));
+
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                            start.minusDays(1),
+                                                                            start.plusDays(5),
+                                                                            series.getTimeZoneId(),
+                                                                            0);
+    assertTrue("The series must have several occurrences", occurrences.size() > 1);
+    Event occurrence = occurrences.get(1);
+
+    ZonedDateTime exact = occurrence.getOccurrence().getId().withZoneSameInstant(ZoneOffset.UTC);
+    ZonedDateTime sameDayOtherTime = exact.toLocalDate().atStartOfDay(ZoneOffset.UTC).plusHours(11);
+    assertNotEquals("The two identifiers must differ as instants, or the pin proves nothing", exact, sameDayOtherTime);
+    assertEquals("and name the same UTC date", exact.toLocalDate(), sameDayOtherTime.toLocalDate());
+
+    Event payload = newOccurrenceInstance(seriesId, occurrence, calendar.getId());
+    payload.setOccurrence(new EventOccurrence(sameDayOtherTime));
+    Event created = createEvent(payload, user2IdentityId);
+    assertNotNull("An identifier on that date at another time must still amend that date", created);
+
+    // And it replaces the computed date rather than being added beside it
+    List<Event> onThatDay = listOnDayOf(occurrence, user1IdentityId);
+    assertEquals("The organiser must still see exactly one event on that date", 1, onThatDay.size());
+    assertEquals("and it must be the amendment", created.getId(), onThatDay.get(0).getId());
+  }
+
+  /**
+   * Amending one date of a series is a thing there is one of (review round 2 of
+   * EXO-90382 + EXO-90408).
+   * <p>
+   * Nothing on the {@code createEvent} path deduplicates an exceptional
+   * occurrence — {@code saveEventExceptionalOccurrence} is the path that looks
+   * for an existing row first — so without a guard the relaxed branch is
+   * re-entered for the same date as often as the caller likes, each call adding
+   * another row to a calendar they may not write to. The first amendment is
+   * the grant; the second asks for the creation right like any other creation
+   * there.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateSecondOccurrenceForTheSameDateStillNeedsCreateRight() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+
+    Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+    seriesInstance.setAllowAttendeeToUpdate(true);
+    Event series = createEvent(seriesInstance, user1IdentityId, testuser1Identity, testuser2Identity);
+    long seriesId = series.getId();
+
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                            start.minusDays(1),
+                                                                            start.plusDays(5),
+                                                                            series.getTimeZoneId(),
+                                                                            0);
+    assertTrue("The series must have several occurrences", occurrences.size() > 1);
+    Event occurrence = occurrences.get(1);
+
+    // The first amendment is the grant this delivery makes
+    assertNotNull(createEvent(newOccurrenceInstance(seriesId, occurrence, calendar.getId()), user2IdentityId));
+
+    boolean refused = false;
+    try {
+      createEvent(newOccurrenceInstance(seriesId, occurrence, calendar.getId()), user2IdentityId);
+    } catch (IllegalAccessException e) {
+      refused = true;
+      assertTrue("and be refused for the same reason an ordinary event would be: " + e.getMessage(),
+                 e.getMessage().contains("can't create an event in calendar"));
+    }
+
+    assertEquals("The series must carry exactly one exceptional occurrence for that date",
+                 1,
+                 agendaEventService.getExceptionalOccurrenceEvents(seriesId, null, user1IdentityId).size());
+    assertTrue("A second amendment of the same date must ask for the creation right", refused);
+  }
+
+  /**
+   * Reads one reader's agenda over the day of a computed occurrence, the way a
+   * personal agenda reads it: by attendee, over a window around that
+   * occurrence.
+   *
+   * @param occurrence the computed occurrence whose day is read
+   * @param readerIdentityId identity identifier of the reader
+   * @return the events that reader sees on that day
+   * @throws Exception when the listing call fails
+   */
+  private List<Event> listOnDayOf(Event occurrence, long readerIdentityId) throws Exception {
+    EventFilter eventFilter = new EventFilter(readerIdentityId,
+                                              null,
+                                              null,
+                                              occurrence.getStart().minusHours(2),
+                                              occurrence.getEnd().plusHours(2),
+                                              0);
+    return agendaEventService.getEvents(eventFilter, ZoneOffset.UTC, readerIdentityId);
+  }
+
+  /**
    * Builds the payload the web UI sends when a single computed occurrence of a
    * series is edited: no identifier, the series as parent, the occurrence
    * identifier and dates, and no recurrence.

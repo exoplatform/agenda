@@ -336,11 +336,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
     }
 
-    boolean canCreateCalendarEvents = canCreateEvent(calendar, userIdentityId);
-    if (!canCreateCalendarEvents) {
-      throw new IllegalAccessException("User '" + userIdentityId + "' can't create an event in calendar " + calendar.getTitle());
-    }
-    checkCanCreateOccurrence(parentEvent, userIdentityId);
+    checkCanCreateEvent(event, parentEvent, calendar, userIdentityId);
 
     EventOccurrence occurrence = event.getOccurrence();
     if (occurrence != null && occurrence.getId() != null) {
@@ -377,7 +373,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     createOrUpdateEventProperties(event.getParameters(), createdEvent);
     long eventId = createdEvent.getId();
 
-    createdEvent = getEventById(eventId, event.getTimeZoneId(), userIdentityId);
+    createdEvent = readCreatedEvent(eventId, event.getTimeZoneId(), userIdentityId);
 
     AgendaEventModification eventModifications =
                                                new AgendaEventModification(eventId,
@@ -406,6 +402,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                          sendInvitation,
                                          false,
                                          eventModifications);
+    } else {
+      inheritSeriesAttendees(createdEvent, event, parentEvent);
     }
 
     if (createdEvent.getStatus() == EventStatus.TENTATIVE) {
@@ -420,6 +418,175 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                               CalendarEditorChange.Kind.ADDED,
                               writeRightOf(createdEvent, userIdentityId));
     return createdEvent;
+  }
+
+  /**
+   * Reads back the row {@link #createEvent} has just written, the way
+   * {@link #getEventById(long, ZoneId, long)} reads any event — storage read,
+   * dates adjusted to the reader's zone, {@code acl} stamped on it, rendered
+   * through {@link Utils#maskForAccess(Event, EventAccess)} — but
+   * <b>without asking the read ACL again</b> (EXO-90408).
+   * <p>
+   * Asking it here is a second ruling on a different question. The write has
+   * already been decided a few lines earlier by {@code checkCanCreateEvent},
+   * from the payload; the read ACL is then asked of a row the payload has
+   * <b>not been fully applied to</b> — attendees, reminders and conferences are
+   * all stored after this point. An exceptional occurrence created by somebody
+   * who may update the series but cannot see the calendar it is filed in
+   * (EXO-90382) therefore carries no attendee row at this instant,
+   * {@link #getEventAccess(Event, long)} answers {@link EventAccess#NONE}, and
+   * the creator is refused the event they were just allowed to create. The row
+   * is committed regardless — the transaction is the storage's, not this
+   * method's — so the caller gets a 401 on a successful write, and the
+   * occurrence is left with no attendee at all: invisible to every
+   * attendee-keyed listing, while
+   * {@code AgendaEvent.getExceptionalOccurenceIdsByPeriod} matches it on its
+   * parent and on its occurrence identifier falling in the window being read,
+   * so {@code filterExceptionalEvents} takes that date out of the series for
+   * every reader, the organiser included.
+   * <p>
+   * The event is rendered as {@link EventAccess#FULL}: the only reader here is
+   * the creator, on the row they have just been allowed to create, so nothing
+   * is masked. The call is kept so the access is stamped on the returned event
+   * exactly as every other read path stamps it.
+   * <p>
+   * <b>The one cost, stated</b>: the {@code acl} stamped here is computed
+   * before the attendees exist, so for a creator whom this very payload admits
+   * as an attendee, {@code canEdit} and {@code isEventAttendee} come back
+   * false on the returned object. No caller reads them today — the REST layer
+   * re-reads the event before answering, the two MCP-side tools
+   * ({@code AgendaEventMcpTool} and the enterprise {@code AgendaEventAiTool})
+   * read the dates and the masking flag, and {@code caldav-integration} reads
+   * the identifier — but a
+   * caller that did would read them stale.
+   *
+   * @param eventId identifier of the row just created
+   * @param timeZone the zone the dates are read in, may be null
+   * @param userIdentityId identity identifier of the creator
+   * @return the created event read in full. The null branch mirrors
+   *         {@link #getEventById(long, ZoneId, long)} and is unreachable from
+   *         the only caller, which reads back a row it created two statements
+   *         earlier in the same transaction — {@code createEvent} dereferences
+   *         the result without a guard, and should not grow one on the
+   *         strength of this signature
+   */
+  private Event readCreatedEvent(long eventId, ZoneId timeZone, long userIdentityId) {
+    Event event = agendaEventStorage.getEventById(eventId);
+    if (event == null) {
+      return null;
+    }
+    adjustEventDatesForRead(event, timeZone);
+    boolean canUpdateEvent = canUpdateEvent(event, userIdentityId);
+    boolean isEventAttendee = attendeeService.isEventAttendee(getEventIdOrParentId(event), userIdentityId);
+    event.setAcl(new EventPermission(canUpdateEvent, isEventAttendee));
+    return maskForAccess(event, EventAccess.FULL);
+  }
+
+  /**
+   * Gives a freshly created exceptional occurrence the attendees its series
+   * carries for that date, when the payload that created it named none
+   * (EXO-90408).
+   * <p>
+   * The invariant is not new: it is the one
+   * {@link #saveEventExceptionalOccurrence(long, ZonedDateTime)} already keeps
+   * when it detaches one date of a series, by copying the parent's attendees
+   * for that occurrence and handing them to
+   * {@link #createEventExceptionalOccurrence}. An occurrence created through
+   * {@link #createEvent} is the same object made by the other door, so it owes
+   * the same thing. Without it the row is an orphan: nobody is invited to it,
+   * so no attendee-keyed listing returns it, while
+   * {@code AgendaEvent.getExceptionalOccurenceIdsByPeriod} matches it on its
+   * parent and on its occurrence identifier falling in the window being read —
+   * so {@code filterExceptionalEvents} removes that date from the series for
+   * everyone and nothing replaces it. The date simply
+   * disappears from the organiser's and the invitees' calendars.
+   * <p>
+   * The same mechanism is reused deliberately —
+   * {@link AgendaEventAttendeeService#getEventAttendees(long)} filtered to the
+   * occurrence, then {@link #cleanupAttendeeIds(List)} so the rows are created
+   * against the occurrence rather than updated on the series — and it is
+   * called with the same arguments
+   * {@link #createEventExceptionalOccurrence} uses: <b>no creator</b> and
+   * <b>no invitation</b>.
+   * <p>
+   * No invitation is the consequential one, and it holds end to end: the
+   * notification plugins are dispatched from
+   * {@code AgendaEventAttendeeServiceImpl.sendInvitations}, which
+   * {@code processSendingInvitation} only reaches when that flag is true. These
+   * people were invited to the series by whoever organised it and are not
+   * being invited to anything new, so no mail leaves on this path. That also
+   * keeps it clear of the invitation mail's ICS attachment
+   * ({@code AgendaTemplateBuilder} attaches {@code Utils.generateIcsFile}'s
+   * output for an {@code ADDED} + {@code CONFIRMED} notification, where the
+   * recipient's own {@code shouldAttachIcsFile} allows it), which an
+   * all-day event does not survive unshifted: that writer takes no all-day
+   * flag and never emits {@code VALUE=DATE}, so a day stored at UTC midnight
+   * reaches a recipient west of it as the previous evening.
+   * <p>
+   * No creator only disables {@code isOtherAttendeeResponse}, so the responses
+   * carried by the copied rows are stored as they stand. <b>They do not
+   * survive the call</b>, and the earlier wording of this comment claimed they
+   * did: {@code createEvent} broadcasts {@code POST_CREATE_AGENDA_EVENT_EVENT}
+   * a few lines further down, {@code AgendaReplyOnSaveListener} is registered
+   * on it synchronously, and on an {@code ADDED} modification it answers
+   * {@code NEEDS_ACTION} for every attendee who is not the modifier and
+   * {@code ACCEPTED} for the one who is — the modifier's own copied answer no
+   * more survives than anybody else's. That is the same end state an
+   * occurrence whose payload names attendees already reaches, so the two doors
+   * agree — but it is the listener that decides it, not these arguments. The
+   * pins therefore assert that end state and name the listener; the two
+   * arguments themselves have no observable effect here, so nothing pins them,
+   * and a change to the listener would change this contract with the suite
+   * still green.
+   * {@code resetResponses} is kept as
+   * {@code status != CONFIRMED} to mirror the sibling; note the sibling reads
+   * the <b>parent's</b> status, its event being a clone of it, while this path
+   * reads the payload's, which {@code createEvent} has already defaulted to
+   * {@code CONFIRMED}.
+   * <p>
+   * It applies to a payload shaped like an amendment of one date of a series —
+   * {@link #isAmendmentOfADateOf} — so a payload merely naming a parent takes
+   * nothing from anywhere, whether that parent is a non-repeating event or
+   * another occurrence, whose recurrence {@code createEvent} nulls. That is
+   * <b>not</b> the same set {@link #checkCanCreateEvent} relaxes the creation
+   * right for, and deliberately so: the relaxation asks two further things —
+   * the date must be one the series has, and it must not already be amended —
+   * and this is a <b>superset</b> of it. Everything it covers and the
+   * relaxation does not is a row a caller who <b>holds</b> the creation right
+   * has legitimately created: a second amendment of the same date, one filed
+   * into another calendar, one whose identifier the date check could not
+   * resolve. Each of those is an exceptional occurrence and each owes its
+   * attendees; withholding them would leave the orphan this method exists to
+   * prevent. An ordinary event created with no attendee is a legitimate event
+   * with no attendee and is left exactly as it was.
+   *
+   * @param occurrence the row just created, never null here
+   * @param event the payload that created it, as the client sent it
+   * @param parentEvent the stored event the payload names as parent, or null
+   *          when it names none
+   */
+  private void inheritSeriesAttendees(Event occurrence, Event event, Event parentEvent) {
+    if (occurrence == null || parentEvent == null || !isAmendmentOfADateOf(event, parentEvent)) {
+      return;
+    }
+    EventOccurrence eventOccurrence = occurrence.getOccurrence();
+    if (eventOccurrence == null || eventOccurrence.getId() == null) {
+      return;
+    }
+    EventAttendeeList seriesAttendees = attendeeService.getEventAttendees(occurrence.getParentId());
+    if (seriesAttendees == null) {
+      return;
+    }
+    List<EventAttendee> inherited = cleanupAttendeeIds(seriesAttendees.getEventAttendees(eventOccurrence.getId()));
+    if (inherited.isEmpty()) {
+      return;
+    }
+    attendeeService.saveEventAttendees(occurrence,
+                                       inherited,
+                                       0,
+                                       false,
+                                       occurrence.getStatus() != EventStatus.CONFIRMED,
+                                       null);
   }
 
   /**
@@ -1736,7 +1903,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * another user's personal calendar. Both update paths go through this
    * method: {@code updateEvent} and the {@code calendarId} field of
    * {@code updateEventFields}. An exceptional occurrence created through
-   * {@code createEvent} is checked by {@code checkCanCreateOccurrence} instead.
+   * {@code createEvent} is checked by {@link #checkCanCreateEvent} instead,
+   * which asks the creation right only when that occurrence is filed into a
+   * calendar other than its series' (EXO-90382).
    *
    * @param storedEvent the event as it is stored, carrying the calendar it is
    *          currently filed in
@@ -1772,28 +1941,275 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   /**
-   * Checks that a user may create an exceptional occurrence of a recurring
-   * event, which is what {@code createEvent} does when the event carries a
-   * parent. Such an occurrence replaces the computed one in the series for
-   * every reader, whatever calendar it is filed into, so it requires the right
-   * to update the series, as editing that occurrence in place would. The right
-   * to create events in the target calendar is checked by the caller. Without
-   * this check, anyone who can add events to their own calendar could remove an
-   * occurrence of any recurring event from the views of its owner and
-   * attendees, knowing only its identifier.
+   * Checks that a user may create an event, and is the one place that decides
+   * it: {@code createEvent} asks nothing else.
+   * <p>
+   * An ordinary event — no parent — needs the right to add events to its
+   * calendar, and nothing has changed for it.
+   * <p>
+   * An event carrying a parent is an <b>exceptional occurrence</b>: it replaces
+   * the computed occurrence in the series for every reader, so it always
+   * requires the right to update the series (EXO-90381), as editing that
+   * occurrence in place would. Without that, anyone able to add events to their
+   * own calendar could remove one date of any recurring event from the views of
+   * its owner and attendees, knowing only its identifier.
+   * <p>
+   * That update right is also <b>enough</b>, as long as the occurrence stays in
+   * the series' own calendar (EXO-90382). The reason is that an exceptional
+   * occurrence is a <b>change to the series</b>, not a new entry in the
+   * calendar it is filed into. eXo is the outlier in storing that change as a
+   * separate row, and asking that row for a creation right excluded people who
+   * may plainly change the whole series — an attendee the organiser allowed to
+   * update the event, and a creator who is no longer a redactor of the space —
+   * from changing one date of it. Those two are the whole population this
+   * relaxes for, and it is worth naming who is <b>not</b> in it: an editor of a
+   * calendar shared with them (EXO-90378). {@link #canCreateEvent} answers true
+   * for an edit share exactly when {@code writeRightOf} answers
+   * {@code SHARE_EDITOR}, so on the series' own calendar such an editor already
+   * held both rights and the old rule never stopped them.
+   * <p>
+   * The protocol corroborates the <i>shape</i>, and only the shape. Stated as
+   * the connector's code has it rather than as its prose reads: an override
+   * adopts the series' UID — {@code CaldavPushService.adoptOrMintUid} is keyed
+   * on the parent's identifier, not the occurrence's — and the address is
+   * {@code <collection>/<uid>.ics} with no occurrence component
+   * ({@code objectHref}), so nothing ever allocates a second address for an
+   * override. Two things are <b>not</b> true and are recorded here so the next
+   * reader does not lean on them: the server is not "never asked for a create"
+   * (the first push of a series the user has no copy of yet mints a UID and
+   * creates the object under {@code If-None-Match: *}); and {@code IcsMerger}'s
+   * "pushing an override replaces only the override for that instance"
+   * describes a branch the shipped push does not take, since the sole call site
+   * passes {@code occurrence = false}. Neither affects this rule: every
+   * outbound write goes into the pushing user's <b>own</b> account, under their
+   * own credentials, into their own collection, so there is no remote
+   * counterpart of {@link #canCreateEvent} for this relaxation to bypass. The
+   * rule stands on the eXo-side reason above; CalDAV is corroboration, not the
+   * justification.
+   * <p>
+   * Filing the occurrence into <b>another</b> calendar is a different act: that
+   * is a creation there, so the creation right is kept, the same requirement
+   * {@link #checkCanMoveEvent} makes of a move. Only that requirement, though:
+   * that method also refuses outright a user whose sole right over the event is
+   * an edit share, and this one does not. That asymmetry is older than
+   * EXO-90382 — the rule it relaxes never reached the other-calendar branch —
+   * and closing it is a separate decision, not a property of this method today.
+   * <p>
+   * The <b>bound</b> this leaves, stated rather than left to be re-derived: one
+   * row per date the series' rule generates, in the series' own calendar, for
+   * as long as that rule runs — which for a series with no overall end is
+   * unbounded in absolute terms, since the window handed to
+   * {@link #seriesHasOccurrence} is explicit and never falls back on
+   * {@code Utils.getOccurrences}' five-year cap. Each such row carries the
+   * payload's own summary and times, stored verbatim, and takes its date out of
+   * the series in exchange. That is the cardinality the feature itself has — a
+   * user edits each date, over time — and it is inside the grant the organiser
+   * made; revoking it is the organiser unticking
+   * {@code allowAttendeeToUpdate}.
+   * <p>
+   * What the payload <b>is</b> decides that, not merely what it points at. The
+   * relaxed branch is entered only by a real exceptional occurrence of a real
+   * series — see {@link #isExceptionalOccurrenceOf}. Carrying a parent is not
+   * enough: {@code parentId} comes from the client, nothing else in
+   * {@code createEvent} requires the payload to be an occurrence, and a payload
+   * that is not one keeps its own recurrence and is stored as an ordinary
+   * event. Without that guard, naming any updatable event as parent would file
+   * an arbitrary event — a whole new series, with its own summary and dates —
+   * into the calendar that event happens to live in, which for an attendee
+   * allowed to update it is a calendar they may not write to at all. Such a
+   * payload falls through to the creation right, as it always did.
+   * <p>
+   * Two further things about that payload decide it, both found in review and
+   * both client-controlled like the parent. The occurrence identifier must name
+   * a date the series <b>has</b>, not merely be non-null — otherwise the same
+   * caller posts any event at any date, and the row is purely additive because
+   * it replaces no computed date in exchange. And the series must not
+   * <b>already</b> carry an exceptional occurrence for that date — otherwise
+   * the branch is re-entered for the same date as often as the caller likes,
+   * and nothing else on this path deduplicates. Both are conditions on taking
+   * the shortcut, not new refusals: a payload failing either one is asked for
+   * the creation right, and a caller who holds it is unaffected.
    *
+   * @param event the event to create, as the client sent it
    * @param parentEvent the stored recurring event the occurrence belongs to, or
    *          null when the created event has no parent
+   * @param calendar the stored calendar the event is filed into, already
+   *          checked to exist
    * @param userIdentityId the {@link Identity} identifier of the user creating
    *          the event
-   * @throws IllegalAccessException when the event has a parent that the user
-   *           can't update
+   * @throws IllegalAccessException when the event has a parent the user can't
+   *           update, or when the user can't add events to the calendar and the
+   *           event is not a first amendment of one of its series' own dates,
+   *           staying in that series' calendar
    */
-  private void checkCanCreateOccurrence(Event parentEvent, long userIdentityId) throws IllegalAccessException {
-    if (parentEvent != null && !canUpdateEvent(parentEvent, userIdentityId)) {
-      throw new IllegalAccessException("User '" + userIdentityId + "' can't create an occurrence of event "
-          + parentEvent.getId());
+  private void checkCanCreateEvent(Event event,
+                                   Event parentEvent,
+                                   Calendar calendar,
+                                   long userIdentityId) throws IllegalAccessException {
+    if (parentEvent != null) {
+      if (!canUpdateEvent(parentEvent, userIdentityId)) {
+        throw new IllegalAccessException("User '" + userIdentityId + "' can't create an occurrence of event "
+            + parentEvent.getId());
+      }
+      if (parentEvent.getCalendarId() == calendar.getId() && isExceptionalOccurrenceOf(event, parentEvent)
+          && !hasExceptionalOccurrence(parentEvent, event.getOccurrence().getId())) {
+        return;
+      }
     }
+    if (!canCreateEvent(calendar, userIdentityId)) {
+      throw new IllegalAccessException("User '" + userIdentityId + "' can't create an event in calendar " + calendar.getTitle());
+    }
+  }
+
+  /**
+   * Whether a payload handed to {@code createEvent} really is an exceptional
+   * occurrence of the stored event it names as parent, which is the only thing
+   * {@link #checkCanCreateEvent} relaxes the creation right for.
+   * <p>
+   * All three parts are load-bearing and none is checked anywhere else on the
+   * create path. The payload must carry an <b>occurrence identifier</b> — the
+   * date it replaces; without one {@code createEvent} keeps the payload's own
+   * recurrence ({@code if (occurrence != null && occurrence.getId() != null)
+   * event.setRecurrence(null)}) and stores an ordinary event, so an
+   * occurrence-less payload naming a parent is a new event, not an amendment
+   * of one. The parent must be a <b>series</b>: there is no such thing as one
+   * date of a non-repeating event, which is why
+   * {@code createEventExceptionalOccurrence} refuses that parent outright. And
+   * that identifier must name a date the series <b>actually has</b> — see
+   * {@link #seriesHasOccurrence}.
+   * <p>
+   * That third part is what makes the relaxation mean what it says. The other
+   * two are satisfied by the payload's shape alone, and the identifier is
+   * client-controlled like the parent: without it, an attendee the organiser
+   * allowed to update a series filed in the organiser's own calendar could
+   * post any event at all — any summary, any date, any number of times — by
+   * naming that series as parent and any instant as the occurrence it amends.
+   * Nothing downstream would have caught it: {@code createEvent} stores the
+   * payload's own start and end verbatim rather than deriving them from the
+   * identifier as {@code createEventExceptionalOccurrence} does, and a row
+   * whose identifier falls outside the series is purely <b>additive</b> —
+   * {@code AgendaEvent.getExceptionalOccurenceIdsByPeriod} matches it on a
+   * window it is not in, so {@code filterExceptionalEvents} removes nothing in
+   * exchange, while {@link #inheritSeriesAttendees} puts every invitee of the
+   * series on it. Reproduced against this branch before the check was added,
+   * and refused by the pre-image at the unconditional creation right this
+   * delivery relaxes.
+   *
+   * @param event the event to create, as the client sent it
+   * @param parentEvent the stored event it names as parent, never null here
+   * @return true when the payload amends one date of that series
+   */
+  private boolean isExceptionalOccurrenceOf(Event event, Event parentEvent) {
+    return isAmendmentOfADateOf(event, parentEvent)
+        && seriesHasOccurrence(parentEvent, event.getOccurrence().getId());
+  }
+
+  /**
+   * Whether a payload is shaped like an amendment of one date of the stored
+   * event it names as parent: the parent is a <b>series</b>, and the payload
+   * carries an <b>occurrence identifier</b>.
+   * <p>
+   * Split out of {@link #isExceptionalOccurrenceOf} so that the two questions
+   * asked of such a payload stay separable. This one is about the payload and
+   * its parent; {@link #seriesHasOccurrence} is about the <b>date</b>, and that
+   * is the security-relevant half — it is what stops a client naming a date the
+   * series does not have. {@link #inheritSeriesAttendees} deliberately asks
+   * only this one: a row that was created anyway, by a caller who holds the
+   * creation right and whose identifier the date check could not resolve, must
+   * still get the series' attendees, or it is exactly the orphan EXO-90408
+   * exists to prevent — {@code filterExceptionalEvents} knows nothing of these
+   * guards and still takes that date out of the series for every reader.
+   * Sharing one predicate would have tied who gets invited to a permission
+   * decision, in the direction that hurts.
+   *
+   * @param event the event to create, as the client sent it
+   * @param parentEvent the stored event it names as parent, never null here
+   * @return true when the payload is shaped like an amendment of one of its
+   *         dates
+   */
+  private static boolean isAmendmentOfADateOf(Event event, Event parentEvent) {
+    return parentEvent.getRecurrence() != null
+        && event.getOccurrence() != null
+        && event.getOccurrence().getId() != null;
+  }
+
+  /**
+   * Whether a series really has an occurrence on the date an identifier names.
+   * <p>
+   * The series is expanded around that date and the identifier is matched
+   * against what comes out <b>on the UTC date</b>, which is the granularity the
+   * rest of the exceptional-occurrence machinery already works at:
+   * {@code AgendaEventStorage.getExceptionalOccurrenceEvent} queries the
+   * identifier's UTC day, and {@code filterExceptionalEvents} matches on
+   * {@code withZoneSameInstant(UTC).toLocalDate()}. Matching the instant alone
+   * would be stricter than either, and would refuse the case
+   * {@code filterExceptionalEvents} names in its own comment — an identifier
+   * computed by the previous algorithm, on the right date at another
+   * time of day. Because the row still replaces the computed occurrence at
+   * that granularity, an identifier this admits costs the series its date in
+   * exchange rather than adding to it. The window is the day before to the day
+   * after, with a limit of three, the same window and limit
+   * {@link #getEventOccurrence} expands for a reader — enough for every
+   * frequency the recurrence editor offers, since none of them yields more than
+   * three occurrences over three days.
+   * <p>
+   * The range test {@code createEventExceptionalOccurrence} makes
+   * ({@code overallStart - 1 day <= date <= overallEnd}) is deliberately not
+   * reused: it admits any date inside the span — every Wednesday of a Monday
+   * series, and every future date of a series with no end at all.
+   * <p>
+   * It <b>fails closed</b>: a frequency this window cannot resolve — an hourly
+   * or finer rule — is asked for the creation right rather than let through.
+   * Such a rule is <b>not</b> only an import artefact, which is worth saying
+   * because the shorter sentence invites the next reader to decide the case
+   * cannot happen: {@code EventRecurrenceFrequency} carries {@code HOURLY},
+   * {@code MINUTELY} and {@code SECONDLY}; the recurrence drawer does not offer
+   * them, but a plain REST payload reaches them through
+   * {@code RestEntityBuilder}, and {@code create_agenda_event} advertises them
+   * to the model in {@code ai-tool-definitions.json}.
+   * {@link #getEventOccurrence} expands the same window with the same limit, so
+   * <i>reading</i> one of those occurrences is already broken the same way; and
+   * {@link #inheritSeriesAttendees} asks a different question, so such a row
+   * still gets its attendees and is not left an orphan.
+   *
+   * @param parentEvent the stored series, its recurrence already known to be
+   *          non-null
+   * @param occurrenceId the date the payload claims to amend
+   * @return true when the series has an occurrence on that date
+   */
+  private boolean seriesHasOccurrence(Event parentEvent, ZonedDateTime occurrenceId) {
+    LocalDate occurrenceDateUTC = occurrenceId.withZoneSameInstant(ZoneOffset.UTC).toLocalDate();
+    List<Event> occurrences = Utils.getOccurrences(parentEvent,
+                                                   occurrenceDateUTC.minusDays(1),
+                                                   occurrenceDateUTC.plusDays(1),
+                                                   3);
+    return occurrences.stream()
+                      .map(occurrence -> occurrence.getOccurrence().getId().withZoneSameInstant(ZoneOffset.UTC))
+                      .anyMatch(id -> id.toLocalDate().equals(occurrenceDateUTC));
+  }
+
+  /**
+   * Whether the series already carries an exceptional occurrence for that
+   * date.
+   * <p>
+   * The relaxation is the right to <b>amend one date</b> of a series, which is
+   * a thing there is one of. Nothing on this path deduplicates — the unique
+   * constraint the schema carries for it, {@code agenda-rdbms} changeset
+   * {@code 1.0.0-10}, is on {@code (EVENT_ID, OCCURRENCE_ID)} and
+   * {@code EVENT_ID} is the row's own primary key, so it constrains nothing —
+   * and {@code saveEventExceptionalOccurrence} is the path that checks for an
+   * existing row before making one. Without this, the relaxed branch could be
+   * entered again and again for the same date, each call adding another row to
+   * a calendar the caller may not write to. A caller who <b>does</b> hold the
+   * creation right is unaffected: they fall through to it and
+   * {@code createEvent} behaves exactly as it did.
+   *
+   * @param parentEvent the stored series
+   * @param occurrenceId the date the payload claims to amend
+   * @return true when an exceptional occurrence already exists for that date
+   */
+  private boolean hasExceptionalOccurrence(Event parentEvent, ZonedDateTime occurrenceId) {
+    return agendaEventStorage.getExceptionalOccurrenceEvent(parentEvent.getId(), occurrenceId) != null;
   }
 
   /**
