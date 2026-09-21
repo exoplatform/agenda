@@ -76,7 +76,10 @@ export default {
   },
   methods: {
     changeResponse(response) {
-      if (this.event.occurrence && this.event.parent && (!this.event.parent.acl || this.event.parent.acl.attendee)) {
+      // A self-registrant on an open series picks the same scope an invitee
+      // does (this occurrence, upcoming, all); parent.open is the series flag
+      const parent = this.event.parent;
+      if (this.event.occurrence && parent && (!parent.acl || parent.acl.attendee || parent.open)) {
         this.$refs.responseConfirmDialog.open(response);
       } else {
         this.savingResponse = response;

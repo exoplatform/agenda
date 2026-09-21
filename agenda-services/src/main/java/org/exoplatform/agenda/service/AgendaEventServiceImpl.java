@@ -1029,13 +1029,15 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (identity == null) {
       return EventAccess.NONE;
     }
-    boolean user = StringUtils.equals(OrganizationIdentityProvider.NAME, identity.getProviderId());
-    if (user && Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), identityId)) {
+    // The calendar half is the one the answer right of an open event reuses
+    // (AgendaEventAttendeeService#canRespondToEvent): one rule, written once
+    if (Utils.canAccessEventCalendar(identityManager, spaceService, calendar, identityId)) {
       return EventAccess.FULL;
     }
     if (attendeeService.isEventAttendee(getEventIdOrParentId(event), identityId)) {
       return EventAccess.FULL;
     }
+    boolean user = StringUtils.equals(OrganizationIdentityProvider.NAME, identity.getProviderId());
     if (user && calendarShareAccess.isSharedWith(calendarId, identityId)) {
       return EventAccess.SHARED;
     }
