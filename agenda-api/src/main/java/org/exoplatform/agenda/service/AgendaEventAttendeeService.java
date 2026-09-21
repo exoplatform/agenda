@@ -175,7 +175,9 @@ public interface AgendaEventAttendeeService {
    * @return {@link EventAttendeeResponse}, no null value is returned
    * @throws ObjectNotFoundException when event with provided identifier doesn't
    *           exists
-   * @throws IllegalAccessException when user is not an invitee of the event
+   * @throws IllegalAccessException when the user may not answer the event: not
+   *           an attendee, and the event isn't open to them (see
+   *           {@link #canRespondToEvent(Event, long)})
    */
   public EventAttendeeResponse getEventResponse(long eventId,
                                                 ZonedDateTime occurrenceId,
@@ -190,7 +192,9 @@ public interface AgendaEventAttendeeService {
    *          allowed.
    * @throws ObjectNotFoundException when event with provided identifier doesn't
    *           exists
-   * @throws IllegalAccessException when user is not an invitee of the event
+   * @throws IllegalAccessException when the user may not answer the event: not
+   *           an attendee, and the event isn't open to them (see
+   *           {@link #canRespondToEvent(Event, long)})
    */
   public void sendEventResponse(long eventId,
                                 long identityId,
@@ -209,7 +213,9 @@ public interface AgendaEventAttendeeService {
    *          allowed.
    * @throws ObjectNotFoundException when event with provided identifier doesn't
    *           exists
-   * @throws IllegalAccessException when user is not an invitee of the event
+   * @throws IllegalAccessException when the user may not answer the event: not
+   *           an attendee, and the event isn't open to them (see
+   *           {@link #canRespondToEvent(Event, long)})
    */
   public void sendUpcomingEventResponse(long eventId,
                                         ZonedDateTime occurrenceId,
@@ -225,7 +231,9 @@ public interface AgendaEventAttendeeService {
    * @param broadcast whether broadcast event about this change or not
    * @throws ObjectNotFoundException when event with provided identifier doesn't
    *           exists
-   * @throws IllegalAccessException when user is not an invitee of the event
+   * @throws IllegalAccessException when the user may not answer the event: not
+   *           an attendee, and the event isn't open to them (see
+   *           {@link #canRespondToEvent(Event, long)})
    */
   public void sendEventResponse(long eventId,
                                 long identityId,
@@ -240,5 +248,25 @@ public interface AgendaEventAttendeeService {
    * @return true if user is an attendee of the event, else return false
    */
   boolean isEventAttendee(long eventId, long identityId);
+
+  /**
+   * Checks whether the user may write their own answer on the event, which is
+   * the one right that opening an event widens (eXIP 7.3.0.20). Two halves:
+   * <ul>
+   * <li>the attendee half is exactly {@link #isEventAttendee(long, long)} on
+   * the event itself, so an exceptional occurrence is checked against its own
+   * attendee list, as today;</li>
+   * <li>the open half: the event is open and the user can access its calendar
+   * (a member of the owning space). The flag belongs to the series, so it is
+   * read on the parent when the event is an occurrence.</li>
+   * </ul>
+   * Opening never widens who can see the event, only who can answer it.
+   *
+   * @param event {@link Event} to answer, as stored
+   * @param identityId {@link Identity} technical identifier of user
+   * @return true when the user may send or read an answer on the event, else
+   *         false
+   */
+  boolean canRespondToEvent(Event event, long identityId);
 
 }

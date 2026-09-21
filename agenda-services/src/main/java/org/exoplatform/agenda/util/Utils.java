@@ -40,6 +40,7 @@ import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.ExoContainerContext;
@@ -526,6 +527,36 @@ public class Utils {
     } else {
       return false;
     }
+  }
+
+  /**
+   * The non-attendee half of the event visibility rule, shared by
+   * {@code AgendaEventService#canAccessEvent} and
+   * {@code AgendaEventAttendeeService#canRespondToEvent} so that both apply one
+   * rule: the calendar exists and isn't deleted, the identity is a user (a
+   * space acting as principal, or a guest identity, reaches an event only as
+   * an attendee) and the user can access the calendar owner: themselves, or a
+   * space they can view.
+   *
+   * @param identityManager {@link IdentityManager} service instance
+   * @param spaceService {@link SpaceService} service instance
+   * @param calendar {@link Calendar} of the event, as stored
+   * @param userIdentityId {@link Identity} identifier of the user
+   * @return true if the user can access the events of the calendar through
+   *         its owner, else false
+   */
+  public static boolean canAccessEventCalendar(IdentityManager identityManager,
+                                               SpaceService spaceService,
+                                               Calendar calendar,
+                                               long userIdentityId) {
+    if (calendar == null || calendar.isDeleted()) {
+      return false;
+    }
+    Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
+    if (userIdentity == null || !StringUtils.equals(OrganizationIdentityProvider.NAME, userIdentity.getProviderId())) {
+      return false;
+    }
+    return canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId);
   }
 
   public static void broadcastEvent(ListenerService listenerService, String eventName, Object source, Object data) {
