@@ -39,7 +39,6 @@ import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
-import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.metadata.MetadataService;
@@ -985,12 +984,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (identity == null) {
       return false;
     }
-    if (StringUtils.equals(OrganizationIdentityProvider.NAME, identity.getProviderId())) {
-      return Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), identityId)
-          || attendeeService.isEventAttendee(getEventIdOrParentId(event), identityId);
-    } else {
-      return attendeeService.isEventAttendee(getEventIdOrParentId(event), identityId);
-    }
+    // The calendar half is the one the answer right of an open event reuses
+    // (AgendaEventAttendeeService#canRespondToEvent): one rule, written once
+    return Utils.canAccessEventCalendar(identityManager, spaceService, calendar, identityId)
+        || attendeeService.isEventAttendee(getEventIdOrParentId(event), identityId);
   }
 
   /**
