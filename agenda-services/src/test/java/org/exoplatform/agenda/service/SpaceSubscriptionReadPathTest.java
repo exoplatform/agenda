@@ -294,6 +294,7 @@ class SpaceSubscriptionReadPathTest {
     when(attendeeStorage.getEventAttendees(anyLong())).thenReturn(EventAttendeeList.EMPTY_ATTENDEE_LIST);
     AgendaEventAttendeeServiceImpl attendees = new AgendaEventAttendeeServiceImpl(attendeeStorage,
                                                                                   eventStorage,
+                                                                                  calendarService,
                                                                                   mock(ListenerService.class),
                                                                                   identityManager,
                                                                                   spaceService,

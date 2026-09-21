@@ -23,6 +23,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.junit.Test;
 
@@ -810,4 +811,290 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                                                              Long.parseLong(testuser5Identity.getId())));
   }
 
+  /*
+   * eXIP 7.3.0.20 (EXO-89479): answering an open event. The gate is
+   * AgendaEventAttendeeService#canRespondToEvent, applied by getEventResponse,
+   * sendEventResponse and sendUpcomingEventResponse. Fixture: testuser1, 2 and
+   * 3 are members of the space owning spaceCalendar; testuser4 and 5 are not.
+   */
+
+  @Test
+  public void testOpenEventLetsAnySpaceMemberAnswer() throws Exception { // NOSONAR
+    Event event = createSpaceEvent(getDate().withNano(0), true, false, testuser1Identity);
+    long eventId = event.getId();
+    long memberId = Long.parseLong(testuser2Identity.getId()); // member, not invited
+    long outsiderId = Long.parseLong(testuser4Identity.getId()); // neither member nor invited
+
+    Event storedEvent = agendaEventService.getEventById(eventId);
+    assertEquals(Boolean.TRUE, storedEvent.getOpen());
+    assertFalse(agendaEventAttendeeService.isEventAttendee(eventId, memberId));
+    assertTrue(agendaEventAttendeeService.canRespondToEvent(storedEvent, memberId));
+    assertFalse(agendaEventAttendeeService.canRespondToEvent(storedEvent, outsiderId));
+    assertFalse(agendaEventAttendeeService.canRespondToEvent(null, memberId));
+    assertFalse(agendaEventAttendeeService.canRespondToEvent(storedEvent, 0));
+
+    // Reading one's answer goes through the same gate: no answer yet, no error
+    assertEquals(EventAttendeeResponse.NEEDS_ACTION, agendaEventAttendeeService.getEventResponse(eventId, null, memberId));
+
+    // Answering is becoming an attendee
+    agendaEventAttendeeService.sendEventResponse(eventId, memberId, EventAttendeeResponse.ACCEPTED);
+    assertTrue(agendaEventAttendeeService.isEventAttendee(eventId, memberId));
+    assertEquals(EventAttendeeResponse.ACCEPTED, agendaEventAttendeeService.getEventResponse(eventId, null, memberId));
+
+    // A second answer updates that row, as for an invitee
+    agendaEventAttendeeService.sendEventResponse(eventId, memberId, EventAttendeeResponse.TENTATIVE);
+    assertEquals(EventAttendeeResponse.TENTATIVE, agendaEventAttendeeService.getEventResponse(eventId, null, memberId));
+    assertEquals(1, agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees(memberId).size());
+
+    // Opening widens the answer right to whoever can see the event, no further
+    try {
+      agendaEventAttendeeService.sendEventResponse(eventId, outsiderId, EventAttendeeResponse.ACCEPTED);
+      fail("a user who can't access the event can't answer it, open or not");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    try {
+      agendaEventAttendeeService.getEventResponse(eventId, null, outsiderId);
+      fail("a user who can't access the event can't read an answer on it either");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertFalse(agendaEventAttendeeService.isEventAttendee(eventId, outsiderId));
+
+    // A non-user identity (the space itself acting as principal) can't answer
+    // either, mirroring canAccessEvent: the open half admits users only
+    long spaceIdentityId = Long.parseLong(spaceIdentity.getId());
+    assertFalse(agendaEventAttendeeService.canRespondToEvent(storedEvent, spaceIdentityId));
+    try {
+      agendaEventAttendeeService.sendEventResponse(eventId, spaceIdentityId, EventAttendeeResponse.ACCEPTED);
+      fail("a space acting as principal can't answer an open event");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertFalse(agendaEventAttendeeService.isEventAttendee(eventId, spaceIdentityId));
+  }
+
+  @Test
+  public void testLockedEventStillRefusesANonAttendee() throws Exception { // NOSONAR
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    long memberId = Long.parseLong(testuser2Identity.getId());
+    long inviteeId = Long.parseLong(testuser5Identity.getId()); // invited, not a member
+
+    Event lockedEvent = createSpaceEvent(getDate().withNano(0), false, false, testuser1Identity, testuser5Identity);
+    Event storedEvent = agendaEventService.getEventById(lockedEvent.getId());
+    assertEquals(Boolean.FALSE, storedEvent.getOpen());
+    assertFalse(agendaEventAttendeeService.canRespondToEvent(storedEvent, memberId));
+    try {
+      agendaEventAttendeeService.sendEventResponse(lockedEvent.getId(), memberId, EventAttendeeResponse.ACCEPTED);
+      fail("a space member who isn't invited can't answer a locked event");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    try {
+      agendaEventAttendeeService.getEventResponse(lockedEvent.getId(), null, memberId);
+      fail("a space member who isn't invited can't read an answer on a locked event");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertFalse(agendaEventAttendeeService.isEventAttendee(lockedEvent.getId(), memberId));
+
+    // The invitee's experience is untouched, member of the space or not
+    assertTrue(agendaEventAttendeeService.canRespondToEvent(storedEvent, inviteeId));
+    agendaEventAttendeeService.sendEventResponse(lockedEvent.getId(), inviteeId, EventAttendeeResponse.DECLINED);
+    assertEquals(EventAttendeeResponse.DECLINED,
+                 agendaEventAttendeeService.getEventResponse(lockedEvent.getId(), null, inviteeId));
+
+    // A personal-calendar event is never open, whatever the payload asked for
+    Event personalEvent = newEventInstance(getDate().withNano(0), getDate().withNano(0), true);
+    personalEvent.setRecurrence(null);
+    personalEvent.setOpen(true);
+    personalEvent = createEvent(personalEvent.clone(), creatorId, testuser1Identity);
+    Event storedPersonalEvent = agendaEventService.getEventById(personalEvent.getId());
+    assertEquals(Boolean.FALSE, storedPersonalEvent.getOpen());
+    assertFalse(agendaEventAttendeeService.canRespondToEvent(storedPersonalEvent, memberId));
+    try {
+      agendaEventAttendeeService.sendEventResponse(personalEvent.getId(), memberId, EventAttendeeResponse.ACCEPTED);
+      fail("nobody self-registers on a personal-calendar event");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+  }
+
+  @Test
+  public void testOpenFlagOfTheSeriesGatesItsOccurrences() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    long memberId = Long.parseLong(testuser2Identity.getId());
+    long otherMemberId = Long.parseLong(testuser3Identity.getId());
+
+    Event series = createSpaceEvent(start, true, true, testuser1Identity);
+    Event occurrence = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start);
+    Event storedOccurrence = agendaEventService.getEventById(occurrence.getId());
+    // The occurrence row says nothing; the series does
+    assertEquals(Boolean.FALSE, storedOccurrence.getOpen());
+    assertTrue(agendaEventAttendeeService.canRespondToEvent(storedOccurrence, memberId));
+
+    // Answering on one occurrence enrols on that occurrence only
+    agendaEventAttendeeService.sendEventResponse(occurrence.getId(), memberId, EventAttendeeResponse.ACCEPTED);
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(occurrence.getId(), null, memberId));
+    assertFalse(agendaEventAttendeeService.isEventAttendee(series.getId(), memberId));
+
+    // "This and upcoming" on the series goes through the same door
+    ZonedDateTime fromOccurrenceId = start.plusDays(1);
+    agendaEventAttendeeService.sendUpcomingEventResponse(series.getId(),
+                                                         fromOccurrenceId,
+                                                         memberId,
+                                                         EventAttendeeResponse.TENTATIVE);
+    assertTrue(agendaEventAttendeeService.isEventAttendee(series.getId(), memberId));
+    assertEquals(EventAttendeeResponse.TENTATIVE,
+                 agendaEventAttendeeService.getEventResponse(series.getId(), fromOccurrenceId, memberId));
+
+    // Locking the series locks its occurrences for whoever hasn't answered yet
+    agendaEventService.updateEventFields(series.getId(), getFields("open", "false"), false, false, creatorId);
+    Event lockedOccurrence = agendaEventService.getEventById(occurrence.getId());
+    assertFalse(agendaEventAttendeeService.canRespondToEvent(lockedOccurrence, otherMemberId));
+    try {
+      agendaEventAttendeeService.sendEventResponse(occurrence.getId(), otherMemberId, EventAttendeeResponse.ACCEPTED);
+      fail("an occurrence of a locked series refuses a non-attendee");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    // while whoever registered before the lock keeps answering, as an attendee (D4)
+    agendaEventAttendeeService.sendEventResponse(occurrence.getId(), memberId, EventAttendeeResponse.DECLINED);
+    assertEquals(EventAttendeeResponse.DECLINED,
+                 agendaEventAttendeeService.getEventResponse(occurrence.getId(), null, memberId));
+  }
+
+  @Test
+  public void testRemovedParticipantOfAnOpenSeriesMayRegisterAgainOnThatOccurrence() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    long memberId = Long.parseLong(testuser2Identity.getId());
+
+    Event series = createSpaceEvent(start, true, true, testuser1Identity, testuser2Identity);
+    Event occurrence = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start);
+    assertTrue(agendaEventAttendeeService.isEventAttendee(occurrence.getId(), memberId));
+
+    // The organiser removes the participant from this occurrence only
+    removeAttendee(occurrence.getId(), memberId, creatorId);
+    assertFalse(agendaEventAttendeeService.isEventAttendee(occurrence.getId(), memberId));
+    assertTrue(agendaEventAttendeeService.isEventAttendee(series.getId(), memberId));
+
+    // Neither the opening nor an answer on the series puts them back (D6)
+    agendaEventAttendeeService.sendEventResponse(series.getId(), memberId, EventAttendeeResponse.ACCEPTED);
+    assertFalse(agendaEventAttendeeService.isEventAttendee(occurrence.getId(), memberId));
+
+    // The removal is not a ban: on an open series they register again by themselves
+    Event storedOccurrence = agendaEventService.getEventById(occurrence.getId());
+    assertTrue(agendaEventAttendeeService.canRespondToEvent(storedOccurrence, memberId));
+    agendaEventAttendeeService.sendEventResponse(occurrence.getId(), memberId, EventAttendeeResponse.TENTATIVE);
+    assertTrue(agendaEventAttendeeService.isEventAttendee(occurrence.getId(), memberId));
+    assertEquals(EventAttendeeResponse.TENTATIVE,
+                 agendaEventAttendeeService.getEventResponse(occurrence.getId(), null, memberId));
+
+    // On a locked series the removal holds, exactly as today (US05)
+    agendaEventService.updateEventFields(series.getId(), getFields("open", "false"), false, false, creatorId);
+    removeAttendee(occurrence.getId(), memberId, creatorId);
+    assertFalse(agendaEventAttendeeService.canRespondToEvent(agendaEventService.getEventById(occurrence.getId()), memberId));
+    try {
+      agendaEventAttendeeService.sendEventResponse(occurrence.getId(), memberId, EventAttendeeResponse.ACCEPTED);
+      fail("a participant removed from an occurrence of a locked series can't answer on it");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    agendaEventAttendeeService.sendEventResponse(series.getId(), memberId, EventAttendeeResponse.DECLINED);
+    assertFalse(agendaEventAttendeeService.isEventAttendee(occurrence.getId(), memberId));
+  }
+
+  @Test
+  public void testSelfRegistrationOnTheSeriesCreatesNoRowOnExistingExceptionalOccurrences() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long memberId = Long.parseLong(testuser2Identity.getId());
+
+    Event series = createSpaceEvent(start, true, true, testuser1Identity);
+    Event existingOccurrence = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start);
+
+    agendaEventAttendeeService.sendEventResponse(series.getId(), memberId, EventAttendeeResponse.ACCEPTED);
+    assertTrue(agendaEventAttendeeService.isEventAttendee(series.getId(), memberId));
+    // Stated consequence (spec, Propagation): an exceptional occurrence that
+    // already exists is joined by answering on it, occurrence by occurrence
+    assertFalse(agendaEventAttendeeService.isEventAttendee(existingOccurrence.getId(), memberId));
+    // whereas one created afterwards copies the series list, self-registrant included
+    Event laterOccurrence = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start.plusDays(1));
+    assertTrue(agendaEventAttendeeService.isEventAttendee(laterOccurrence.getId(), memberId));
+  }
+
+  /**
+   * Pins the approved formula on the one population the board sentence "same
+   * behaviour for invited participants and for self-registered participants"
+   * does not cover: an invitee who is not a member of the space. The attendee
+   * half of the gate is per event and the open half needs access to the
+   * calendar, so once the organiser removed them from an occurrence of an
+   * open series they can't register again on it, and can't open its page
+   * either (canAccessEvent applies the same two halves). Recorded for the PO
+   * and the Architect as a functional divergence (spec revision 4); this pin
+   * flips with their decision, it does not settle it.
+   */
+  @Test
+  public void testRemovedInviteeWithoutSpaceAccessCannotRegisterAgainOnTheOccurrence() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    long inviteeId = Long.parseLong(testuser5Identity.getId()); // invited, not a member
+
+    Event series = createSpaceEvent(start, true, true, testuser1Identity, testuser5Identity);
+    Event occurrence = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start);
+    assertTrue(agendaEventAttendeeService.isEventAttendee(occurrence.getId(), inviteeId));
+
+    removeAttendee(occurrence.getId(), inviteeId, creatorId);
+    assertTrue(agendaEventAttendeeService.isEventAttendee(series.getId(), inviteeId));
+    Event storedOccurrence = agendaEventService.getEventById(occurrence.getId());
+    assertFalse(agendaEventAttendeeService.canRespondToEvent(storedOccurrence, inviteeId));
+    assertFalse(agendaEventService.canAccessEvent(storedOccurrence, inviteeId));
+    try {
+      agendaEventAttendeeService.sendEventResponse(occurrence.getId(), inviteeId, EventAttendeeResponse.ACCEPTED);
+      fail("an invitee without access to the space can't register again on an occurrence they were removed from");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    // They keep answering on the series and its other occurrences, as an attendee
+    agendaEventAttendeeService.sendEventResponse(series.getId(), inviteeId, EventAttendeeResponse.TENTATIVE);
+    assertEquals(EventAttendeeResponse.TENTATIVE,
+                 agendaEventAttendeeService.getEventResponse(series.getId(), null, inviteeId));
+    assertFalse(agendaEventAttendeeService.isEventAttendee(occurrence.getId(), inviteeId));
+  }
+
+  /**
+   * An event of the space calendar, created by testuser1. The default
+   * recurrence of newEventInstance is daily for three days.
+   */
+  private Event createSpaceEvent(ZonedDateTime start,
+                                 boolean open,
+                                 boolean recurrent,
+                                 Identity... attendees) throws Exception {
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(open);
+    if (!recurrent) {
+      event.setRecurrence(null);
+    }
+    return createEvent(event.clone(), Long.parseLong(testuser1Identity.getId()), attendees);
+  }
+
+  /** What the organiser does from the participants drawer of one occurrence. */
+  private void removeAttendee(long eventId, long identityId, long modifierId) {
+    Event event = agendaEventService.getEventById(eventId);
+    List<EventAttendee> remainingAttendees = agendaEventAttendeeService.getEventAttendees(eventId)
+                                                                       .getEventAttendees()
+                                                                       .stream()
+                                                                       .filter(attendee -> attendee.getIdentityId() != identityId)
+                                                                       .collect(Collectors.toList());
+    agendaEventAttendeeService.saveEventAttendees(event,
+                                                  remainingAttendees,
+                                                  modifierId,
+                                                  false,
+                                                  false,
+                                                  new AgendaEventModification(eventId, event.getCalendarId(), modifierId));
+  }
 }

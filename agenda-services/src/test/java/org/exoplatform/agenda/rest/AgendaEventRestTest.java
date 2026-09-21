@@ -31,6 +31,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
@@ -59,6 +60,11 @@ import javax.ws.rs.core.Response;
  * The mapping lives in ordered catch blocks, which no service-level test can
  * see: a reordering, or a broader catch inserted above them, restores the old
  * answers with every other test still green.
+ * <p>
+ * Also pins the pre-check of {@code GET /v1/agenda/events/{id}/response/send}
+ * (EXO-89479): it asks the Service for the answer right, so a viewer of an
+ * open event gets through, and a refused caller is stopped before the
+ * occurrence branch writes anything.
  */
 class AgendaEventRestTest {
 
@@ -70,6 +76,8 @@ class AgendaEventRestTest {
 
   private AgendaEventService         agendaEventService;
 
+  private AgendaEventAttendeeService attendeeService;
+
   private IdentityManager            identityManager;
 
   private AgendaEventRest            eventRest;
@@ -78,6 +86,7 @@ class AgendaEventRestTest {
   void setUp() {
     identityManager = Mockito.mock(IdentityManager.class);
     agendaEventService = Mockito.mock(AgendaEventService.class);
+    attendeeService = Mockito.mock(AgendaEventAttendeeService.class);
     // The resource resolves its caller from the conversation state, as every
     // real request does
     ConversationState.setCurrent(new ConversationState(new org.exoplatform.services.security.Identity(USERNAME)));
@@ -92,7 +101,7 @@ class AgendaEventRestTest {
                                     Mockito.mock(AgendaRemoteEventService.class),
                                     Mockito.mock(AgendaEventDatePollService.class),
                                     Mockito.mock(AgendaEventReminderService.class),
-                                    Mockito.mock(AgendaEventAttendeeService.class),
+                                    attendeeService,
                                     Mockito.mock(PortalContainer.class));
   }
 
@@ -140,6 +149,32 @@ class AgendaEventRestTest {
     Response response = patch(new MultivaluedMapImpl());
 
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+  }
+
+  @Test
+  void aViewerOfAnOpenEventAnswersThroughTheLink() throws Exception {
+    Event event = new Event();
+    when(agendaEventService.getEventById(EVENT_ID)).thenReturn(event);
+    when(attendeeService.canRespondToEvent(event, USER_IDENTITY_ID)).thenReturn(true);
+    // isEventAttendee stays unstubbed, false: the caller is a self-registrant
+
+    Response response = eventRest.sendEventResponse(null, EVENT_ID, null, "ACCEPTED", false, null, false);
+
+    assertEquals(Response.Status.NO_CONTENT.getStatusCode(), response.getStatus());
+    Mockito.verify(attendeeService).sendEventResponse(EVENT_ID, USER_IDENTITY_ID, EventAttendeeResponse.ACCEPTED);
+  }
+
+  @Test
+  void aRefusedCallerLeavesNoExceptionalOccurrenceBehind() throws Exception {
+    Event event = new Event();
+    when(agendaEventService.getEventById(EVENT_ID)).thenReturn(event);
+    when(attendeeService.canRespondToEvent(event, USER_IDENTITY_ID)).thenReturn(false);
+
+    Response response = eventRest.sendEventResponse(null, EVENT_ID, "2026-09-18T08:00:00.000Z", "ACCEPTED", false, null, false);
+
+    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
+    Mockito.verify(agendaEventService, Mockito.never()).saveEventExceptionalOccurrence(anyLong(), any());
+    Mockito.verify(attendeeService, Mockito.never()).sendEventResponse(anyLong(), anyLong(), any());
   }
 
   private Response patch(MultivaluedMap<String, String> fields) {
