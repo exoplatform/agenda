@@ -624,7 +624,7 @@
     {
       "name": "respond_to_agenda_event",
       "title": "Respond to an agenda event",
-      "description": "Respond to an event invitation as the current user with ACCEPTED, DECLINED or TENTATIVE. The optional comment is accepted but not persisted (no backend storage for response comments).",
+      "description": "Respond to an event as the current user with ACCEPTED, DECLINED or TENTATIVE: as an invited attendee, or, when the event is open (is_open true), as any user who can access it. The optional comment is accepted but not persisted (no backend storage for response comments).",
       "input_schema": {
         "type": "object",
         "properties": {
