@@ -797,7 +797,8 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     return getEventAttendees(agendaEventService.getEventById(eventId));
   }
 
-  // Respond to an event invitation as the current user with ACCEPTED, DECLINED or TENTATIVE (comment is not persisted).
+  // Respond to an event as the current user with ACCEPTED, DECLINED or TENTATIVE (comment is not persisted): as an
+  // invited attendee, or as any viewer of an open event (the Service applies the rule, this tool adds no check).
   public AgendaEventModel respondToAgendaEvent(Long eventId,
                                                String response,
                                                String comment) throws ObjectNotFoundException, IllegalAccessException {

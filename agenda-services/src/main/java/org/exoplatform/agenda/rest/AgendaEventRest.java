@@ -1359,7 +1359,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   // This query modify data, and use GET verb. It is used in mail notification to accept events with a link, and it is not possible to make a POST by this way. So we keep GET here and assume that it will not be protected by CSRF protection
   @Operation(
       summary = "Send event invitation response for currently authenticated user",
-      description = "Send event invitation response for currently authenticated user (using token or effectively authenticated)",
+      description = "Send event invitation response for currently authenticated user (using token or effectively authenticated). An invited attendee may always answer; on an open event, so may any user who can access it.",
       method = "GET")
   @ApiResponses(
       value = {
@@ -1451,8 +1451,17 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       }
       currentUser = identity.getRemoteId();
       long identityId = Long.parseLong(identity.getId());
-      if (!agendaEventAttendeeService.isEventAttendee(eventId, identityId)) {
-        throw new IllegalAccessException("User " + currentUser + " isn't attendee of event with id " + eventId);
+      // Checked here, on the series, before anything is written: the
+      // occurrence branch below materialises an exceptional occurrence before
+      // it answers on it, and a refused caller must not leave one behind. The
+      // Service applies the same rule again on the event it writes.
+      Event event = agendaEventService.getEventById(eventId);
+      if (event == null) {
+        throw new ObjectNotFoundException("Event with id " + eventId + " wasn't found");
+      }
+      if (!agendaEventAttendeeService.canRespondToEvent(event, identityId)) {
+        throw new IllegalAccessException("User " + currentUser + " may not answer event with id " + eventId
+            + ": not an attendee, and the event isn't open to them");
       }
 
       if (StringUtils.isBlank(occurrenceId)) {
