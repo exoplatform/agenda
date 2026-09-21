@@ -54,7 +54,7 @@
       </div>
     </v-col>
     <v-col class="px-0 flex-grow-1 flex-shrink-0 mx-2">
-      <template v-if="!isTentativeEvent && isAttendee && !$root.isMobile">
+      <template v-if="!isTentativeEvent && canRespond && !$root.isMobile">
         <agenda-event-attendee-buttons
           ref="eventAttendeeButtons"
           :event="event" />
@@ -123,6 +123,15 @@ export default {
       default: () => null
     },
     isAttendee: {
+      type: Boolean,
+      default: false
+    },
+    /**
+     * Whether the answer buttons are shown: an invitee, or any viewer of an
+     * open event. Kept apart from isAttendee, which extensions still read
+     * through the header extension point's params.
+     */
+    canRespond: {
       type: Boolean,
       default: false
     },
