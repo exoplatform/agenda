@@ -22,6 +22,53 @@
 const AGENDA_REST_BASE = '/agenda/rest';
 
 /**
+ * The refusal codes the server answers on the link endpoints, each with a
+ * sentence of its own in the bundle -- these are the codes
+ * AgendaCalendarLinkRest actually throws (agenda.calendarLink.*, read from
+ * AgendaCalendarLinkServiceImpl and AgendaCalendarLinkRest at
+ * develop/backport/EXO-90236), not a separate namespace of their own.
+ */
+export const ERROR_CODES = [
+  'agenda.calendarLink.forbidden',
+  'agenda.calendarLink.calendarNotFound',
+  'agenda.calendarLink.invalidCalendar',
+];
+
+/**
+ * The bundle key of the sentence to show for a refusal code, falling back to
+ * one generic key per kind of operation rather than the sibling
+ * CalendarSubscriptionService's single flat fallback: a read and a write
+ * failing for an unrecognised reason already had distinct wordings here
+ * (agenda.calendarPublish.loadError / .error), and losing that distinction
+ * would be a regression this fix does not need to make.
+ *
+ * @param {String} code the code the server answered, may be empty
+ * @param {String} fallback the generic key to fall back to
+ * @returns {String} the bundle key
+ */
+export function errorMessageKey(code, fallback) {
+  return ERROR_CODES.includes(code) ? code : fallback;
+}
+
+/**
+ * Reads an answer: its JSON body, nothing for 204, and an error carrying the
+ * server's refusal code as its message otherwise -- the code, never a
+ * hard-coded sentence, so the caller can translate it (or fall back) itself.
+ *
+ * @param {Response} resp the answer
+ * @returns {Promise} the body
+ */
+function handle(resp) {
+  if (resp && resp.ok) {
+    return resp.status === 204 ? null : resp.json();
+  }
+  const body = resp && typeof resp.json === 'function' ? resp.json().catch(() => ({})) : Promise.resolve({});
+  return body.then(content => {
+    throw new Error(content && content.message || '');
+  });
+}
+
+/**
  * How long a listing of every link is shared by whoever asks for it. Every row
  * of the left panel asks when it is drawn and again on every refresh event;
  * within this window they all get the one request the first of them made.
@@ -53,12 +100,7 @@ export function getCalendarLinks(refresh) {
   listing = fetch(`${AGENDA_REST_BASE}/calendars/links`, {
     method: 'GET',
     credentials: 'include',
-  }).then(resp => {
-    if (!resp || !resp.ok) {
-      throw new Error('Error retrieving the calendar links');
-    }
-    return resp.json();
-  }).catch(error => {
+  }).then(handle).catch(error => {
     listing = null;
     throw error;
   });
@@ -92,12 +134,7 @@ export function getCalendarLink(calendarId) {
   return fetch(`${AGENDA_REST_BASE}/calendars/${calendarId}/link`, {
     method: 'GET',
     credentials: 'include',
-  }).then(resp => {
-    if (!resp || !resp.ok) {
-      throw new Error('Error retrieving the calendar link');
-    }
-    return resp.json();
-  });
+  }).then(handle);
 }
 
 /**
@@ -113,12 +150,9 @@ export function saveCalendarLink(calendarId) {
   return fetch(`${AGENDA_REST_BASE}/calendars/${calendarId}/link`, {
     method: 'POST',
     credentials: 'include',
-  }).then(resp => {
-    if (!resp || !resp.ok) {
-      throw new Error('Error creating the calendar link');
-    }
+  }).then(handle).then(status => {
     forgetCalendarLinks();
-    return resp.json();
+    return status;
   });
 }
 
@@ -133,10 +167,5 @@ export function deleteCalendarLink(calendarId) {
   return fetch(`${AGENDA_REST_BASE}/calendars/${calendarId}/link`, {
     method: 'DELETE',
     credentials: 'include',
-  }).then(resp => {
-    if (!resp || !resp.ok) {
-      throw new Error('Error deleting the calendar link');
-    }
-    forgetCalendarLinks();
-  });
+  }).then(handle).then(() => forgetCalendarLinks());
 }

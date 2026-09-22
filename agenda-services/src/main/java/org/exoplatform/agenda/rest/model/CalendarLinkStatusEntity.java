@@ -54,7 +54,11 @@ public class CalendarLinkStatusEntity {
   /** Creation date in milliseconds since the epoch, 0 when there is no link. */
   private long    createdDate;
 
-  /** The link's URL, set only while it answers and can be displayed. */
+  /**
+   * The link's URL, set only while it answers and can be displayed -- and
+   * only on a per-calendar read; the listing carries none, so that publishing
+   * every calendar's working feed URL is not the price of drawing a row icon.
+   */
   private String  url;
 
   /**
