@@ -722,6 +722,39 @@ public class AgendaCalendarServiceTest {
     assertNotNull(calendar.getUpdated());
   }
 
+  /**
+   * A subscribed calendar is managed through its subscription, not through
+   * this method (EXO-90278): the guard refuses it as a wrong door, not as an
+   * ACL refusal -- IllegalAccessException would tell the caller they lack a
+   * permission they have, since they may well own the calendar.
+   */
+  @Test
+  public void testUpdateCalendarRefusesASubscribedCalendarAsWrongDoorNotAsRefusal() throws Exception { // NOSONAR
+    long calendarId = 1;
+    long calendarOwnerId = 2;
+    String username = "test";
+
+    Calendar calendar = new Calendar(calendarId,
+                                     calendarOwnerId,
+                                     true,
+                                     "title",
+                                     "description",
+                                     null,
+                                     null,
+                                     "color",
+                                     null);
+    calendar.setSubscription(true);
+    when(agendaCalendarStorage.getCalendarById(eq(calendarId))).thenReturn(calendar);
+
+    try {
+      agendaCalendarService.updateCalendar(calendar, username);
+      fail("Shouldn't allow to update a subscribed calendar through this method");
+    } catch (IllegalArgumentException e) {
+      // Expected: wrong door, not IllegalAccessException
+    }
+    verify(agendaCalendarStorage, times(0)).updateCalendar(any());
+  }
+
   @Test
   public void testDeleteCalendarById() throws Exception { // NOSONAR
     // 0. Arguments validation
@@ -757,6 +790,41 @@ public class AgendaCalendarServiceTest {
     when(agendaCalendarStorage.getCalendarById(eq(calendarId))).thenReturn(calendar);
     agendaCalendarService.deleteCalendarById(calendarId);
     verify(agendaCalendarStorage, times(1)).deleteCalendarById(anyLong());
+  }
+
+  /**
+   * A subscribed calendar is removed by unsubscribing, not by this method
+   * (EXO-90278): the same wrong-door shape as the isSystem guard just above
+   * it in the service, and now the same exception type.
+   */
+  @Test
+  public void testDeleteCalendarByIdRefusesASubscribedCalendarAsWrongDoorNotAsRefusal() throws Exception { // NOSONAR
+    long calendarId = 1;
+    long calendarOwnerId = 2;
+    String username = "test";
+
+    // system=false: the isSystem guard is checked first and also throws
+    // IllegalStateException, which would let this test pass for the wrong
+    // reason without ever reaching the isSubscription guard under test.
+    Calendar calendar = new Calendar(calendarId,
+                                     calendarOwnerId,
+                                     false,
+                                     "title",
+                                     "description",
+                                     null,
+                                     null,
+                                     "color",
+                                     null);
+    calendar.setSubscription(true);
+    when(agendaCalendarStorage.getCalendarById(eq(calendarId))).thenReturn(calendar);
+
+    try {
+      agendaCalendarService.deleteCalendarById(calendarId, username);
+      fail("Shouldn't allow to delete a subscribed calendar through this method");
+    } catch (IllegalStateException e) {
+      // Expected: wrong door, not IllegalAccessException
+    }
+    verify(agendaCalendarStorage, times(0)).deleteCalendarById(anyLong());
   }
 
   @Test

@@ -111,6 +111,14 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
    * {@inheritDoc}
    */
   @Override
+  public List<Long> getCalendarIdsByOwnerId(long ownerId) {
+    return this.agendaCalendarStorage.getCalendarIdsByOwnerIds(0, Integer.MAX_VALUE, ownerId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public int countCalendars(String username) throws Exception {
     if (username == null) {
       throw new IllegalArgumentException("Username is mandatory");
@@ -342,7 +350,11 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
     // data using UI or REST calls
     refillReadOnlyFields(calendar);
     if (calendar.isSubscription()) {
-      throw new IllegalAccessException("Calendar " + calendar.getId() + " is a subscribed calendar, managed through its subscription");
+      // Wrong door, not a refusal: the caller may well own the calendar, it is
+      // managed through its subscription instead (agenda's own updateSubscription),
+      // and IllegalAccessException would tell them they lack a permission they have
+      throw new IllegalArgumentException("Calendar " + calendar.getId()
+          + " is a subscribed calendar, managed through its subscription");
     }
     Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username);
     sanitizeAndValidateName(calendar);
@@ -400,9 +412,10 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
       throw new IllegalStateException("Calendar with id " + calendarId + " is a system calendar, thus it couldn't be deleted");
     }
     if (calendar.isSubscription()) {
-      // Unsubscribing removes the subscription with its calendar; deleting the
+      // Wrong door, not a refusal, the same shape as the isSystem guard above:
+      // unsubscribing removes the subscription with its calendar; deleting the
       // calendar alone would leave a feed refreshing into nothing (EXO-90278)
-      throw new IllegalAccessException("Calendar " + calendarId + " is a subscribed calendar, removed by unsubscribing");
+      throw new IllegalStateException("Calendar " + calendarId + " is a subscribed calendar, removed by unsubscribing");
     }
     Utils.checkAclByCalendarOwner(identityManager, spaceService, calendar.getOwnerId(), username);
     deleteCalendarById(calendarId);
