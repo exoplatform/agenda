@@ -16,13 +16,6 @@
  */
 
 /**
- * How long a press outside a calendar menu waits before closing it — the delay
- * social's own menus use (SpaceHamburgerActionMenu, ActivityHeadMenu), so that a
- * press on another menu's activator settles before this one goes.
- */
-export const ROW_MENU_CLOSE_DELAY = 200;
-
-/**
  * The class of a calendar row menu's content, the part a press does not close.
  */
 export const ROW_MENU_CONTENT_CLASS = 'agendaCalendarRowMenu';
@@ -40,14 +33,20 @@ export const ROW_MENU_CONTENT_CLASS = 'agendaCalendarRowMenu';
  * that is not inside it: a click on the grid never reaches the listener, so the
  * menu stays open and several end up open at once.
  *
- * <p><b>The pattern followed.</b> Social's "workaround to fix closing menu when
- * clicking outside" in SpaceHamburgerActionMenu and ActivityHeadMenu: the menu
- * is driven by the component's state, a mousedown listener sits on the whole
- * document while a menu is open, and closes it after a short delay. Two
- * additions, both needed by lists of rows: a press inside the menu's own
- * content does not close it (so an entry held down a little longer still gets
- * its click), and opening a menu tells every other calendar menu of the app to
- * close (one root event, whichever list or row holds the other menu).
+ * <p><b>The pattern followed, with one difference from social's own.</b> The menu
+ * is driven by the component's state and a listener sits on the whole document
+ * while a menu is open, as SpaceHamburgerActionMenu and ActivityHeadMenu do —
+ * but on `click`, not `mousedown`: every consumer here opens through a real
+ * Vuetify activator (`#activator="{ on, attrs }"`, never `open-on-hover`), and
+ * `Activatable.genActivatorListeners()` stops propagation in its click branch
+ * before toggling `isActive`, so the activator's own click never reaches this
+ * document listener — no race with the press that opened the menu, and no
+ * delay needed to outlast one (frontend-vue.md, "the menu has a Vuetify
+ * activator opened on click"). Two additions, both needed by lists of rows: a
+ * press inside the menu's own content does not close it (so an entry held down
+ * a little longer still gets its click), and opening a menu tells every other
+ * calendar menu of the app to close (one root event, whichever list or row
+ * holds the other menu).
  *
  * <p>Escape and choosing an entry still close the menu through Vuetify's own
  * handling, which updates the state through the menu's input event.
@@ -70,11 +69,11 @@ export default {
      */
     openRowMenu(current, previous) {
       if (current === null) {
-        document.removeEventListener('mousedown', this.closeRowMenuOnOutsidePress);
+        document.removeEventListener('click', this.closeRowMenuOnOutsidePress);
         return;
       }
       if (previous === null) {
-        document.addEventListener('mousedown', this.closeRowMenuOnOutsidePress);
+        document.addEventListener('click', this.closeRowMenuOnOutsidePress);
       }
       this.$root.$emit('agenda-calendar-row-menu-opened', this._uid);
     },
@@ -84,7 +83,7 @@ export default {
   },
   beforeDestroy() {
     this.$root.$off('agenda-calendar-row-menu-opened', this.closeRowMenuOpenedElsewhere);
-    document.removeEventListener('mousedown', this.closeRowMenuOnOutsidePress);
+    document.removeEventListener('click', this.closeRowMenuOnOutsidePress);
   },
   methods: {
     /**
@@ -112,10 +111,11 @@ export default {
       }
     },
     /**
-     * Closes the open menu after a press anywhere outside its content, once the
-     * press has settled — unless a menu of another row opened meanwhile.
+     * Closes the open menu on a click anywhere outside its content — the
+     * activator's own click never reaches here, so no delay is needed to
+     * outlast the press that opened the menu.
      *
-     * @param {Event} event the mousedown
+     * @param {Event} event the click
      * @returns {void}
      */
     closeRowMenuOnOutsidePress(event) {
@@ -123,12 +123,7 @@ export default {
       if (target && target.closest && target.closest(`.${ROW_MENU_CONTENT_CLASS}`)) {
         return;
       }
-      const key = this.openRowMenu;
-      window.setTimeout(() => {
-        if (this.openRowMenu === key) {
-          this.openRowMenu = null;
-        }
-      }, ROW_MENU_CLOSE_DELAY);
+      this.openRowMenu = null;
     },
     /**
      * Closes this component's menu when a calendar menu opened in another one.
