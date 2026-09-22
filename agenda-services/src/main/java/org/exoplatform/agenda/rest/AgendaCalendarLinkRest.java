@@ -134,7 +134,8 @@ public class AgendaCalendarLinkRest {
   @Operation(summary = "List the private links of the calendars the user manages", method = "GET",
              description = "Answers one entry per calendar that has a link, among the user's own calendars and the calendars"
                  + " of the spaces they manage, with the same status as the per-calendar read plus the calendar's title and"
-                 + " kind.")
+                 + " kind -- except the URL itself, which this listing never carries; read the per-calendar status to"
+                 + " display or copy it.")
   @ApiResponses(value = {
       @ApiResponse(responseCode = "200", description = "Request fulfilled"),
       @ApiResponse(responseCode = "403", description = "The user has no usable identity"),
@@ -323,7 +324,13 @@ public class AgendaCalendarLinkRest {
    * @return the entity
    */
   private CalendarLinkStatusEntity listed(HttpServletRequest request, CalendarLink link, Map<String, Identity> identities) {
-    CalendarLinkStatusEntity entity = toEntity(request, link.getCalendarId(), link, identities);
+    // The listing draws a row icon from exists/active alone (agenda's own
+    // CalendarLinkMenuMixin never reads url) -- every calendar the user
+    // manages a link for would otherwise carry its working, bearer feed URL
+    // on every page load, in the page's JS heap from first render. The
+    // per-calendar read below still answers the URL, for the one drawer that
+    // needs to display or copy it.
+    CalendarLinkStatusEntity entity = toEntity(request, link.getCalendarId(), link, identities, false);
     Calendar calendar = agendaCalendarService.getCalendarById(link.getCalendarId());
     if (calendar == null) {
       return entity;
@@ -355,19 +362,40 @@ public class AgendaCalendarLinkRest {
                                             long calendarId,
                                             CalendarLink link,
                                             Map<String, Identity> identities) {
+    return toEntity(request, calendarId, link, identities, true);
+  }
+
+  /**
+   * Renders a link's status. The URL is composed only from the token the
+   * service hands back, which it does only for an answering link it could
+   * decrypt, to someone allowed to manage it.
+   *
+   * @param request the request, whose context the URL is built on
+   * @param calendarId the calendar asked about
+   * @param link the link, null when the calendar has none
+   * @param identities identities already read during this request
+   * @param includeUrl whether to compose and carry the actual URL -- true for
+   *          a per-calendar read, false for the listing (see {@link #listed})
+   * @return the entity
+   */
+  private CalendarLinkStatusEntity toEntity(HttpServletRequest request,
+                                            long calendarId,
+                                            CalendarLink link,
+                                            Map<String, Identity> identities,
+                                            boolean includeUrl) {
     CalendarLinkStatusEntity entity = new CalendarLinkStatusEntity();
     entity.setCalendarId(calendarId);
     if (link == null) {
       return entity;
     }
-    String url = link.isActive() && StringUtils.isNotBlank(link.getToken()) ? feedUrl(request, link.getToken()) : null;
+    boolean displayable = link.isActive() && StringUtils.isNotBlank(link.getToken());
     entity.setExists(true);
     entity.setActive(link.isActive());
-    entity.setDisplayable(url != null);
+    entity.setDisplayable(displayable);
     entity.setCreatorId(link.getCreatorId());
     entity.setCreatorName(displayName(String.valueOf(link.getCreatorId()), identities));
     entity.setCreatedDate(link.getCreatedDate());
-    entity.setUrl(url);
+    entity.setUrl(includeUrl && displayable ? feedUrl(request, link.getToken()) : null);
     return entity;
   }
 

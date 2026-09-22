@@ -239,14 +239,19 @@ class AgendaCalendarLinkRestTest {
 
   /**
    * The listing answers every link the service lists, each with its calendar's
-   * title and kind, a space's display name, the URL only for a working link
-   * that can be displayed, never cached — and names each creator once, however
-   * many links they created.
+   * title and kind, a space's display name and whether it is displayable,
+   * never cached — and names each creator once, however many links they
+   * created. It never carries the URL itself, working link included: a row
+   * icon is drawn from exists/active/displayable alone, and the working feed
+   * URL of every calendar the user manages is not the price of one. Only the
+   * per-calendar read (aCreationAndEveryReadAnswerTheUrl) answers it.
+   * Mutation-verified: handing includeUrl=true to the listing's toEntity call
+   * makes the first assertion below fail.
    *
    * @throws Exception when the request fails
    */
   @Test
-  void theListingAnswersEveryLinkWithItsCalendar() throws Exception {
+  void theListingAnswersEveryLinkWithItsCalendarButNeverTheUrl() throws Exception {
     when(service.getCalendarLinks("manager")).thenReturn(List.of(new CalendarLink(20, 3, 2000, null, null, TOKEN, true),
                                                                  new CalendarLink(21, 3, 1500, null, null, null, true),
                                                                  new CalendarLink(10, 3, 1000, null, null, null, false)));
@@ -260,7 +265,7 @@ class AgendaCalendarLinkRestTest {
     space.setProfile(spaceProfile);
     when(identityManager.getIdentity("100")).thenReturn(space);
 
-    mockMvc.perform(as("manager", get("/agenda/calendars/links").contextPath("/agenda")))
+    String body = mockMvc.perform(as("manager", get("/agenda/calendars/links").contextPath("/agenda")))
            .andExpect(status().isOk())
            .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
            .andExpect(jsonPath("$.length()").value(3))
@@ -268,7 +273,9 @@ class AgendaCalendarLinkRestTest {
            .andExpect(jsonPath("$[0].calendarKind").value("SPACE"))
            .andExpect(jsonPath("$[0].spaceDisplayName").value("Chemistry"))
            .andExpect(jsonPath("$[0].calendarTitle").value("Chemistry"))
-           .andExpect(jsonPath("$[0].url").value(org.hamcrest.Matchers.endsWith("/agenda/rest/ical/" + TOKEN + ".ics")))
+           .andExpect(jsonPath("$[0].active").value(true))
+           .andExpect(jsonPath("$[0].displayable").value(true))
+           .andExpect(jsonPath("$[0].url").doesNotExist())
            .andExpect(jsonPath("$[0].creatorName").value("Mary Manager"))
            .andExpect(jsonPath("$[1].calendarTitle").value("Lab bookings"))
            .andExpect(jsonPath("$[1].active").value(true))
@@ -277,7 +284,9 @@ class AgendaCalendarLinkRestTest {
            .andExpect(jsonPath("$[2].calendarKind").value("PERSONAL"))
            .andExpect(jsonPath("$[2].systemCalendar").value(true))
            .andExpect(jsonPath("$[2].active").value(false))
-           .andExpect(jsonPath("$[2].url").doesNotExist());
+           .andExpect(jsonPath("$[2].url").doesNotExist())
+           .andReturn().getResponse().getContentAsString();
+    assertFalse(body.contains(TOKEN), "the working link's own token must not reach the listing at all: " + body);
 
     verify(identityManager, times(1)).getIdentity("3");
     verify(identityManager, times(1)).getIdentity("100");

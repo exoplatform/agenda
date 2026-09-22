@@ -121,6 +121,8 @@
 </template>
 
 <script>
+import {errorMessageKey} from '../../js/CalendarLinkService.js';
+
 export default {
   data: () => ({
     calendar: null,
@@ -284,7 +286,7 @@ export default {
       this.loading = true;
       return this.$calendarLinkService.getCalendarLink(this.calendar.id)
         .then(status => this.status = status)
-        .catch(() => this.$root.$emit('alert-message', this.$t('agenda.calendarPublish.loadError'), 'error'))
+        .catch(error => this.$root.$emit('alert-message', this.$t(errorMessageKey(error.message, 'agenda.calendarPublish.loadError')), 'error'))
         .finally(() => this.loading = false);
     },
     /**
@@ -333,7 +335,7 @@ export default {
           this.status = status;
           this.notifyChanged();
         })
-        .catch(() => this.$root.$emit('alert-message', this.$t('agenda.calendarPublish.error'), 'error'))
+        .catch(error => this.$root.$emit('alert-message', this.$t(errorMessageKey(error.message, 'agenda.calendarPublish.error')), 'error'))
         .finally(() => this.saving = false);
     },
     /**
@@ -350,7 +352,7 @@ export default {
           this.$root.$emit('alert-message', this.$t('agenda.calendarPublish.unpublished'), 'success');
           this.notifyChanged();
         })
-        .catch(() => this.$root.$emit('alert-message', this.$t('agenda.calendarPublish.error'), 'error'))
+        .catch(error => this.$root.$emit('alert-message', this.$t(errorMessageKey(error.message, 'agenda.calendarPublish.error')), 'error'))
         .finally(() => this.saving = false);
     },
     /**
