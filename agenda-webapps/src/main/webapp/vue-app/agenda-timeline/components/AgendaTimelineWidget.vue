@@ -69,12 +69,31 @@
   </v-app>
 </template>
 <script>
+/**
+ * How far ahead an account is read when it cannot answer "the next few" and
+ * this view has no period. The window this widget has always asked for, kept
+ * for the connectors that still need one: they read one endpoint rather than
+ * one per calendar, so the horizon does not multiply for them as it did here.
+ * That is the whole claim — nothing about what a year costs them.
+ */
+const REMOTE_EVENTS_FALLBACK_HORIZON_DAYS = 365;
+
+/** How many events to ask for when the view states no limit of its own. */
+const REMOTE_EVENTS_DEFAULT_TARGET = 10;
+
 export default {
   data: () => ({
     initialized: false,
     currentSpace: null,
     calendars: [],
-    loading: false,
+    /*
+     * The two halves of a refresh, kept apart. They run concurrently and
+     * finish in either order, so one flag written by both reported the page
+     * loaded as soon as the faster half returned — normally the local store,
+     * while the remote accounts were still being read.
+     */
+    loadingStore: false,
+    loadingRemote: false,
     ownerIds: [],
     connectors: [],
     displayedEvent: [],
@@ -107,6 +126,15 @@ export default {
     periodTitle: '',
   }),
   computed: {
+    /**
+     * Whether either half of a refresh is still running. The page reports
+     * itself loaded only once both have returned.
+     *
+     * @returns {Boolean} true while the store or the remote accounts are read
+     */
+    loading() {
+      return this.loadingStore || this.loadingRemote;
+    },
     /**
      * The accounts the widget could not read, named as the user knows them.
      *
@@ -237,8 +265,15 @@ export default {
     },
   },
   watch: {
+    /**
+     * The remote half is re-read too: how much is asked of the accounts
+     * derives from how many items the view shows. Only while the timeline is
+     * rendering — that is the view whose read is bounded by the count.
+     * @returns {void}
+     */
     limit() {
       this.retrieveEvents();
+      this.refreshRemoteEvents();
     },
     initialized() {
       if (this.initialized) {
@@ -389,7 +424,7 @@ export default {
           })
           .finally(() => {
             this.initialized = true;
-            this.loading = false;
+            this.loadingStore = false;
             this.retrieveEventsFromStore();
           });
       } else {
@@ -401,7 +436,7 @@ export default {
       }
     },
     retrieveEventsFromStore() {
-      this.loading = true;
+      this.loadingStore = true;
       let agendaFilter = this.$root.timelineSettings.agendaFilter;
       if (!agendaFilter) {
         if (eXo.env.portal.spaceId && !this.$root.standalone) {
@@ -425,59 +460,141 @@ export default {
           console.error('Error retrieving events', error);
         }).finally(() => {
           this.initialized = true;
-          this.loading = false;
+          this.loadingStore = false;
         });
+    },
+    /**
+     * Re-reads the remote accounts, when the user asked to see them at all.
+     *
+     * @returns {void}
+     */
+    refreshRemoteEvents() {
+      // Only where the count is what the read is bounded by. bodyElementWidth
+      // starts at 0, so the first render is always the timeline and flips on
+      // the ResizeObserver's first delivery; without this guard that flip
+      // fired a full remote read the period watcher immediately superseded.
+      if (this.settings.showRemoteEventsForTimeLine && this.$root.isTimelineView) {
+        this.retrieveRemoteEvents();
+      }
+    },
+    /**
+     * The end of a remote read starting at the displayed period's start.
+     *
+     * @param {Number} days how far ahead to look
+     * @returns {Date} the end of the window
+     */
+    remoteHorizonEnd(days) {
+      const end = new Date(this.period.start);
+      end.setDate(end.getDate() + days);
+      return end;
     },
     /**
      * Fetches the remote events of every signed-in connected account for the
      * displayed period and merges them into one deduplicated array, each
      * event tagged with the account it came from.
      *
-     * @returns {void}
+     * While the timeline is rendering, this widget receives no period:
+     * agenda-change-period is emitted by AgendaCalendar alone, which lives in
+     * the agenda-body branch this widget renders only above the sm threshold.
+     * So in the timeline the fallback window was the only one ever used — a
+     * year of it, per calendar per account, to fill ten items (EXO-90496).
+     *
+     * An account that can answer "the next few events" is asked that, so no
+     * horizon is invented and nothing is lost however far off the next
+     * meeting is. One that cannot keeps its usual window.
+     *
+     * @returns {Promise} resolves once the remote events are in hand
      */
-    retrieveRemoteEvents() {
-      if (this.connectorStatus === 1) {
-        const startDateRFC3359 = this.$agendaUtils.toRFC3339(this.period.start, false, true);
-        let endDate = this.period.end ;
-        if (!endDate){
-          const date = new Date(this.period.start);        
-          endDate =  date.setFullYear(date.getFullYear() + 1); 
-        }
-        const endDateRFC3359 = this.$agendaUtils.toRFC3339(endDate, false, true);
-        this.loading = true;
-        // Every signed-in account is asked, and each fails on its own: one
-        // unreachable account must not blank the events the others returned
-        Promise.all(this.signedInConnectors.map(connector =>
-          connector.getEvents(startDateRFC3359, endDateRFC3359)
-            .then(answer => {
-              // A connector may report a partial read: the events it did get,
-              // beside the fact that it could not get all of them. Both halves
-              // travel on, or the view draws a short week as a whole one.
-              const read = this.$agendaUtils.readConnectorAnswer(answer);
-              read.events.forEach(event => {
-                event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
-                event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
-              });
-              return {connector, events: read.events, failed: read.failed};
-            })
-            .catch(error => {
-              console.error('Error retrieving remote events', connector.name, error);
-              // No events array at all: an account that could not answer must
-              // not reach the widget as an account that answered "nothing",
-              // which would shorten the list with nothing saying why.
-              return {connector, failed: true};
-            })))
-          .then(eventsByConnector => {
-            const sources = this.$agendaUtils.splitRemoteEventResults(eventsByConnector);
-            this.remoteEvents = sources.events;
-            this.failedConnectors = sources.failedConnectors;
-            this.loading = false;
-            this.remoteEventsLoaded = true;
-          });
-      } else {
+    async retrieveRemoteEvents() {
+      if (this.connectorStatus !== 1) {
         this.remoteEvents = [];
         this.failedConnectors = [];
+        return;
       }
+      this.loadingRemote = true;
+      try {
+        const sources = await this.readRemoteEvents();
+        this.remoteEvents = sources.events;
+        this.failedConnectors = sources.failedConnectors;
+        this.remoteEventsLoaded = true;
+      } finally {
+        // The page waits on this to stop showing itself as loading; leaving
+        // it raised on a failed read is the defect this change is about.
+        this.loadingRemote = false;
+      }
+    },
+    /**
+     * Asks one account in whichever way it can answer: the next `wanted`
+     * events when the timeline is rendering and the account knows how, the
+     * period otherwise.
+     *
+     * The test is which view is rendering, not whether a period is held.
+     * `period` has one writer — the agenda-change-period handler — and is
+     * never cleared, so a session that rendered agenda-body once keeps that
+     * period for the rest of the page's life; testing it would pin the
+     * timeline to a stale calendar window the moment the widget is narrowed
+     * back, which is exactly the horizon this change removes.
+     *
+     * The count bounds the events asked for; the list truncates at `limit`
+     * entries and a multi-day event occupies one per day, so this asks for
+     * enough rather than for exactly what is shown.
+     *
+     * @param {Object} connector the account to read
+     * @param {String} startDateRFC3359 the date to read from
+     * @param {Number} wanted how many events the view can show
+     * @returns {Promise} resolves with that account's answer
+     */
+    readOneConnector(connector, startDateRFC3359, wanted) {
+      if (this.$root.isTimelineView) {
+        if (typeof connector.getUpcomingEvents === 'function') {
+          return connector.getUpcomingEvents(startDateRFC3359, wanted);
+        }
+        return connector.getEvents(startDateRFC3359, this.remoteHorizon());
+      }
+      const endDate = this.period.end || this.remoteHorizonEnd(REMOTE_EVENTS_FALLBACK_HORIZON_DAYS);
+      return connector.getEvents(startDateRFC3359, this.$agendaUtils.toRFC3339(endDate, false, true));
+    },
+    /**
+     * The fallback window's end, as the connectors take it.
+     *
+     * @returns {String} an RFC3339 timestamp
+     */
+    remoteHorizon() {
+      return this.$agendaUtils.toRFC3339(this.remoteHorizonEnd(REMOTE_EVENTS_FALLBACK_HORIZON_DAYS), false, true);
+    },
+    /**
+     * Asks every signed-in account for its events.
+     *
+     * @returns {Promise} resolves with {events, failedConnectors}
+     */
+    readRemoteEvents() {
+      const startDateRFC3359 = this.$agendaUtils.toRFC3339(this.period.start, false, true);
+      const wanted = this.limit || REMOTE_EVENTS_DEFAULT_TARGET;
+      // Each account fails on its own: one unreachable must not blank the
+      // others. Wrapped so a connector answering anything but a promise is
+      // one failed source, not a read that never returns.
+      return Promise.all(this.signedInConnectors.map(connector =>
+        Promise.resolve()
+          .then(() => this.readOneConnector(connector, startDateRFC3359, wanted))
+          .then(answer => {
+            // A connector may report a partial read: the events it did get,
+            // beside the fact that it could not get all of them. Both halves
+            // travel on, or the view draws a short week as a whole one.
+            const read = this.$agendaUtils.readConnectorAnswer(answer);
+            read.events.forEach(event => {
+              event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
+              event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
+            });
+            return {connector, events: read.events, failed: read.failed};
+          })
+          .catch(error => {
+            console.error('Error retrieving remote events', connector.name, error);
+            // No events array at all: an account that could not answer must
+            // not reach the widget as an account that answered "nothing",
+            // which would shorten the list with nothing saying why.
+            return {connector, failed: true};
+          })))
+        .then(eventsByConnector => this.$agendaUtils.splitRemoteEventResults(eventsByConnector));
     },
     filterRemoteEvents(localEvents, remoteEvents) {
       return remoteEvents.filter(remote => {
