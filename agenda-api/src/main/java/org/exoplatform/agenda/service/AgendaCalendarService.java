@@ -81,6 +81,17 @@ public interface AgendaCalendarService {
   List<Calendar> getCalendarsByOwnerIds(List<Long> ownerIds, String username) throws IllegalAccessException;
 
   /**
+   * The technical identifiers of every calendar of the given owner, with no
+   * ACL check and no object hydration -- a caller that already knows it may
+   * see this owner's calendars uses this to build an exclusion or inclusion
+   * list without paying for a per-calendar {@link #getCalendarById(long)}.
+   *
+   * @param ownerId technical identifier of the calendar owner identity
+   * @return the calendar ids, possibly empty, never null
+   */
+  List<Long> getCalendarIdsByOwnerId(long ownerId);
+
+  /**
    * Creates a new calendar
    * 
    * @param calendar {@link Calendar} object to create

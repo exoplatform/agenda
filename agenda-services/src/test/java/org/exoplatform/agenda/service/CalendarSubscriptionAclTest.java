@@ -219,8 +219,12 @@ class CalendarSubscriptionAclTest {
     Calendar sent = calendar();
     sent.setSubscription(false);
     sent.setName("Renamed");
-    assertThrows(IllegalAccessException.class, () -> service.updateCalendar(sent, "john"));
-    assertThrows(IllegalAccessException.class, () -> service.deleteCalendarById(CALENDAR, "john"));
+    // Wrong door, not an ACL refusal (review round 1, agenda#1156, finding #9):
+    // the caller may well own the calendar, it is managed through its
+    // subscription instead, and IllegalAccessException told them they lacked a
+    // permission they had.
+    assertThrows(IllegalArgumentException.class, () -> service.updateCalendar(sent, "john"));
+    assertThrows(IllegalStateException.class, () -> service.deleteCalendarById(CALENDAR, "john"));
     verify(calendarStorage, never()).updateCalendar(any());
     verify(calendarStorage, never()).deleteCalendarById(anyLong());
 

@@ -501,6 +501,31 @@ class AgendaCalendarLinkServiceTest {
   }
 
   /**
+   * The owner's other calendars are excluded at the query, not filtered from the
+   * result: without it the DAO materialises every event of every calendar this
+   * owner has, over the whole published window, for one calendar's feed -- and a
+   * subscribed personal calendar shares the owner id with up to fifty siblings.
+   * Mutation-verified: with the exclusion removed, the captured filter carries no
+   * {@code excludedCalendarIds} and this assertion fails.
+   *
+   * @throws Exception when the service refuses
+   */
+  @Test
+  void theFeedExcludesTheOwnersOtherCalendarsAtTheQuery() throws Exception {
+    when(calendarService.getCalendarIdsByOwnerId(OWNER)).thenReturn(List.of(PERSONAL_CAL, OTHER_CAL));
+    String token = service.saveCalendarLink(PERSONAL_CAL, "owner");
+    ZonedDateTime now = ZonedDateTime.ofInstant(NOW, ZoneOffset.UTC);
+    when(eventService.getEvents(any(), any(), anyLong())).thenReturn(List.of(event(1, PERSONAL_CAL, "Kept", now.plusDays(1))));
+
+    service.getCalendarFeed(token);
+
+    ArgumentCaptor<EventFilter> filter = ArgumentCaptor.forClass(EventFilter.class);
+    verify(eventService).getEvents(filter.capture(), eq(ZoneOffset.UTC), eq(OWNER));
+    assertEquals(List.of(OTHER_CAL), filter.getValue().getExcludedCalendarIds(),
+                 "the calendar the feed is for is not excluded from itself");
+  }
+
+  /**
    * The same calendar renders the same bytes whenever it is fetched, so the
    * entity tag computed over it lets a client refreshing an unchanged calendar
    * get a 304.

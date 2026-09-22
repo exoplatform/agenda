@@ -548,6 +548,19 @@ public class AgendaCalendarLinkServiceImpl implements AgendaCalendarLinkService 
     filter.setOwnerIds(List.of(calendar.getOwnerId()));
     filter.setStart(now.minusDays(PAST_DAYS));
     filter.setEnd(now.plusDays(FUTURE_DAYS));
+    // The owner id alone cannot select one calendar: every personal calendar of an
+    // owner shares that owner id, and a subscribed calendar shares it with the
+    // subscriber's own (EventFilter.excludedCalendarIds' own Javadoc explains why
+    // this is a subtraction rather than an inclusion list). Without it the DAO
+    // materialised every event of every calendar this owner has -- up to ~50
+    // subscribed calendars of 2000 imported events each, for one calendar's feed.
+    List<Long> siblingCalendarIds = agendaCalendarService.getCalendarIdsByOwnerId(calendar.getOwnerId())
+                                                          .stream()
+                                                          .filter(id -> id != null && id != calendar.getId())
+                                                          .toList();
+    if (!siblingCalendarIds.isEmpty()) {
+      filter.setExcludedCalendarIds(siblingCalendarIds);
+    }
     List<Event> events;
     try {
       events = agendaEventService.getEvents(filter, ZoneOffset.UTC, creatorId);
