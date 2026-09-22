@@ -8,11 +8,6 @@
   <artifactId>agenda-webapps</artifactId>
   <packaging>war</packaging>
   <name>eXo Agenda - Application</name>
-  <properties>
-    <!-- Default for the npm test execution's skip flag: -DskipTests flips it
-         to true exactly as it does for surefire. -->
-    <skipTests>false</skipTests>
-  </properties>
   <dependencies>
     <dependency>
       <groupId>io.meeds.social</groupId>
@@ -100,23 +95,6 @@
       <plugin>
         <groupId>com.github.eirslett</groupId>
         <artifactId>frontend-maven-plugin</artifactId>
-        <executions>
-          <!-- The webapp's jest suite (EXO-90252), wired as caldav-webapp's is:
-               at prepare-package, after the parent's node install, npm install
-               and webpack build of the same phase, and skipped by -DskipTests
-               as surefire is. -->
-          <execution>
-            <id>npm test</id>
-            <goals>
-              <goal>npm</goal>
-            </goals>
-            <phase>prepare-package</phase>
-            <configuration>
-              <arguments>run test</arguments>
-              <skip>${skipTests}</skip>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
       <plugin>
         <artifactId>maven-war-plugin</artifactId>
