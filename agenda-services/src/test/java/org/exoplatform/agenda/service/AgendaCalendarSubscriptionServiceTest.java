@@ -31,6 +31,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -58,6 +59,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -79,6 +81,7 @@ import org.exoplatform.agenda.util.CalendarAddressGuard;
 import org.exoplatform.agenda.util.CalendarFeedException;
 import org.exoplatform.agenda.util.CalendarFeedFetcher;
 import org.exoplatform.agenda.util.CalendarFeedFetcher.FeedResponse;
+import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.agenda.util.CalendarFeedParser;
 import org.exoplatform.agenda.util.CalendarFeedParser.ImportedEvent;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -464,6 +467,32 @@ class AgendaCalendarSubscriptionServiceTest {
    *
    * @throws Exception never
    */
+  /**
+   * The kernel persistence context and IDM request transaction are cycled after
+   * every subscription of a batch -- success, no-op or caught failure alike --
+   * so the scope stays one subscription wide instead of accumulating across the
+   * whole batch (up to 20 sequential feed reads of up to 30 s each). The idiom
+   * this reuses is {@code AgendaCalendarStorage.deleteCalendarById}'s own.
+   * Mutation-verified: with the cycling removed, this call count drops to zero.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void theScopeIsCycledAfterEverySubscriptionOfTheBatch() throws Exception {
+    subscriptionRow("enc:" + URL, "same-digest", 0);
+    when(storage.getDueIds(any(), any(), anyInt())).thenReturn(List.of(SUBSCRIPTION, 99L));
+    doReturn(new FeedResponse(true, null, "\"v1\"", null)).when(fetcher).fetch(any(), any(), any());
+
+    try (MockedStatic<RequestLifeCycle> lifecycle = mockStatic(RequestLifeCycle.class)) {
+      service.refreshDueSubscriptions(10);
+
+      // SUBSCRIPTION goes through the full not-modified refresh; 99 has no row
+      // (storage.getById answers null) and is skipped before refreshClaimed --
+      // both still cycle the scope once each.
+      lifecycle.verify(RequestLifeCycle::restartTransaction, times(2));
+    }
+  }
+
   @Test
   void aRefreshUpdatesInPlaceCreatesNewAndRemovesDropped() throws Exception {
     byte[] body = ics(vevent("a@test", "20261001T090000Z", "A changed", null),
@@ -628,6 +657,76 @@ class AgendaCalendarSubscriptionServiceTest {
     verify(calendarService).deleteCalendarById(CALENDAR);
     verify(indexingService).unindex(anyString(), eq("101"));
     verify(indexingService).unindex(anyString(), eq("102"));
+  }
+
+  /**
+   * The calendar is deleted before the subscription row, not after: the mirror of
+   * {@code createSubscription}'s own rollback order. Deleting the row first can
+   * leave a calendar with no row pointing at it if the calendar deletion then
+   * fails -- an orphan no listing shows and no user-facing path can remove.
+   * Mutation-verified: with the two calls swapped back, this order assertion fails.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void unsubscribingDeletesTheCalendarBeforeTheSubscriptionRow() throws Exception {
+    subscriptionRow("enc:" + URL, null, 0);
+
+    service.deleteSubscription(SUBSCRIPTION, "john");
+
+    InOrder order = inOrder(calendarService, storage);
+    order.verify(calendarService).deleteCalendarById(CALENDAR);
+    order.verify(storage).delete(SUBSCRIPTION);
+  }
+
+  /**
+   * The counterfactual the ordering fix is for: a subscription-row delete that
+   * fails still leaves no orphan, because the calendar was already deleted
+   * first. Under the old order this failure would leave the row gone and the
+   * calendar behind, unreachable.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void aFailedRowDeleteStillLeavesNoOrphanCalendar() throws Exception {
+    subscriptionRow("enc:" + URL, null, 0);
+    doThrow(new RuntimeException("db down")).when(storage).delete(SUBSCRIPTION);
+
+    assertThrows(RuntimeException.class, () -> service.deleteSubscription(SUBSCRIPTION, "john"));
+
+    verify(calendarService).deleteCalendarById(CALENDAR);
+  }
+
+  /**
+   * {@code deleteCalendarSubscription} documents its contract as "a calendar
+   * that was deleted by another path" -- with the calendar still there, it
+   * refuses rather than stranding the calendar the same way the ordering fix
+   * above closes. Its only caller today is the clean-up listener, which never
+   * reaches this branch because it fires after the deletion; this pins the
+   * contract for whichever caller reaches it next.
+   */
+  @Test
+  void deleteCalendarSubscriptionRefusesWhileTheCalendarStillExists() {
+    subscriptionRow("enc:" + URL, null, 0);
+    when(storage.getByCalendarId(CALENDAR)).thenReturn(rows.get(SUBSCRIPTION));
+
+    service.deleteCalendarSubscription(CALENDAR);
+
+    verify(storage, never()).delete(anyLong());
+  }
+
+  /**
+   * The documented case: the calendar is already gone, so the row is removed.
+   */
+  @Test
+  void deleteCalendarSubscriptionRemovesTheRowOnceTheCalendarIsGone() {
+    subscriptionRow("enc:" + URL, null, 0);
+    when(storage.getByCalendarId(CALENDAR)).thenReturn(rows.get(SUBSCRIPTION));
+    when(calendarService.getCalendarById(CALENDAR)).thenReturn(null);
+
+    service.deleteCalendarSubscription(CALENDAR);
+
+    verify(storage).delete(SUBSCRIPTION);
   }
 
   /**

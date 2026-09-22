@@ -37,6 +37,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
+
+import org.exoplatform.container.component.RequestLifeCycle;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -444,8 +446,19 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
   public void deleteSubscription(long subscriptionId, String username) throws ObjectNotFoundException, IllegalAccessException {
     CalendarSubscription subscription = owned(subscriptionId, username);
     List<CalendarSubscriptionEvent> rows = subscriptionStorage.getEvents(subscription.getId());
-    subscriptionStorage.delete(subscription.getId());
+    // Calendar first, subscription row second -- the mirror of createSubscription's
+    // own rollback order, and for the same reason: deleting the row first can leave
+    // a calendar with no row pointing at it if the calendar deletion then fails
+    // (AgendaCalendarStorage.deleteCalendarById commits between deleting the
+    // calendar's events and the calendar itself), and such a calendar is an orphan
+    // no listing shows and no user-facing path can remove. Deleting the calendar
+    // first is self-healing either way: it broadcasts exo.agenda.calendar.deleted,
+    // AgendaCalendarSubscriptionCleanupListener removes the subscription row, and
+    // the explicit delete below is then a no-op -- kept because
+    // Utils.broadcastEvent swallows listener exceptions, so the listener is
+    // best-effort, not a guarantee.
     deleteCalendarQuietly(subscription.getCalendarId());
+    subscriptionStorage.delete(subscription.getId());
     rows.forEach(row -> unindex(row.getEventId()));
   }
 
@@ -459,6 +472,16 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
     }
     CalendarSubscription subscription = subscriptionStorage.getByCalendarId(calendarId);
     if (subscription == null) {
+      return;
+    }
+    if (agendaCalendarService.getCalendarById(calendarId) != null) {
+      // The contract is "a calendar that was deleted by another path" -- with the
+      // calendar still there, removing the row would strand it exactly the way
+      // deleteSubscription's own reordering was fixed to avoid: no row, no listing,
+      // no user-facing way to remove it. This method's only caller today is the
+      // clean-up listener, which never reaches here because it fires after the
+      // deletion; a future caller that got the order wrong is refused, not humoured.
+      LOG.warn("Calendar {} still exists; its subscription is not removed", calendarId);
       return;
     }
     List<CalendarSubscriptionEvent> rows = subscriptionStorage.getEvents(subscription.getId());
@@ -486,6 +509,18 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
       } catch (RuntimeException | LinkageError e) {
         LOG.warn("Calendar subscription {} could not be refreshed", subscriptionId, e);
         subscriptionStorage.release(subscriptionId, node);
+      } finally {
+        // @ContainerTransactional opens no database transaction of its own (the
+        // aspect only binds the container); what it does hold, across this whole
+        // batch of up to batchSize sequential feed reads, is one kernel
+        // EntityManager, never cleared, and the IDM request transaction. Cycling
+        // both after every subscription -- success, refusal or caught failure
+        // alike -- bounds the scope to one subscription's worth of entities,
+        // the same idiom AgendaCalendarStorage.deleteCalendarById uses. After a
+        // caught failure the aspect may leave a rolled-back persistence context
+        // behind (it only closes an EntityManager it created), so the restart
+        // runs from the finally block, not only on the success path.
+        RequestLifeCycle.restartTransaction();
       }
     }
     return refreshed;
