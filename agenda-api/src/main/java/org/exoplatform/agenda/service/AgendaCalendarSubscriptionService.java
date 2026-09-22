@@ -36,7 +36,10 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
  * invitation, a notification or a copy to a connected remote account.
  * <p>
  * Refusals are thrown as {@link IllegalArgumentException} carrying a message
- * code {@code agenda.calendarSubscription.*}; a refresh asked too soon as an
+ * code {@code agenda.calendarSubscription.*}; a refresh asked too soon, or a
+ * URL read too many times in a short window ({@code tooManyReads} -- reached
+ * from {@link #checkUrl}, {@link #createSubscription} and
+ * {@link #updateSubscription} alike, since all three read the URL), as an
  * {@link IllegalStateException} with such a code.
  */
 public interface AgendaCalendarSubscriptionService {
@@ -73,6 +76,8 @@ public interface AgendaCalendarSubscriptionService {
    * @throws IllegalAccessException when the user has no usable identity
    * @throws IllegalArgumentException with a message code when the URL is
    *           refused or does not serve a calendar
+   * @throws IllegalStateException with {@code tooManyReads} when the user has
+   *           read too many URLs in too short a window
    */
   String checkUrl(String url, String username) throws IllegalAccessException;
 
@@ -89,6 +94,8 @@ public interface AgendaCalendarSubscriptionService {
    * @throws IllegalAccessException when the user has no usable identity
    * @throws IllegalArgumentException with a message code when the URL is
    *           refused, already subscribed, or does not serve a calendar
+   * @throws IllegalStateException with {@code tooManyReads} when the user has
+   *           read too many URLs in too short a window
    */
   CalendarSubscription createSubscription(String url, String name, String color, String username) throws IllegalAccessException;
 
@@ -104,6 +111,8 @@ public interface AgendaCalendarSubscriptionService {
    * @return the subscription as it now stands
    * @throws ObjectNotFoundException when no such subscription exists
    * @throws IllegalAccessException when it is not the user's
+   * @throws IllegalStateException with {@code tooManyReads} when a new URL is
+   *           given and the user has read too many in too short a window
    */
   CalendarSubscription updateSubscription(long subscriptionId,
                                           String url,
