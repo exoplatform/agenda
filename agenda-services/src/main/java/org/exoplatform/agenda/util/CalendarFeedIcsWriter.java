@@ -167,20 +167,45 @@ public final class CalendarFeedIcsWriter {
     properties.add(new XProperty("X-PUBLISHED-TTL", REFRESH_INTERVAL.toString()));
     String host = StringUtils.isBlank(uidHost) ? "exo" : uidHost;
     Predicate<Event> privateEvent = isPrivate == null ? event -> false : isPrivate;
-    long written = 0;
     if (events != null) {
       for (Event event : events) {
         if (event == null || event.getStart() == null) {
           continue;
         }
-        VEvent vEvent = privateEvent.test(event) ? toBusyBlock(event, host) : toVEvent(event, host);
-        written += vEvent.toString().length();
-        if (written > MAX_DOCUMENT_CHARS) {
-          break;
-        }
-        calendar.getComponents().add(vEvent);
+        calendar.getComponents().add(privateEvent.test(event) ? toBusyBlock(event, host) : toVEvent(event, host));
       }
     }
+    // One real serialisation, not two: the budget used to be enforced by
+    // rendering every candidate VEvent on its own (vEvent.toString()) before
+    // deciding to keep it, then CalendarOutputter rendered the whole document
+    // again -- every kept event paid for its own text twice. The common case
+    // (well under MAX_DOCUMENT_CHARS, which almost every feed is) now costs
+    // one render; only a feed that overshoots pays for a second, trimmed one.
+    String document = output(calendar);
+    if (document.length() <= MAX_DOCUMENT_CHARS) {
+      return document;
+    }
+    // Over budget: drop from the end, the same events the old per-event check
+    // would have refused to add in the first place, until the trimmed render
+    // fits -- one estimate to decide how many, one more render to confirm.
+    net.fortuna.ical4j.model.ComponentList<net.fortuna.ical4j.model.component.CalendarComponent> components =
+                                                                                                                calendar.getComponents();
+    long overshoot = document.length() - MAX_DOCUMENT_CHARS;
+    long perEventEstimate = Math.max(1, document.length() / Math.max(1, components.size()));
+    int toDrop = Math.min(components.size(), (int) Math.ceil((double) overshoot / perEventEstimate));
+    for (int i = 0; i < toDrop; i++) {
+      components.remove(components.size() - 1);
+    }
+    return output(calendar);
+  }
+
+  /**
+   * Renders a calendar to its iCalendar text form.
+   *
+   * @param calendar the calendar, with every component already added
+   * @return the document, CRLF line endings, folded
+   */
+  private static String output(net.fortuna.ical4j.model.Calendar calendar) {
     StringWriter writer = new StringWriter();
     try {
       new CalendarOutputter(false).output(calendar, writer);
@@ -214,9 +239,8 @@ public final class CalendarFeedIcsWriter {
       properties.add(new Description(description));
     }
     properties.add(event.getAvailability() == EventAvailability.FREE ? Transp.TRANSPARENT : Transp.OPAQUE);
-    ZonedDateTime modified = lastChange(event);
-    if (modified != null) {
-      properties.add(new LastModified(utc(modified)));
+    if (lastChange != null) {
+      properties.add(new LastModified(utc(lastChange)));
     }
     return vEvent;
   }
