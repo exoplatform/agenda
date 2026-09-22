@@ -89,7 +89,8 @@ public class Calendar implements Cloneable {
   }
 
   public Calendar clone() { // NOSONAR
-    Calendar calendar = new Calendar(id, ownerId, system, deleted, title, description, created, updated, color, acl);
+    Calendar calendar = new Calendar(id, ownerId, system, deleted, title, description, created, updated, color,
+                                     acl == null ? null : acl.clone());
     calendar.setName(name);
     calendar.setSyncUid(syncUid);
     calendar.setSubscription(subscription);
