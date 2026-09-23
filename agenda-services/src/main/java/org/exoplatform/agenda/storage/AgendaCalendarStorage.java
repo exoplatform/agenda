@@ -49,6 +49,16 @@ public class AgendaCalendarStorage {
   }
 
   /**
+   * Every calendar id of an owner, subscribed calendars included.
+   *
+   * @param ownerId technical identifier of the calendar owner identity
+   * @return the ids, possibly empty
+   */
+  public List<Long> getAllCalendarIdsByOwnerId(long ownerId) {
+    return this.calendarDAO.getAllCalendarIdsByOwnerId(ownerId);
+  }
+
+  /**
    * Retrieves the technical identifier of the system (default) calendar of a
    * given owner.
    *

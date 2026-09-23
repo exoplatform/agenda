@@ -85,6 +85,12 @@ public interface AgendaCalendarService {
    * ACL check and no object hydration -- a caller that already knows it may
    * see this owner's calendars uses this to build an exclusion or inclusion
    * list without paying for a per-calendar {@link #getCalendarById(long)}.
+   * <p>
+   * <b>Subscribed calendars are included</b>, unlike every owner listing of this
+   * service ({@link #getCalendarsByOwnerIds} and the paged reads leave them
+   * out): an exclusion list that missed them would still scan every event a
+   * subscription imported under the same owner. Do not "align" it with the
+   * listings.
    *
    * @param ownerId technical identifier of the calendar owner identity
    * @return the calendar ids, possibly empty, never null

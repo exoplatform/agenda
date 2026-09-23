@@ -112,7 +112,7 @@ public class AgendaCalendarServiceImpl implements AgendaCalendarService {
    */
   @Override
   public List<Long> getCalendarIdsByOwnerId(long ownerId) {
-    return this.agendaCalendarStorage.getCalendarIdsByOwnerIds(0, Integer.MAX_VALUE, ownerId);
+    return this.agendaCalendarStorage.getAllCalendarIdsByOwnerId(ownerId);
   }
 
   /**

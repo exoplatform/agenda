@@ -81,6 +81,21 @@ public class CalendarDAO extends GenericDAOJPAImpl<CalendarEntity, Long> {
   }
 
   /**
+   * Every calendar id of an owner, subscribed calendars included — unlike
+   * {@link #getCalendarIdsByOwnerIds}, which the owner listings use and which
+   * leaves subscriptions out.
+   *
+   * @param ownerId technical identifier of the calendar owner identity
+   * @return the ids, ascending, possibly empty
+   */
+  public List<Long> getAllCalendarIdsByOwnerId(long ownerId) {
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaCalendar.getAllCalendarIdsByOwnerId", Long.class);
+    query.setParameter("ownerId", ownerId);
+    List<Long> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
+  }
+
+  /**
    * Retrieves the technical identifier of the system (default) calendar of a
    * given owner. When several system calendars exist for the same owner (a
    * data anomaly), the oldest one is returned to keep the result
