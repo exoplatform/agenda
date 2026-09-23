@@ -21,6 +21,9 @@
     in Agenda.vue and opened by a root event: never inside a row, which can go
     away while the drawer is open (EXO-90239).
   -->
+  <!-- :autofocus="false" is deliberate and stays: vuejs-accessibility/no-autofocus
+    reports the attribute name whatever its value, so its warning here is a false
+    positive; deleting the line would turn the drawer's autofocus back on. -->
   <exo-drawer
     ref="subscriptionDrawer"
     :loading="busy"
