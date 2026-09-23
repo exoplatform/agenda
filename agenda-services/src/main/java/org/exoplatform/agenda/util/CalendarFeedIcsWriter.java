@@ -185,18 +185,35 @@ public final class CalendarFeedIcsWriter {
     if (document.length() <= MAX_DOCUMENT_CHARS) {
       return document;
     }
-    // Over budget: drop from the end, the same events the old per-event check
-    // would have refused to add in the first place, until the trimmed render
-    // fits -- one estimate to decide how many, one more render to confirm.
+    // Over budget, the rare path: keep the earliest events whose own sizes add
+    // up to the budget, measured one by one -- a mean would be wrong exactly
+    // when one event is far larger than the rest -- then render and confirm.
+    // A component's own text is not folded as the document's is, so its size
+    // is scaled by what folding and the header added to the whole; the
+    // confirming loop absorbs what the scaling misses, one event per pass.
     net.fortuna.ical4j.model.ComponentList<net.fortuna.ical4j.model.component.CalendarComponent> components =
                                                                                                                 calendar.getComponents();
-    long overshoot = document.length() - MAX_DOCUMENT_CHARS;
-    long perEventEstimate = Math.max(1, document.length() / Math.max(1, components.size()));
-    int toDrop = Math.min(components.size(), (int) Math.ceil((double) overshoot / perEventEstimate));
-    for (int i = 0; i < toDrop; i++) {
+    long[] sizes = new long[components.size()];
+    long unfolded = 0;
+    for (int i = 0; i < sizes.length; i++) {
+      sizes[i] = components.get(i).toString().length();
+      unfolded += sizes[i];
+    }
+    double scale = unfolded == 0 ? 1 : (double) document.length() / unfolded;
+    long kept = 0;
+    int keep = 0;
+    while (keep < sizes.length && (kept + sizes[keep]) * scale <= MAX_DOCUMENT_CHARS) {
+      kept += sizes[keep++];
+    }
+    while (components.size() > keep) {
       components.remove(components.size() - 1);
     }
-    return output(calendar);
+    document = output(calendar);
+    while (document.length() > MAX_DOCUMENT_CHARS && !components.isEmpty()) {
+      components.remove(components.size() - 1);
+      document = output(calendar);
+    }
+    return document;
   }
 
   /**
