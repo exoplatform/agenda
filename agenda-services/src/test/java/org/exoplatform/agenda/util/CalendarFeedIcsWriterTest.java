@@ -189,6 +189,33 @@ class CalendarFeedIcsWriterTest {
   }
 
   /**
+   * The budget is a bound, not an estimate: one event far larger than the rest
+   * -- the one distribution where a mean size is wrong -- still gives a
+   * document within it, the earliest events kept and the later ones left out.
+   *
+   * @throws Exception when the document does not parse
+   */
+  @Test
+  void oneOversizedEventAmongSmallOnesStillStaysWithinTheBudget() throws Exception {
+    List<Event> events = new java.util.ArrayList<>();
+    Event large = event(60, "Large", ZonedDateTime.of(2026, 9, 1, 9, 0, 0, 0, ZoneOffset.UTC));
+    large.setDescription("<p>" + "y".repeat(CalendarFeedIcsWriter.MAX_DOCUMENT_CHARS - 200 * 1024) + "</p>");
+    events.add(large);
+    for (int i = 0; i < 1500; i++) {
+      Event small = event(1000L + i, "Small " + i, ZonedDateTime.of(2026, 9, 2, 9, 0, 0, 0, ZoneOffset.UTC).plusHours(i));
+      small.setDescription("<p>" + "z".repeat(200) + "</p>");
+      events.add(small);
+    }
+
+    String document = write(events);
+
+    assertTrue(document.length() <= CalendarFeedIcsWriter.MAX_DOCUMENT_CHARS, "size " + document.length());
+    List<VEvent> written = parse(document).getComponents(Component.VEVENT);
+    assertEquals("Large", written.get(0).getProperty(Property.SUMMARY).getValue(), "the earliest is kept");
+    assertTrue(written.size() > 1 && written.size() < events.size(), "some small events kept, the later ones left out: " + written.size());
+  }
+
+  /**
    * A calendar of very long descriptions stops at the character budget instead
    * of serving a document of any size to an anonymous caller.
    *
@@ -208,7 +235,7 @@ class CalendarFeedIcsWriterTest {
     List<VEvent> written = parse(document).getComponents(Component.VEVENT);
     assertEquals(2, written.size(), "the events past the budget are left out, earliest kept");
     assertEquals("A", written.get(0).getProperty(Property.SUMMARY).getValue());
-    assertTrue(document.length() < CalendarFeedIcsWriter.MAX_DOCUMENT_CHARS + 64 * 1024, "size " + document.length());
+    assertTrue(document.length() <= CalendarFeedIcsWriter.MAX_DOCUMENT_CHARS, "size " + document.length());
   }
 
   /**
