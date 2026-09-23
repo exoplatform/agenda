@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -87,7 +88,7 @@ class EventCloneTest {
     event.setRecurrence(recurrence());
     event.setOccurrence(new EventOccurrence(ZonedDateTime.of(2026, 9, 21, 9, 0, 0, 0, ZoneOffset.UTC)));
     event.setAcl(new EventPermission(true, false));
-    event.setParameters(Map.of("key", "value"));
+    event.setParameters(new HashMap<>(Map.of("key", "value")));
 
     Event copy = event.clone();
 
@@ -96,6 +97,11 @@ class EventCloneTest {
     assertEquals(event.getOccurrence(), copy.getOccurrence());
     assertEquals(event.getAcl(), copy.getAcl());
     assertEquals(event.getParameters(), copy.getParameters());
+
+    // Value equality cannot see an aliased map: mutate the copy's, and the
+    // original's must not move
+    copy.getParameters().put("key", "changed");
+    assertEquals("value", event.getParameters().get("key"), "the copy owns its parameters map");
   }
 
   /**

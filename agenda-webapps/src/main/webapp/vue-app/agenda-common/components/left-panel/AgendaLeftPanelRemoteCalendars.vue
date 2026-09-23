@@ -246,10 +246,11 @@ export default {
     groups: [],
     hiddenIds: [],
     hidingIds: [],
-    // The retrieval scheduled but not yet sent, and its timer — see
-    // retrieveCalendars.
+    // The retrieval scheduled but not yet sent, its timer and the settling of
+    // its promise — see retrieveCalendars.
     retrieval: null,
     retrievalTimer: 0,
+    retrievalResolve: null,
   }),
   computed: {
     /**
@@ -385,6 +386,11 @@ export default {
     this.$root.$off('agenda-refresh-personal-calendars', this.retrieveCalendars);
     this.$root.$off('agenda-refresh', this.retrieveCalendars);
     window.clearTimeout(this.retrievalTimer);
+    // The cancelled retrieval still settles, as retrieveCalendars promises
+    if (this.retrievalResolve) {
+      this.retrievalResolve();
+      this.retrievalResolve = null;
+    }
   },
   methods: {
     /**
@@ -423,13 +429,16 @@ export default {
      * the very signal that reports it.
      *
      * @returns {Promise} resolves once the gathered request has answered and
-     *          the sections are drawn; never rejects
+     *          the sections are drawn, or at once when the panel is destroyed
+     *          before the request is sent; never rejects
      */
     retrieveCalendars() {
       if (!this.retrieval) {
         this.retrieval = new Promise(resolve => {
+          this.retrievalResolve = resolve;
           this.retrievalTimer = window.setTimeout(() => {
             this.retrieval = null;
+            this.retrievalResolve = null;
             resolve(this.askConnectors());
           });
         });

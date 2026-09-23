@@ -18,6 +18,7 @@ package org.exoplatform.agenda.model;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.exoplatform.agenda.constant.EventAvailability;
@@ -179,6 +180,6 @@ public class Event implements Cloneable {
                      acl == null ? null : acl.clone(),
                      allowAttendeeToUpdate,
                      allowAttendeeToInvite,
-                     parameters);
+                     parameters == null ? null : new HashMap<>(parameters));
   }
 }
