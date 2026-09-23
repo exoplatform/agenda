@@ -228,11 +228,21 @@ class AgendaCalendarLinkRestTest {
     when(service.getCalendarLink(999, "member")).thenThrow(new ObjectNotFoundException("missing"));
     when(service.saveCalendarLink(0, "member")).thenThrow(new IllegalArgumentException("agenda.calendarLink.invalidCalendar"));
 
-    mockMvc.perform(as("member", get("/calendars/20/link"))).andExpect(status().isForbidden());
-    mockMvc.perform(as("member", post("/calendars/20/link"))).andExpect(status().isForbidden());
-    mockMvc.perform(as("member", delete("/calendars/20/link"))).andExpect(status().isForbidden());
-    mockMvc.perform(as("member", get("/calendars/999/link"))).andExpect(status().isNotFound());
-    mockMvc.perform(as("member", post("/calendars/0/link"))).andExpect(status().isBadRequest());
+    // Each refusal carries its code in the body: the drawer translates it, and Spring's error page would not carry it.
+    mockMvc.perform(as("member", get("/calendars/20/link"))).andExpect(status().isForbidden())
+           .andExpect(jsonPath("$.message").value("agenda.calendarLink.forbidden"))
+           .andExpect(header().string("Cache-Control", "no-store"));
+    mockMvc.perform(as("member", post("/calendars/20/link"))).andExpect(status().isForbidden())
+           .andExpect(jsonPath("$.message").value("agenda.calendarLink.forbidden"));
+    mockMvc.perform(as("member", delete("/calendars/20/link"))).andExpect(status().isForbidden())
+           .andExpect(jsonPath("$.message").value("agenda.calendarLink.forbidden"));
+    mockMvc.perform(as("member", get("/calendars/999/link"))).andExpect(status().isNotFound())
+           .andExpect(jsonPath("$.message").value("agenda.calendarLink.calendarNotFound"));
+    mockMvc.perform(as("member", post("/calendars/0/link"))).andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.message").value("agenda.calendarLink.invalidCalendar"));
+    when(service.getCalendarLink(21, "member")).thenThrow(new IllegalArgumentException("Illegal id: /internal/path"));
+    mockMvc.perform(as("member", get("/calendars/21/link"))).andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.message").value("agenda.calendarLink.invalidCalendar"));
     mockMvc.perform(as("manager", delete("/calendars/20/link"))).andExpect(status().isNoContent());
     verify(service).deleteCalendarLink(20, "manager");
   }
@@ -301,7 +311,8 @@ class AgendaCalendarLinkRestTest {
   void aListingRefusedByTheServiceIsForbidden() throws Exception {
     when(service.getCalendarLinks("ghost")).thenThrow(new IllegalAccessException("refused"));
 
-    mockMvc.perform(as("ghost", get("/calendars/links"))).andExpect(status().isForbidden());
+    mockMvc.perform(as("ghost", get("/calendars/links"))).andExpect(status().isForbidden())
+           .andExpect(jsonPath("$.message").value("agenda.calendarLink.forbidden"));
   }
 
   /**
