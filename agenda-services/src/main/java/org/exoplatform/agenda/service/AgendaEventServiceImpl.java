@@ -557,9 +557,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (event.getParentId() == event.getId()) {
       throw new AgendaException(AgendaExceptionType.EVENT_CYCLIC_DEPENDENCY);
     }
-    if (event.getAvailability() == null) {
-      event.setAvailability(EventAvailability.DEFAULT);
-    }
     if (event.getStatus() == null) {
       event.setStatus(EventStatus.CONFIRMED);
     }
@@ -603,6 +600,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       // PRIVATE event by omission. An explicit reset goes through
       // updateEventFields, which states DEFAULT itself.
       event.setVisibility(storedEvent.getVisibility() == null ? EventVisibility.DEFAULT : storedEvent.getVisibility());
+    }
+    if (event.getAvailability() == null) {
+      // The same for the availability, the other half of the form's row: an
+      // omission must not turn an event the user marked Free back into Busy,
+      // in eXo and in the published feed's TRANSP.
+      event.setAvailability(storedEvent.getAvailability() == null ? EventAvailability.DEFAULT
+                                                                  : storedEvent.getAvailability());
     }
 
     EventOccurrence occurrence = event.getOccurrence();
