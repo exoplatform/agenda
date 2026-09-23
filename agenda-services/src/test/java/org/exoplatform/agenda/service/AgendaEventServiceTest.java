@@ -2275,6 +2275,44 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(fieldValue, String.valueOf(event.isAllowAttendeeToInvite()));
   }
 
+  /**
+   * An update that does not state the visibility keeps the stored one. The
+   * caller shape is caldav-integration's inbound sync, whose
+   * IcsEventMapper.toEvent builds a fresh Event with no visibility before
+   * calling updateEvent: a PRIVATE event must stay masked on the calendar-link
+   * feed after it. An explicit reset stays updateEventFields' blank value,
+   * pinned in testUpdateEventFields.
+   *
+   * @throws Exception when the update fails
+   */
+  @Test
+  public void testUpdateEventWithoutVisibilityKeepsTheStoredOne() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    Event createdEvent = newEventInstance(start, start, false);
+    createdEvent = createEvent(createdEvent.clone(), Long.parseLong(testuser1Identity.getId()), testuser2Identity);
+    long eventId = createdEvent.getId();
+    agendaEventService.updateEventFields(eventId,
+                                         getFields("visibility", EventVisibility.PRIVATE.name()),
+                                         true,
+                                         true,
+                                         Long.parseLong(testuser1Identity.getId()));
+
+    Event event = agendaEventService.getEventById(eventId, null, Long.parseLong(testuser1Identity.getId()));
+    event.setVisibility(null);
+    agendaEventService.updateEvent(event,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   false,
+                                   Long.parseLong(testuser1Identity.getId()));
+
+    assertEquals("an update that states no visibility must not un-mask a private event",
+                 EventVisibility.PRIVATE,
+                 agendaEventService.getEventById(eventId).getVisibility());
+  }
+
   @Test
   public void testUpdateEvent_InSpace_AsMember() throws Exception { // NOSONAR
     ZonedDateTime start = getDate().withNano(0);

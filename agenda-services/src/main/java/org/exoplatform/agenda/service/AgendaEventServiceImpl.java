@@ -560,9 +560,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (event.getAvailability() == null) {
       event.setAvailability(EventAvailability.DEFAULT);
     }
-    if (event.getVisibility() == null) {
-      event.setVisibility(EventVisibility.DEFAULT);
-    }
     if (event.getStatus() == null) {
       event.setStatus(EventStatus.CONFIRMED);
     }
@@ -598,6 +595,15 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     checkCanMoveEvent(storedEvent.getCalendarId(), eventId, calendar, userIdentityId);
+
+    if (event.getVisibility() == null) {
+      // Not stated keeps what is stored, never DEFAULT: visibility decides what
+      // the calendar-link feed publishes, and a caller that builds its Event
+      // from scratch (caldav-integration's inbound sync) must not un-mask a
+      // PRIVATE event by omission. An explicit reset goes through
+      // updateEventFields, which states DEFAULT itself.
+      event.setVisibility(storedEvent.getVisibility() == null ? EventVisibility.DEFAULT : storedEvent.getVisibility());
+    }
 
     EventOccurrence occurrence = event.getOccurrence();
     if (occurrence != null && occurrence.getId() != null) {
