@@ -37,7 +37,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarLink;
@@ -73,6 +72,9 @@ import jakarta.servlet.http.HttpServletRequest;
  * {@link AgendaCalendarLinkService}'s; this resource maps its exceptions to
  * statuses and renders its answers. The asking user comes from the session,
  * never from a parameter.
+ * <p>
+ * <b>A refusal writes its own body</b>, {@code {"message": "<code>"}}, never
+ * cached — the drawer translates the code; see {@link #refusal}.
  */
 @RestController
 @Tag(name = "calendar-link", description = "Private read-only iCal links of calendars")
@@ -97,6 +99,8 @@ public class AgendaCalendarLinkRest {
   private static final String             FORBIDDEN      = "agenda.calendarLink.forbidden";
 
   private static final String             NOT_FOUND      = "agenda.calendarLink.calendarNotFound";
+
+  private static final String             INVALID_CALENDAR = "agenda.calendarLink.invalidCalendar";
 
   private final AgendaCalendarLinkService calendarLinkService;
 
@@ -140,7 +144,7 @@ public class AgendaCalendarLinkRest {
       @ApiResponse(responseCode = "200", description = "Request fulfilled"),
       @ApiResponse(responseCode = "403", description = "The user has no usable identity"),
   })
-  public ResponseEntity<List<CalendarLinkStatusEntity>> getCalendarLinks(HttpServletRequest request) {
+  public ResponseEntity<?> getCalendarLinks(HttpServletRequest request) {
     try {
       Map<String, Identity> identities = new HashMap<>();
       List<CalendarLinkStatusEntity> entities = calendarLinkService.getCalendarLinks(request.getRemoteUser())
@@ -149,7 +153,7 @@ public class AgendaCalendarLinkRest {
                                                                    .toList();
       return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(entities);
     } catch (IllegalAccessException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
+      return refusal(HttpStatus.FORBIDDEN, FORBIDDEN);
     }
   }
 
@@ -175,7 +179,7 @@ public class AgendaCalendarLinkRest {
       @ApiResponse(responseCode = "403", description = "The user may not manage the link of this calendar"),
       @ApiResponse(responseCode = "404", description = "Calendar not found"),
   })
-  public ResponseEntity<CalendarLinkStatusEntity> getCalendarLink(HttpServletRequest request,
+  public ResponseEntity<?> getCalendarLink(HttpServletRequest request,
                                                                   @PathVariable("calendarId") long calendarId) {
     try {
       return uncached(toEntity(request,
@@ -183,11 +187,11 @@ public class AgendaCalendarLinkRest {
                                calendarLinkService.getCalendarLink(calendarId, request.getRemoteUser()),
                                new HashMap<>()));
     } catch (ObjectNotFoundException e) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, NOT_FOUND);
+      return refusal(HttpStatus.NOT_FOUND, NOT_FOUND);
     } catch (IllegalAccessException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
+      return refusal(HttpStatus.FORBIDDEN, FORBIDDEN);
     } catch (IllegalArgumentException e) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+      return badRequest(e);
     }
   }
 
@@ -210,7 +214,7 @@ public class AgendaCalendarLinkRest {
       @ApiResponse(responseCode = "403", description = "The user may not manage the link of this calendar"),
       @ApiResponse(responseCode = "404", description = "Calendar not found"),
   })
-  public ResponseEntity<CalendarLinkStatusEntity> saveCalendarLink(HttpServletRequest request,
+  public ResponseEntity<?> saveCalendarLink(HttpServletRequest request,
                                                                    @PathVariable("calendarId") long calendarId) {
     try {
       calendarLinkService.saveCalendarLink(calendarId, request.getRemoteUser());
@@ -219,11 +223,11 @@ public class AgendaCalendarLinkRest {
                                calendarLinkService.getCalendarLink(calendarId, request.getRemoteUser()),
                                new HashMap<>()));
     } catch (ObjectNotFoundException e) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, NOT_FOUND);
+      return refusal(HttpStatus.NOT_FOUND, NOT_FOUND);
     } catch (IllegalAccessException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
+      return refusal(HttpStatus.FORBIDDEN, FORBIDDEN);
     } catch (IllegalArgumentException e) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+      return badRequest(e);
     }
   }
 
@@ -244,16 +248,16 @@ public class AgendaCalendarLinkRest {
       @ApiResponse(responseCode = "403", description = "The user may not manage the link of this calendar"),
       @ApiResponse(responseCode = "404", description = "Calendar not found"),
   })
-  public ResponseEntity<Void> deleteCalendarLink(HttpServletRequest request, @PathVariable("calendarId") long calendarId) {
+  public ResponseEntity<?> deleteCalendarLink(HttpServletRequest request, @PathVariable("calendarId") long calendarId) {
     try {
       calendarLinkService.deleteCalendarLink(calendarId, request.getRemoteUser());
       return ResponseEntity.noContent().build();
     } catch (ObjectNotFoundException e) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, NOT_FOUND);
+      return refusal(HttpStatus.NOT_FOUND, NOT_FOUND);
     } catch (IllegalAccessException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
+      return refusal(HttpStatus.FORBIDDEN, FORBIDDEN);
     } catch (IllegalArgumentException e) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+      return badRequest(e);
     }
   }
 
@@ -311,6 +315,34 @@ public class AgendaCalendarLinkRest {
    * @param entity the status
    * @return the response
    */
+  /**
+   * A refusal with its code written in the body, {@code {"message": code}},
+   * and never cached — the way {@link AgendaCalendarSubscriptionRest} refuses.
+   * Not a {@code ResponseStatusException}: its reason reaches a client only
+   * through Spring's error page, whose {@code message} attribute the platform
+   * does not include ({@code server.error.include-message} binds to nothing
+   * on Spring Boot 4), so the drawer could only ever show a generic error.
+   *
+   * @param status the status
+   * @param code the message code
+   * @return the response
+   */
+  private static ResponseEntity<Map<String, String>> refusal(HttpStatus status, String code) {
+    return ResponseEntity.status(status).cacheControl(CacheControl.noStore()).body(Map.of("message", code));
+  }
+
+  /**
+   * A 400 carrying the service's code, or the generic invalid-calendar code
+   * when the exception names none: an engine's text never reaches the body.
+   *
+   * @param e the refusal
+   * @return the response
+   */
+  private static ResponseEntity<Map<String, String>> badRequest(IllegalArgumentException e) {
+    String code = StringUtils.startsWith(e.getMessage(), "agenda.calendarLink.") ? e.getMessage() : INVALID_CALENDAR;
+    return refusal(HttpStatus.BAD_REQUEST, code);
+  }
+
   private ResponseEntity<CalendarLinkStatusEntity> uncached(CalendarLinkStatusEntity entity) {
     return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(entity);
   }
