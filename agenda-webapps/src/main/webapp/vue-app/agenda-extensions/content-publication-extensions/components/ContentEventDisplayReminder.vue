@@ -249,7 +249,7 @@
       :ok-label="$t('contentEvent.confirm.label')"
       :cancel-label="$t('contentEvent.cancel.label')"
       @ok="confirmEventDeletion"
-      @closed="cancelEventDeletion" />
+      @dialog-closed="cancelEventDeletion" />
   </div>
 </template>
 
@@ -430,7 +430,7 @@ export default {
     document.removeEventListener('content-event-removed', this.eventRemoved);
   },
   mounted() {
-    this.registerDeleteInterceptor(this.preDeleteInterceptor.bind(this));
+    this.registerDeleteInterceptor(this.preDeleteInterceptor);
   },
   methods: {
     async loadActiveMapProvider() {
@@ -478,12 +478,20 @@ export default {
       });
     },
     confirmEventDeletion() {
-      this.eventToDelete = true;
-      this._preDeleteResolve?.(true);
+      this.answerEventDeletion(true);
     },
     cancelEventDeletion() {
-      this.eventToDelete = false;
-      this._preDeleteResolve?.(true);
+      this.answerEventDeletion(false);
+    },
+    answerEventDeletion(deleteEvent) {
+      // the dialog emits dialog-closed after ok too: the first answer wins
+      const resolve = this._preDeleteResolve;
+      if (!resolve) {
+        return;
+      }
+      this._preDeleteResolve = null;
+      this.eventToDelete = deleteEvent;
+      resolve(true);
     },
     eventRemoved() {
       this.event = null;
