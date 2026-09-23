@@ -127,7 +127,21 @@ public class AgendaCalendarStorage {
     this.agendaEventStorage.deleteCalendarEvents(calendarId);
     RequestLifeCycle.restartTransaction();
     calendarDAO.delete(calendarEntity);
+    // Before the broadcast: its listeners run in line and read the calendar
+    // back, and must see it gone (the subscription cleanup refuses to remove
+    // the row of a calendar it still finds).
+    calendarDeleted(calendarId);
     Utils.broadcastEvent(listenerService, "exo.agenda.calendar.deleted", fromEntity(calendarEntity), null);
+  }
+
+  /**
+   * Called once a calendar is deleted, before its deletion is broadcast; a
+   * caching subclass forgets it here.
+   *
+   * @param calendarId the deleted calendar
+   */
+  protected void calendarDeleted(long calendarId) {
+    // Nothing is held here.
   }
 
 }

@@ -235,4 +235,38 @@ public class AgendaCalendarStorageTest {
     verify(listenerService, times(2)).broadcast(anyString(), any(), any());
   }
 
+
+  /**
+   * A listener of {@code exo.agenda.calendar.deleted} runs in line and reads
+   * the calendar back: through the cache it must find it gone, not the entry
+   * cached before the deletion (the subscription cleanup refuses to remove the
+   * row of a calendar it still finds).
+   */
+  @Test
+  public void aListenerOfTheDeletionReadsTheCalendarAsGone() throws Exception { // NOSONAR
+    CalendarEntity calendarEntity = new CalendarEntity();
+    calendarEntity.setColor("color");
+    calendarEntity.setId(7L);
+    calendarEntity.setOwnerId(2L);
+    boolean[] deleted = { false };
+    when(calendarDAO.find(7L)).thenAnswer(invocation -> deleted[0] ? null : calendarEntity);
+    doAnswer(invocation -> {
+      deleted[0] = true;
+      return null;
+    }).when(calendarDAO).delete(calendarEntity);
+    assertNotNull("cached before the deletion", agendaCalendarStorage.getCalendarById(7L));
+
+    Calendar[] seenByListener = { new Calendar() };
+    listenerService.addListener("exo.agenda.calendar.deleted", new org.exoplatform.services.listener.Listener<Object, Object>() {
+      @Override
+      public void onEvent(org.exoplatform.services.listener.Event<Object, Object> event) {
+        seenByListener[0] = agendaCalendarStorage.getCalendarById(7L);
+      }
+    });
+
+    agendaCalendarStorage.deleteCalendarById(7L);
+
+    assertNull("the listener read a calendar the cache still held", seenByListener[0]);
+    assertNull(agendaCalendarStorage.getCalendarById(7L));
+  }
 }
