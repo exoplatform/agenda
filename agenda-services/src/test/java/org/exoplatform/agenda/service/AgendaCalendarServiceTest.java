@@ -1365,4 +1365,16 @@ public class AgendaCalendarServiceTest {
         && "stored-sync-uid".equals(calendar.getSyncUid())));
   }
 
+
+  /**
+   * The id enumeration an exclusion list is built from reads every calendar of
+   * the owner, subscribed ones included -- not the owner listing, which leaves
+   * subscriptions out and would let the feed scan every event they imported.
+   */
+  @Test
+  public void testGetCalendarIdsByOwnerIdIncludesSubscribedCalendars() {
+    when(agendaCalendarStorage.getAllCalendarIdsByOwnerId(5L)).thenReturn(Arrays.asList(1L, 2L, 3L));
+
+    assertEquals(Arrays.asList(1L, 2L, 3L), agendaCalendarService.getCalendarIdsByOwnerId(5L));
+  }
 }

@@ -36,6 +36,14 @@ import jakarta.persistence.Table;
     name = "AgendaCalendar.getCalendarIdsByOwnerIds",
     query = "SELECT cal.id FROM AgendaCalendar cal WHERE cal.ownerId IN (:ownerIds) AND cal.isSubscription = FALSE ORDER BY cal.id ASC"
 )
+// Every calendar of an owner, subscribed ones included: what a caller building
+// an exclusion list must enumerate. Deliberately not aligned with the listing
+// above — the iCal feed excludes the owner's other calendars with it, and the
+// subscribed ones are the bulk of what it must exclude (EXO-90252).
+@NamedQuery(
+    name = "AgendaCalendar.getAllCalendarIdsByOwnerId",
+    query = "SELECT cal.id FROM AgendaCalendar cal WHERE cal.ownerId = :ownerId ORDER BY cal.id ASC"
+)
 @NamedQuery(
     name = "AgendaCalendar.countCalendarsByOwnerIds",
     query = "SELECT count(cal.id) FROM AgendaCalendar cal WHERE cal.ownerId IN (:ownerIds) AND cal.isSubscription = FALSE"

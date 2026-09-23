@@ -189,6 +189,32 @@ public class CalendarDAOTest extends TestCase {
     }
   }
 
+  /**
+   * The owner listing leaves subscribed calendars out; the full id enumeration
+   * the iCal feed excludes siblings with keeps them -- run by the real engine,
+   * so a predicate "aligned" with the listing fails here.
+   */
+  public void testAllCalendarIdsByOwnerIdIncludeSubscribedCalendars() {
+    long ownerId = 5624;
+    CalendarEntity personal = new CalendarEntity();
+    personal.setColor("Color");
+    personal.setOwnerId(ownerId);
+    personal = calendarDAO.create(personal);
+    CalendarEntity subscribed = new CalendarEntity();
+    subscribed.setColor("Color");
+    subscribed.setOwnerId(ownerId);
+    subscribed.setSubscription(true);
+    subscribed = calendarDAO.create(subscribed);
+    try {
+      assertEquals(java.util.List.of(personal.getId()), calendarDAO.getCalendarIdsByOwnerIds(0, 10, ownerId));
+      assertEquals(java.util.List.of(personal.getId(), subscribed.getId()), calendarDAO.getAllCalendarIdsByOwnerId(ownerId));
+      assertTrue(calendarDAO.getAllCalendarIdsByOwnerId(ownerId + 1).isEmpty());
+    } finally {
+      calendarDAO.delete(subscribed);
+      calendarDAO.delete(personal);
+    }
+  }
+
   private void begin() {
     RequestLifeCycle.begin(container);
   }
