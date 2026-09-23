@@ -64,6 +64,13 @@ public class CachedAgendaCalendarStorage extends AgendaCalendarStorage {
   @Override
   public void deleteCalendarById(long calendarId) {
     super.deleteCalendarById(calendarId);
+    // Again after the broadcast: a listener reading it back meanwhile may have
+    // cached it anew.
+    this.calendarFutureCache.remove(calendarId);
+  }
+
+  @Override
+  protected void calendarDeleted(long calendarId) {
     this.calendarFutureCache.remove(calendarId);
   }
 
