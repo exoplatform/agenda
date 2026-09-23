@@ -2276,12 +2276,15 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   /**
-   * An update that does not state the visibility keeps the stored one. The
+   * An update that does not state the visibility or the availability keeps the
+   * stored ones, and an update that states them stores what it states. The
    * caller shape is caldav-integration's inbound sync, whose
    * IcsEventMapper.toEvent builds a fresh Event with no visibility before
    * calling updateEvent: a PRIVATE event must stay masked on the calendar-link
    * feed after it. An explicit reset stays updateEventFields' blank value,
-   * pinned in testUpdateEventFields.
+   * pinned in testUpdateEventFields. The stated branch is the form's own save
+   * path (a full PUT through updateEvent), so a guard that always kept the stored
+   * value would make the visibility and availability selects no-ops.
    *
    * @throws Exception when the update fails
    */
@@ -2296,9 +2299,15 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                          true,
                                          true,
                                          Long.parseLong(testuser1Identity.getId()));
+    agendaEventService.updateEventFields(eventId,
+                                         getFields("availability", EventAvailability.FREE.name()),
+                                         true,
+                                         true,
+                                         Long.parseLong(testuser1Identity.getId()));
 
     Event event = agendaEventService.getEventById(eventId, null, Long.parseLong(testuser1Identity.getId()));
     event.setVisibility(null);
+    event.setAvailability(null);
     agendaEventService.updateEvent(event,
                                    null,
                                    null,
@@ -2308,9 +2317,29 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                    false,
                                    Long.parseLong(testuser1Identity.getId()));
 
+    Event stored = agendaEventService.getEventById(eventId);
     assertEquals("an update that states no visibility must not un-mask a private event",
                  EventVisibility.PRIVATE,
-                 agendaEventService.getEventById(eventId).getVisibility());
+                 stored.getVisibility());
+    assertEquals("an update that states no availability must not turn a free event busy",
+                 EventAvailability.FREE,
+                 stored.getAvailability());
+
+    event = agendaEventService.getEventById(eventId, null, Long.parseLong(testuser1Identity.getId()));
+    event.setVisibility(EventVisibility.PUBLIC);
+    event.setAvailability(EventAvailability.BUSY);
+    agendaEventService.updateEvent(event,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   false,
+                                   Long.parseLong(testuser1Identity.getId()));
+
+    stored = agendaEventService.getEventById(eventId);
+    assertEquals("a stated visibility is stored", EventVisibility.PUBLIC, stored.getVisibility());
+    assertEquals("a stated availability is stored", EventAvailability.BUSY, stored.getAvailability());
   }
 
   @Test
