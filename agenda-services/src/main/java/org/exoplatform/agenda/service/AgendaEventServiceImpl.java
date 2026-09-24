@@ -132,9 +132,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     EventAccess access = getEventAccess(event, userIdentityId);
     if (access != EventAccess.NONE) {
       adjustEventDatesForRead(event, timeZone);
-      boolean canUpdateEvent = canUpdateEvent(event, userIdentityId);
       boolean isEventAttendee = attendeeService.isEventAttendee(getEventIdOrParentId(event), userIdentityId);
-      event.setAcl(new EventPermission(canUpdateEvent, isEventAttendee));
+      event.setAcl(permissionOf(event, userIdentityId, isEventAttendee));
       return maskForAccess(event, access);
     } else {
       throw new IllegalAccessException("User with identity id " + userIdentityId + "is not allowed to access event with id "
@@ -210,9 +209,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     if (event != null) {
       adjustEventDatesForRead(event, timeZone);
-      boolean canUpdateEvent = canUpdateEvent(event, userIdentityId);
       boolean isEventAttendee = attendeeService.isEventAttendee(getEventIdOrParentId(event), userIdentityId);
-      event.setAcl(new EventPermission(canUpdateEvent, isEventAttendee));
+      event.setAcl(permissionOf(event, userIdentityId, isEventAttendee));
       event = maskForAccess(event, access);
     }
     return event;
@@ -476,9 +474,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       return null;
     }
     adjustEventDatesForRead(event, timeZone);
-    boolean canUpdateEvent = canUpdateEvent(event, userIdentityId);
     boolean isEventAttendee = attendeeService.isEventAttendee(getEventIdOrParentId(event), userIdentityId);
-    event.setAcl(new EventPermission(canUpdateEvent, isEventAttendee));
+    event.setAcl(permissionOf(event, userIdentityId, isEventAttendee));
     return maskForAccess(event, EventAccess.FULL);
   }
 
@@ -1379,6 +1376,46 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   /**
+   * The permissions a user holds on an event, answered from a single reading
+   * of their write right: only an attendee's right costs one more calendar
+   * check, for the move right.
+   *
+   * @param event the event, as stored
+   * @param userIdentityId {@link Identity} identifier of the user
+   * @param isEventAttendee whether the user attends the event
+   * @return the permissions, never null
+   */
+  private EventPermission permissionOf(Event event, long userIdentityId, boolean isEventAttendee) {
+    EventWriteRight writeRight = writeRightOf(event, userIdentityId);
+    return new EventPermission(writeRight != EventWriteRight.NONE,
+                               isEventAttendee,
+                               canMoveWith(writeRight, event, userIdentityId));
+  }
+
+  /**
+   * Whether a write right lets its holder move the event into another calendar
+   * (EXO-90149): the creator and whoever manages the event's calendar may, an
+   * attendee allowed to update the event and a share editor may not.
+   * {@link #writeRightOf} answers the attendee right before the calendar one,
+   * so an attendee is asked again whether they also manage the calendar.
+   *
+   * @param writeRight the user's right, as {@link #writeRightOf} answered it
+   * @param event the event, as stored
+   * @param userIdentityId {@link Identity} identifier of the user
+   * @return true when the user may move the event
+   */
+  private boolean canMoveWith(EventWriteRight writeRight, Event event, long userIdentityId) {
+    if (writeRight == EventWriteRight.CREATOR || writeRight == EventWriteRight.CALENDAR) {
+      return true;
+    }
+    if (writeRight != EventWriteRight.ATTENDEE) {
+      return false;
+    }
+    Calendar calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
+    return calendar != null && Utils.canEditCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId);
+  }
+
+  /**
    * Whether a calendar is one user's personal calendar that its owner shared
    * with another user for editing (EXO-90378).
    * <p>
@@ -1810,9 +1847,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       long eventId = getEventIdOrParentId(event);
       EventPermission permission = eventPermissionsMap.get(eventId);
       if (permission == null) {
-        boolean canUpdateEvent = canUpdateEvent(event, userIdentityId);
         boolean isEventAttendee = attendeeService.isEventAttendee(eventId, userIdentityId);
-        permission = new EventPermission(canUpdateEvent, isEventAttendee);
+        permission = permissionOf(event, userIdentityId, isEventAttendee);
         eventPermissionsMap.put(eventId, permission);
         CalendarShareLevel level = shareLevels.get(event.getCalendarId());
         boolean sharedOnly = level != null
@@ -1914,8 +1950,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * method: {@code updateEvent} and the {@code calendarId} field of
    * {@code updateEventFields}. An exceptional occurrence created through
    * {@code createEvent} is checked by {@link #checkCanCreateEvent} instead,
-   * which asks the creation right only when that occurrence is filed into a
-   * calendar other than its series' (EXO-90382).
+   * which asks the creation right and the move right only when that occurrence
+   * is filed into a calendar other than its series' (EXO-90382, EXO-90149).
    *
    * @param storedEvent the event as it is stored, carrying the calendar it is
    *          currently filed in
@@ -1925,7 +1961,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    *          event
    * @throws IllegalAccessException when the calendar changes and the user can't
    *           create events in the target calendar, or their only right over
-   *           the event is an edit share on the calendar it leaves
+   *           the event is an edit share on the calendar it leaves, or being
+   *           one of its attendees without managing its calendar (EXO-90149)
    */
   private void checkCanMoveEvent(Event storedEvent,
                                  Calendar targetCalendar,
@@ -1940,9 +1977,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // before the target check, which such a move would often pass. Anyone with
     // an older right is unaffected: the share is the last right writeRightOf
     // answers, so it is answered only when there is no other.
-    if (writeRightOf(storedEvent, userIdentityId) == EventWriteRight.SHARE_EDITOR) {
+    EventWriteRight writeRight = writeRightOf(storedEvent, userIdentityId);
+    if (writeRight == EventWriteRight.SHARE_EDITOR) {
       throw new IllegalAccessException("User '" + userIdentityId + "' edits calendar " + storedEvent.getCalendarId()
           + " through a share and can't move event " + storedEvent.getId() + " out of it");
+    }
+    // Likewise "attendees can modify the event" lets an attendee change the
+    // event, not take it away from everyone reading its calendar (EXO-90149)
+    if (!canMoveWith(writeRight, storedEvent, userIdentityId)) {
+      throw new IllegalAccessException("User '" + userIdentityId + "' updates event " + storedEvent.getId()
+          + " as one of its attendees only and can't move it out of calendar " + storedEvent.getCalendarId());
     }
     if (!canCreateEvent(targetCalendar, userIdentityId)) {
       throw new IllegalAccessException("User '" + userIdentityId + "' can't move event " + storedEvent.getId() + " to calendar "
@@ -1998,12 +2042,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * justification.
    * <p>
    * Filing the occurrence into <b>another</b> calendar is a different act: that
-   * is a creation there, so the creation right is kept, the same requirement
-   * {@link #checkCanMoveEvent} makes of a move. Only that requirement, though:
-   * that method also refuses outright a user whose sole right over the event is
-   * an edit share, and this one does not. That asymmetry is older than
-   * EXO-90382 — the rule it relaxes never reached the other-calendar branch —
-   * and closing it is a separate decision, not a property of this method today.
+   * is a creation there, and it takes that date out of the series' calendar
+   * for every reader, which is a move. So it needs both what
+   * {@link #checkCanMoveEvent} asks of a move: the creation right on the
+   * target, and the move right on the series (EXO-90149) — an attendee who
+   * doesn't manage the series' calendar and a share editor are refused here as
+   * they are there.
    * <p>
    * The <b>bound</b> this leaves, stated rather than left to be re-derived: one
    * row per date the series' rule generates, in the series' own calendar, for
@@ -2048,9 +2092,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * @param userIdentityId the {@link Identity} identifier of the user creating
    *          the event
    * @throws IllegalAccessException when the event has a parent the user can't
-   *           update, or when the user can't add events to the calendar and the
-   *           event is not a first amendment of one of its series' own dates,
-   *           staying in that series' calendar
+   *           update, or files an occurrence of it into another calendar
+   *           without the move right on the series (EXO-90149), or when the
+   *           user can't add events to the calendar and the event is not a
+   *           first amendment of one of its series' own dates, staying in that
+   *           series' calendar
    */
   private void checkCanCreateEvent(Event event,
                                    Event parentEvent,
@@ -2064,6 +2110,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       if (parentEvent.getCalendarId() == calendar.getId() && isExceptionalOccurrenceOf(event, parentEvent)
           && !hasExceptionalOccurrence(parentEvent, event.getOccurrence().getId())) {
         return;
+      }
+      // Filed elsewhere, the occurrence takes its date out of the series'
+      // calendar for every reader: that is a move, and needs the move right
+      // (EXO-90149), which neither an attendee nor a share editor holds
+      if (parentEvent.getCalendarId() != calendar.getId()
+          && !canMoveWith(writeRightOf(parentEvent, userIdentityId), parentEvent, userIdentityId)) {
+        throw new IllegalAccessException("User '" + userIdentityId + "' can't move an occurrence of event "
+            + parentEvent.getId() + " out of calendar " + parentEvent.getCalendarId());
       }
     }
     if (!canCreateEvent(calendar, userIdentityId)) {

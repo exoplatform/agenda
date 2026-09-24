@@ -4053,6 +4053,231 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   /**
+   * "Attendees can modify the event" lets an attendee change a space event,
+   * not take it out of the space into their own calendar (EXO-90149): the
+   * move is refused and the event's permissions say so, while the attendee
+   * keeps the right to edit it in place.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testUpdateEventMoveOutOfSpaceByAttendeeOnlyIsRefused() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+
+    Event eventInstance = newEventInstance(start, start.plusHours(1), false);
+    eventInstance.setRecurrence(null);
+    eventInstance.setCalendarId(spaceCalendar.getId());
+    eventInstance.setAllowAttendeeToUpdate(true);
+    long eventId = createEvent(eventInstance, user1IdentityId, testuser2Identity).getId();
+    org.exoplatform.agenda.model.Calendar user2Calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(user2IdentityId);
+
+    Event eventToMove = agendaEventService.getEventById(eventId, null, user2IdentityId).clone();
+    assertTrue("The attendee may edit the event", eventToMove.getAcl().isCanEdit());
+    assertFalse("The attendee may not move the event", eventToMove.getAcl().isCanMove());
+    eventToMove.setCalendarId(user2Calendar.getId());
+    try {
+      agendaEventService.updateEvent(eventToMove,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     null,
+                                     null,
+                                     false,
+                                     user2IdentityId);
+      fail("Shouldn't allow an attendee to move a space event into their own calendar");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    try {
+      agendaEventService.updateEventFields(eventId,
+                                           getFields("calendarId", String.valueOf(user2Calendar.getId())),
+                                           false,
+                                           false,
+                                           user2IdentityId);
+      fail("Shouldn't allow an attendee to move a space event into their own calendar through a field patch");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertEquals("The event must not have moved", spaceCalendar.getId(), agendaEventService.getEventById(eventId).getCalendarId());
+
+    EventFilter filter = new EventFilter(user2IdentityId, null, null, start.minusHours(1), start.plusHours(2), 0);
+    List<Event> listedEvents = agendaEventService.getEvents(filter, ZoneOffset.UTC, user2IdentityId);
+    Event listedEvent = listedEvents.stream().filter(listed -> listed.getId() == eventId).findFirst().orElse(null);
+    assertNotNull("The attendee lists the event", listedEvent);
+    assertTrue("The attendee may edit the listed event", listedEvent.getAcl().isCanEdit());
+    assertFalse("The attendee may not move the listed event", listedEvent.getAcl().isCanMove());
+  }
+
+  /**
+   * Redacting in a space is not managing it (EXO-90149): an attendee who is an
+   * explicit redactor of the space, but neither the event's creator nor a
+   * manager of the space, may edit the space event and not move it out.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testUpdateEventMoveOutOfSpaceByRedactorAttendeeIsRefused() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+
+    Event eventInstance = newEventInstance(start, start.plusHours(1), false);
+    eventInstance.setRecurrence(null);
+    eventInstance.setCalendarId(spaceCalendar.getId());
+    eventInstance.setAllowAttendeeToUpdate(true);
+    long eventId = createEvent(eventInstance, user1IdentityId, testuser2Identity).getId();
+    spaceService.addRedactor(space, testuser2Identity.getRemoteId());
+    assertTrue("testuser2 is a redactor of the space", agendaEventService.canCreateEvent(spaceCalendar, user2IdentityId));
+    org.exoplatform.agenda.model.Calendar user2Calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(user2IdentityId);
+
+    Event eventToMove = agendaEventService.getEventById(eventId, null, user2IdentityId);
+    assertTrue("The redactor attendee may edit the event", eventToMove.getAcl().isCanEdit());
+    assertFalse("The redactor attendee may not move the event", eventToMove.getAcl().isCanMove());
+    try {
+      agendaEventService.updateEventFields(eventId,
+                                           getFields("calendarId", String.valueOf(user2Calendar.getId())),
+                                           false,
+                                           false,
+                                           user2IdentityId);
+      fail("Shouldn't allow a redactor who only attends the event to move it out of the space");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertEquals("The event must not have moved", spaceCalendar.getId(), agendaEventService.getEventById(eventId).getCalendarId());
+  }
+
+  /**
+   * The same holds the other way (EXO-90149): an attendee allowed to modify
+   * someone's personal event may not file it into a space, even one where
+   * they may create events.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testUpdateEventMoveOutOfPersonalCalendarByAttendeeOnlyIsRefused() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+
+    Event eventInstance = newEventInstance(start, start.plusHours(1), false);
+    eventInstance.setRecurrence(null);
+    eventInstance.setAllowAttendeeToUpdate(true);
+    long eventId = createEvent(eventInstance, user1IdentityId, testuser2Identity).getId();
+    assertTrue("testuser2 may create events in the space", agendaEventService.canCreateEvent(spaceCalendar, user2IdentityId));
+
+    try {
+      agendaEventService.updateEventFields(eventId,
+                                           getFields("calendarId", String.valueOf(spaceCalendar.getId())),
+                                           false,
+                                           false,
+                                           user2IdentityId);
+      fail("Shouldn't allow an attendee to file someone's personal event into a space");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertEquals("The event must not have moved", calendar.getId(), agendaEventService.getEventById(eventId).getCalendarId());
+  }
+
+  /**
+   * An exceptional occurrence filed into another calendar takes its date out
+   * of the series' calendar for everyone (EXO-90149): an attendee allowed to
+   * modify a space series may change a date in place, not file it into their
+   * own calendar.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateOccurrenceOutOfSpaceSeriesByAttendeeOnlyIsRefused() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+
+    Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+    seriesInstance.setCalendarId(spaceCalendar.getId());
+    seriesInstance.setAllowAttendeeToUpdate(true);
+    Event series = createEvent(seriesInstance, user1IdentityId, testuser2Identity);
+    long seriesId = series.getId();
+    org.exoplatform.agenda.model.Calendar user2Calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(user2IdentityId);
+
+    ZonedDateTime periodStart = start.minusDays(1);
+    ZonedDateTime periodEnd = start.plusDays(5);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                             periodStart,
+                                                                             periodEnd,
+                                                                             series.getTimeZoneId(),
+                                                                             0);
+    assertTrue("The series must have several occurrences", occurrences.size() > 1);
+    try {
+      createEvent(newOccurrenceInstance(seriesId, occurrences.get(1), user2Calendar.getId()), user2IdentityId);
+      fail("Shouldn't allow an attendee to file an occurrence of a space series into their own calendar");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertEquals("The series must keep all its dates",
+                 occurrences.size(),
+                 agendaEventService.getEventOccurrencesInPeriod(series, periodStart, periodEnd, series.getTimeZoneId(), 0)
+                                   .size());
+  }
+
+  /**
+   * A space event can go back to a personal calendar (EXO-90149) when the
+   * user created it, and when an attendee also manages the space: the
+   * attendee right is read first, and must not hide the manager one.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testUpdateEventMoveOutOfSpaceByCreatorOrManagerSucceeds() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+
+    Event eventInstance = newEventInstance(start, start.plusHours(1), false);
+    eventInstance.setRecurrence(null);
+    eventInstance.setCalendarId(spaceCalendar.getId());
+    eventInstance.setAllowAttendeeToUpdate(true);
+
+    // 1. The creator moves it into their own calendar
+    long creatorEventId = createEvent(eventInstance, user1IdentityId, testuser2Identity).getId();
+    Event creatorEvent = agendaEventService.getEventById(creatorEventId, null, user1IdentityId).clone();
+    assertTrue("The creator may move the event", creatorEvent.getAcl().isCanMove());
+    creatorEvent.setCalendarId(calendar.getId());
+    agendaEventService.updateEvent(creatorEvent,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   user1IdentityId);
+    assertEquals("The event must have moved to the creator's calendar",
+                 calendar.getId(),
+                 agendaEventService.getEventById(creatorEventId).getCalendarId());
+
+    // 2. An attendee who manages the space moves it into their own calendar
+    long managerEventId = createEvent(eventInstance, user1IdentityId, testuser2Identity).getId();
+    spaceService.setManager(space, testuser2Identity.getRemoteId(), true);
+    org.exoplatform.agenda.model.Calendar user2Calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(user2IdentityId);
+    try {
+      Event managerEvent = agendaEventService.getEventById(managerEventId, null, user2IdentityId).clone();
+      assertTrue("A space manager attending the event may move it", managerEvent.getAcl().isCanMove());
+      agendaEventService.updateEventFields(managerEventId,
+                                           getFields("calendarId", String.valueOf(user2Calendar.getId())),
+                                           false,
+                                           false,
+                                           user2IdentityId);
+      assertEquals("The event must have moved to the manager's calendar",
+                   user2Calendar.getId(),
+                   agendaEventService.getEventById(managerEventId).getCalendarId());
+    } finally {
+      // The moved event must not outlive the test in testuser2's calendar
+      agendaCalendarService.deleteCalendarById(user2Calendar.getId());
+    }
+  }
+
+  /**
    * Legitimate calendar changes through a field patch keep working
    * (EXO-90381): the owner moves an event between their own calendars, a space
    * redactor moves it into the space calendar, and a patch that keeps the
