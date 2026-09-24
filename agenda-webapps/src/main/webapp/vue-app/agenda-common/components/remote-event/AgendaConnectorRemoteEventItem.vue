@@ -133,7 +133,7 @@ export default {
       return this.event && this.event.id === this.remoteEvent.id;
     },
     textClass() {
-      return this.currentEvent ? 'white-text':'primary--text';
+      return this.currentEvent ? 'white--text':'primary--text';
     },
     /**
      * The colour of the connector's font icon on this row. The row being
