@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.exoplatform.agenda.util.Utils.POST_UPDATE_AGENDA_EVENT_EVENT;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -95,6 +97,20 @@ public class AgendaEventContentSyncListenerTest {
   private void stubEventModification() {
     when(event.getSource()).thenReturn(agendaEventModification);
     when(agendaEventModification.getEventId()).thenReturn(EVENT_ID);
+  }
+
+  /**
+   * The propagation decision, pinned where it is taken: a blank or missing
+   * summary propagates nothing (it would blank the article's title), an
+   * unchanged one propagates nothing, a changed one propagates.
+   */
+  @Test
+  public void onlyAChangedNonBlankSummaryIsPropagated() {
+    assertNull(AgendaEventContentSyncListener.titleToPropagate(null, "Title"));
+    assertNull(AgendaEventContentSyncListener.titleToPropagate("  ", "Title"));
+    assertNull(AgendaEventContentSyncListener.titleToPropagate("Title", "Title"));
+    assertEquals("New title", AgendaEventContentSyncListener.titleToPropagate("New title", "Title"));
+    assertEquals("New title", AgendaEventContentSyncListener.titleToPropagate("New title", null));
   }
 
   /**
