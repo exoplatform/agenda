@@ -79,7 +79,7 @@ export default {
       return this.currentAttendee && this.currentAttendee.response === 'TENTATIVE';
     },
     textClass() {
-      return this.invitedEvent ? 'white-text':'primary--text';
+      return this.invitedEvent ? 'white--text':'primary--text';
     },
     voteIconStatus() {
       return this.currentAttendee && this.currentAttendee.response && `attendee-vote-${this.currentAttendee.response.toLowerCase()}` || 'attendee-vote-needs_action';
