@@ -29,6 +29,8 @@ import org.exoplatform.services.listener.Asynchronous;
 import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.listener.Listener;
 import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.metadata.MetadataService;
@@ -45,6 +47,8 @@ import static org.exoplatform.agenda.util.Utils.*;
 @Component
 @RequiredArgsConstructor
 public class AgendaEventContentSyncListener extends Listener<AgendaEventModification, Object> {
+
+  private static final Log LOG = ExoLogger.getLogger(AgendaEventContentSyncListener.class);
 
   private final ListenerService listenerService;
 
@@ -106,19 +110,41 @@ public class AgendaEventContentSyncListener extends Listener<AgendaEventModifica
       return;
     }
 
-    // An event whose summary is not set propagates nothing: the alternative is
-    // writing a null title onto an article that has one, which is a worse
-    // outcome than leaving the two out of step. SUMMARY is nullable in the
-    // schema, and the rest of the repo already reads it as such.
-    if (StringUtils.isNotBlank(agendaEvent.getSummary()) && !StringUtils.equals(agendaEvent.getSummary(), news.getTitle())) {
-      news.setTitle(agendaEvent.getSummary());
-      String updater = identityManager.getIdentity(agendaEventModification.getModifierId()).getRemoteId();
+    String title = titleToPropagate(agendaEvent.getSummary(), news.getTitle());
+    if (title == null) {
+      return;
+    }
+    news.setTitle(title);
+    String updater = identityManager.getIdentity(agendaEventModification.getModifierId()).getRemoteId();
+    try {
       newsService.updateNews(news,
                              updater,
                              false,
                              false,
                              "article",
                              NewsUtils.NewsUpdateType.CONTENT_AND_TITLE.name());
+    } catch (IllegalAccessException e) {
+      // An outcome, not a failure: the modifier may update the event (an attendee
+      // under allowAttendeeToUpdate) without the right to edit the linked article,
+      // and then the title is not propagated.
+      LOG.debug("Event {} title not propagated to article {}: {} may not edit it", eventId, contentId, updater, e);
     }
+  }
+
+  /**
+   * The title the linked article should take from the event, or null when
+   * nothing is to be propagated: the event has no summary (SUMMARY is
+   * nullable, and writing a null title onto an article that has one is worse
+   * than leaving the two out of step), or the article already carries it.
+   *
+   * @param summary the event's summary
+   * @param currentTitle the article's current title
+   * @return the title to write, or null
+   */
+  static String titleToPropagate(String summary, String currentTitle) {
+    if (StringUtils.isBlank(summary) || StringUtils.equals(summary, currentTitle)) {
+      return null;
+    }
+    return summary;
   }
 }
