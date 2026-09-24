@@ -648,7 +648,15 @@ function getDeleteAllWebConferencesPromises(event) {
 
 function getSaveAllWebConferencesPromises(event) {
   const saveWebConferencePromises = [];
-  if (event.conferences && event.conferences.length) {
+  // The sync below rewrites the call's participant list out of event.attendees,
+  // so an entity that does not carry one has nothing to say about its
+  // conferences and must not speak for them: an absent attendee list is not an
+  // empty one. The parent of a recurrent event and the exceptional occurrences
+  // are exactly that — the expand fills attendees on the top-level entity only
+  // — and a remote-id patch routes them through here (EXO-90015). The three
+  // other callers pass a form event or an expand=all one, which always carries
+  // the list, empty or not.
+  if (event.conferences && event.conferences.length && event.attendees) {
     event.conferences.forEach(conference => {
       const saveWebConferencePromise = saveEventWebConferencing(event, conference);
       saveWebConferencePromises.push(saveWebConferencePromise);

@@ -381,10 +381,21 @@ public class RestUtils {
       if (parentEventEntity != null) {
         fillRemoteEvent(agendaRemoteEventService, parentEventEntity, userIdentityId);
 
-        if (expandProperties.contains("parentAll") && !isComputedOccurrence) {
-          boolean isEventAttendee = agendaEventAttendeeService.isEventAttendee(parentEventEntity.getId(), userIdentityId);
-          boolean canUpdateEvent = isEventAttendee && eventEntity.getAcl().isCanEdit();
-          parentEventEntity.setAcl(new EventPermission(canUpdateEvent, isEventAttendee));
+        if (expandProperties.contains("parentAll")) {
+          if (!isComputedOccurrence) {
+            boolean isEventAttendee = agendaEventAttendeeService.isEventAttendee(parentEventEntity.getId(), userIdentityId);
+            boolean canUpdateEvent = isEventAttendee && eventEntity.getAcl().isCanEdit();
+            parentEventEntity.setAcl(new EventPermission(canUpdateEvent, isEventAttendee));
+          }
+          // The parent is the object an answer given for the whole series acts
+          // on, and what the calendar connectors then copy to the user's
+          // connected account. Left with no conferences it reached them
+          // stripped of the event's visio link, so the copy in Google or in
+          // Outlook carried no way back to the meeting. Filled outside the
+          // occurrence guard above, because the occurrence the answer is given
+          // from is a computed one — id 0, no row of its own — far more often
+          // than it is an exceptional one.
+          fillConferences(agendaEventConferenceService, parentEventEntity);
         }
       }
       if (isComputedOccurrence) {
