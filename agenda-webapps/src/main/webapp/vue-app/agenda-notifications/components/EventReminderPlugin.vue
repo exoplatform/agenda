@@ -72,7 +72,7 @@ export default {
       return `${this.dateFormatter(startDate)} - ${this.dateFormatter(endDate)}`;
     },
     message() {
-      return this.$t('Notification.agenda.event.reminder.inSpace');
+      return this.$t('Notification.agenda.event.reminder');
     }
   },
   methods: {
