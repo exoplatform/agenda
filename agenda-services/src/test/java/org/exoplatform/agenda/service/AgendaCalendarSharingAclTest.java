@@ -692,6 +692,45 @@ class AgendaCalendarSharingAclTest {
   }
 
   /**
+   * An editor may not take one date of the owner's series into their own
+   * calendar (EXO-90149): filed elsewhere, the occurrence removes that date
+   * from the calendar its owner shared, which is a move — refused as moving
+   * the event itself is, though she may create in her own calendar.
+   */
+  @Test
+  void anEditorCannotFileAnOccurrenceOfTheOwnersSeriesIntoTheirOwnCalendar() {
+    when(calendarStorage.getCalendarById(ALICE_CALENDAR)).thenAnswer(invocation -> aliceCalendar());
+    // A write that would go through is answered, so that only the move right
+    // can make this call fail
+    AtomicReference<Event> stored = new AtomicReference<>();
+    org.mockito.Mockito.lenient().when(eventStorage.createEvent(any())).thenAnswer(invocation -> {
+      Event created = invocation.<Event> getArgument(0).clone();
+      created.setId(NEW_EVENT);
+      stored.set(created);
+      return created;
+    });
+    org.mockito.Mockito.lenient().when(eventStorage.getEventById(NEW_EVENT)).thenAnswer(invocation -> stored.get());
+    aliceLevel = CalendarShareLevel.EDIT;
+    Event occurrence = occurrenceOfSeries();
+    occurrence.setCalendarId(ALICE_CALENDAR);
+
+    IllegalAccessException refusal = assertThrows(IllegalAccessException.class,
+                                                  () -> eventService.createEvent(occurrence,
+                                                                                 null,
+                                                                                 null,
+                                                                                 null,
+                                                                                 null,
+                                                                                 null,
+                                                                                 false,
+                                                                                 ALICE),
+                                                  "the date stays in the calendar its owner shared");
+    assertTrue(refusal.getMessage().contains("can't move an occurrence of event"),
+               "and it is the move right that refuses her: " + refusal.getMessage());
+    verify(eventStorage, never()).createEvent(any());
+    assertTrue(eventService.canCreateEvent(aliceCalendar(), ALICE), "though she may create in her own calendar");
+  }
+
+  /**
    * An editor sets their own reminders on the owner's events; a viewer is
    * still refused (EXO-90378, PO decision 13). A reminder is per receiver:
    * the editor's reaches nobody else.

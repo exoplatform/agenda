@@ -27,6 +27,7 @@
     :event="event"
     :current-space="currentSpace"
     :calendars="calendars"
+    :readonly="!canMove"
     @initialized="$emit('initialized')" />
   <div
     v-else
@@ -52,6 +53,7 @@
         :items="destinationItems"
         :aria-label="$t('agenda.destination.label')"
         :menu-props="{bottom: true, offsetY: true}"
+        :disabled="!canMove"
         class="agenda-event-form-destination flex-grow-1 pt-0 mt-0"
         outlined
         dense
@@ -77,10 +79,20 @@
           The same markup in both slots on purpose: the row the menu offers
           and the row the closed select shows are the same row, and a name
           that reads one way open and another way closed is one more thing to
-          keep in step.
+          keep in step. The colour is part of that row — the closed field
+          carries the calendar's dot exactly as the menu does, so the field
+          says which calendar by name and by the colour its events wear in
+          the grid.
+
+          A row whose destination has no colour — the entry leading to the
+          space flow — renders no dot and no stand-in for one: its label
+          starts where the dots of the other rows do. Naming no calendar, it
+          has no colour to show, and an invisible glyph held there only to
+          line the labels up would be reserving room for something that is
+          never coming.
         -->
         <template #item="{ item }">
-          <div class="agenda-destination-option d-flex align-center">
+          <div class="agenda-destination-option mt-1 d-flex align-center">
             <v-icon
               v-if="item.color"
               :color="item.color"
@@ -92,7 +104,7 @@
           </div>
         </template>
         <template #selection="{ item }">
-          <div class="agenda-destination-option d-flex align-center">
+          <div class="agenda-destination-option mt-1 d-flex align-center">
             <v-icon
               v-if="item.color"
               :color="item.color"
@@ -111,6 +123,7 @@
       :event="event"
       :current-space="currentSpace"
       :calendars="calendars"
+      :readonly="!canMove"
       :class="inline ? 'event-input' : 'mt-2'"
       @initialized="$emit('initialized')" />
   </div>
@@ -170,6 +183,16 @@ export default {
      */
     spacesModeSelected() {
       return this.selectedValue === 'spaces';
+    },
+    /**
+     * Whether the user may file the event elsewhere: always for a new event,
+     * and for an edited one as the server says (EXO-90149) — an attendee
+     * allowed to modify the event may not take it out of its calendar.
+     *
+     * @returns {Boolean} true when the destination can be changed
+     */
+    canMove() {
+      return !(this.event.id || this.event.occurrence) || !this.event.acl || this.event.acl.canMove !== false;
     },
     /**
      * The items of the destination select: the user's personal calendars
