@@ -384,7 +384,7 @@ public class RestUtils {
         if (expandProperties.contains("parentAll") && !isComputedOccurrence) {
           boolean isEventAttendee = agendaEventAttendeeService.isEventAttendee(parentEventEntity.getId(), userIdentityId);
           boolean canUpdateEvent = isEventAttendee && eventEntity.getAcl().isCanEdit();
-          parentEventEntity.setAcl(new EventPermission(canUpdateEvent, isEventAttendee));
+          parentEventEntity.setAcl(new EventPermission(canUpdateEvent, isEventAttendee, canUpdateEvent && eventEntity.getAcl().isCanMove()));
         }
       }
       if (isComputedOccurrence) {
