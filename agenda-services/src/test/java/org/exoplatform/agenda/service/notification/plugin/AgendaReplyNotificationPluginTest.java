@@ -24,6 +24,8 @@ public class AgendaReplyNotificationPluginTest extends BaseAgendaEventTest {
   @Test
   public void testSendNotificationWhenReplyToEvent() throws Exception {
     // Given
+    calendar.setName("Travel");
+    agendaCalendarService.updateCalendar(calendar);
     ZonedDateTime start = ZonedDateTime.now();
 
     boolean allDay = false;
@@ -89,6 +91,9 @@ public class AgendaReplyNotificationPluginTest extends BaseAgendaEventTest {
     Assert.assertTrue(notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_PARTICIPANT_AVATAR_URL)
                                       .startsWith(avatarUrl));
     Assert.assertTrue(notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_URL).startsWith(eventUrl));
+    Assert.assertEquals("the creator's calendar name travels with the reply notification",
+                        "Travel",
+                        notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_CALENDAR_NAME));
     Assert.assertEquals(eventAttendees.get(2).getResponse().name(),
                         notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_RESPONSE));
     Assert.assertEquals(identity.getProfile().getFullName(),
