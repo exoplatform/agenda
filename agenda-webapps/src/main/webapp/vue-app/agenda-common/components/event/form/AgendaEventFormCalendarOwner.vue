@@ -5,7 +5,7 @@
     :items="allowedSpaces"
     :labels="calendarSuggesterLabels"
     :include-users="false"
-    :disabled="currentSpace || allowedSpaces.length === 1"
+    :disabled="readonly || currentSpace || allowedSpaces.length === 1"
     :width="220"
     :include-only-items="allowedSpaces.length > 1"
     name="calendarOwnerAutocomplete"
@@ -29,6 +29,10 @@ export default {
     calendars: {
       type: Array,
       default: () => []
+    },
+    readonly: {
+      type: Boolean,
+      default: false,
     },
   },
   data() {
@@ -73,7 +77,9 @@ export default {
         }
       } else {
         this.event.calendar.owner = null;
-        if (this.currentUser) {
+        // Resetting the attendees to the organizer suits a new event only:
+        // an edited one keeps the attendees it was saved with (EXO-90149)
+        if (this.currentUser && !this.event.id && !this.event.occurrence) {
           this.event.attendees = [{identity: {
             id: eXo.env.portal.userIdentityId,
             providerId: 'organization',
@@ -110,8 +116,11 @@ export default {
       }
     },
     reset() {
+      // An event keeps its owner when it has one. An edited event may have
+      // none: moving a personal event into a space clears it, and the space
+      // is then searched as for a new event (EXO-90149)
       // eslint-disable-next-line no-extra-parens
-      if (this.event.id || this.event.occurrence ||  (this.event.calendar && this.event.calendar.owner && (this.event.calendar.owner.id || (this.event.calendar.owner.remoteId && this.event.calendar.owner.providerId)))) { // In case of edit existing event
+      if (this.event.calendar && this.event.calendar.owner && (this.event.calendar.owner.id || (this.event.calendar.owner.remoteId && this.event.calendar.owner.providerId))) {
         this.calendarOwner = this.$suggesterService.convertIdentityToSuggesterItem(this.event.calendar.owner);
 
         window.setTimeout(() => {
@@ -120,7 +129,7 @@ export default {
           }
           this.$emit('initialized');
         }, 200);
-      } else { // In case of new event
+      } else { // A new event, or one leaving the user's calendars for a space
         if (this.allowedSpaces.length === 1) {
           this.calendarOwner = this.allowedSpaces[0];
           if (this.$refs.calendarOwnerSuggester) {
