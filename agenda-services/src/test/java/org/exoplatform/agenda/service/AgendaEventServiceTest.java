@@ -4222,6 +4222,70 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   /**
+   * Amending one date of a space series does not buy the move right
+   * (EXO-90149). An attendee allowed to update the series may file an
+   * exceptional occurrence in the series' own calendar, and storing it makes
+   * them that occurrence's creator; the move right must still be read on the
+   * series, or that creator title would take the date out of the space for
+   * every member. The series' own creator keeps the move, though they are not
+   * the creator of the date somebody else amended.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testMoveAmendedOccurrenceOfSpaceSeriesByAttendeeOnlyIsRefused() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+
+    Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+    seriesInstance.setCalendarId(spaceCalendar.getId());
+    seriesInstance.setAllowAttendeeToUpdate(true);
+    Event series = createEvent(seriesInstance, user1IdentityId, testuser2Identity);
+    long seriesId = series.getId();
+    org.exoplatform.agenda.model.Calendar user2Calendar = agendaCalendarService.getOrCreateCalendarByOwnerId(user2IdentityId);
+
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                             start.minusDays(1),
+                                                                             start.plusDays(5),
+                                                                             series.getTimeZoneId(),
+                                                                             0);
+    assertTrue("The series must have several occurrences", occurrences.size() > 1);
+
+    // The attendee amends one date in place: allowed, and it makes them the
+    // creator of the stored occurrence
+    Event amended = createEvent(newOccurrenceInstance(seriesId, occurrences.get(1), spaceCalendar.getId()), user2IdentityId);
+    assertEquals("The amendment must be stored as the attendee's own",
+                 user2IdentityId,
+                 amended.getCreatorId());
+
+    Event asAttendee = agendaEventService.getEventById(amended.getId(), null, user2IdentityId).clone();
+    assertFalse("Amending a date must not give the attendee the move right the series denies them",
+                asAttendee.getAcl().isCanMove());
+    asAttendee.setCalendarId(user2Calendar.getId());
+    try {
+      agendaEventService.updateEvent(asAttendee,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     null,
+                                     null,
+                                     false,
+                                     user2IdentityId);
+      fail("Shouldn't let an attendee move an occurrence they amended out of the space series' calendar");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertEquals("The amended date must stay in the space calendar",
+                 spaceCalendar.getId(),
+                 agendaEventService.getEventById(amended.getId()).getCalendarId());
+
+    // The series' creator may still move it, though somebody else amended it
+    assertTrue("The series' creator may move a date another user amended",
+               agendaEventService.getEventById(amended.getId(), null, user1IdentityId).getAcl().isCanMove());
+  }
+
+  /**
    * A space event can go back to a personal calendar (EXO-90149) when the
    * user created it, and when an attendee also manages the space: the
    * attendee right is read first, and must not hide the manager one.

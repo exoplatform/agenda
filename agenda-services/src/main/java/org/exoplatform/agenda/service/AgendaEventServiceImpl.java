@@ -1398,6 +1398,17 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * attendee allowed to update the event and a share editor may not.
    * {@link #writeRightOf} answers the attendee right before the calendar one,
    * so an attendee is asked again whether they also manage the calendar.
+   * <p>
+   * An exceptional occurrence is answered on its series, never on itself. An
+   * attendee allowed to update a series may amend one of its dates in place,
+   * and storing that amendment makes them the occurrence's creator; read off
+   * the occurrence the right would then be {@link EventWriteRight#CREATOR},
+   * which is the move right the series denies them — enough to take that date
+   * out of the space for every member who reads it. The series is what
+   * {@link #checkCanCreateEvent} already asks about for the same reason, and
+   * the occurrence carrying its series' right is also what keeps the move
+   * available to the series' creator, who is not the creator of a date
+   * somebody else amended.
    *
    * @param writeRight the user's right, as {@link #writeRightOf} answered it
    * @param event the event, as stored
@@ -1405,13 +1416,24 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * @return true when the user may move the event
    */
   private boolean canMoveWith(EventWriteRight writeRight, Event event, long userIdentityId) {
-    if (writeRight == EventWriteRight.CREATOR || writeRight == EventWriteRight.CALENDAR) {
+    Event moveSubject = event;
+    EventWriteRight moveRight = writeRight;
+    if (event.getParentId() > 0) {
+      // The read is served by the event cache, and computeEventsAcl asks once
+      // per series, so a listing pays it once however many dates it carries
+      Event series = agendaEventStorage.getEventById(event.getParentId());
+      if (series != null) {
+        moveSubject = series;
+        moveRight = writeRightOf(series, userIdentityId);
+      }
+    }
+    if (moveRight == EventWriteRight.CREATOR || moveRight == EventWriteRight.CALENDAR) {
       return true;
     }
-    if (writeRight != EventWriteRight.ATTENDEE) {
+    if (moveRight != EventWriteRight.ATTENDEE) {
       return false;
     }
-    Calendar calendar = agendaCalendarService.getCalendarById(event.getCalendarId());
+    Calendar calendar = agendaCalendarService.getCalendarById(moveSubject.getCalendarId());
     return calendar != null && Utils.canEditCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId);
   }
 
