@@ -31,8 +31,16 @@ public class EventPermission implements Cloneable, Serializable {
 
   private boolean           attendee;
 
+  /**
+   * Whether the user may take the event out of its calendar into another one
+   * (EXO-90149): its creator, or whoever manages its calendar — never an
+   * attendee on the sole strength of "attendees can modify the event", nor a
+   * colleague editing it through a calendar share.
+   */
+  private boolean           canMove;
+
   @Override
   public EventPermission clone() { // NOSONAR
-    return new EventPermission(canEdit, attendee);
+    return new EventPermission(canEdit, attendee, canMove);
   }
 }

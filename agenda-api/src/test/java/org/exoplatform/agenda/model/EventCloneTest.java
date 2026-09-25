@@ -87,7 +87,7 @@ class EventCloneTest {
     event.setAllowAttendeeToInvite(false);
     event.setRecurrence(recurrence());
     event.setOccurrence(new EventOccurrence(ZonedDateTime.of(2026, 9, 21, 9, 0, 0, 0, ZoneOffset.UTC)));
-    event.setAcl(new EventPermission(true, false));
+    event.setAcl(new EventPermission(true, false, true));
     event.setParameters(new HashMap<>(Map.of("key", "value")));
 
     Event copy = event.clone();
