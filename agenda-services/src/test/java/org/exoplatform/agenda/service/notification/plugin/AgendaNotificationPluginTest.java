@@ -28,6 +28,8 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
   @Test
   public void testMakeNotificationWhenCreateEvent() throws Exception {
     // Given
+    calendar.setName("Travel");
+    agendaCalendarService.updateCalendar(calendar);
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
     Event event = newEventInstance(start, start, false);
     Event createdEvent = createEvent(event.clone(),
@@ -77,6 +79,9 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                         notificationInfo.getValueOwnerParameter(NotificationUtils.TEMPLATE_VARIABLE_EVENT_TITLE));
     Assert.assertEquals(nbAttendee, notificationInfo.getSendToUserIds().size());
     Assert.assertTrue(notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_URL).startsWith(eventUrl));
+    Assert.assertEquals("the creator's calendar name travels with the notification, so the mail can name it",
+                        "Travel",
+                        notificationInfo.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_CALENDAR_NAME));
   }
 
   @Test

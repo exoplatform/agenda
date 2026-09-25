@@ -21,7 +21,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
     :message="message"
     :loading="loading"
     :url="eventUrl"
-    space-avatar>
+    :space-avatar="!personalCalendar">
     <template #actions>
       <div class="text-truncate">
         <v-icon size="14" class="me-1 mb-1">fa-calendar-alt</v-icon>
@@ -43,26 +43,15 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
   </user-notification-template>
 </template>
 <script>
+import calendarOwnerMixin from '../js/calendarOwnerMixin.js';
+
 export default {
-  data: () => ({
-    space: null,
-  }),
+  mixins: [calendarOwnerMixin],
   props: {
     notification: {
       type: Object,
       default: null,
     },
-  },
-  created() {
-    if (this.notification?.space) {
-      this.space = this.notification?.space;
-    } else {
-      this.$identityService.getIdentityById(this.notification?.parameters?.ownerId).then(identity => {
-        if (identity?.space) {
-          this.space = identity.space;
-        }
-      });
-    }
   },
   computed: {
     eventUrl() {
@@ -72,7 +61,7 @@ export default {
       return this.notification?.parameters?.eventTitle;
     },
     avatarUrl() {
-      return this.space?.avatarUrl;
+      return this.calendarAvatarUrl;
     },
     spaceName() {
       return this.space?.displayName;

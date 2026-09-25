@@ -36,7 +36,6 @@ import org.exoplatform.services.resources.ResourceBundleService;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
-import static org.exoplatform.agenda.util.NotificationUtils.STORED_PARAMETER_EVENT_OWNER_ID;
 import static org.exoplatform.agenda.util.NotificationUtils.STORED_PARAMETER_EVENT_TITLE;
 import static org.exoplatform.agenda.util.NotificationUtils.STORED_PARAMETER_EVENT_URL;
 
@@ -69,9 +68,7 @@ public class EventReminderNotificationPwaPlugin implements PwaNotificationPlugin
     PwaNotificationMessage notificationMessage = new PwaNotificationMessage();
 
     String key = TITLE_LABEL_KEY;
-    String spaceIdentityId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
-    String title = resourceBundleService.getSharedString(key, localeConfig.getLocale())
-                                        .replace("{0}",getIdentityManager().getIdentity(Long.parseLong(spaceIdentityId)).getProfile().getFullName());
+    String title = resourceBundleService.getSharedString(key, localeConfig.getLocale());
     notificationMessage.setTitle(title);
     notificationMessage.setBody(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_TITLE));
 
