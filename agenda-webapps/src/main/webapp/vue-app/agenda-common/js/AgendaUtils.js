@@ -568,6 +568,78 @@ export function mergeRemoteEvents(eventsByConnector) {
 }
 
 /**
+ * The remote events that are not a copy of an event eXo already draws.
+ *
+ * <p>An account may hold an eXo meeting three ways, and each is recognised
+ * on its own terms:
+ * <ul>
+ * <li>eXo pushed it: the listing carries, per viewer, the id the account gave
+ * the copy (`remoteId`, on the event or on its series).</li>
+ * <li>the account imported eXo's invitation mail: the copy keeps the mail's
+ * iCalendar UID, `agenda-event-<eventId>@<host>`, which names the meeting
+ * the same way for every recipient. Only a UID minted by this platform's
+ * host is read, so another eXo's event of the same id is never taken for
+ * this one. The host is the page's, while the server writes the configured
+ * domain (`CommonsUtils.getCurrentDomain()`): where users browse another
+ * host — an alias, a proxy — this check finds nothing and the title check
+ * below is what catches the copy.</li>
+ * <li>anything else — a feed the account and a space both subscribe to, a
+ * forwarded invitation — carries nothing eXo recorded: it is recognised by
+ * the same title at the same start and end. A distinct event that looks
+ * exactly like one on the grid loses nothing by being drawn once.</li>
+ * </ul>
+ *
+ * @param {Array} localEvents the eXo events on display
+ * @param {Array} remoteEvents the events read from the connected accounts
+ * @returns {Array} the remote events to draw beside the eXo ones
+ */
+export function filterRemoteCopies(localEvents, remoteEvents) {
+  const locals = localEvents || [];
+  return (remoteEvents || []).filter(remote => !locals.some(local => isRemoteCopy(remote, local)));
+}
+
+function isRemoteCopy(remote, local) {
+  const sameDates = sameInstant(remote.startDate, local.startDate) && sameInstant(remote.endDate, local.endDate);
+  // Only ids that exist are compared: a Google one-off carries no
+  // recurringEventId and a one-off eXo event no parent, and two missing ids
+  // name no event in common
+  const sameId = !!local.remoteId && remote.id === local.remoteId;
+  const sameRecurring = !!remote.recurringEventId && remote.recurringEventId === local.parent?.remoteId;
+  if (sameId || (sameRecurring && sameDates)) {
+    return true;
+  }
+  const invitedEventId = invitationEventId(remote);
+  if (invitedEventId) {
+    if (local.parent?.id && String(local.parent.id) === invitedEventId) {
+      return sameDates;
+    }
+    if (local.id && String(local.id) === invitedEventId) {
+      return !local.recurrence || sameDates;
+    }
+  }
+  const remoteTitle = (remote.summary || '').trim();
+  return !!remoteTitle && sameDates && remoteTitle === (local.summary || '').trim();
+}
+
+/**
+ * The eXo event an invitation copy names, read from its iCalendar UID —
+ * `uid` on a CalDAV read, `iCalUID` on Google, `iCalUId` on Microsoft Graph.
+ *
+ * @param {Object} remote an event read from a connected account
+ * @returns {String} the eXo event id, null when the UID is not this
+ *          platform's invitation UID
+ */
+function invitationEventId(remote) {
+  const uid = remote && (remote.iCalUID || remote.iCalUId || remote.uid);
+  const match = typeof uid === 'string' && uid.match(/^agenda-event-(\d+)@(.+)$/);
+  return match && match[2].toLowerCase() === window.location.hostname.toLowerCase() && match[1] || null;
+}
+
+function sameInstant(first, second) {
+  return !!first && !!second && new Date(first).getTime() === new Date(second).getTime();
+}
+
+/**
  * Splits what the connected accounts answered into the events a view may
  * draw and the accounts that could not answer at all.
  *
