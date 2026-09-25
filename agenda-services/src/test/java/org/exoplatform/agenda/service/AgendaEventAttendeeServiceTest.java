@@ -31,6 +31,7 @@ import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.exception.EventInvitationExpiredException;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
+import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.storage.api.IdentityStorage;
@@ -1064,6 +1065,209 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     assertEquals(EventAttendeeResponse.TENTATIVE,
                  agendaEventAttendeeService.getEventResponse(series.getId(), null, inviteeId));
     assertFalse(agendaEventAttendeeService.isEventAttendee(occurrence.getId(), inviteeId));
+  }
+
+  /**
+   * US05, in the board's order: a participant is removed from one date of a
+   * locked series, then the organiser opens the event. The opening reaches that
+   * date like any other property of the series, but it carries no membership:
+   * the row the organiser deleted is not recreated, the participant
+   * is still on the series and on every other date, and what they get back is
+   * the door any member of the space has on an open date — registering by
+   * themselves (D6). One scenario, run through each way an organiser opens a
+   * series; here the field patch of the detail page's padlock.
+   */
+  @Test
+  public void testOpeningTheSeriesByAPatchDoesNotPutBackAParticipantRemovedFromOneDate() throws Exception { // NOSONAR
+    assertOpeningKeepsTheRemoval((series, creatorId) -> agendaEventService.updateEventFields(series.getId(),
+                                                                                              getFields("open", "true"),
+                                                                                              true,
+                                                                                              false,
+                                                                                              creatorId));
+  }
+
+  /**
+   * The same opening through a full save of the series carrying its own
+   * attendee list — what the participants drawer sends on "all occurrences" —
+   * which still names the participant, so the propagation sees nobody added
+   * and nobody removed.
+   */
+  @Test
+  public void testOpeningTheSeriesByAFullSaveDoesNotPutBackAParticipantRemovedFromOneDate() throws Exception { // NOSONAR
+    assertOpeningKeepsTheRemoval((series, creatorId) -> {
+      Event seriesToOpen = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
+      seriesToOpen.setOpen(true);
+      agendaEventService.updateEvent(seriesToOpen,
+                                     agendaEventAttendeeService.getEventAttendees(series.getId()).getEventAttendees(),
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     null,
+                                     null,
+                                     false,
+                                     creatorId);
+    });
+  }
+
+  /**
+   * The narrowest scope of the same gesture: the organiser opens that one date
+   * alone (US06). The date is saved with its own attendee list, which does not
+   * name the participant, so nothing puts them back; the door they get is the
+   * date's own open state, and it opens nothing else — the series and its
+   * other dates stay locked, and there they are still the invitee they were.
+   */
+  @Test
+  public void testOpeningOneDateAloneDoesNotPutBackAParticipantRemovedFromIt() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    long memberId = Long.parseLong(testuser2Identity.getId());
+    long memberNotInvitedId = Long.parseLong(testuser3Identity.getId());
+
+    Event series = createSpaceEvent(start, false, true, testuser1Identity, testuser2Identity);
+    Event removedDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start);
+    Event otherDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start.plusDays(1));
+    removeAttendee(removedDate.getId(), memberId, creatorId);
+    restartTransaction();
+
+    Event dateToOpen = agendaEventService.getEventById(removedDate.getId(), ZoneOffset.UTC, creatorId).clone();
+    dateToOpen.setOpen(true);
+    agendaEventService.updateEvent(dateToOpen,
+                                   agendaEventAttendeeService.getEventAttendees(removedDate.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    restartTransaction();
+
+    Event openedDate = agendaEventService.getEventById(removedDate.getId());
+    assertEquals("precondition: that date is open", Boolean.TRUE, openedDate.getOpen());
+    assertFalse("opening the date never puts them back on it",
+                agendaEventAttendeeService.isEventAttendee(removedDate.getId(), memberId));
+    assertTrue("and they may register again on it by themselves",
+               agendaEventAttendeeService.canRespondToEvent(openedDate, memberId));
+
+    // The series and its other dates are still locked
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(series.getId()).getOpen());
+    assertFalse(agendaEventAttendeeService.canRespondToEvent(agendaEventService.getEventById(series.getId()), memberNotInvitedId));
+    assertFalse(agendaEventAttendeeService.canRespondToEvent(agendaEventService.getEventById(otherDate.getId()),
+                                                            memberNotInvitedId));
+    // where the participant is still the invitee they were
+    assertTrue(agendaEventAttendeeService.isEventAttendee(otherDate.getId(), memberId));
+    agendaEventAttendeeService.sendEventResponse(series.getId(), memberId, EventAttendeeResponse.DECLINED);
+    assertEquals(EventAttendeeResponse.DECLINED,
+                 agendaEventAttendeeService.getEventResponse(otherDate.getId(), null, memberId));
+    assertFalse(agendaEventAttendeeService.isEventAttendee(removedDate.getId(), memberId));
+  }
+
+  /**
+   * US05, first criterion: an invitee answers an open event exactly as they
+   * answered it locked. Their right rests on the attendee half of the gate,
+   * which is read first, so it owes nothing to the open half — pinned on an
+   * invitee who is not a member of the space, the one population the open half
+   * refuses. And "answering an open event is becoming an attendee" is a no-op
+   * for someone who already is one: their row is updated, never duplicated.
+   */
+  @Test
+  public void testAnInviteeAnswersAnOpenEventAsTheyAnsweredItLocked() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    long memberInviteeId = Long.parseLong(testuser2Identity.getId());
+    long outsiderInviteeId = Long.parseLong(testuser5Identity.getId()); // invited, not a member of the space
+    assertFalse("precondition: the open half alone would refuse the outsider",
+                Utils.canAccessEventCalendar(identityManager, spaceService, spaceCalendar, outsiderInviteeId));
+
+    Event event = createSpaceEvent(start, false, false, testuser1Identity, testuser2Identity, testuser5Identity);
+    int attendeeRows = agendaEventAttendeeService.getEventAttendees(event.getId()).getEventAttendees().size();
+
+    // Locked: both answer, as invitees
+    agendaEventAttendeeService.sendEventResponse(event.getId(), memberInviteeId, EventAttendeeResponse.ACCEPTED);
+    agendaEventAttendeeService.sendEventResponse(event.getId(), outsiderInviteeId, EventAttendeeResponse.DECLINED);
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(event.getId(), null, memberInviteeId));
+    assertEquals(EventAttendeeResponse.DECLINED,
+                 agendaEventAttendeeService.getEventResponse(event.getId(), null, outsiderInviteeId));
+
+    agendaEventService.updateEventFields(event.getId(), getFields("open", "true"), false, false, creatorId);
+    restartTransaction();
+    Event openEvent = agendaEventService.getEventById(event.getId());
+    assertEquals("precondition: the event is open", Boolean.TRUE, openEvent.getOpen());
+
+    // Open: they answer again, as the invitees they still are
+    assertTrue(agendaEventAttendeeService.canRespondToEvent(openEvent, outsiderInviteeId));
+    agendaEventAttendeeService.sendEventResponse(event.getId(), memberInviteeId, EventAttendeeResponse.DECLINED);
+    agendaEventAttendeeService.sendEventResponse(event.getId(), outsiderInviteeId, EventAttendeeResponse.TENTATIVE);
+    assertEquals(EventAttendeeResponse.DECLINED,
+                 agendaEventAttendeeService.getEventResponse(event.getId(), null, memberInviteeId));
+    assertEquals(EventAttendeeResponse.TENTATIVE,
+                 agendaEventAttendeeService.getEventResponse(event.getId(), null, outsiderInviteeId));
+    assertEquals("an invitee's answer updates their row, it adds none",
+                 attendeeRows,
+                 agendaEventAttendeeService.getEventAttendees(event.getId()).getEventAttendees().size());
+  }
+
+  /** One way an organiser opens a series. */
+  private interface SeriesOpener {
+    void open(Event series, long creatorId) throws Exception;
+  }
+
+  /**
+   * The US05 scenario, from the removal on a locked series to the
+   * re-registration on the opened date, for one way of opening the series.
+   */
+  private void assertOpeningKeepsTheRemoval(SeriesOpener opener) throws Exception {
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    long memberId = Long.parseLong(testuser2Identity.getId());
+
+    Event series = createSpaceEvent(start, false, true, testuser1Identity, testuser2Identity);
+    Event removedDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start);
+    Event otherDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start.plusDays(1));
+    removeAttendee(removedDate.getId(), memberId, creatorId);
+    restartTransaction();
+    assertFalse("precondition: removed from that date",
+                agendaEventAttendeeService.isEventAttendee(removedDate.getId(), memberId));
+    assertTrue("precondition: still on the series", agendaEventAttendeeService.isEventAttendee(series.getId(), memberId));
+    assertTrue("precondition: still on the other date",
+               agendaEventAttendeeService.isEventAttendee(otherDate.getId(), memberId));
+    assertFalse("precondition: while the series is locked, that date is closed to them",
+                agendaEventAttendeeService.canRespondToEvent(agendaEventService.getEventById(removedDate.getId()), memberId));
+
+    opener.open(series, creatorId);
+    restartTransaction();
+
+    Event openedRemovedDate = agendaEventService.getEventById(removedDate.getId());
+    assertEquals("the opening reached the date they were removed from", Boolean.TRUE, openedRemovedDate.getOpen());
+    assertFalse("opening never puts them back", agendaEventAttendeeService.isEventAttendee(removedDate.getId(), memberId));
+    assertTrue("they remain a participant of the series", agendaEventAttendeeService.isEventAttendee(series.getId(), memberId));
+    assertTrue("and of every other date", agendaEventAttendeeService.isEventAttendee(otherDate.getId(), memberId));
+
+    // Their answer on the series reaches the dates they are on, and only those
+    agendaEventAttendeeService.sendEventResponse(series.getId(), memberId, EventAttendeeResponse.ACCEPTED);
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(otherDate.getId(), null, memberId));
+    assertFalse("an answer on the series doesn't put them back either",
+                agendaEventAttendeeService.isEventAttendee(removedDate.getId(), memberId));
+    // Nor does an answer "from this date on", whose own loop over the stored
+    // dates keeps the same guard
+    agendaEventAttendeeService.sendUpcomingEventResponse(series.getId(),
+                                                         removedDate.getOccurrence().getId(),
+                                                         memberId,
+                                                         EventAttendeeResponse.DECLINED);
+    assertEquals(EventAttendeeResponse.DECLINED,
+                 agendaEventAttendeeService.getEventResponse(otherDate.getId(), null, memberId));
+    assertFalse("an answer from that date on doesn't put them back either",
+                agendaEventAttendeeService.isEventAttendee(removedDate.getId(), memberId));
+
+    // The removal is not a ban: on the open date they register again by themselves
+    assertTrue(agendaEventAttendeeService.canRespondToEvent(openedRemovedDate, memberId));
+    agendaEventAttendeeService.sendEventResponse(removedDate.getId(), memberId, EventAttendeeResponse.TENTATIVE);
+    assertTrue(agendaEventAttendeeService.isEventAttendee(removedDate.getId(), memberId));
+    assertEquals(EventAttendeeResponse.TENTATIVE,
+                 agendaEventAttendeeService.getEventResponse(removedDate.getId(), null, memberId));
+    assertEquals("registering on one date changes nothing on the others",
+                 EventAttendeeResponse.DECLINED,
+                 agendaEventAttendeeService.getEventResponse(otherDate.getId(), null, memberId));
   }
 
   /**
