@@ -257,8 +257,8 @@ public interface AgendaEventAttendeeService {
    * the event itself, so an exceptional occurrence is checked against its own
    * attendee list, as today;</li>
    * <li>the open half: the event is open and the user can access its calendar
-   * (a member of the owning space). The flag belongs to the series, so it is
-   * read on the parent when the event is an occurrence.</li>
+   * (a member of the owning space). The flag is the event's own: a date
+   * individually modified answers with its own value.</li>
    * </ul>
    * Opening never widens who can see the event, only who can answer it.
    *

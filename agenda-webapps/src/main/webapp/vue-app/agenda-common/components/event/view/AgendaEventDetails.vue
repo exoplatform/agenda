@@ -113,9 +113,10 @@ export default {
     },
     /**
      * Who gets the Yes / Maybe / No buttons: an invitee, or anyone who can see
-     * an open event (eXIP 7.3.0.20). event.open is the effective value, the
-     * series' one on an occurrence. The server applies the same rule when the
-     * answer arrives, so this only decides what is rendered.
+     * an open event (eXIP 7.3.0.20). event.open is the flag the wire carries for
+     * this event: its own when it has a row of its own, its series' one for a
+     * computed occurrence. The server applies the same rule when the answer
+     * arrives, so this only decides what is rendered.
      *
      * @returns {Boolean} whether the current user may answer the event
      */
