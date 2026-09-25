@@ -579,7 +579,10 @@ export function mergeRemoteEvents(eventsByConnector) {
  * iCalendar UID, `agenda-event-<eventId>@<host>`, which names the meeting
  * the same way for every recipient. Only a UID minted by this platform's
  * host is read, so another eXo's event of the same id is never taken for
- * this one.</li>
+ * this one. The host is the page's, while the server writes the configured
+ * domain (`CommonsUtils.getCurrentDomain()`): where users browse another
+ * host — an alias, a proxy — this check finds nothing and the title check
+ * below is what catches the copy.</li>
  * <li>anything else — a feed the account and a space both subscribe to, a
  * forwarded invitation — carries nothing eXo recorded: it is recognised by
  * the same title at the same start and end. A distinct event that looks
@@ -597,8 +600,11 @@ export function filterRemoteCopies(localEvents, remoteEvents) {
 
 function isRemoteCopy(remote, local) {
   const sameDates = sameInstant(remote.startDate, local.startDate) && sameInstant(remote.endDate, local.endDate);
-  const sameId = remote.id === local.remoteId;
-  const sameRecurring = remote.recurringEventId === local.parent?.remoteId;
+  // Only ids that exist are compared: a Google one-off carries no
+  // recurringEventId and a one-off eXo event no parent, and two missing ids
+  // name no event in common
+  const sameId = !!local.remoteId && remote.id === local.remoteId;
+  const sameRecurring = !!remote.recurringEventId && remote.recurringEventId === local.parent?.remoteId;
   if (sameId || (sameRecurring && sameDates)) {
     return true;
   }
