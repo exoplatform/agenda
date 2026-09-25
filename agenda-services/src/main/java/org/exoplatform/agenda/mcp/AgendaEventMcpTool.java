@@ -319,7 +319,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                             EventStatus.CONFIRMED,
                             buildRecurrence(recurrenceFrequency, recurrenceInterval, recurrenceUntil, recurrenceCount),
                             null,
-                            new EventPermission(true, true),
+                            new EventPermission(true, true, true),
                             true,
                             true);
     Event createdEvent = agendaEventService.createEvent(event,
@@ -630,7 +630,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                             EventStatus.TENTATIVE,
                             null,
                             null,
-                            new EventPermission(true, true),
+                            new EventPermission(true, true, true),
                             true,
                             true);
     Event createdEvent = agendaEventService.createEvent(event,
