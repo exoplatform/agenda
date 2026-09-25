@@ -188,18 +188,6 @@ export default {
       type: Boolean,
       default: true,
     },
-    /**
-     * Whether this host can apply a change that belongs to the whole series.
-     * The open flag is one: the event page patches the series id and says so,
-     * while the event form saves one event and, on an occurrence, offers a
-     * scope dialog that does not carry the flag to the series. The padlock is
-     * therefore hidden rather than shown lying, when a host that cannot reach
-     * the series displays an occurrence.
-     */
-    appliesOnSeries: {
-      type: Boolean,
-      default: false,
-    },
   },
   data() {
     return {
@@ -214,9 +202,6 @@ export default {
     isSpaceCalendarEvent() {
       const owner = this.event && this.event.calendar && this.event.calendar.owner;
       return !!(owner && (owner.providerId === 'space' || !!owner.space));
-    },
-    isOccurrence() {
-      return !!(this.event && (this.event.occurrence || this.event.parent));
     },
     /**
      * A stored date poll carries status TENTATIVE, but that status is set by
@@ -239,10 +224,16 @@ export default {
      * open date polls are another eXIP (7.3.0.40): both hide it. In the
      * creation form this follows the calendar currently selected.
      *
+     * One date of a series is not a case of its own any more: since US06 the
+     * flag is a property of each date, and both hosts of this drawer ask the
+     * organiser how far a change reaches — the form through the scope dialog
+     * of its own save, the event page through the same popup, asked once when
+     * the drawer closes, over everything the visit changed.
+     *
      * @returns {Boolean} whether the open-event padlock is rendered
      */
     showOpenToggle() {
-      return this.isSpaceCalendarEvent && !this.isDatePoll && (!this.isOccurrence || this.appliesOnSeries);
+      return this.isSpaceCalendarEvent && !this.isDatePoll;
     },
     isOpenEvent() {
       return !!(this.event && this.event.open);
