@@ -15,6 +15,7 @@ import net.fortuna.ical4j.model.parameter.Cn;
 import net.fortuna.ical4j.model.property.*;
 import net.fortuna.ical4j.util.RandomUidGenerator;
 import net.fortuna.ical4j.util.UidGenerator;
+import org.apache.commons.lang3.LocaleUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
@@ -134,6 +135,11 @@ public class NotificationUtils {
                                                                                  PluginKey.key(AGENDA_VOTE_NOTIFICATION_PLUGIN);
 
   public static final String                                 STORED_PARAMETER_EVENT_TITLE                   = "eventTitle";
+
+  public static final String                                 STORED_PARAMETER_EVENT_CALENDAR_NAME           = "calendarName";
+
+  /** The label the agenda shows its owner for a personal calendar never named, in locale.portlet.Agenda. */
+  public static final String                                 PERSONAL_CALENDAR_LABEL_KEY                    = "agenda.myCalendar";
 
   public static final String                                 STORED_PARAMETER_EVENT_DESCRIPTION             = "eventDescription";
 
@@ -337,6 +343,7 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_RECURRENT_DETAILS, getRecurrenceDetails(event))
                 .with(STORED_PARAMETER_EVENT_TIMEZONE_NAME, timeZoneName)
                 .with(STORED_PARAMETER_EVENT_STATUS, event.getStatus().name());
+    storeCalendarName(notification, calendar);
 
     if (StringUtils.isNotBlank(event.getDescription())) {
       notification.with(STORED_PARAMETER_EVENT_DESCRIPTION, event.getDescription());
@@ -368,7 +375,7 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_WEB_EVENT_URL, getWebEventURL(event,null))
                 .with(STORED_PARAMETER_EVENT_START_DATE, AgendaDateUtils.toRFC3339Date(event.getStart()))
                 .with(STORED_PARAMETER_EVENT_END_DATE, AgendaDateUtils.toRFC3339Date((event.getEnd())));
-
+    storeCalendarName(notification, calendar);
   }
 
   public static final void storeEventParameters(IdentityManager identityManager,
@@ -415,6 +422,7 @@ public class NotificationUtils {
                 .with(STORED_PARAMETER_EVENT_RECURRENT_DETAILS, getRecurrenceDetails(event))
                 .with(STORED_PARAMETER_EVENT_TIMEZONE_NAME, timeZoneName)
                 .with(STORED_PARAMETER_EVENT_ATTENDEES, showParticipants);
+    storeCalendarName(notification, calendar);
 
 
     String username = notification.getTo();
@@ -462,7 +470,7 @@ public class NotificationUtils {
     setLasModifiedTime(notification, templateContext, language);
 
     setIdentityName(spaceService, notification);
-    setSpaceName(notification, templateContext);
+    setCalendarName(notification, templateContext);
     setEventDetails(templateContext, notification, timeZone);
     setIsGuest(username, templateContext);
     String modificationStoredType = notification.getValueOwnerParameter(STORED_EVENT_MODIFICATION_TYPE);
@@ -540,7 +548,7 @@ public class NotificationUtils {
     setRead(notification, templateContext);
     setNotificationId(notification, templateContext);
     setLasModifiedTime(notification, templateContext, language);
-    setSpaceName(notification, templateContext);
+    setCalendarName(notification, templateContext);
     setEventReplyDetails(templateContext, notification, timeZone);
 
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
@@ -818,6 +826,24 @@ public class NotificationUtils {
     return identity.getProfile().getAvatarUrl();
   }
 
+  /**
+   * Keeps the name the owner gave the calendar with the notification, so the
+   * channels can name a personal calendar without loading it again. A
+   * calendar never named stores nothing: getCalendarDisplayName() then names
+   * it for its recipient.
+   */
+  private static final void storeCalendarName(NotificationInfo notification, Calendar calendar) {
+    if (calendar != null && StringUtils.isNotBlank(calendar.getName())) {
+      notification.with(STORED_PARAMETER_EVENT_CALENDAR_NAME, calendar.getName());
+    }
+  }
+
+  private static final void setCalendarName(NotificationInfo notification, TemplateContext templateContext) {
+    String language = templateContext.getLanguage();
+    Locale locale = StringUtils.isBlank(language) ? Locale.ENGLISH : LocaleUtils.toLocale(language);
+    templateContext.put(TEMPLATE_VARIABLE_AGENDA_NAME, getCalendarDisplayName(notification, locale));
+  }
+
   private static final void setSpaceName(NotificationInfo notification, TemplateContext templateContext) {
     String ownerId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
     IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
@@ -829,6 +855,39 @@ public class NotificationUtils {
       Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
       String spaceName = space == null ? null : space.getDisplayName();
       templateContext.put(TEMPLATE_VARIABLE_AGENDA_NAME, spaceName);
+    }
+  }
+
+  /**
+   * The name a notification gives the calendar of its event, the same the
+   * agenda shows its recipient: a space calendar by its space; a personal
+   * calendar by the name its owner gave it, else - for a calendar never
+   * named - by the agenda's own label in the recipient's language when the
+   * recipient owns it, by the owner's full name otherwise.
+   *
+   * @param notification the notification carrying the event parameters, and
+   *          in getTo() the recipient it is rendered for
+   * @param locale the language of the recipient
+   * @return the calendar display name, empty when the owner is not found
+   */
+  public static String getCalendarDisplayName(NotificationInfo notification, Locale locale) {
+    String ownerId = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OWNER_ID);
+    IdentityManager identityManager = ExoContainerContext.getService(IdentityManager.class);
+    Identity identity = StringUtils.isBlank(ownerId) ? null : identityManager.getIdentity(ownerId);
+    if (identity == null) {
+      return "";
+    } else if (SpaceIdentityProvider.NAME.equals(identity.getProviderId())) {
+      Space space = ExoContainerContext.getService(SpaceService.class).getSpaceByPrettyName(identity.getRemoteId());
+      return space == null ? "" : space.getDisplayName();
+    } else {
+      String calendarName = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CALENDAR_NAME);
+      if (StringUtils.isNotBlank(calendarName)) {
+        return calendarName;
+      } else if (StringUtils.equals(notification.getTo(), identity.getRemoteId())) {
+        return Utils.getResourceBundleLabel(locale, PERSONAL_CALENDAR_LABEL_KEY);
+      } else {
+        return identity.getProfile().getFullName();
+      }
     }
   }
 
