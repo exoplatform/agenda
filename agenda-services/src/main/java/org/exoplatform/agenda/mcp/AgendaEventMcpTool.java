@@ -1149,19 +1149,18 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   }
 
   /**
-   * The open flag is a property of the series: an occurrence, computed or
-   * exceptional, answers with its parent's value (the exceptional occurrence's
-   * own row keeps false and is not a source of truth), exactly as the REST
-   * entity does, so that one open series never lists as open here and locked
-   * there.
+   * Every event this tool serves was read by its own id, so it has a row of its
+   * own and answers with its own value: a series, a standalone event, or a date
+   * individually modified, which may carry a value of its own since US06. A
+   * computed occurrence has no id to be read by and never reaches here, so
+   * there is no parent to climb to — the same value the REST entity puts on the
+   * wire for a stored event, so that one event never lists as open here and
+   * locked there.
+   *
+   * @param event {@link Event} as stored
+   * @return whether that event is open to the members of its space
    */
   private boolean isEffectivelyOpen(Event event) {
-    if (event.getParentId() > 0) {
-      Event parentEvent = agendaEventService.getEventById(event.getParentId());
-      if (parentEvent != null) {
-        return Boolean.TRUE.equals(parentEvent.getOpen());
-      }
-    }
     return Boolean.TRUE.equals(event.getOpen());
   }
 

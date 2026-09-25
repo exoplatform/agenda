@@ -367,20 +367,25 @@ public class RestEntityBuilder {
   }
 
   /**
-   * The open flag is a property of the series: an occurrence carries its
-   * parent's value on the wire, so the client never has to look the parent up
-   * (the occurrence's own row keeps false and is not a source of truth).
+   * What the open padlock reads as for one event. Since US06 the flag is a
+   * property of each row, so an occurrence individually modified answers with
+   * its own; a computed occurrence has no row and carries its parent's value
+   * on the wire, so the client never has to look the parent up.
    * Package-private so that the rule can be pinned without the JAX-RS context
    * the rest of the entity building needs.
    *
    * @param parentEvent the parent entity already built for an occurrence,
    *          null for a standalone event or a search hit
    * @param event the event being put on the wire
-   * @return the parent's flag when there is a parent, the event's own otherwise
-   *         (may be null for a search hit, whose source carries no flag)
+   * @return the event&#39;s own flag as soon as it has a row of its own — a
+   *         series, a standalone event, or an occurrence individually modified,
+   *         which may carry a value of its own since US06; the parent&#39;s flag
+   *         for a computed occurrence, which has no row and inherits everything
+   *         from its series; may be null for a search hit, whose source carries
+   *         no flag
    */
   static Boolean effectiveOpen(EventEntity parentEvent, Event event) {
-    return parentEvent != null ? parentEvent.getOpen() : event.getOpen();
+    return event.getId() > 0 || parentEvent == null ? event.getOpen() : parentEvent.getOpen();
   }
 
   private static CalendarEntity getCalendarEntity(AgendaCalendarService agendaCalendarService,

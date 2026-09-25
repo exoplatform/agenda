@@ -511,18 +511,16 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   }
 
   /**
-   * The open flag is a property of the series: an exceptional occurrence row
-   * keeps false and the parent holds the truth, mirroring how the effective
-   * value is resolved on the wire.
+   * Since US06 the open flag is a property of each row: a date individually
+   * modified answers with its own value, which a series change merges into but
+   * never overwrites when it was customised there. The event this reads is
+   * always one that has a row — a computed occurrence is never stored and
+   * never reaches a response.
    *
    * @param event {@link Event} as stored
-   * @return whether the event, or the series it belongs to, is open
+   * @return whether that event is open to the members of its space
    */
   private boolean isOpen(Event event) {
-    if (event.getParentId() > 0) {
-      Event parent = eventStorage.getEventById(event.getParentId());
-      return parent != null && Boolean.TRUE.equals(parent.getOpen());
-    }
     return Boolean.TRUE.equals(event.getOpen());
   }
 
