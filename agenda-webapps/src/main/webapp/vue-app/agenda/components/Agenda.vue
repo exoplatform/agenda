@@ -364,6 +364,17 @@ export default {
       return this.signedInConnectors.length > 0;
     },
     /**
+     * Whether this agenda shows the events of the user's own accounts at all:
+     * always on the personal agenda, only while the toggle is on in a space's
+     * (EXO-90215). Read when a read starts, when it lands and when the grid is
+     * drawn, since the toggle can change while a read is in flight.
+     *
+     * @returns {Boolean} true when remote events may be read and drawn
+     */
+    remoteEventsWanted() {
+      return this.leftPanelAvailable || !!this.settings?.showRemoteEventsForSpaceAgenda;
+    },
+    /**
      * The set of accounts to fetch from, as a comparable string, so the
      * watcher fires when an account joins or leaves rather than on every
      * mutation of the connector objects.
@@ -434,9 +445,10 @@ export default {
     },
     /**
      * Reloads both event sources when the displayed period moves: the local
-     * store always, the remote accounts when one can answer. Remote events
-     * are no longer gated by a setting: connecting an account is the opt-in,
-     * and the per-calendar checkboxes of the left panel decide what is shown.
+     * store always, the remote accounts when one can answer. On the personal
+     * agenda connecting an account is the opt-in and the per-calendar
+     * checkboxes of the left panel decide what is shown; a space's agenda
+     * reads them only while showRemoteEventsForSpaceAgenda is on.
      * @returns {void}
      */
     period() {
@@ -536,6 +548,7 @@ export default {
     this.$root.$on('agenda-shared-calendars-displayed-changed', this.changeSharedCalendars);
     this.$root.$on('agenda-settings-refresh', this.initSettings);
     this.$root.$on('agenda-event-change-owner', this.refreshProviders);
+    this.$root.$on('agenda-show-remote-change', this.showSpaceRemoteEvents);
     this.initSettings();
   },
   methods: {
@@ -589,7 +602,7 @@ export default {
           || !event.calendar.owner
           || Number(event.calendar.owner.id) !== userIdentityId
           || !this.hiddenOwnCalendarIds.includes(Number(event.calendar.id)));
-      if (this.remoteEvents.length) {
+      if (this.remoteEventsWanted && this.remoteEvents.length) {
         // Avoid to have same event from remote and local store (pushed events from local store)
         const filtered = this.filterRemoteEvents(this.events, this.remoteEvents)
           .filter(remote => !this.hiddenRemoteCalendarIds.includes(remote.calendarId));
@@ -763,8 +776,8 @@ export default {
     /**
      * Fetches the remote events of every signed-in connected account for the
      * displayed period and merges them into one deduplicated array, each
-     * event tagged with the account it came from. Never in a space's agenda,
-     * which shows the space's calendars alone (EXO-90373).
+     * event tagged with the account it came from. In a space's agenda only
+     * when the user turned the toggle on (EXO-90215).
      *
      * @returns {void}
      */
@@ -777,13 +790,10 @@ export default {
       if (!this.period || !this.period.start || !this.period.end) {
         return;
       }
-      // A space's agenda shows the space's calendars and nothing that reaches
-      // the viewer personally (EXO-90373): the events of a connected account
-      // are the viewer's own, and merging them here drew, beside the space's
-      // events, the copies that account holds of them — a second, pale row for
-      // one meeting, in the colour of a collection that has nothing to do with
-      // the space. The personal agenda is where a connected account belongs.
-      if (!this.leftPanelAvailable) {
+      // A space's agenda shows the space's calendars, and the events of the
+      // viewer's own accounts only once they asked for them (EXO-90215): off
+      // by default, and not even read while off.
+      if (!this.remoteEventsWanted) {
         this.remoteEvents = [];
         this.failedConnectors = [];
         return;
@@ -816,15 +826,35 @@ export default {
               return {connector, failed: true};
             })))
           .then(eventsByConnector => {
+            this.loading = false;
+            // Switched off while the accounts were being read: what they
+            // answered is no longer asked for
+            if (!this.remoteEventsWanted) {
+              return;
+            }
             const sources = this.$agendaUtils.splitRemoteEventResults(eventsByConnector);
             this.remoteEvents = sources.events;
             this.failedConnectors = sources.failedConnectors;
-            this.loading = false;
           });
       } else {
         this.remoteEvents = [];
         this.failedConnectors = [];
       }
+    },
+    /**
+     * Shows or hides the events of the user's own accounts in a space's
+     * agenda, and remembers the choice for every space's agenda.
+     *
+     * @param {Boolean} show whether the accounts' events are shown
+     * @returns {void}
+     */
+    showSpaceRemoteEvents(show) {
+      if (this.leftPanelAvailable || !this.settings || this.settings.showRemoteEventsForSpaceAgenda === show) {
+        return;
+      }
+      this.$set(this.settings, 'showRemoteEventsForSpaceAgenda', show);
+      this.$settingsService.saveUserSettings(this.settings);
+      this.retrieveRemoteEvents();
     },
     /**
      * Records which remote calendars the user has hidden in the left panel and

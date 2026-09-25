@@ -47,12 +47,12 @@
         element="div"
         class="my-auto" />  
       <!--
-        No toggle action anywhere in the agenda toolbar any more: the global
-        show/hide-remote-events setting is retired, connecting an account is
-        the opt-in and the left panel's per-calendar checkboxes decide what is
-        shown. Where there is no left panel (mobile, space agenda) the toolbar
-        keeps the connect entry, and a manage entry once an account is
-        connected, so the connection itself stays reachable.
+        The personal agenda has no show/hide-remote-events toggle: connecting
+        an account is the opt-in there and the left panel's per-calendar
+        checkboxes decide what is shown. Where there is no left panel (mobile,
+        space agenda) the toolbar keeps the connect entry, and a manage entry
+        once an account is connected, so the connection itself stays
+        reachable.
       -->
       <agenda-connect-to-remote-button
         :connectors="connectors"
@@ -63,6 +63,21 @@
         :show-connect-action="!leftPanelCarriesConnect"
         :show-toggle-action="false"
         :show-manage-action="!leftPanelCarriesConnect" />
+      <!--
+        A space's agenda shows the space's calendars, and the user's own
+        accounts only when they ask for them (EXO-90215): a toggle of its own
+        beside the manage entry, since one button renders one action.
+      -->
+      <agenda-connect-to-remote-button
+        v-if="inSpace"
+        :connectors="connectors"
+        :settings="settings"
+        :show-default-remote-events="showSpaceRemoteEvents"
+        height="36"
+        width="36"
+        size="20"
+        :show-connect-action="false"
+        :show-manage-action="false" />
       <agenda-switch-view :calendar-type="calendarType" v-if="!$root.isMobile" />
       <agenda-calendar-filter-button />
     </template>
@@ -161,6 +176,22 @@ export default {
      */
     leftPanelCarriesConnect() {
       return !this.$root.isMobile && !eXo.env.portal.spaceId;
+    },
+    /**
+     * The space the agenda shows, as the application resolved it: a
+     * standalone agenda opened from a space page is the personal one.
+     *
+     * @returns {Boolean} true inside a space's agenda
+     */
+    inSpace() {
+      return !!this.currentSpace;
+    },
+    /**
+     * @returns {Boolean} whether the space's agenda shows the user's own
+     *          accounts' events
+     */
+    showSpaceRemoteEvents() {
+      return !!this.settings?.showRemoteEventsForSpaceAgenda;
     },
 
     /**

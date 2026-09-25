@@ -232,13 +232,33 @@ export default {
     showDefaultRemoteEvents() {
       return this.settings && this.settings.showRemoteEventsForTimeLine;
     },
+    /**
+     * Whether the widget reads accounts by a number of events rather than a
+     * period: the list view, which has a count and no period end.
+     *
+     * @returns {Boolean} true when a read asks for the next `limit` events
+     */
+    readsUpcomingEvents() {
+      return !this.period.end && this.limit > 0;
+    },
     limit() {
       return !this.$root.isTimelineView ? null : this.$root.timelineSettings?.itemsNumber ? this.$root.timelineSettings.itemsNumber : 10;
     },
   },
   watch: {
+    /**
+     * Reloads the local store for the new count, and the accounts only when
+     * the count is what their read asks for — the list view. Leaving the
+     * list view makes it null, and the calendar that replaces it asks for
+     * its own period once it has one.
+     *
+     * @returns {void}
+     */
     limit() {
       this.retrieveEvents();
+      if (this.settings.showRemoteEventsForTimeLine && this.readsUpcomingEvents) {
+        this.retrieveRemoteEvents();
+      }
     },
     initialized() {
       if (this.initialized) {
@@ -460,7 +480,7 @@ export default {
         // Every signed-in account is asked, and each fails on its own: one
         // unreachable account must not blank the events the others returned
         Promise.all(this.signedInConnectors.map(connector =>
-          connector.getEvents(startDateRFC3359, endDateRFC3359)
+          this.readConnectorEvents(connector, startDateRFC3359, endDateRFC3359)
             .then(answer => {
               // A connector may report a partial read: the events it did get,
               // beside the fact that it could not get all of them. Both halves
@@ -490,6 +510,24 @@ export default {
         this.remoteEvents = [];
         this.failedConnectors = [];
       }
+    },
+    /**
+     * Reads one account's events for the widget. The list view has no period
+     * end, only a number of items to show, so a connector able to answer
+     * "the next N events" is asked exactly that rather than for a whole year
+     * of every calendar it holds; any other connector, and the calendar
+     * views, read the period.
+     *
+     * @param {Object} connector the signed-in connector
+     * @param {String} start RFC3339 start of the read
+     * @param {String} end RFC3339 end of the period, or of the fallback year
+     * @returns {Promise} the connector's answer
+     */
+    readConnectorEvents(connector, start, end) {
+      if (this.readsUpcomingEvents && typeof connector.getUpcomingEvents === 'function') {
+        return connector.getUpcomingEvents(start, this.limit);
+      }
+      return connector.getEvents(start, end);
     },
     filterRemoteEvents(localEvents, remoteEvents) {
       return remoteEvents.filter(remote => {
