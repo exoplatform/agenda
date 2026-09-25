@@ -232,13 +232,44 @@ export default {
     showDefaultRemoteEvents() {
       return this.settings && this.settings.showRemoteEventsForTimeLine;
     },
+    /**
+     * Whether the widget reads accounts by a number of events rather than a
+     * period: the list view, which has a count and no period end.
+     *
+     * @returns {Boolean} true when a read asks for the next `limit` events
+     */
+    readsUpcomingEvents() {
+      return !this.period.end && this.limit > 0;
+    },
     limit() {
       return !this.$root.isTimelineView ? null : this.$root.timelineSettings?.itemsNumber ? this.$root.timelineSettings.itemsNumber : 10;
     },
   },
   watch: {
-    limit() {
+    /**
+     * Reloads the local store for the new count, and the accounts only when
+     * the count is what their read asks for — the list view. Leaving the
+     * list view makes it null, and the calendar that replaces it asks for
+     * its own period once it has one. Coming back to the list view drops the
+     * calendar's period: the list shows what comes next from now, and the
+     * period watcher reads both sources for it.
+     *
+     * @param {Number} limit the new count, null outside the list view
+     * @param {Number} previousLimit the count before
+     * @returns {void}
+     */
+    limit(limit, previousLimit) {
+      if (limit > 0 && !previousLimit && this.period.end) {
+        this.period = {
+          start: new Date(),
+          end: null,
+        };
+        return;
+      }
       this.retrieveEvents();
+      if (this.settings.showRemoteEventsForTimeLine && this.readsUpcomingEvents) {
+        this.retrieveRemoteEvents();
+      }
     },
     initialized() {
       if (this.initialized) {
@@ -321,7 +352,7 @@ export default {
     updateDisplayedEvents() {
       if (this.showDefaultRemoteEvents) {
         // Avoid to have same event from remote and local store (pushed events from local store)
-        const filtered = this.filterRemoteEvents(this.events, this.remoteEvents);
+        const filtered = this.$agendaUtils.filterRemoteCopies(this.events, this.remoteEvents);
         const merged = [...this.events, ...filtered];
         merged.sort((a, b) => {
           const s1 = this.$agendaUtils.toDate(a.start || a.startDate).getTime();
@@ -460,7 +491,7 @@ export default {
         // Every signed-in account is asked, and each fails on its own: one
         // unreachable account must not blank the events the others returned
         Promise.all(this.signedInConnectors.map(connector =>
-          connector.getEvents(startDateRFC3359, endDateRFC3359)
+          this.readConnectorEvents(connector, startDateRFC3359, endDateRFC3359)
             .then(answer => {
               // A connector may report a partial read: the events it did get,
               // beside the fact that it could not get all of them. Both halves
@@ -491,16 +522,23 @@ export default {
         this.failedConnectors = [];
       }
     },
-    filterRemoteEvents(localEvents, remoteEvents) {
-      return remoteEvents.filter(remote => {
-        const isMatched = localEvents.some(local => {
-          const sameId = remote.id === local.remoteId;
-          const sameDates =  new Date(remote.startDate).getTime() === new Date(local.startDate).getTime() && new Date(remote.endDate).getTime() === new Date(local.endDate).getTime();
-          const sameRecurring = remote.recurringEventId === local.parent?.remoteId;
-          return sameId || (sameRecurring && sameDates);
-        });
-        return !isMatched;
-      });
+    /**
+     * Reads one account's events for the widget. The list view has no period
+     * end, only a number of items to show, so a connector able to answer
+     * "the next N events" is asked exactly that rather than for a whole year
+     * of every calendar it holds; any other connector, and the calendar
+     * views, read the period.
+     *
+     * @param {Object} connector the signed-in connector
+     * @param {String} start RFC3339 start of the read
+     * @param {String} end RFC3339 end of the period, or of the fallback year
+     * @returns {Promise} the connector's answer
+     */
+    readConnectorEvents(connector, start, end) {
+      if (this.readsUpcomingEvents && typeof connector.getUpcomingEvents === 'function') {
+        return connector.getUpcomingEvents(start, this.limit);
+      }
+      return connector.getEvents(start, end);
     }
   },
 };
