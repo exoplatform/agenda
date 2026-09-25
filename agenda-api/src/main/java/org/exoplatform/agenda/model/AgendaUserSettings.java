@@ -78,6 +78,14 @@ public class AgendaUserSettings implements Cloneable {
 
   private boolean                      showRemoteEventsForTimeLine         = false;
 
+  /**
+   * Whether a space's agenda also shows the events of the user's own
+   * connected accounts (CalDAV and cloud) beside the space's calendars. Off
+   * unless the user turns it on: a space's agenda is the space's first
+   * (EXO-90215). A blob written before the flag existed reads as off.
+   */
+  private boolean                      showRemoteEventsForSpaceAgenda      = false;
+
   private String                       embedMapProvider;
 
   /**
@@ -264,6 +272,7 @@ public class AgendaUserSettings implements Cloneable {
                                                                timeZoneId,
                                                                workedDaysNumber,
                                                                showRemoteEventsForTimeLine);
+    clonedSettings.setShowRemoteEventsForSpaceAgenda(showRemoteEventsForSpaceAgenda);
     if (connectedConnectors != null) {
       clonedSettings.setConnectedConnectors(connectedConnectors.stream()
                                                                .map(AgendaConnectorAccount::clone)
