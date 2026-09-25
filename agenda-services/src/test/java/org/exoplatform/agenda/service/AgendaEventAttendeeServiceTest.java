@@ -930,8 +930,9 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     Event series = createSpaceEvent(start, true, true, testuser1Identity);
     Event occurrence = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start);
     Event storedOccurrence = agendaEventService.getEventById(occurrence.getId());
-    // The occurrence row says nothing; the series does
-    assertEquals(Boolean.FALSE, storedOccurrence.getOpen());
+    // Since US06 the occurrence inherits the state of its series when it is
+    // materialised, and may later carry a state of its own
+    assertEquals(Boolean.TRUE, storedOccurrence.getOpen());
     assertTrue(agendaEventAttendeeService.canRespondToEvent(storedOccurrence, memberId));
 
     // Answering on one occurrence enrols on that occurrence only
@@ -951,7 +952,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                  agendaEventAttendeeService.getEventResponse(series.getId(), fromOccurrenceId, memberId));
 
     // Locking the series locks its occurrences for whoever hasn't answered yet
-    agendaEventService.updateEventFields(series.getId(), getFields("open", "false"), false, false, creatorId);
+    agendaEventService.updateEventFields(series.getId(), getFields("open", "false"), true, false, creatorId);
     Event lockedOccurrence = agendaEventService.getEventById(occurrence.getId());
     assertFalse(agendaEventAttendeeService.canRespondToEvent(lockedOccurrence, otherMemberId));
     try {
@@ -994,7 +995,7 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                  agendaEventAttendeeService.getEventResponse(occurrence.getId(), null, memberId));
 
     // On a locked series the removal holds, exactly as today (US05)
-    agendaEventService.updateEventFields(series.getId(), getFields("open", "false"), false, false, creatorId);
+    agendaEventService.updateEventFields(series.getId(), getFields("open", "false"), true, false, creatorId);
     removeAttendee(occurrence.getId(), memberId, creatorId);
     assertFalse(agendaEventAttendeeService.canRespondToEvent(agendaEventService.getEventById(occurrence.getId()), memberId));
     try {
