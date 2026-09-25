@@ -1101,27 +1101,31 @@ class AgendaEventMcpToolTest {
   }
 
   /**
-   * eXIP 7.3.0.20 Open Event (EXO-89477): the open flag is a property of the
-   * series. An exceptional occurrence's own row keeps false; the model built
-   * for it must carry the parent's value, as the REST entity does, so that one
-   * open series never reads as locked here.
+   * eXIP 7.3.0.20 Open Event, US06 (EXO-90517): a date that was individually
+   * modified has a row of its own and may carry its own open state, which the
+   * model must report — reading the series instead would show one state and let
+   * the caller answer under another. Until US06 the flag belonged to the series
+   * alone and this test asserted the opposite; the contract changed when a
+   * change on a series stopped deleting the dates modified under it.
    */
   @Test
-  void getAgendaEventByIdOfAnOccurrenceCarriesTheSeriesOpenFlag() throws Exception {
+  void getAgendaEventByIdOfAnOccurrenceCarriesItsOwnOpenFlag() throws Exception {
     when(userAcl.hasAccessPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
     stubSpaceCalendarChain(SPACE_ID, SPACE_PRETTY_NAME, OWNER_IDENTITY_ID, CALENDAR_ID);
     long parentId = 41L;
     Event parent = buildEvent(parentId, CALENDAR_ID, START, END, EventStatus.CONFIRMED);
-    parent.setOpen(true);
+    parent.setOpen(false);
     Event occurrence = buildEvent(EVENT_ID, CALENDAR_ID, START, END, EventStatus.CONFIRMED);
     occurrence.setParentId(parentId);
-    occurrence.setOpen(false); // the occurrence row is not a source of truth
+    // This date alone was opened, its series stays locked
+    occurrence.setOpen(true);
     when(agendaEventService.getEventById(eq(EVENT_ID), eq(ZoneOffset.UTC), eq(USER_IDENTITY_ID))).thenReturn(occurrence);
     when(agendaEventService.getEventById(parentId)).thenReturn(parent);
 
     AgendaEventModel model = tool.getAgendaEventById(EVENT_ID);
 
     assertEquals(Boolean.TRUE, model.getOpen());
+    verify(agendaEventService, never()).getEventById(parentId);
   }
 
   @Test

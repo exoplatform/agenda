@@ -65,6 +65,11 @@ import javax.ws.rs.core.Response;
  * (EXO-89479): it asks the Service for the answer right, so a viewer of an
  * open event gets through, and a refused caller is stopped before the
  * occurrence branch writes anything.
+ * <p>
+ * Since the Architects Lead's round 3 (2026-09-21) the two response endpoints
+ * and the occurrence read answer a refusal with 403 and a fixed body, like the
+ * PATCH of the same resource (they answered 401 with the exception message,
+ * which carries the caller's identity). Pinned here as well.
  */
 class AgendaEventRestTest {
 
@@ -172,9 +177,33 @@ class AgendaEventRestTest {
 
     Response response = eventRest.sendEventResponse(null, EVENT_ID, "2026-09-18T08:00:00.000Z", "ACCEPTED", false, null, false);
 
-    assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
+    assertEquals("Not allowed to answer this event", response.getEntity());
     Mockito.verify(agendaEventService, Mockito.never()).saveEventExceptionalOccurrence(anyLong(), any());
     Mockito.verify(attendeeService, Mockito.never()).sendEventResponse(anyLong(), anyLong(), any());
+  }
+
+  @Test
+  void aCallerWhoMayNotReadTheirAnswerGetsForbiddenWithAFixedBody() throws Exception {
+    when(attendeeService.getEventResponse(EVENT_ID, null, USER_IDENTITY_ID))
+      .thenThrow(new IllegalAccessException("User " + USER_IDENTITY_ID + " may not answer event " + EVENT_ID));
+
+    Response response = eventRest.getEventResponse(EVENT_ID, null, null);
+
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
+    // The exception message names the caller; the body must not
+    assertEquals("Not allowed to answer this event", response.getEntity());
+  }
+
+  @Test
+  void aCallerWhoCannotAccessTheParentOfAnOccurrenceGetsForbidden() throws Exception {
+    when(agendaEventService.getEventOccurrence(eq(EVENT_ID), any(), any(), eq(USER_IDENTITY_ID)))
+      .thenThrow(new IllegalAccessException("User with identity id " + USER_IDENTITY_ID + " is not allowed to access event with id " + EVENT_ID));
+
+    Response response = eventRest.getEventOccurrence(EVENT_ID, "2026-09-18T08:00:00.000Z", null, null);
+
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
+    assertEquals("Not allowed to access this event", response.getEntity());
   }
 
   private Response patch(MultivaluedMap<String, String> fields) {

@@ -80,7 +80,10 @@ public interface AgendaEventService {
    * @param userTimeZone used user timezone
    * @param identityId user {@link Identity} identifier requesting event
    * @return {@link Event} representing occurrence of parent recurrent event
-   * @throws IllegalAccessException when user is accessing not allowed event
+   * @throws IllegalAccessException when the user can't access the event
+   *           served (see {@link #canAccessEvent(Event, long)}): a stored
+   *           exceptional occurrence is checked through its own row, as an
+   *           event of its own; a computed occurrence through its parent
    */
   Event getEventOccurrence(long parentEventId,
                            ZonedDateTime occurrenceId,
