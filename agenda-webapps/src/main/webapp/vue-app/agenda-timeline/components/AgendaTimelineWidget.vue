@@ -250,11 +250,22 @@ export default {
      * Reloads the local store for the new count, and the accounts only when
      * the count is what their read asks for — the list view. Leaving the
      * list view makes it null, and the calendar that replaces it asks for
-     * its own period once it has one.
+     * its own period once it has one. Coming back to the list view drops the
+     * calendar's period: the list shows what comes next from now, and the
+     * period watcher reads both sources for it.
      *
+     * @param {Number} limit the new count, null outside the list view
+     * @param {Number} previousLimit the count before
      * @returns {void}
      */
-    limit() {
+    limit(limit, previousLimit) {
+      if (limit > 0 && !previousLimit && this.period.end) {
+        this.period = {
+          start: new Date(),
+          end: null,
+        };
+        return;
+      }
       this.retrieveEvents();
       if (this.settings.showRemoteEventsForTimeLine && this.readsUpcomingEvents) {
         this.retrieveRemoteEvents();
@@ -341,7 +352,7 @@ export default {
     updateDisplayedEvents() {
       if (this.showDefaultRemoteEvents) {
         // Avoid to have same event from remote and local store (pushed events from local store)
-        const filtered = this.filterRemoteEvents(this.events, this.remoteEvents);
+        const filtered = this.$agendaUtils.filterRemoteCopies(this.events, this.remoteEvents);
         const merged = [...this.events, ...filtered];
         merged.sort((a, b) => {
           const s1 = this.$agendaUtils.toDate(a.start || a.startDate).getTime();
@@ -528,17 +539,6 @@ export default {
         return connector.getUpcomingEvents(start, this.limit);
       }
       return connector.getEvents(start, end);
-    },
-    filterRemoteEvents(localEvents, remoteEvents) {
-      return remoteEvents.filter(remote => {
-        const isMatched = localEvents.some(local => {
-          const sameId = remote.id === local.remoteId;
-          const sameDates =  new Date(remote.startDate).getTime() === new Date(local.startDate).getTime() && new Date(remote.endDate).getTime() === new Date(local.endDate).getTime();
-          const sameRecurring = remote.recurringEventId === local.parent?.remoteId;
-          return sameId || (sameRecurring && sameDates);
-        });
-        return !isMatched;
-      });
     }
   },
 };

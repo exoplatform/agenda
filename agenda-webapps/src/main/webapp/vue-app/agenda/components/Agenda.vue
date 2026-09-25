@@ -604,7 +604,7 @@ export default {
           || !this.hiddenOwnCalendarIds.includes(Number(event.calendar.id)));
       if (this.remoteEventsWanted && this.remoteEvents.length) {
         // Avoid to have same event from remote and local store (pushed events from local store)
-        const filtered = this.filterRemoteEvents(this.events, this.remoteEvents)
+        const filtered = this.$agendaUtils.filterRemoteCopies(this.events, this.remoteEvents)
           .filter(remote => !this.hiddenRemoteCalendarIds.includes(remote.calendarId));
         const merged = [...localEvents, ...filtered];
         merged.sort((a, b) => {
@@ -853,8 +853,15 @@ export default {
         return;
       }
       this.$set(this.settings, 'showRemoteEventsForSpaceAgenda', show);
-      this.$settingsService.saveUserSettings(this.settings);
       this.retrieveRemoteEvents();
+      this.$settingsService.saveUserSettings(this.settings)
+        .catch(error => {
+          // Not kept: the toggle and the grid go back to what the next load
+          // will show, rather than a choice that lasts only this page
+          console.error('the space agenda remote events choice was not saved', error);
+          this.$set(this.settings, 'showRemoteEventsForSpaceAgenda', !show);
+          this.retrieveRemoteEvents();
+        });
     },
     /**
      * Records which remote calendars the user has hidden in the left panel and
@@ -935,17 +942,6 @@ export default {
       } catch (e) {
         this.hiddenPersonalCalendarIds = [];
       }
-    },
-    filterRemoteEvents(localEvents, remoteEvents) {
-      return remoteEvents.filter(remote => {
-        const isMatched = localEvents.some(local => {
-          const sameId = remote.id === local.remoteId;
-          const sameDates =  new Date(remote.startDate).getTime() === new Date(local.startDate).getTime() && new Date(remote.endDate).getTime() === new Date(local.endDate).getTime();
-          const sameRecurring = remote.recurringEventId === local.parent?.remoteId;
-          return sameId || (sameRecurring && sameDates);
-        });
-        return !isMatched;
-      });
     }
   },
 };
