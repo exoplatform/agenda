@@ -51,8 +51,7 @@
      form (.event-form-mobile), and the menu it opens is attached to the
      application root rather than to any of them. A rule scoped to a form
      would style one surface, or style the closed control and miss the list
-     it drops down. (The fieldset offset further down IS still scoped to
-     .event-form — pre-existing, and the mobile form does not get it.)
+     it drops down.
 
      The .v-application in the chain is there to carry weight, not to narrow
      anything: the 80% cap below is set by the platform skin as
@@ -97,13 +96,25 @@
     .v-input__append-inner {
       flex: 0 0 auto;
     }
+
+    /* This select carries no floating label, so it has no legend notch to
+       leave room for — but Vuetify paints the outlined fieldset from top -5px
+       anyway. That costs the field twice: the visible border is 45px against
+       the 40px native inputs (reset.less) it is stacked with, and the text,
+       centred in the 40px slot, then sits below the centre of the border
+       drawn around it. Pinning the fieldset to the slot settles both. */
+    fieldset {
+      top: 0;
+    }
   }
 
   /* One row of that picker — colour dot then calendar name. It takes the line
      it is given (the selection area of the closed select, or a v-list-item in
      the menu) and lets the name be the only part that gives way: min-width: 0
      is what allows a flex item to shrink under its own text, so there is
-     something for the ellipsis to happen in. */
+     something for the ellipsis to happen in. Without it the name does not
+     ellipsise at all — it leaves the field: measured at 91 characters, 204px
+     of name past the right border, straight through the dropdown arrow. */
   .agenda-destination-option {
     flex: 1 1 auto;
     min-width: 0;
@@ -290,16 +301,6 @@
 
     .agenda-time-zone .v-input__slot {
       background: white !important;
-    }
-
-    /* The destination select uses no floating label, so Vuetify's outlined
-       fieldset — painted from top -5px to leave room for the label's legend
-       notch — only makes the visible border 45px tall against the 40px
-       native inputs (reset.less) around it. Pin it to the 40px input slot. */
-    .agenda-event-form-destination {
-      fieldset {
-        top: 0;
-      }
     }
 
     .space-suggester {
