@@ -2005,10 +2005,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
           + " through a share and can't move event " + storedEvent.getId() + " out of it");
     }
     // Likewise "attendees can modify the event" lets an attendee change the
-    // event, not take it away from everyone reading its calendar (EXO-90149)
+    // event, not take it away from everyone reading its calendar (EXO-90149).
+    // The refusal names the right that is missing rather than the right the
+    // user holds: an occurrence is answered on its series, so whoever is
+    // refused here may well be its creator — a share editor who amended one
+    // date is — and a message naming them an attendee would send a reader of
+    // the log looking for the wrong thing.
     if (!canMoveWith(writeRight, storedEvent, userIdentityId)) {
-      throw new IllegalAccessException("User '" + userIdentityId + "' updates event " + storedEvent.getId()
-          + " as one of its attendees only and can't move it out of calendar " + storedEvent.getCalendarId());
+      throw new IllegalAccessException("User '" + userIdentityId + "' doesn't hold the move right on event "
+          + storedEvent.getId() + " (its creator, or a manager of its calendar) and can't move it out of calendar "
+          + storedEvent.getCalendarId());
     }
     if (!canCreateEvent(targetCalendar, userIdentityId)) {
       throw new IllegalAccessException("User '" + userIdentityId + "' can't move event " + storedEvent.getId() + " to calendar "
