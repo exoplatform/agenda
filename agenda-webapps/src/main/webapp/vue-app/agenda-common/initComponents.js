@@ -12,6 +12,7 @@ import AgendaEventMobileForm from './components/event/form/mobile/AgendaEventMob
 import AgendaCreateEventButton from './components/top-toolbar/AgendaCreateEventButton.vue';
 import AgendaCalendarFilterButton from './components/top-toolbar/AgendaCalendarFilterButton.vue';
 import AgendaPeriodSelector from './components/top-toolbar/AgendaPeriodSelector.vue';
+import AgendaMissingEventsWarning from './components/top-toolbar/AgendaMissingEventsWarning.vue';
 
 import AgendaLeftPanel from './components/left-panel/AgendaLeftPanel.vue';
 import AgendaLeftPanelRemoteCalendars from './components/left-panel/AgendaLeftPanelRemoteCalendars.vue';
@@ -126,6 +127,7 @@ const components = {
   'agenda-create-event-button': AgendaCreateEventButton,
   'agenda-calendar-filter-button': AgendaCalendarFilterButton,
   'agenda-period-selector': AgendaPeriodSelector,
+  'agenda-missing-events-warning': AgendaMissingEventsWarning,
   'agenda-connect-to-remote-button': AgendaConnectToRemoteButton,
   'agenda-event-dialog': AgendaEventDialog,
   'agenda-event-form': AgendaEventForm,

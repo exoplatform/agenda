@@ -11,12 +11,15 @@
           :connectors="enabledConnectors"
           :settings="settings"
           :period-title="periodTitle"
+          :missing-events-message="hasFailedSource && !$root.isTimelineView ? failedSourceSentence : ''"
           :show-default-remote-events="showDefaultRemoteEvents" />
         <!-- a widget is glanced at rather than worked in: one short line is
              what a glance can carry, so it says the list is short of a source
-             and leaves which account to the tooltip -->
+             and leaves which account to the tooltip. The calendar views carry
+             it as a sign beside their period title instead; the list view has
+             no period title to carry it -->
         <div
-          v-if="hasFailedSource"
+          v-if="hasFailedSource && $root.isTimelineView"
           :title="failedSourceTitle"
           class="d-flex align-center px-4 pt-2 text-caption warning--text">
           <v-icon size="14" class="me-1 warning--text">
@@ -140,6 +143,17 @@ export default {
      */
     failedSourceTitle() {
       return this.$t('agenda.timeline.someEventsMissingTooltip', {
+        0: this.failedSourceNames.join(', '),
+      });
+    },
+    /**
+     * What the sign beside the period title of the calendar views says: the
+     * same sentence the agenda application uses, naming the accounts.
+     *
+     * @returns {String} the sentence naming the unread accounts
+     */
+    failedSourceSentence() {
+      return this.$t('agenda.calendarIncomplete', {
         0: this.failedSourceNames.join(', '),
       });
     },
@@ -325,6 +339,7 @@ export default {
     this.$root.$on('agenda-event-saved', this.retrieveEvents);
     this.$root.$on('agenda-event-deleted', this.retrieveEvents);
     this.$root.$on('agenda-event-change-owner', this.refreshProviders);
+    this.$root.$on('agenda-remote-events-retry', this.retrieveRemoteEvents);
     this.$root.$on('agenda-show-remote-change', this.showRemoteEvents);
     this.$root.$on('timeline-settings-updated', this.retrieveEvents);
     this.spaceId = eXo.env.portal.spaceId;
