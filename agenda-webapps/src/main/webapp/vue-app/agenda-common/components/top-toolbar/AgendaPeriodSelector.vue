@@ -38,6 +38,9 @@
     <div class="period-title text-uppercase my-auto ms-2 text-no-wrap">
       {{ periodTitle }}
     </div>
+    <agenda-missing-events-warning
+      v-if="missingEventsMessage"
+      :message="missingEventsMessage" />
   </div>
 </template>
 <script>
@@ -47,11 +50,29 @@ export default {
       type: String,
       default: null
     },
+    /**
+     * The sentence naming the accounts that could not be read for the
+     * displayed period, empty when every account answered.
+     */
+    missingEventsMessage: {
+      type: String,
+      default: null
+    },
   },
   methods: {
+    /**
+     * Moves the displayed period forward.
+     *
+     * @returns {void}
+     */
     nextDate() {
       this.$root.$emit('agenda-display-calendar-next');
     },
+    /**
+     * Moves the displayed period backward.
+     *
+     * @returns {void}
+     */
     prevDate() {
       this.$root.$emit('agenda-display-calendar-previous');
     }

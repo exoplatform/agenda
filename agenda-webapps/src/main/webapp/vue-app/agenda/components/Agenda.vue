@@ -11,19 +11,8 @@
           :period-title="periodTitle"
           :settings="settings"
           :period="period"
-          :connectors="enabledConnectors" />
-        <!-- an account that could not be read leaves a week lighter than the
-             real one. The calendar is a view, not a decision, so it states
-             the fact once under the header and names which account is
-             missing rather than interrupting with a dialog -->
-        <div
-          v-if="hasFailedSource"
-          class="d-flex align-center mt-2 text-caption warning--text">
-          <v-icon size="14" class="me-1 warning--text">
-            fa-exclamation-triangle
-          </v-icon>
-          <span class="text-truncate">{{ failedSourceMessage }}</span>
-        </div>
+          :connectors="enabledConnectors"
+          :missing-events-message="hasFailedSource ? failedSourceMessage : ''" />
         <agenda-timeline
           v-if="$root.isMobile"
           :events="displayedEvent"
@@ -248,9 +237,9 @@ export default {
       return this.failedSourceNames.length > 0;
     },
     /**
-     * What the strip under the header says. The calendar is a view rather
-     * than a decision, so it states the fact and names the accounts, without
-     * the form's warning about what the gap could cost.
+     * What the warning beside the period title says. The calendar is a view
+     * rather than a decision, so it states the fact and names the accounts,
+     * without the form's warning about what the gap could cost.
      *
      * @returns {String} the sentence naming the unread accounts
      */
@@ -536,6 +525,7 @@ export default {
     this.$root.$on('agenda-shared-calendars-displayed-changed', this.changeSharedCalendars);
     this.$root.$on('agenda-settings-refresh', this.initSettings);
     this.$root.$on('agenda-event-change-owner', this.refreshProviders);
+    this.$root.$on('agenda-remote-events-retry', this.retrieveRemoteEvents);
     this.initSettings();
   },
   methods: {
