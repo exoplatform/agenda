@@ -58,22 +58,21 @@
             class="mt-5 remote-events-details"
             is-events-list />
         </template>
-        <v-chip
+        <!-- a quiet line, not a chip: a chip has a one-line height, so a
+             sentence that wraps (French, a narrow drawer) spills over its
+             border, and an outlined chip reads as a tag, not as an empty list -->
+        <div
           v-else-if="displayEmptyState"
-          color="primary"
-          class="border-radius my-2 contemporary-events-empty"
-          outlined>
+          class="d-flex align-center mt-2 contemporary-events-empty">
           <v-icon
-            size="20"
-            class="me-4"
-            color="primary"
-            depressed>
+            size="16"
+            class="text-light-color me-2">
             fa-info-circle
           </v-icon>
-          <span class="text--primary text-wrap">
+          <span class="text-subtitle text-light-color text-wrap">
             {{ emptyStateLabel }}
           </span>
-        </v-chip>
+        </div>
       </div>
     </div>
     <!--
@@ -270,7 +269,7 @@ export default {
     /**
      * What an empty list says. It must not claim there is nothing when a
      * source could not be asked, so it stops short of an answer it does not
-     * have — "nothing found on the sources that could be checked".
+     * have — "nothing else found (some calendars couldn't be checked)".
      *
      * <p>
      * Since EXO-89899 nothing on the panel names the source that failed —
