@@ -149,20 +149,6 @@ export default {
     avatarIconClass() {
       return this.currentEvent ? 'white--text' : 'icon-default-color';
     },
-    /**
-     * The colour of the connector's font icon on this row. The row being
-     * looked at is a solid primary block, where a default-coloured glyph is
-     * as unreadable as dark text would be; every other row sits on the card's
-     * own background and keeps the platform's icon colour.
-     *
-     * <p>Only the glyph is concerned: an uploaded logo brings its own colours
-     * and the connector avatar keeps a white tile behind it.
-     *
-     * @returns {String} the class to colour the glyph with
-     */
-    avatarIconClass() {
-      return this.currentEvent ? 'white--text' : 'icon-default-color';
-    },
     isShortEvent() {
       return this.$agendaUtils.isShortEvent(this.remoteEvent);
     },
