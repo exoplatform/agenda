@@ -266,9 +266,33 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     return toAgendaEventModel(event);
   }
 
-  // Create an agenda event in a space calendar, optionally recurrent, with a server-side conflict report over its
-  // attendees. When fail_on_conflict is true and at least one attendee is busy/tentative in the window, creation is
-  // aborted. Every event must belong to a space: pass either space_id or a space name via the 'space' parameter.
+  /**
+   * Creates an agenda event, optionally recurrent, with a server-side conflict
+   * report over its attendees. When {@code failOnConflict} is true and at least
+   * one attendee is busy or tentative in the window, creation is aborted.
+   * <p>
+   * The event goes to the space calendar that {@code spaceId} or {@code space}
+   * names, which requires the right to write in that space; with neither, it goes
+   * to the caller's own personal calendar.
+   *
+   * @param spaceId the space whose calendar receives the event, or null
+   * @param summary the event's title
+   * @param description the event's description
+   * @param location the event's location
+   * @param start the start date-time (ISO)
+   * @param end the end date-time (ISO)
+   * @param attendeeUsernames the attendees' usernames
+   * @param recurrenceFrequency the recurrence frequency, or null for a single event
+   * @param recurrenceInterval the recurrence interval
+   * @param recurrenceUntil the recurrence end date
+   * @param recurrenceCount the number of occurrences
+   * @param failOnConflict whether an attendee's conflict aborts the creation
+   * @param space the name of the space whose calendar receives the event, or null
+   * @return the created event, with its conflict report
+   * @throws IllegalAccessException when the caller may not write in the named space
+   * @throws ObjectNotFoundException when the named space does not exist
+   * @throws AgendaException when the event is invalid
+   */
   public AgendaEventModel createAgendaEvent(Long spaceId,
                                             String summary,
                                             String description,
@@ -284,10 +308,15 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                                             String space) throws IllegalAccessException,
                                                           ObjectNotFoundException,
                                                           AgendaException {
-    long resolvedSpaceId = resolveSpaceId(spaceId, space);
-    checkSpaceCreatePermission(resolvedSpaceId);
     long userIdentityId = getCurrentUserIdentityId();
-    long calendarId = getSpaceCalendarId(resolvedSpaceId);
+    long calendarId;
+    if (isSpaceGiven(spaceId, space)) {
+      long resolvedSpaceId = resolveSpaceId(spaceId, space);
+      checkSpaceCreatePermission(resolvedSpaceId);
+      calendarId = getSpaceCalendarId(resolvedSpaceId);
+    } else {
+      calendarId = agendaCalendarService.getOrCreateCalendarByOwnerId(userIdentityId).getId();
+    }
     ZonedDateTime startDate = toZonedDateTime(start);
     ZonedDateTime endDate = toZonedDateTime(end);
     List<EventAttendee> attendees = toEventAttendees(attendeeUsernames, true);
@@ -1212,6 +1241,17 @@ public class AgendaEventMcpTool implements McpToolPlugin {
       }
       return space.getSpaceId();
     }
+  }
+
+  /**
+   * Whether the caller named a space, by id or by name.
+   *
+   * @param spaceId the space id, or null or 0 for none
+   * @param spaceName the space name, or blank for none
+   * @return true when a space is named
+   */
+  private boolean isSpaceGiven(Long spaceId, String spaceName) {
+    return (spaceId != null && spaceId != 0) || StringUtils.isNotBlank(spaceName);
   }
 
   private long getSpaceCalendarId(long spaceId) throws ObjectNotFoundException {

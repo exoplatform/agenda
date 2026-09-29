@@ -57,17 +57,17 @@
     {
       "name": "create_agenda_event",
       "title": "Create an agenda event",
-      "description": "Create a new agenda event in a space calendar. Every event MUST belong to a space: provide either space_id or the space name via 'space'. If the user didn't say which space, ASK them (or list the spaces they belong to) instead of calling without one.",
+      "description": "Create a new agenda event, in the user's personal calendar unless a space is given. To create it in a space calendar, provide either space_id or the space name via 'space'; with neither, the event goes to the user's own personal calendar.",
       "input_schema": {
         "type": "object",
         "properties": {
           "space_id": {
             "type": "integer",
-            "description": "Space id where the event is created. Optional if 'space' (a space name) is given; one of the two is required."
+            "description": "Space id of the space calendar where the event is created. Leave it and 'space' out to create the event in the user's personal calendar."
           },
           "space": {
             "type": "string",
-            "description": "Space name (display or pretty name) to resolve to a space, e.g. 'EVA Space'. Used when space_id isn't known. Must be a space the user belongs to."
+            "description": "Space name (display or pretty name) to resolve to a space, e.g. 'EVA Space'. Used when space_id isn't known. Must be a space the user belongs to. Leave it and space_id out for the user's personal calendar."
           },
           "summary": {
             "type": "string",
