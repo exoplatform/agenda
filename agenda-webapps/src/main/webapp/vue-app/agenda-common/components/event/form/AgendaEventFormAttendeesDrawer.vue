@@ -71,7 +71,6 @@
             <v-btn
               v-if="editable"
               icon
-              small
               class="flex-shrink-0 me-1"
               :title="openToggleTitle"
               @click="$emit('toggle-open')">
