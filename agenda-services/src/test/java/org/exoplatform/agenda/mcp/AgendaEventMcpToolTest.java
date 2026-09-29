@@ -235,9 +235,31 @@ class AgendaEventMcpToolTest {
   // --- create_agenda_event -------------------------------------------------
 
   @Test
-  void createAgendaEventWithoutSpaceIdFails() throws Exception {
-    assertThrows(IllegalArgumentException.class,
-                 () -> tool.createAgendaEvent(null, "summary", null, null, null, null, null, null, null, null, null, null, null));
+  void createAgendaEventWithoutSpaceGoesToThePersonalCalendar() throws Exception {
+    long personalCalendarId = 77L;
+    Calendar personal = new Calendar();
+    personal.setId(personalCalendarId);
+    personal.setOwnerId(USER_IDENTITY_ID);
+    when(agendaCalendarService.getOrCreateCalendarByOwnerId(USER_IDENTITY_ID)).thenReturn(personal);
+    when(agendaCalendarService.getCalendarById(personalCalendarId)).thenReturn(personal);
+    Event created = buildEvent(700L, personalCalendarId, START, END, EventStatus.CONFIRMED);
+    when(agendaEventService.createEvent(any(), any(), any(), any(), any(), any(), anyBoolean(), eq(USER_IDENTITY_ID))).thenReturn(created);
+
+    AgendaEventModel model = tool.createAgendaEvent(null, "Reminder", null, null, "2026-07-20T09:00:00Z", "2026-07-20T09:30:00Z",
+                                                    null, null, null, null, null, null, " ");
+
+    assertNotNull(model);
+    assertEquals(0L, model.getSpaceId(), "a personal event belongs to no space");
+    verify(agendaEventService).createEvent(argThat(e -> e.getCalendarId() == personalCalendarId && e.getCreatorId() == USER_IDENTITY_ID),
+                                           any(),
+                                           any(),
+                                           any(),
+                                           any(),
+                                           any(),
+                                           anyBoolean(),
+                                           eq(USER_IDENTITY_ID));
+    verify(spaceService, never()).getSpaceById(anyLong());
+    verify(userAcl, never()).hasPermission(any(), any(), any(), any(org.exoplatform.services.security.Identity.class));
   }
 
   @Test
@@ -423,14 +445,6 @@ class AgendaEventMcpToolTest {
     // The resolved space id (7) reached getSpaceCalendarId -> getSpaceById, proving no NPE and correct resolution.
     assertTrue(ex.getMessage().contains(String.valueOf(SPACE_ID)));
     verify(spaceService).getSpaceById(SPACE_ID);
-  }
-
-  @Test
-  void createAgendaEventWithoutSpaceOrNameGivesGuidance() {
-    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                 () -> tool.createAgendaEvent(null, "summary", null, null, "2026-07-20T14:00:00Z", "2026-07-20T15:00:00Z",
-                                              null, null, null, null, null, null, null));
-    assertTrue(ex.getMessage().toLowerCase().contains("space"));
   }
 
   @Test
