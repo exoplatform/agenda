@@ -6,7 +6,8 @@
       </div>
       <agenda-period-selector
         v-if="!$root.isTimelineView"
-        :period-title="periodTitle" />  
+        :period-title="periodTitle"
+        :missing-events-message="missingEventsMessage" />  
     </div>
     <v-spacer />  
     <div class="d-flex pa-0">
@@ -92,6 +93,14 @@ export default {
       default: null
     },
     periodTitle: {
+      type: String,
+      default: null
+    },
+    /**
+     * The sentence naming the accounts that could not be read for the
+     * displayed period, empty when every account answered.
+     */
+    missingEventsMessage: {
       type: String,
       default: null
     },
