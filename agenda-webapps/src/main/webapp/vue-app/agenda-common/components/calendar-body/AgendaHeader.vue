@@ -29,7 +29,12 @@
           class="agenda-header-date-picker z-index-two" />  
         <agenda-period-selector
           v-else
-          :period-title="periodTitle" />  
+          :period-title="periodTitle"
+          :missing-events-message="missingEventsMessage" />  
+        <!-- the date picker stands for the period title on small screens -->
+        <agenda-missing-events-warning
+          v-if="($root.isMobile || $root.isTablet) && missingEventsMessage"
+          :message="missingEventsMessage" />
       </div>
     </template>
     <template #right>
@@ -98,6 +103,14 @@ export default {
       default: null
     },
     periodTitle: {
+      type: String,
+      default: null
+    },
+    /**
+     * The sentence naming the accounts that could not be read for the
+     * displayed period, empty when every account answered.
+     */
+    missingEventsMessage: {
       type: String,
       default: null
     },
