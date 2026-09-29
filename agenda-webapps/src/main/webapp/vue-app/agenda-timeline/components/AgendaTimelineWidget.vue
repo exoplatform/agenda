@@ -295,7 +295,6 @@ export default {
         return;
       }
       this.retrieveEvents();
-	  this.refreshRemoteEvents();
       if (this.settings.showRemoteEventsForTimeLine && this.readsUpcomingEvents) {
         this.retrieveRemoteEvents();
       }
@@ -500,20 +499,6 @@ export default {
         });
     },
     /**
-     * Re-reads the remote accounts, when the user asked to see them at all.
-     *
-     * @returns {void}
-     */
-    refreshRemoteEvents() {
-      // Only where the count is what the read is bounded by. bodyElementWidth
-      // starts at 0, so the first render is always the timeline and flips on
-      // the ResizeObserver's first delivery; without this guard that flip
-      // fired a full remote read the period watcher immediately superseded.
-      if (this.settings.showRemoteEventsForTimeLine && this.$root.isTimelineView) {
-        this.retrieveRemoteEvents();
-      }
-    },
-    /**
      * The end of a remote read starting at the displayed period's start.
      *
      * @param {Number} days how far ahead to look
@@ -541,51 +526,8 @@ export default {
      *
      * @returns {Promise} resolves once the remote events are in hand
      */
-<<<<<<< HEAD
     async retrieveRemoteEvents() {
       if (this.connectorStatus !== 1) {
-=======
-    retrieveRemoteEvents() {
-      if (this.connectorStatus === 1) {
-        const startDateRFC3359 = this.$agendaUtils.toRFC3339(this.period.start, false, true);
-        let endDate = this.period.end ;
-        if (!endDate){
-          const date = new Date(this.period.start);        
-          endDate =  date.setFullYear(date.getFullYear() + 1); 
-        }
-        const endDateRFC3359 = this.$agendaUtils.toRFC3339(endDate, false, true);
-        this.loading = true;
-        // Every signed-in account is asked, and each fails on its own: one
-        // unreachable account must not blank the events the others returned
-        Promise.all(this.signedInConnectors.map(connector =>
-          this.readConnectorEvents(connector, startDateRFC3359, endDateRFC3359)
-            .then(answer => {
-              // A connector may report a partial read: the events it did get,
-              // beside the fact that it could not get all of them. Both halves
-              // travel on, or the view draws a short week as a whole one.
-              const read = this.$agendaUtils.readConnectorAnswer(answer);
-              read.events.forEach(event => {
-                event.startDate = event.start && this.$agendaUtils.toDate(event.start) || null;
-                event.endDate = event.end && this.$agendaUtils.toDate(event.end) || null;
-              });
-              return {connector, events: read.events, failed: read.failed};
-            })
-            .catch(error => {
-              console.error('Error retrieving remote events', connector.name, error);
-              // No events array at all: an account that could not answer must
-              // not reach the widget as an account that answered "nothing",
-              // which would shorten the list with nothing saying why.
-              return {connector, failed: true};
-            })))
-          .then(eventsByConnector => {
-            const sources = this.$agendaUtils.splitRemoteEventResults(eventsByConnector);
-            this.remoteEvents = sources.events;
-            this.failedConnectors = sources.failedConnectors;
-            this.loading = false;
-            this.remoteEventsLoaded = true;
-          });
-      } else {
->>>>>>> 2821eb13 (fix: List remote events in agenda timeline and space agenda app EXO-90215 (#1166))
         this.remoteEvents = [];
         this.failedConnectors = [];
         return;
@@ -675,24 +617,6 @@ export default {
           })))
         .then(eventsByConnector => this.$agendaUtils.splitRemoteEventResults(eventsByConnector));
     },
-    /**
-     * Reads one account's events for the widget. The list view has no period
-     * end, only a number of items to show, so a connector able to answer
-     * "the next N events" is asked exactly that rather than for a whole year
-     * of every calendar it holds; any other connector, and the calendar
-     * views, read the period.
-     *
-     * @param {Object} connector the signed-in connector
-     * @param {String} start RFC3339 start of the read
-     * @param {String} end RFC3339 end of the period, or of the fallback year
-     * @returns {Promise} the connector's answer
-     */
-    readConnectorEvents(connector, start, end) {
-      if (this.readsUpcomingEvents && typeof connector.getUpcomingEvents === 'function') {
-        return connector.getUpcomingEvents(start, this.limit);
-      }
-      return connector.getEvents(start, end);
-    }
   },
 };
 </script>
