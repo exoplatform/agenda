@@ -210,13 +210,13 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                             @QueryParam("calendarIds")
                             List<Long> calendarIds,
                             @Parameter(
-                                description = "Leaves the calendars subscribed by the owners of this listing out of it (EXO-90373)."
-                                    + " Their events carry no attendee row and nobody answered them, so a listing named after an"
-                                    + " attendee response does not want them. Defaults to false: they are read.",
+                                description = "With an attendee, also reads the calendars subscribed by the owners of this listing"
+                                    + " (EXO-90373), whatever the response types: their events carry no attendee row. Defaults"
+                                    + " to false: they are left out.",
                                 required = false
                             )
-                            @QueryParam("excludeSubscribedCalendars")
-                            boolean excludeSubscribedCalendars) {
+                            @QueryParam("includeSubscribedCalendars")
+                            boolean includeSubscribedCalendars) {
 
     if (StringUtils.isBlank(start)) {
       return Response.status(Status.BAD_REQUEST).entity("Start datetime is mandatory").build();
@@ -254,7 +254,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       // Only a caller of the service itself gets the "every shared calendar"
       // default a null carries, which is what the MCP tools rely on
       eventFilter.setCalendarIds(calendarIds == null ? Collections.emptyList() : calendarIds);
-      eventFilter.setSubscribedCalendarsExcluded(excludeSubscribedCalendars);
+      eventFilter.setSubscribedCalendarsIncluded(includeSubscribedCalendars);
       List<Event> events = agendaEventService.getEvents(eventFilter, userTimeZone, userIdentityId);
       Map<Long, EventAttendeeList> attendeesByParentEventId = new HashMap<>();
       Map<Long, List<EventConference>> conferencesByParentEventId = new HashMap<>();

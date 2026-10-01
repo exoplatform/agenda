@@ -458,8 +458,7 @@ export default {
       }
       const userIdentityId = agendaFilter === 'acceptedEvents' && eXo.env.portal.userIdentityId || null;
       const responseTypes = agendaFilter === 'acceptedEvents' ? ['ACCEPTED'] : ['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
-      const excludeSubscribedCalendars = agendaFilter === 'acceptedEvents';
-      return this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, false), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences', null, null, excludeSubscribedCalendars)
+      return this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, false), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences', null, null)
         .then(data => {
           const events = data && data.events || [];
           events.forEach(event => {
