@@ -830,11 +830,11 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     } catch (IllegalArgumentException e) {
       // An unsupported field, or a value the invariants refuse, is a caller
       // error and not an incident: the message is a code the frontend and
-      // third-party integrators can act on. Was a 500 through the generic catch
+      // third-party integrators can act on
       LOG.debug("Invalid field patched on event {}", eventId, e);
       return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
     } catch (IllegalAccessException e) {
-      // Was a 401: the platform REST contract answers 403 when the caller is
+      // The platform REST contract answers 403 when the caller is
       // authenticated but not allowed (backend-spring.md §5)
       LOG.debug("User '{}' attempts to update a non authorized event", RestUtils.getCurrentUser(), e);
       return Response.status(Status.FORBIDDEN).build();
