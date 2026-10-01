@@ -41,4 +41,36 @@ public class AgendaEventSearchFilter {
   private int        offset;
 
   private int        limit;
+
+  /**
+   * The calendars other users shared with the reader (EXO-90357), whose events
+   * the search may answer on top of the reader's own permissions. <b>Set by the
+   * service from the share records, never from a client</b>: a client cannot
+   * name a calendar here, only the service does.
+   */
+  private List<Long> sharedCalendarIds;
+
+  /**
+   * Builds a filter as a client asks it: no shared calendar, the service adds
+   * them.
+   *
+   * @param currentUserId identity identifier of the reader
+   * @param userTimeZone time zone of the reader
+   * @param term the words searched
+   * @param spaceIdentityIds space identities restricting the search, may be null
+   * @param sortFiled the sort field
+   * @param sortDirection the sort direction
+   * @param offset first result
+   * @param limit most results
+   */
+  public AgendaEventSearchFilter(long currentUserId,
+                                 ZoneId userTimeZone,
+                                 String term,
+                                 List<Long> spaceIdentityIds,
+                                 String sortFiled,
+                                 String sortDirection,
+                                 int offset,
+                                 int limit) {
+    this(currentUserId, userTimeZone, term, spaceIdentityIds, sortFiled, sortDirection, offset, limit, null);
+  }
 }

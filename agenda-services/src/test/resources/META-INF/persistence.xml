@@ -35,6 +35,7 @@
     <class>org.exoplatform.agenda.entity.CalendarEntity</class>
     <class>org.exoplatform.agenda.entity.CalendarSubscriptionEntity</class>
     <class>org.exoplatform.agenda.entity.CalendarSubscriptionEventEntity</class>
+    <class>org.exoplatform.agenda.entity.CalendarShareEntity</class>
     <exclude-unlisted-classes>true</exclude-unlisted-classes>
     <properties>
       <property name="jakarta.persistence.jdbc.driver" value="org.hsqldb.jdbc.JDBCDriver"/>
@@ -42,6 +43,42 @@
       <property name="jakarta.persistence.jdbc.password" value=""/>
       <property name="hibernate.dialect" value="org.hibernate.dialect.HSQLDialect"/>
       <property name="hibernate.hbm2ddl.auto" value="validate"/>
+      <property name="hibernate.show_sql" value="false"/>
+    </properties>
+  </persistence-unit>
+  <!--
+    EXO-90357: the whole agenda model, for the event listing query that reads
+    the calendars shared with a reader on top of the owner and attendee
+    criteria. Its own unit, and the schema is NOT validated against it:
+    the changelog declares EXO_AGENDA_CONFERENCE.DESCRIPTION as a CLOB where
+    the entity maps a VARCHAR, a drift older than this feature that Hibernate
+    refuses at validation and tolerates at runtime. The tables are still the
+    ones the real changelog builds; only the check is off.
+  -->
+  <persistence-unit name="agenda-events-test" transaction-type="RESOURCE_LOCAL">
+    <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
+    <class>org.exoplatform.agenda.entity.CalendarEntity</class>
+    <class>org.exoplatform.agenda.entity.EventAttendeeEntity</class>
+    <class>org.exoplatform.agenda.entity.EventConferenceEntity</class>
+    <class>org.exoplatform.agenda.entity.EventDateOptionEntity</class>
+    <class>org.exoplatform.agenda.entity.EventDatePollEntity</class>
+    <class>org.exoplatform.agenda.entity.EventDateVoteEntity</class>
+    <class>org.exoplatform.agenda.entity.EventEntity</class>
+    <class>org.exoplatform.agenda.entity.EventRecurrenceEntity</class>
+    <class>org.exoplatform.agenda.entity.EventReminderEntity</class>
+    <class>org.exoplatform.agenda.entity.RemoteEventEntity</class>
+    <class>org.exoplatform.agenda.entity.RemoteProviderEntity</class>
+    <class>org.exoplatform.agenda.entity.CalendarLinkEntity</class>
+    <class>org.exoplatform.agenda.entity.CalendarSubscriptionEntity</class>
+    <class>org.exoplatform.agenda.entity.CalendarSubscriptionEventEntity</class>
+    <class>org.exoplatform.agenda.entity.CalendarShareEntity</class>
+    <exclude-unlisted-classes>true</exclude-unlisted-classes>
+    <properties>
+      <property name="jakarta.persistence.jdbc.driver" value="org.hsqldb.jdbc.JDBCDriver"/>
+      <property name="jakarta.persistence.jdbc.user" value="sa"/>
+      <property name="jakarta.persistence.jdbc.password" value=""/>
+      <property name="hibernate.dialect" value="org.hibernate.dialect.HSQLDialect"/>
+      <property name="hibernate.hbm2ddl.auto" value="none"/>
       <property name="hibernate.show_sql" value="false"/>
     </properties>
   </persistence-unit>

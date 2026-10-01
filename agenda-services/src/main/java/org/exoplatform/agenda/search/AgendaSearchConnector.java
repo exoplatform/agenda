@@ -21,6 +21,7 @@ import java.text.Normalizer;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -155,9 +156,16 @@ public class AgendaSearchConnector {
     }).collect(Collectors.toList());
     String termQuery = StringUtils.join(termsQuery, " AND ");
     String sortQuery = buildSortQueryStatement(filter);
+    // The calendars shared with the reader (EXO-90357) are matched by their
+    // own identifier, beside the owners the reader may read: nothing is
+    // reindexed, calendarId has always been in the document. The list is the
+    // service's, read from the share records, never a client's
+    List<Long> sharedCalendarIds = filter.getSharedCalendarIds() == null ? Collections.emptyList()
+                                                                         : filter.getSharedCalendarIds();
     return retrieveSearchQuery().replace("@term@", term)
                                 .replace("@term_query@", termQuery)
                                 .replace("@permissions@", StringUtils.join(calendarOwnersOfUser, ","))
+                                .replace("@sharedCalendarIds@", StringUtils.join(sharedCalendarIds, ","))
                                 .replace("@sortQuery@", sortQuery)
                                 .replace("@offset@", String.valueOf(filter.getOffset()))
                                 .replace("@limit@", String.valueOf(filter.getLimit()));

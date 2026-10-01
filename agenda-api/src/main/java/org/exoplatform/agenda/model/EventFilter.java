@@ -41,6 +41,20 @@ public class EventFilter implements Cloneable {
    */
   private List<Long>                  excludedCalendarIds;
 
+  /**
+   * Technical identifiers of calendars whose events are wanted on top of what
+   * the owner and attendee criteria select (EXO-90357): the calendars other
+   * users shared with the reader, which no owner list of the reader's can name
+   * and which the reader does not attend.
+   * <p>
+   * An inclusion, composed with an <em>or</em>: an event is kept when it
+   * matches the owner and attendee criteria, or when its calendar is listed
+   * here. <b>Validated by the service against the reader</b>: every listed
+   * calendar must be one the reader may access or one shared with them, else
+   * the whole request is refused.
+   */
+  private List<Long>                  calendarIds;
+
   public EventFilter(long attendeeId,
                      List<Long> ownerIds,
                      List<EventAttendeeResponse> responseTypes,
@@ -95,7 +109,8 @@ public class EventFilter implements Cloneable {
                            end,
                            offset,
                            limit,
-                           excludedCalendarIds);
+                           excludedCalendarIds,
+                           calendarIds);
   }
 
 }
