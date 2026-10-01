@@ -85,8 +85,10 @@ import org.exoplatform.web.security.security.TokenServiceInitializationException
  * <b>Owners.</b> A subscription belongs to the owner of the calendar it fills: a
  * user, who alone manages it, or a space, whose real managers manage it whoever
  * added it. A space's calendar is a storage detail: it takes the space's colour,
- * its events are attended by the space, and every reader of the space's
- * calendar reads them.
+ * its events have no attendee row, and every reader of the space's calendar
+ * reads them by owner; an attendee-keyed listing reaches them only when it asks
+ * for the owners' subscribed calendars
+ * ({@code EventFilter#subscribedCalendarsIncluded}).
  * <p>
  * <b>Stored events.</b> A subscription fills a calendar of its own,
  * flagged as a subscription, with one agenda event per occurrence of the feed in
@@ -1027,17 +1029,14 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
           // sent.
           //
           // A space's subscription writes NO attendee row (EXO-90373). An
-          // attendee row naming the space says "the space's members attend this
-          // meeting", and the platform reads it that way wherever it meets it:
-          // an attendee-keyed listing expands to {user} + {user's spaces}
-          // (AgendaEventServiceImpl#getEvents), so caldav's seeding of "the
-          // meetings they attend" listed every imported occurrence for every
-          // connected member and wrote a copy of it into their personal CalDAV
-          // account — which then came back as a remote event of theirs, drawn
-          // beside the space's own copy. The feed's events are the space's, not
-          // its members' commitments: they show wherever a space event with no
-          // attendee shows, the space's agenda and the "All events" view of a
-          // member who selected the space.
+          // attendee row naming the space would say "the space's members attend
+          // this meeting", and every attendee-keyed listing expands to {user} +
+          // {user's spaces} (AgendaEventServiceImpl#getEvents), so it would make
+          // every member's listings, and caldav's seeding of "the meetings they
+          // attend", treat the feed as their meetings. The feed's events are the
+          // space's: they show by owner, in the space's agenda and the "All
+          // events" view of a member who selected the space, and in a member's
+          // own events view, which asks for its owners' subscribed calendars.
           attendeeStorage.saveEventAttendee(new EventAttendee(0, eventId, subscription.getOwnerIdentityId(), EventAttendeeResponse.ACCEPTED),
                                             eventId);
         }
