@@ -887,7 +887,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    */
   private boolean isSameInstant(ZonedDateTime first, ZonedDateTime second) {
     if (first == null || second == null) {
-      return first == second;
+      return first == null && second == null;
     }
     return first.toInstant().equals(second.toInstant());
   }
