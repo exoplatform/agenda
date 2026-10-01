@@ -423,7 +423,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @RolesAllowed("users")
   @Operation(
       summary = "Retrieves an occurrence of a recurring event, identified by the parent event identifier and the occurrence date",
-      description = "Retrieves an occurrence of a recurring event, identified by the parent event identifier and the occurrence date. The caller must be able to access the parent event (member of the calendar owner, or attendee).",
+      description = "Retrieves an occurrence of a recurring event, identified by the parent event identifier and the occurrence date. The caller must be able to access the occurrence served: a stored exceptional occurrence is checked against its own row (member of the calendar owner, or attendee of that date), a computed occurrence against its series. 403 otherwise.",
       method = "GET"
   )
   @ApiResponses(
@@ -493,7 +493,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                 parentEventId,
                 occurrenceId,
                 e);
-      return Response.status(Status.FORBIDDEN).entity("Not allowed to access this event").build();
+      return Response.status(Status.FORBIDDEN).entity("Not allowed to access the occurrence served").build();
     } catch (Exception e) {
       LOG.warn("Error retrieving event with parentId '{}' and occurrenceId '{}'",
                RestUtils.getCurrentUser(),
