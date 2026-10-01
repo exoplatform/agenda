@@ -1223,6 +1223,18 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     Event series = createSpaceEvent(start, false, true, testuser1Identity, testuser2Identity);
     Event removedDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start);
     Event otherDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start.plusDays(1));
+    // A room of its own keeps that date as a row through the opening of the
+    // series: a row that carries nothing of its own is dropped and rebuilt
+    Event otherDateUpdate = agendaEventService.getEventById(otherDate.getId(), ZoneOffset.UTC, creatorId).clone();
+    otherDateUpdate.setLocation("room B");
+    agendaEventService.updateEvent(otherDateUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(otherDate.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
     removeAttendee(removedDate.getId(), memberId, creatorId);
     restartTransaction();
     assertFalse("precondition: removed from that date",
