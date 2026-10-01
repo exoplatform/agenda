@@ -16,12 +16,15 @@
  */
 package org.exoplatform.agenda.listener;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import org.junit.jupiter.api.Test;
+
+import jakarta.annotation.PostConstruct;
 
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.service.AgendaCalendarSubscriptionService;
@@ -62,4 +65,17 @@ class AgendaSpaceSubscriptionColorListenerTest {
     verify(service).followSpaceColor(spaceCalendar);
   }
 
+
+  /**
+   * The framework calls {@code init()}, which registers the listener: the test
+   * above calls it by hand, so without this pin removing {@code @PostConstruct}
+   * would leave space feeds no longer following the space's colour and every
+   * test green.
+   *
+   * @throws NoSuchMethodException never
+   */
+  @Test
+  void itRegistersItselfWhenTheContainerStartsIt() throws NoSuchMethodException {
+    assertTrue(AgendaSpaceSubscriptionColorListener.class.getMethod("init").isAnnotationPresent(PostConstruct.class));
+  }
 }
