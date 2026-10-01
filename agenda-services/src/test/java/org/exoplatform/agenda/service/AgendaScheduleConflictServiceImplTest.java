@@ -257,7 +257,7 @@ class AgendaScheduleConflictServiceImplTest {
 
     conflictService.getScheduleConflicts(WINDOW_START, WINDOW_END, USER);
 
-    verify(agendaEventService).getEvents(argThat(EventFilter::isSubscribedCalendarsExcluded),
+    verify(agendaEventService).getEvents(argThat(filter -> !filter.isSubscribedCalendarsIncluded()),
                                          eq(ZoneOffset.UTC),
                                          eq(USER));
   }

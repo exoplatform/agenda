@@ -56,24 +56,23 @@ public class EventFilter implements Cloneable {
   private List<Long>                  calendarIds;
 
   /**
-   * Whether the calendars filled by the subscriptions of the owners this
-   * listing reads must be left out of it (EXO-90373).
+   * Whether an attendee-keyed listing also reads the calendars filled by the
+   * subscriptions of the owners it reads (EXO-90373).
    * <p>
    * A subscribed calendar is a read-only copy of somebody else's calendar and
    * its events carry no attendee row, so an attendee-keyed listing reaches
-   * them only because the service adds those calendars to
-   * {@link #calendarIds}. That is what a member's own agenda wants and what
-   * this flag switches off, for the two kinds of caller that must not see
-   * them: a reader computing when somebody is <b>busy</b> (an imported event
-   * is nobody's commitment — it is always {@code FREE} — and reading them only
-   * spends the caller's event budget), and a listing that names itself after
-   * an attendee <b>response</b> nobody ever gave on them.
+   * them only when the service adds those calendars to {@link #calendarIds},
+   * and then whatever response the listing asked for. That is what a member's
+   * own agenda wants, and only that view asks for it. Every other caller is
+   * left out by default: a reader computing when somebody is busy, a seeding
+   * of "the meetings they attend", a listing named after one attendee
+   * response.
    * <p>
-   * It is a display scope and never an authorisation: the calendars it drops
-   * belong to owners the reader was already checked against, so leaving it
-   * false widens nothing.
+   * It is a display scope and never an authorisation: the calendars it adds
+   * belong to owners the reader was already checked against, so setting it
+   * widens nothing the reader may not read.
    */
-  private boolean                     subscribedCalendarsExcluded;
+  private boolean                     subscribedCalendarsIncluded;
 
   public EventFilter(long attendeeId,
                      List<Long> ownerIds,
@@ -131,7 +130,7 @@ public class EventFilter implements Cloneable {
                            limit,
                            excludedCalendarIds,
                            calendarIds,
-                           subscribedCalendarsExcluded);
+                           subscribedCalendarsIncluded);
   }
 
 }

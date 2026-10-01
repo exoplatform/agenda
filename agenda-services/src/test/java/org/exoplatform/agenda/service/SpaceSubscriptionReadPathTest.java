@@ -207,6 +207,7 @@ class SpaceSubscriptionReadPathTest {
     EventFilter filter = spaceFilter();
     filter.setOwnerIds(List.of(MEMBER, SPACE));
     filter.setAttendeeId(MEMBER);
+    filter.setSubscribedCalendarsIncluded(true);
 
     eventService.getEvents(filter, ZoneId.of("UTC"), MEMBER);
 
@@ -219,6 +220,7 @@ class SpaceSubscriptionReadPathTest {
     EventFilter withoutTheSpace = spaceFilter();
     withoutTheSpace.setOwnerIds(List.of(MEMBER));
     withoutTheSpace.setAttendeeId(MEMBER);
+    withoutTheSpace.setSubscribedCalendarsIncluded(true);
 
     eventService.getEvents(withoutTheSpace, ZoneId.of("UTC"), MEMBER);
 
@@ -243,6 +245,7 @@ class SpaceSubscriptionReadPathTest {
     EventFilter filter = spaceFilter();
     filter.setOwnerIds(List.of(SPACE));
     filter.setAttendeeId(OUTSIDER);
+    filter.setSubscribedCalendarsIncluded(true);
 
     assertThrows(IllegalAccessException.class, () -> eventService.getEvents(filter, ZoneId.of("UTC"), OUTSIDER));
 
@@ -250,25 +253,22 @@ class SpaceSubscriptionReadPathTest {
   }
 
   /**
-   * A caller that asks to be spared the subscribed calendars gets neither the
-   * calendars nor the query that reads them (EXO-90373).
-   * <p>
-   * Two callers do: the availability and conflict readers, for which an
-   * imported event is never a busy block yet would spend their 500-event
-   * budget before the FREE test drops it; and the timeline widget under its
-   * "accepted events" filter, which names itself after a response nobody ever
-   * gave on a feed's events. Both pin their own end of it; this pins the end
-   * that honours them.
+   * A caller that does not ask for the subscribed calendars gets neither the
+   * calendars nor the query that reads them (EXO-90373): the attendee and
+   * response criteria do not apply to those calendars, so every attendee-keyed
+   * caller that did not ask - caldav's seeding of "the meetings they attend",
+   * the availability and conflict readers, the MCP tools, a listing of
+   * declined events - would otherwise get every imported occurrence as theirs.
    *
    * @throws Exception never
    */
   @Test
-  void aCallerMayAskForTheListingWithoutTheOwnersSubscribedCalendars() throws Exception {
-    when(subscriptionService.getSubscriptionCalendarIds(List.of(MEMBER, SPACE))).thenReturn(List.of(CALENDAR));
+  void aCallerThatDoesNotAskGetsTheListingWithoutTheOwnersSubscribedCalendars() throws Exception {
+    when(subscriptionService.getSubscriptionCalendarIds(any())).thenReturn(List.of(CALENDAR));
     EventFilter filter = spaceFilter();
-    filter.setOwnerIds(List.of(MEMBER, SPACE));
+    filter.setOwnerIds(null);
     filter.setAttendeeId(MEMBER);
-    filter.setSubscribedCalendarsExcluded(true);
+    filter.setResponseTypes(List.of(EventAttendeeResponse.DECLINED));
 
     eventService.getEvents(filter, ZoneId.of("UTC"), MEMBER);
 

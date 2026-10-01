@@ -653,7 +653,10 @@ export default {
       const responseTypes = this.spaceContextId && this.eventType === 'allEvents' ? null : this.eventType === 'declinedEvent' ? ['DECLINED']:['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
       // No shared calendar in a space agenda: the selection is the space
       const sharedCalendarIds = this.leftPanelAvailable ? this.sharedCalendarIds : [];
-      return this.$eventService.getEvents(this.searchTerm, this.effectiveOwnerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences', this.hiddenOwnCalendarIds, sharedCalendarIds)
+      // The calendars the selected owners subscribed to carry no attendee row:
+      // the user's own events view asks for them, the declined view does not
+      const includeSubscribedCalendars = this.eventType !== 'declinedEvent';
+      return this.$eventService.getEvents(this.searchTerm, this.effectiveOwnerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences', this.hiddenOwnCalendarIds, sharedCalendarIds, includeSubscribedCalendars)
         .then(data => {
           if (requestId !== this.eventsRequestId) {
             // A newer retrieval was started since: its response is the one
