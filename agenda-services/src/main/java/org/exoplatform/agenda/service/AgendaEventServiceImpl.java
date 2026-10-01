@@ -1223,21 +1223,35 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * level — never the narrower one — when the share service cannot be reached,
    * so an unreachable share service admits no editor.
    *
+   * @param calendarId the calendar's identifier; a missing, deleted or
+   *          subscribed calendar is shared with nobody
+   * @param userIdentityId {@link Identity} identifier of the user
+   * @return true when the user holds an edit share on it
+   */
+  private boolean isSharedForEdit(long calendarId, long userIdentityId) {
+    Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
+    return calendar != null && !calendar.isDeleted() && !calendar.isSubscription() && isSharedForEdit(calendar, userIdentityId);
+  }
+
+  /**
+   * Whether a calendar is one user's personal calendar that its owner shared
+   * with another user for editing (EXO-90378), the calendar already read.
+   *
    * @param calendar the calendar, already known to exist and not to be a
    *          subscription
    * @param userIdentityId {@link Identity} identifier of the user
    * @return true when the user holds an edit share on it
    */
   private boolean isSharedForEdit(Calendar calendar, long userIdentityId) {
+    if (!calendarShareAccess.isSharedForEditWith(calendar.getId(), userIdentityId)) {
+      return false;
+    }
     Identity owner = identityManager.getIdentity(String.valueOf(calendar.getOwnerId()));
     if (owner == null || !owner.isUser()) {
       return false;
     }
     Identity user = identityManager.getIdentity(String.valueOf(userIdentityId));
-    if (user == null || !user.isUser()) {
-      return false;
-    }
-    return calendarShareAccess.isSharedForEditWith(calendar.getId(), userIdentityId);
+    return user != null && user.isUser();
   }
 
   /**
@@ -1765,14 +1779,17 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (storedEvent.getCalendarId() == targetCalendar.getId()) {
       return;
     }
-    // A colleague whose only right over the event is an edit share (EXO-90378)
-    // may write it where it is and nowhere else: the event is the owner's, and
-    // taking it out of their calendar — into the editor's own, or anywhere they
-    // may create — would remove it from the calendar its owner shared. Asked
-    // before the target check, which such a move would often pass. Anyone with
-    // an older right is unaffected: the share is the last right writeRightOf
-    // answers, so it is answered only when there is no other.
-    if (writeRightOf(storedEvent, userIdentityId) == EventWriteRight.SHARE_EDITOR) {
+    // A colleague who edits the calendar through a share (EXO-90378) may write
+    // its events where they are and nowhere else: the event is the owner's,
+    // and taking it out of their calendar - into the editor's own, or anywhere
+    // they may create - would remove it from the calendar its owner shared.
+    // That holds whether their right over this event is the share or an
+    // attendee right, which an editor can put themselves in the way of; only
+    // the calendar's owner and the event's creator move it. Asked before the
+    // target check, which such a move would often pass.
+    EventWriteRight right = writeRightOf(storedEvent, userIdentityId);
+    if (right == EventWriteRight.SHARE_EDITOR
+        || (right == EventWriteRight.ATTENDEE && isSharedForEdit(storedEvent.getCalendarId(), userIdentityId))) {
       throw new IllegalAccessException("User '" + userIdentityId + "' edits calendar " + storedEvent.getCalendarId()
           + " through a share and can't move event " + storedEvent.getId() + " out of it");
     }
@@ -1901,10 +1918,18 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         }
         break;
       case "allowAttendeeToUpdate":
-        event.setAllowAttendeeToUpdate(Boolean.parseBoolean(fieldValue));
+        // The creator's choice, as updateEvent keeps it: anyone else - an
+        // editor of the calendar first - would otherwise grant attendees,
+        // themselves included, a right over the event that owes nothing to
+        // the calendar and outlives their own access to it
+        if (event.getCreatorId() == userIdentityId) {
+          event.setAllowAttendeeToUpdate(Boolean.parseBoolean(fieldValue));
+        }
         break;
       case "allowAttendeeToInvite":
-        event.setAllowAttendeeToInvite(Boolean.parseBoolean(fieldValue));
+        if (event.getCreatorId() == userIdentityId) {
+          event.setAllowAttendeeToInvite(Boolean.parseBoolean(fieldValue));
+        }
         break;
       default:
         throw new UnsupportedOperationException();

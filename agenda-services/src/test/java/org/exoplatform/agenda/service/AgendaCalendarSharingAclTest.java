@@ -561,6 +561,67 @@ class AgendaCalendarSharingAclTest {
   }
 
   /**
+   * An editor may not grant attendees the right to update the owner's event:
+   * the flag is the creator's, as updateEvent keeps it, so the patch writes
+   * the event with the flag as stored. Kills the mutant that lets
+   * updateEventField set it for any writer.
+   *
+   * @throws Exception when the patch is refused
+   */
+  @Test
+  void anEditorCannotPatchTheAttendeeFlagsOfTheOwnersEvent() throws Exception {
+    when(eventStorage.updateEvent(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    aliceLevel = CalendarShareLevel.EDIT;
+
+    eventService.updateEventFields(EVENT,
+                                   Map.of("allowAttendeeToUpdate", List.of("true"), "allowAttendeeToInvite", List.of("true")),
+                                   false,
+                                   false,
+                                   ALICE);
+
+    ArgumentCaptor<Event> written = ArgumentCaptor.forClass(Event.class);
+    org.mockito.Mockito.verify(eventStorage).updateEvent(written.capture());
+    assertFalse(written.getValue().isAllowAttendeeToUpdate(), "the creator's choice stands");
+    assertFalse(written.getValue().isAllowAttendeeToInvite());
+  }
+
+  /**
+   * An editor who also attends the owner's event, with attendees allowed to
+   * update it, still may not move it out of the shared calendar: the attendee
+   * right is one an editor can put themselves in the way of, so an edit share
+   * on the source refuses the move whatever right answers first. Kills the
+   * mutant that refuses only the bare share right.
+   */
+  @Test
+  void anEditorWhoAttendsCannotMoveTheEventOutOfTheSharedCalendarEither() {
+    when(calendarStorage.getCalendarById(ALICE_CALENDAR)).thenAnswer(invocation -> aliceCalendar());
+    aliceLevel = CalendarShareLevel.EDIT;
+    attendeeMayUpdate = true;
+    when(attendeeService.isEventAttendee(EVENT, ALICE)).thenReturn(true);
+    Map<String, List<String>> move = Map.of("calendarId", List.of(String.valueOf(ALICE_CALENDAR)));
+
+    assertThrows(IllegalAccessException.class,
+                 () -> eventService.updateEventFields(EVENT, move, false, false, ALICE),
+                 "the event stays in the calendar its owner shared");
+    org.mockito.Mockito.verify(eventStorage, org.mockito.Mockito.never()).updateEvent(any());
+  }
+
+  /**
+   * Once the owner takes the edit level back, a former editor who attends
+   * the event with no attendee right granted by its creator may not update it
+   * any more.
+   */
+  @Test
+  void aDowngradedEditorNoLongerUpdatesTheOwnersEvent() {
+    aliceLevel = CalendarShareLevel.VIEW;
+    when(attendeeService.isEventAttendee(EVENT, ALICE)).thenReturn(true);
+
+    assertThrows(IllegalAccessException.class,
+                 () -> eventService.updateEventFields(EVENT, Map.of("summary", List.of("still mine")), false, false, ALICE));
+    org.mockito.Mockito.verify(eventStorage, org.mockito.Mockito.never()).updateEvent(any());
+  }
+
+  /**
    * An editor may change every other field of the owner's events, the
    * calendar among them as long as it does not change: the move check is a
    * check on the move, not a veto on the patch.
