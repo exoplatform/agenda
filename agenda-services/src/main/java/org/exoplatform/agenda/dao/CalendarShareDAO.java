@@ -61,16 +61,6 @@ public interface CalendarShareDAO extends JpaRepository<CalendarShareEntity, Lon
   List<CalendarShareEntity> findByShareeIdentityIdOrderByCreatedDateDescIdDesc(long shareeIdentityId, Pageable pageable);
 
   /**
-   * The identifiers of every calendar shared with a colleague: what the ACL
-   * of every read relies on, so ids only, served by the sharee index.
-   *
-   * @param shareeIdentityId identity identifier of the colleague
-   * @return the calendar identifiers
-   */
-  @Query("SELECT share.calendarId FROM AgendaCalendarShare share WHERE share.shareeIdentityId = :shareeIdentityId")
-  List<Long> findCalendarIdsByShareeIdentityId(@Param("shareeIdentityId") long shareeIdentityId);
-
-  /**
    * Every calendar shared with a colleague and the level it is shared at
    * (EXO-90378): what the ACL of every read <b>and every write</b> relies on,
    * so the two columns only and one statement, served by the same sharee

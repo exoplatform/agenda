@@ -41,6 +41,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import org.exoplatform.agenda.constant.CalendarEditorChangeKind;
 import org.exoplatform.agenda.constant.CalendarShareLevel;
 import org.exoplatform.agenda.model.CalendarEditorChange;
 import org.exoplatform.agenda.constant.EventAccess;
@@ -767,7 +768,7 @@ class AgendaCalendarSharingAclTest {
     assertEquals(CALENDAR, change.getValue().getCalendarId());
     assertEquals(OWNER, change.getValue().getOwnerIdentityId());
     assertEquals(ALICE, change.getValue().getModifierIdentityId());
-    assertEquals(CalendarEditorChange.Kind.CHANGED, change.getValue().getKind());
+    assertEquals(CalendarEditorChangeKind.CHANGED, change.getValue().getKind());
     assertEquals("Moved by alice", change.getValue().getEventSummary(), "the summary as it stands after the change");
 
     eventService.updateEventFields(EVENT, Map.of("summary", List.of("Moved by bob")), false, false, OWNER);
@@ -822,9 +823,8 @@ class AgendaCalendarSharingAclTest {
    * because of them.
    * <p>
    * This is the listing the event form asks for when it resolves an event's
-   * destination. While it answered 401, the form resolved no calendar, and
-   * saving an event of a shared calendar died in the browser before any
-   * request was issued — the defect the PO hit on the rig.
+   * destination: without it, the form resolves no calendar for an event of a
+   * shared calendar.
    *
    * @throws Exception when the listing is refused
    */
