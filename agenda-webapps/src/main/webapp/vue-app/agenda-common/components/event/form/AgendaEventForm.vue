@@ -336,9 +336,7 @@ export default {
      * shared with this user is not among the calendars the form can look up —
      * the lookup asks for the owner's calendars, and this user may read only
      * the one shared with them — so it resolves to null, and the event's own
-     * owner block, which came from the server with the event, is already
-     * right. Dereferencing it unguarded threw a TypeError here and the save
-     * died in the browser: no request, no error, nothing.
+     * owner block, which came from the server with the event, is kept as is.
      *
      * @returns {void}
      */

@@ -73,9 +73,10 @@ public class ChannelDelivery {
    * level asked says so here rather than failing: the share is delivered at the
    * narrower level, agenda logs the difference at WARN, and the record keeps
    * the level the owner chose, which is what decides every right inside eXo.
-   * BlueMind is the case this exists for — its {@code CS:share} grants reading
-   * and nothing else until a spike proves otherwise — and a colleague who
-   * cannot edit from their phone still edits in eXo.
+   * It is the safety net for a server that cannot hold a level, not any
+   * server's ordinary answer: a colleague who cannot edit from their phone
+   * still edits in eXo. A level <b>wider</b> than the one asked is never a
+   * delivery: the colleague would hold more on the server than in eXo.
    */
   private final CalendarShareLevel deliveredLevel;
 
