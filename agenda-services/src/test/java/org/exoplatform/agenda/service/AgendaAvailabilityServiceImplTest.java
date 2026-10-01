@@ -185,7 +185,7 @@ class AgendaAvailabilityServiceImplTest {
 
     availabilityService.getAvailability(List.of(COLLEAGUE), WINDOW_START, WINDOW_END, ASKER);
 
-    verify(agendaEventService).getEvents(argThat(EventFilter::isSubscribedCalendarsExcluded),
+    verify(agendaEventService).getEvents(argThat(filter -> !filter.isSubscribedCalendarsIncluded()),
                                          eq(ZoneOffset.UTC),
                                          eq(COLLEAGUE));
   }
