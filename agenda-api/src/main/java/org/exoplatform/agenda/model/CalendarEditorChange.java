@@ -16,6 +16,8 @@
  */
 package org.exoplatform.agenda.model;
 
+import org.exoplatform.agenda.constant.CalendarEditorChangeKind;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -38,16 +40,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CalendarEditorChange {
 
-  /** What the colleague did. */
-  public enum Kind {
-    /** They created an event in the calendar. */
-    ADDED,
-    /** They changed one of its events. */
-    CHANGED,
-    /** They deleted one of its events. */
-    REMOVED
-  }
-
   /** Technical identifier of the calendar the change happened in. */
   private long   calendarId;
 
@@ -68,6 +60,6 @@ public class CalendarEditorChange {
   private String eventSummary;
 
   /** What the colleague did. */
-  private Kind   kind;
+  private CalendarEditorChangeKind kind;
 
 }

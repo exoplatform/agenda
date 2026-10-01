@@ -29,6 +29,7 @@ import java.util.Collections;
 
 import org.apache.commons.lang3.StringUtils;
 
+import org.exoplatform.agenda.constant.CalendarEditorChangeKind;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarEditorChange;
 import org.exoplatform.agenda.service.AgendaCalendarService;
@@ -144,7 +145,7 @@ public class CalendarEditedNotificationPlugin extends BaseNotificationPlugin {
     notification.with(STORED_PARAMETER_CALENDAR_NAME,
                       StringUtils.isNotBlank(calendar.getName()) ? calendar.getName() : calendar.getTitle());
     notification.with(STORED_PARAMETER_CHANGE_KIND,
-                      (change.getKind() == null ? CalendarEditorChange.Kind.CHANGED : change.getKind()).name());
+                      (change.getKind() == null ? CalendarEditorChangeKind.CHANGED : change.getKind()).name());
     notification.with(STORED_PARAMETER_CHANGED_EVENT_SUMMARY, StringUtils.defaultString(change.getEventSummary()));
     notification.with(STORED_PARAMETER_EVENT_URL, agendaUrl());
     return notification.end();
