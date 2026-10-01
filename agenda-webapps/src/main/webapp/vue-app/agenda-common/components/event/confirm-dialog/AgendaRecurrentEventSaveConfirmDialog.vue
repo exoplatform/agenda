@@ -50,10 +50,10 @@
 // `z-index: var(--allPagesZindexModal, 1050) !important` and, where the custom
 // property is declared EMPTY, a var() does not fall back — the substitution is
 // invalid at computed-value time and the whole declaration is dropped,
-// !important included. Measured on this platform: the popup keeps z-index 3
-// while its own veil is painted over it. Measuring the screen instead was tried
-// and is worse: Vuetify creates that veil in a requestAnimationFrame, so there
-// is nothing to measure when the popup opens.
+// !important included: the popup then keeps z-index 3 while its own veil is
+// painted over it. Measuring the screen at open time is no alternative:
+// Vuetify creates that veil in a requestAnimationFrame, so there is nothing
+// to measure when the popup opens.
 const ABOVE_STACKING_SCALE = 1070;
 
 export default {
