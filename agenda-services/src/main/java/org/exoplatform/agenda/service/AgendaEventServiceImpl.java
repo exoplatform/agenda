@@ -161,9 +161,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     Event exceptionalOccurrenceEvent = agendaEventStorage.getExceptionalOccurrenceEvent(parentEventId, occurrenceId);
     // Access is checked on the event actually served, before anything else
     // is computed: a stored exceptional occurrence through its own row (its
-    // own attendee list, as before), a computed occurrence through the parent
-    // it inherits everything from. Until eXIP 7.3.0.20 the computed branch
-    // served any authenticated caller, member of the space or not.
+    // own attendee list), a computed occurrence through the parent it
+    // inherits everything from.
     Event servedEvent = exceptionalOccurrenceEvent == null ? recurrentEvent : exceptionalOccurrenceEvent;
     if (!canAccessEvent(servedEvent, userIdentityId)) {
       throw new IllegalAccessException("User with identity id " + userIdentityId + " is not allowed to access event with id "
@@ -478,13 +477,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * row carries no user intent. Telling the two apart is precisely what the
    * merge below does, property by property.
    * <p>
-   * Until eXIP 7.3.0.20 every save of a recurrent event deleted every
-   * exceptional occurrence it had, whatever the change was: correcting the
-   * summary of a weekly meeting discarded the room changed on one date, the
-   * date cancelled on another, and the answers attached to both. The rule the
-   * PO stated on 2026-09-23 is per property, not per occurrence — the change
+   * The rule is per property, not per occurrence: a change on the series
    * reaches a customised date like any other, <strong>except</strong> on the
-   * properties customised there, which keep their value.
+   * properties customised there, which keep their value. Deleting those rows
+   * on every save would instead discard, when the summary of a weekly meeting
+   * is corrected, the room changed on one date, the date cancelled on another,
+   * and the answers attached to both.
    * <p>
    * Which properties were customised is recorded nowhere: an exceptional
    * occurrence is a full clone of its series and the only marker it carries is
@@ -515,8 +513,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     // Who the series gained and lost, computed once: a date individually
     // modified is not a place to hide from an invitation or from its
-    // withdrawal, and before the dates survived a series save they were deleted
-    // and rebuilt from the new list, so membership reached them by accident
+    // withdrawal
     Set<Long> attendeesAddedToSeries = new HashSet<>();
     Set<Long> attendeesRemovedFromSeries = new HashSet<>();
     if (previousSeriesAttendees != null) {
@@ -570,11 +567,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       occurrence.setAvailability(mergeOccurrenceProperty(occurrence.getAvailability(),
                                                          storedSeries.getAvailability(),
                                                          updatedSeries.getAvailability()));
-      // visibility arrived after this merge was written (EXO-90322). A property
-      // the merge does not name is one a series change never reaches on a
-      // customised date — where the rows used to be recreated from the series
-      // and inherited it — and this one decides what a published calendar link
-      // shows of the event, so a date left more visible than its series leaks.
+      // A property the merge does not name is one a series change never
+      // reaches on a customised date, and this one decides what a published
+      // calendar link shows of the event, so a date left more visible than its
+      // series leaks.
       // Compared once a null is read as DEFAULT — the meaning the column already
       // has everywhere visibility is honoured ("a null reads as not masked").
       // VISIBILITY is nullable by design, and a database whose addColumn does
@@ -682,8 +678,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // Removing the attendee row does not remove the reminders that person set
     // on that date: nothing listens to the attendee-deleted event, and a
     // reminder is sent from its own stored trigger date with no attendance
-    // check. Before the dates survived a series save the row was deleted and
-    // the database cascaded them; now it is this method's job.
+    // check, so they are removed here.
     for (Long identityId : removedFromSeries) {
       if (attendeesBefore.contains(identityId)) {
         reminderService.removeUserReminders(occurrence.getId(), identityId);
@@ -1087,7 +1082,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     eventModifications.addModificationTypes(attendeeModifications);
 
     // A change on the series reaches the dates that were individually modified
-    // instead of deleting them (PO rule of 2026-09-23). Run here, after the
+    // instead of deleting them. Run here, after the
     // series and its attendee list are stored, for three reasons: an until is a
     // LocalDate that does not round-trip across zones, so the stored recurrence
     // is the one every later read expands; a series update that fails leaves
@@ -1213,8 +1208,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     // A patch meant for the whole series reaches the dates individually
     // modified instead of deleting them, and leaves the properties customised
-    // there untouched (PO rule of 2026-09-23). Run on the stored event for the
-    // same reasons as the full-save path.
+    // there untouched. Run on the stored event for the same reasons as the
+    // full-save path.
     if (updateAllOccurrences && event.getParentId() <= 0 && event.getRecurrence() != null) {
       // No attendee list travels on this path: a patch changes fields, never
       // the people invited
@@ -1497,18 +1492,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   /**
    * Where the open flag may be true at all, whatever the client sends: an event
-   * that is not a date poll (open date polls are another eXIP, 7.3.0.40 —
-   * decided 2026-09-17), in a space calendar (in a personal calendar nobody but
-   * the owner and the invitees can reach the event, so there is nobody to open
-   * it to). The server-side invariant behind the board's rules, independent of
-   * the UI hiding the padlock.
+   * that is not a date poll (opening a date poll is out of scope), in a space
+   * calendar (in a personal calendar nobody but the owner and the invitees can
+   * reach the event, so there is nobody to open it to). The server-side
+   * invariant behind the board's rules, independent of the UI hiding the
+   * padlock.
    * <p>
-   * One occurrence of a series may now carry its own value (US06): the rule no
-   * longer refuses an event that has a parent. That became possible once a
-   * change on the series stopped deleting the dates individually modified —
-   * before that, a value written on an occurrence row died at the next save of
-   * its series, which is why the spec first made the flag a property of the
-   * series alone.
+   * One occurrence of a series may carry its own value: the rule does not
+   * refuse an event that has a parent, since a change on the series merges
+   * into the dates individually modified instead of deleting them, so a value
+   * written on an occurrence row survives the next save of its series.
    *
    * @param status the status the save is about to store, as derived from the
    *          date options

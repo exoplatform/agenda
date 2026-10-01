@@ -4910,7 +4910,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
       // Expected
     }
 
-    // Once stored as an exceptional occurrence, same rule (as before)
+    // Once stored as an exceptional occurrence, the same rule applies
     Event exceptionalOccurrence = agendaEventService.saveEventExceptionalOccurrence(series.getId(), occurrenceId);
     assertNotNull(exceptionalOccurrence);
     assertNotNull(agendaEventService.getEventOccurrence(series.getId(), occurrenceId, ZoneOffset.UTC, memberId));
@@ -5085,10 +5085,8 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
   /**
    * The people a series gains and loses reach the dates individually modified,
-   * while the people invited on one of those dates alone stay there — the
-   * per-property rule of the PO (2026-09-23) applied to a set. Before the dates
-   * survived a series save this held by accident: the rows were deleted and
-   * rebuilt from the new list.
+   * while the people invited on one of those dates alone stay there: the
+   * per-property rule applied to a set.
    */
   @Test
   public void testSeriesMembershipChangeReachesTheDatesIndividuallyModified() throws Exception { // NOSONAR
