@@ -195,14 +195,16 @@ public class AgendaCalendarShareRest {
   @Operation(summary = "Change what a colleague may do with a shared calendar", method = "PUT",
              description = "Owner only. VIEW lets the colleague read the calendar, EDIT lets them create, change and"
                  + " delete events in it and nothing more — never move an event out of it, rename, publish, share on or"
-                 + " level anyone. The channel carrying the share is asked to match its grant to the new level; a channel"
-                 + " that cannot is logged server-side and the eXo level stands, which is what decides every right in eXo."
+                 + " level anyone. The channel carrying the share is asked to match its grant to the new level. A raise it"
+                 + " cannot carry is logged server-side and the eXo level stands; a downgrade it cannot carry leaves the level"
+                 + " unchanged and is answered 409, so the colleague never keeps a wider grant on the server than in eXo."
                  + " Downgrading moves nothing: the events the colleague created stay in the owner's calendar.")
   @ApiResponses(value = {
       @ApiResponse(responseCode = "204", description = "Level changed"),
       @ApiResponse(responseCode = "400", description = "Missing or unknown access level, or invalid calendar identifier"),
       @ApiResponse(responseCode = "403", description = "The user does not own the calendar"),
       @ApiResponse(responseCode = "404", description = "Calendar not found, or not shared with that colleague"),
+      @ApiResponse(responseCode = "409", description = "The calendar server did not narrow the colleague's grant; the level is unchanged"),
   })
   public ResponseEntity<Void> setLevel(HttpServletRequest request,
                                        @PathVariable("calendarId") long calendarId,
@@ -225,6 +227,8 @@ public class AgendaCalendarShareRest {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, FORBIDDEN);
     } catch (IllegalArgumentException e) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+    } catch (IllegalStateException e) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, AgendaCalendarShareService.LEVEL_NOT_NARROWED);
     }
   }
 

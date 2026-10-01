@@ -68,6 +68,12 @@ public interface AgendaCalendarShareService {
   /** Message code: no access level was given for a share (EXO-90378). */
   String LEVEL_MANDATORY         = "agenda.share.levelMandatory";
 
+  /**
+   * Message code: the channel carrying a share did not narrow its grant to the
+   * lower level asked for, so the level is unchanged (EXO-90378).
+   */
+  String LEVEL_NOT_NARROWED      = "agenda.share.levelNotNarrowed";
+
   /** Broadcast once a share is recorded; source the {@link CalendarShare}, data the owner identity id. */
   String CALENDAR_SHARED_EVENT   = "exo.agenda.calendar.shared";
 
@@ -119,9 +125,18 @@ public interface AgendaCalendarShareService {
    * <p>
    * Setting the level a share already has is not an error and still asks the
    * channels: a level change is a fresh chance for a delivery that never
-   * happened, exactly as sharing again is. Delivery stays invisible — a
-   * channel that cannot carry the new level is logged at WARN and the eXo
-   * level stands, which is what decides every right inside eXo.
+   * happened, exactly as sharing again is. Raising a level stays invisible: a
+   * channel that cannot carry it is logged at WARN and the eXo level stands,
+   * which is what decides every right inside eXo, the server merely showing
+   * the colleague less.
+   * <p>
+   * <b>Lowering a delivered share is not invisible.</b> The channel that
+   * carries it is asked to narrow its grant first, and the eXo level changes
+   * only when it did: a colleague who keeps the wider grant on the server
+   * would keep writing the owner's events there, and those writes reach eXo.
+   * When the channel fails, throws, or answers a level wider than the one
+   * asked for, the level is unchanged and {@link #LEVEL_NOT_NARROWED} is
+   * thrown, for the owner to try again.
    * <p>
    * Downgrading {@link CalendarShareLevel#EDIT} to {@link CalendarShareLevel#VIEW}
    * moves nothing: the events the colleague created are the calendar's, and
@@ -136,6 +151,8 @@ public interface AgendaCalendarShareService {
    *           not shared with that colleague
    * @throws IllegalAccessException when the user does not own the calendar
    * @throws IllegalArgumentException when no level is given
+   * @throws IllegalStateException with {@link #LEVEL_NOT_NARROWED} when the
+   *           channel carrying the share did not narrow its grant
    */
   CalendarShare setLevel(long calendarId,
                          long shareeIdentityId,
