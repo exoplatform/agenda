@@ -415,6 +415,61 @@ class AgendaCalendarShareServiceTest {
   }
 
   /**
+   * A downgrade of a delivered share is narrowed on its channel before the eXo
+   * record changes: when the channel fails, throws, or answers the wider level
+   * still, the level is unchanged, the delivery is kept for a later withdraw,
+   * and the owner is told. Kills the mutant that records the lower level
+   * whatever the channel did.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void aDowngradeTheChannelDoesNotNarrowLeavesTheLevelUnchanged() throws Exception {
+    channel.answer = ChannelDelivery.delivered("caldav:1", "/cal/alice/");
+    service.share(PERSONAL_CAL, "alice", CalendarShareLevel.EDIT, "owner");
+    assertEquals("caldav:1", storage.rows.get(0).getDeliveredTo());
+
+    channel.answer = ChannelDelivery.failed("SERVER_REFUSED");
+    IllegalStateException refused = assertThrows(IllegalStateException.class,
+                                                 () -> service.setLevel(PERSONAL_CAL, ALICE, CalendarShareLevel.VIEW, "owner"));
+    assertEquals(AgendaCalendarShareService.LEVEL_NOT_NARROWED, refused.getMessage());
+    assertEquals(CalendarShareLevel.EDIT, service.getShareLevel(PERSONAL_CAL, ALICE), "the level is unchanged");
+    assertEquals("caldav:1", storage.rows.get(0).getDeliveredTo(), "and the delivery kept, for a withdraw to find");
+
+    channel.answer = ChannelDelivery.delivered("caldav:1", "/cal/alice/", CalendarShareLevel.EDIT);
+    assertThrows(IllegalStateException.class, () -> service.setLevel(PERSONAL_CAL, ALICE, CalendarShareLevel.VIEW, "owner"),
+                 "a channel that still grants editing has not narrowed anything");
+    channel.failure = new IllegalStateException("server down");
+    assertThrows(IllegalStateException.class, () -> service.setLevel(PERSONAL_CAL, ALICE, CalendarShareLevel.VIEW, "owner"));
+    assertEquals(CalendarShareLevel.EDIT, service.getShareLevel(PERSONAL_CAL, ALICE));
+    verify(listenerService, never()).broadcast(eq(AgendaCalendarShareService.CALENDAR_SHARE_LEVEL_CHANGED_EVENT),
+                                               any(CalendarShare.class),
+                                               anyLong());
+
+    channel.failure = null;
+    channel.answer = ChannelDelivery.delivered("caldav:1", "/cal/alice/", CalendarShareLevel.VIEW);
+    assertEquals(CalendarShareLevel.VIEW, service.setLevel(PERSONAL_CAL, ALICE, CalendarShareLevel.VIEW, "owner").getLevel(),
+                 "the owner's retry goes through once the server narrows");
+  }
+
+  /**
+   * A channel that carried the share at a wider level than the record asks
+   * for gave the colleague more on the server than eXo grants them: it is not
+   * recorded as a delivery. Kills the mutant that accepts any delivered level.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void aChannelCarryingAWiderLevelDoesNotDeliver() throws Exception {
+    channel.answer = ChannelDelivery.delivered("caldav:1", "/c/", CalendarShareLevel.EDIT);
+
+    CalendarShare share = service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner");
+
+    assertEquals(CalendarShareLevel.VIEW, share.getLevel());
+    assertNull(share.getDeliveredTo(), "not recorded as delivered");
+  }
+
+  /**
    * A channel that carried the share at a narrower level than the record asks
    * for (BlueMind, until its write grant is proved) delivers all the same: the
    * record keeps the owner's level, which is what decides every right in eXo.
