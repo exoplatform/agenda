@@ -162,6 +162,13 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
     if (existing == null) {
       throw new ObjectNotFoundException("Calendar " + calendarId + " is not shared with identity " + shareeIdentityId);
     }
+    ChannelDelivery narrowed = null;
+    if (isNarrower(level, existing.getLevel()) && StringUtils.isNotBlank(existing.getDeliveredTo())) {
+      // A delivered share is narrowed on its channel before the eXo record
+      // changes: the other order would leave the colleague the wider grant on
+      // the server, with nothing to retry it, while eXo says otherwise
+      narrowed = narrowOnChannel(existing, level, ownerUsername);
+    }
     CalendarShare share = existing.getLevel() == level ? existing
                                                        : calendarShareStorage.setLevel(calendar.getId(),
                                                                                        shareeIdentityId,
@@ -172,10 +179,85 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
     if (existing.getLevel() != level) {
       broadcast(CALENDAR_SHARE_LEVEL_CHANGED_EVENT, share, ownerIdentityId);
     }
+    if (narrowed != null) {
+      CalendarShare delivered = calendarShareStorage.setDelivery(share.getCalendarId(),
+                                                                 share.getShareeIdentityId(),
+                                                                 StringUtils.defaultIfBlank(narrowed.getChannelId(),
+                                                                                            share.getDeliveredTo()),
+                                                                 narrowed.getDeliveryRef());
+      return delivered == null ? share : delivered;
+    }
     // The channels are asked whatever the eXo record did: a level change is a
     // fresh chance to deliver a share that never was delivered, and a delivered
     // share must have its grant reconciled to the level it now carries
     return deliver(share, ownerUsername);
+  }
+
+  /**
+   * Asks the channel carrying a delivered share to narrow its grant to a lower
+   * level, before the eXo record changes. A channel no longer installed cannot
+   * be asked, and the eXo level changes alone, logged.
+   *
+   * @param share the record, at its current level
+   * @param level the lower level
+   * @param ownerUsername the owner
+   * @return the channel's delivery at that level, or null when no installed
+   *         channel carries the share
+   * @throws IllegalStateException with
+   *           {@link AgendaCalendarShareService#LEVEL_NOT_NARROWED} when the
+   *           channel failed, threw, or answered a wider level
+   */
+  private ChannelDelivery narrowOnChannel(CalendarShare share, CalendarShareLevel level, String ownerUsername) {
+    CalendarShareChannelPlugin channel = channel(share.getDeliveredTo());
+    if (channel == null) {
+      LOG.warn("No channel {} to narrow the share of calendar {} with colleague {} to {}; the eXo level changes alone",
+               share.getDeliveredTo(),
+               share.getCalendarId(),
+               share.getShareeIdentityId(),
+               level);
+      return null;
+    }
+    CalendarShare proposed = share.clone();
+    proposed.setLevel(level);
+    ChannelDelivery delivery;
+    try {
+      delivery = channel.deliver(proposed, ownerUsername);
+    } catch (RuntimeException | LinkageError e) {
+      LOG.warn("Channel {} failed to narrow the share of calendar {} by {} with colleague {} to {}; the level is unchanged",
+               share.getDeliveredTo(),
+               share.getCalendarId(),
+               ownerUsername,
+               share.getShareeIdentityId(),
+               level,
+               e);
+      throw new IllegalStateException(LEVEL_NOT_NARROWED, e);
+    }
+    if (delivery == null || delivery.getStatus() != ChannelDelivery.Status.DELIVERED
+        || isNarrower(level, delivery.getDeliveredLevel())) {
+      LOG.warn("Channel {} did not narrow the share of calendar {} by {} with colleague {} to {}: {}; the level is unchanged",
+               share.getDeliveredTo(),
+               share.getCalendarId(),
+               ownerUsername,
+               share.getShareeIdentityId(),
+               level,
+               delivery == null ? "no answer"
+                                : delivery.getStatus() == ChannelDelivery.Status.DELIVERED ? "carried at " + delivery.getDeliveredLevel()
+                                                                                             : StringUtils.defaultIfBlank(delivery.getFailureCode(),
+                                                                                                                          String.valueOf(delivery.getStatus())));
+      throw new IllegalStateException(LEVEL_NOT_NARROWED);
+    }
+    return delivery;
+  }
+
+  /**
+   * Whether a level grants less than another.
+   *
+   * @param level the level
+   * @param than the other one, may be null for none known
+   * @return true when {@code level} is lower than {@code than}
+   */
+  private static boolean isNarrower(CalendarShareLevel level, CalendarShareLevel than) {
+    return than != null && level != null && level.ordinal() < than.ordinal();
   }
 
   /**
@@ -500,10 +582,24 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
       }
       if (delivery.getStatus() == ChannelDelivery.Status.DELIVERED) {
         String channelId = StringUtils.defaultIfBlank(delivery.getChannelId(), channelId(channel));
+        // A channel that carried the share at a WIDER level than the record
+        // asks for (EXO-90378) gave the colleague more on the server than eXo
+        // grants them, and their writes there reach eXo: not a delivery
+        if (isNarrower(share.getLevel(), delivery.getDeliveredLevel())) {
+          LOG.warn("Channel {} carried the share of calendar {} by {} with colleague {} at level {}, wider than {};"
+              + " not recorded as delivered",
+                   channelId,
+                   share.getCalendarId(),
+                   ownerUsername,
+                   share.getShareeIdentityId(),
+                   delivery.getDeliveredLevel(),
+                   share.getLevel());
+          continue;
+        }
         // A channel that carried the share at a narrower level than the record
-        // asked for (EXO-90378) is not a failure: the colleague edits in eXo,
-        // and the server simply shows them less. Logged, never surfaced — the
-        // owner is told nothing about a delivery, at any level.
+        // asked for is not a failure: the colleague edits in eXo, and the
+        // server simply shows them less. Logged, never surfaced — the owner is
+        // told nothing about a delivery, at any level.
         if (delivery.getDeliveredLevel() != null && delivery.getDeliveredLevel() != share.getLevel()) {
           LOG.warn("Channel {} carried the share of calendar {} by {} with colleague {} at level {} rather than {};"
               + " the eXo level stands and decides every right in eXo",

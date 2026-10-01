@@ -185,6 +185,24 @@ class AgendaCalendarShareRestTest {
   }
 
   /**
+   * A downgrade the calendar server did not narrow is a conflict, named, so
+   * that the drawer keeps the level and tells the owner to try again.
+   *
+   * @throws Exception when the request fails
+   */
+  @Test
+  void aDowngradeTheServerDidNotNarrowIsAConflict() throws Exception {
+    when(service.setLevel(CALENDAR, 3, CalendarShareLevel.VIEW, "owner"))
+        .thenThrow(new IllegalStateException(AgendaCalendarShareService.LEVEL_NOT_NARROWED));
+
+    mockMvc.perform(as("owner",
+                       put("/calendars/20/shares/3").contentType(MediaType.APPLICATION_JSON)
+                                                    .content("{\"access\":\"VIEW\"}")))
+           .andExpect(status().isConflict())
+           .andExpect(status().reason(AgendaCalendarShareService.LEVEL_NOT_NARROWED));
+  }
+
+  /**
    * A level request that names no level, or one this version does not know,
    * is a bad request — never a silent VIEW, which would read as a deliberate
    * downgrade (EXO-90378). The other refusals map 404 then 403, as sharing's
