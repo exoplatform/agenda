@@ -26,6 +26,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 
+import org.exoplatform.agenda.constant.CalendarEditorChangeKind;
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
@@ -417,7 +418,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     notifyOwnerOfEditorChange(createdEvent,
                               userIdentityId,
-                              CalendarEditorChange.Kind.ADDED,
+                              CalendarEditorChangeKind.ADDED,
                               writeRightOf(createdEvent, userIdentityId));
     return createdEvent;
   }
@@ -736,7 +737,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                          new EventAttendeeList(concernedAttendees));
     notifyOwnerOfEditorChange(updatedEvent,
                               userIdentityId,
-                              CalendarEditorChange.Kind.CHANGED,
+                              CalendarEditorChangeKind.CHANGED,
                               writeRightOf(updatedEvent, userIdentityId));
 
     return updatedEvent;
@@ -820,7 +821,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     Utils.broadcastEvent(listenerService, Utils.POST_UPDATE_AGENDA_EVENT_EVENT, eventModifications, null);
-    notifyOwnerOfEditorChange(event, userIdentityId, CalendarEditorChange.Kind.CHANGED, writeRightOf(event, userIdentityId));
+    notifyOwnerOfEditorChange(event, userIdentityId, CalendarEditorChangeKind.CHANGED, writeRightOf(event, userIdentityId));
   }
 
   /**
@@ -857,7 +858,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // the event, so a listener that needs to reach them can no longer look them
     // up by event id
     Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventModifications, eventAttendeeList);
-    notifyOwnerOfEditorChange(event, userIdentityId, CalendarEditorChange.Kind.REMOVED, right);
+    notifyOwnerOfEditorChange(event, userIdentityId, CalendarEditorChangeKind.REMOVED, right);
     return event;
   }
 
@@ -1128,7 +1129,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    */
   private void notifyOwnerOfEditorChange(Event event,
                                          long userIdentityId,
-                                         CalendarEditorChange.Kind kind,
+                                         CalendarEditorChangeKind kind,
                                          EventWriteRight right) {
     if (event == null || right != EventWriteRight.SHARE_EDITOR) {
       return;
@@ -1144,41 +1145,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                            StringUtils.defaultString(event.getSummary()),
                                                            kind);
     Utils.broadcastEvent(listenerService, CALENDAR_EDITED_BY_SHAREE_EVENT, change, calendar.getOwnerId());
-  }
-
-  /**
-   * By what right a user may write an event (EXO-90378) — the one predicate
-   * behind every write in this service, and therefore behind REST, drag and
-   * drop, the ACL plugin and the MCP write tools, none of which check anything
-   * of their own.
-   * <p>
-   * The rights are asked in the order in which they were added, and the share
-   * is asked <b>last</b>: a user who could already write the event by any
-   * older right is never answered {@link EventWriteRight#SHARE_EDITOR}, so the
-   * share's own restriction — an editor may not move an event out of the
-   * calendar, {@link #checkCanMoveEvent} — never narrows a right somebody
-   * already had.
-   */
-  private enum EventWriteRight {
-
-    /** No right at all: the write is refused. */
-    NONE,
-
-    /** The user owns the calendar, or manages the space that does. */
-    CALENDAR,
-
-    /** The user created the event and may still see its calendar. */
-    CREATOR,
-
-    /** The user attends the event, which lets its attendees update it. */
-    ATTENDEE,
-
-    /**
-     * The user's only right is a calendar share granted for editing
-     * (EXO-90378): they write events in the owner's personal calendar as the
-     * owner would, and may not move one out of it.
-     */
-    SHARE_EDITOR
   }
 
   /**

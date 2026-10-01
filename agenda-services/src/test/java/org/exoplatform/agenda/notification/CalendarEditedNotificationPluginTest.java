@@ -32,6 +32,7 @@ import java.util.Locale;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import org.exoplatform.agenda.constant.CalendarEditorChangeKind;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarEditorChange;
 import org.exoplatform.agenda.notification.plugin.CalendarEditedNotificationPlugin;
@@ -97,7 +98,7 @@ class CalendarEditedNotificationPluginTest {
    */
   @Test
   void theOwnerIsToldWhatTheColleagueDid() {
-    NotificationInfo notification = plugin.makeNotification(context(change(CalendarEditorChange.Kind.ADDED, "Planned by alice")));
+    NotificationInfo notification = plugin.makeNotification(context(change(CalendarEditorChangeKind.ADDED, "Planned by alice")));
 
     assertNotNull(notification);
     assertEquals(List.of("owner"), notification.getSendToUserIds());
@@ -116,7 +117,7 @@ class CalendarEditedNotificationPluginTest {
    */
   @Test
   void aDeletionStillNamesTheEvent() {
-    NotificationInfo notification = plugin.makeNotification(context(change(CalendarEditorChange.Kind.REMOVED, "Dentist")));
+    NotificationInfo notification = plugin.makeNotification(context(change(CalendarEditorChangeKind.REMOVED, "Dentist")));
 
     assertEquals("REMOVED", notification.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_CHANGE_KIND));
     assertEquals("Dentist", notification.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_CHANGED_EVENT_SUMMARY));
@@ -130,12 +131,12 @@ class CalendarEditedNotificationPluginTest {
   @Test
   void theGuardsRefuseWhatCannotBeSent() {
     assertFalse(plugin.isValid(context(null)));
-    assertFalse(plugin.isValid(context(new CalendarEditorChange(0, 1, 3, 9, "x", CalendarEditorChange.Kind.ADDED))));
-    assertFalse(plugin.isValid(context(new CalendarEditorChange(20, 0, 3, 9, "x", CalendarEditorChange.Kind.ADDED))));
-    assertFalse(plugin.isValid(context(new CalendarEditorChange(20, 1, 0, 9, "x", CalendarEditorChange.Kind.ADDED))));
-    assertFalse(plugin.isValid(context(new CalendarEditorChange(20, 1, 1, 9, "x", CalendarEditorChange.Kind.ADDED))),
+    assertFalse(plugin.isValid(context(new CalendarEditorChange(0, 1, 3, 9, "x", CalendarEditorChangeKind.ADDED))));
+    assertFalse(plugin.isValid(context(new CalendarEditorChange(20, 0, 3, 9, "x", CalendarEditorChangeKind.ADDED))));
+    assertFalse(plugin.isValid(context(new CalendarEditorChange(20, 1, 0, 9, "x", CalendarEditorChangeKind.ADDED))));
+    assertFalse(plugin.isValid(context(new CalendarEditorChange(20, 1, 1, 9, "x", CalendarEditorChangeKind.ADDED))),
                 "a change the owner made in their own calendar is not news to them");
-    assertTrue(plugin.isValid(context(change(CalendarEditorChange.Kind.CHANGED, "x"))));
+    assertTrue(plugin.isValid(context(change(CalendarEditorChangeKind.CHANGED, "x"))));
   }
 
   /**
@@ -144,11 +145,11 @@ class CalendarEditedNotificationPluginTest {
   @Test
   void aGoneCalendarOrOwnerHasNoNotification() {
     calendar.setDeleted(true);
-    assertNull(plugin.makeNotification(context(change(CalendarEditorChange.Kind.CHANGED, "x"))));
+    assertNull(plugin.makeNotification(context(change(CalendarEditorChangeKind.CHANGED, "x"))));
 
     calendar.setDeleted(false);
     when(identityManager.getIdentity("1")).thenReturn(null);
-    assertNull(plugin.makeNotification(context(change(CalendarEditorChange.Kind.CHANGED, "x"))));
+    assertNull(plugin.makeNotification(context(change(CalendarEditorChangeKind.CHANGED, "x"))));
   }
 
   /**
@@ -162,7 +163,7 @@ class CalendarEditedNotificationPluginTest {
     LocaleConfig localeConfig = mock(LocaleConfig.class);
     when(localeConfig.getLocale()).thenReturn(Locale.ENGLISH);
     CalendarEditedNotificationPwaPlugin pwa = new CalendarEditedNotificationPwaPlugin(bundles);
-    NotificationInfo notification = plugin.makeNotification(context(change(CalendarEditorChange.Kind.CHANGED, "Dentist")));
+    NotificationInfo notification = plugin.makeNotification(context(change(CalendarEditorChangeKind.CHANGED, "Dentist")));
 
     PwaNotificationMessage message = pwa.process(notification, localeConfig);
 
@@ -178,7 +179,7 @@ class CalendarEditedNotificationPluginTest {
    * @param summary the event's summary at the change
    * @return the change
    */
-  private static CalendarEditorChange change(CalendarEditorChange.Kind kind, String summary) {
+  private static CalendarEditorChange change(CalendarEditorChangeKind kind, String summary) {
     return new CalendarEditorChange(20, 1, 3, 9, summary, kind);
   }
 
