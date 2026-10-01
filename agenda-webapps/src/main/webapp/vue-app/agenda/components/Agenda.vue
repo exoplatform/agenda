@@ -782,10 +782,9 @@ export default {
       }
       // A space's agenda shows the space's calendars and nothing that reaches
       // the viewer personally (EXO-90373): the events of a connected account
-      // are the viewer's own, and merging them here drew, beside the space's
-      // events, the copies that account holds of them — a second, pale row for
-      // one meeting, in the colour of a collection that has nothing to do with
-      // the space. The personal agenda is where a connected account belongs.
+      // are the viewer's own, and that account may hold copies of the space's
+      // events, which would be drawn a second time beside them. The personal
+      // agenda is where a connected account belongs.
       if (!this.leftPanelAvailable) {
         this.remoteEvents = [];
         this.failedConnectors = [];

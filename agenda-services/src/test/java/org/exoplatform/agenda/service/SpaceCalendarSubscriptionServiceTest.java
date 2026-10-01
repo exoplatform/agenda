@@ -91,7 +91,7 @@ import org.exoplatform.web.security.codec.CodecInitializer;
  * member, a redactor, a super-manager who is not a member manager and an
  * outsider are all refused before anything is read or stored; a missing or
  * deleted owner is not found; the calendar is the space's, in the space's
- * colour, its events attended by the space; a space never subscribes to its
+ * colour, its events attended by nobody; a space never subscribes to its
  * own calendar but may to another space's; the creation is announced once in
  * the space's stream, and a failed announcement undoes nothing.
  */
@@ -368,8 +368,8 @@ class SpaceCalendarSubscriptionServiceTest {
   /**
    * A space's subscription fills a calendar of the space, in the space's colour
    * whatever colour is given, recorded as the space's and added by the manager;
-   * its events are created by the manager and attended by the space, accepted,
-   * and it is announced once in the space's stream by the manager.
+   * its events are created by the manager and attended by nobody, and it is
+   * announced once in the space's stream by the manager.
    *
    * @throws Exception never
    */
