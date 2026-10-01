@@ -59,6 +59,8 @@ import org.exoplatform.agenda.search.AgendaSearchConnector;
 import org.exoplatform.agenda.storage.AgendaCalendarStorage;
 import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
 import org.exoplatform.agenda.storage.AgendaEventReminderStorage;
+import org.exoplatform.agenda.constant.ReminderPeriodType;
+import org.exoplatform.agenda.model.EventReminder;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.container.xml.ValuesParam;
@@ -409,6 +411,45 @@ class AgendaCalendarSharingAclTest {
     eventService.search(new AgendaEventSearchFilter(ALICE, ZoneOffset.UTC, "dent", List.of(5L), null, null, 0, 10));
     org.mockito.Mockito.verify(searchConnector, org.mockito.Mockito.times(3)).search(sent.capture());
     assertTrue(sent.getValue().getSharedCalendarIds().isEmpty(), "a space search reads no shared calendar");
+  }
+
+  /**
+   * A reminder an editor set is not sent once the owner takes the edit level
+   * back: the receiver's access is read again when the reminder goes out, and
+   * a viewer reads a private event as busy time only. The owner's reminder on
+   * the same event still goes. Kills the mutant that sends without the
+   * re-check.
+   */
+  @Test
+  void aReminderSetAsAnEditorIsNotSentOnceTheLevelIsTakenBack() {
+    AgendaEventReminderStorage reminderStorage = mock(AgendaEventReminderStorage.class);
+    AgendaEventReminderServiceImpl reminderService =
+                                                   org.mockito.Mockito.spy(new AgendaEventReminderServiceImpl(reminderStorage,
+                                                                                                             eventStorage,
+                                                                                                             mock(AgendaEventAttendeeStorage.class),
+                                                                                                             mock(AgendaUserSettingsService.class),
+                                                                                                             mock(IdentityManager.class),
+                                                                                                             mock(SpaceService.class),
+                                                                                                             mock(ListenerService.class),
+                                                                                                             mock(InitParams.class)));
+    reminderService.setAgendaEventService(eventService);
+    org.mockito.Mockito.doNothing().when(reminderService).sendReminderNotification(any());
+    ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
+    when(reminderStorage.getEventReminders(any(ZonedDateTime.class), any(ZonedDateTime.class)))
+        .thenReturn(List.of(new EventReminder(1, EVENT, OWNER, 10, ReminderPeriodType.MINUTE, now),
+                            new EventReminder(2, EVENT, ALICE, 10, ReminderPeriodType.MINUTE, now)));
+    aliceLevel = CalendarShareLevel.VIEW;
+    try (org.mockito.MockedStatic<org.exoplatform.container.ExoContainerContext> container =
+        org.mockito.Mockito.mockStatic(org.exoplatform.container.ExoContainerContext.class)) {
+      container.when(() -> org.exoplatform.container.ExoContainerContext.getService(AgendaCalendarService.class))
+               .thenReturn(calendarService);
+
+      reminderService.sendReminders();
+    }
+
+    ArgumentCaptor<EventReminder> sent = ArgumentCaptor.forClass(EventReminder.class);
+    org.mockito.Mockito.verify(reminderService, org.mockito.Mockito.times(1)).sendReminderNotification(sent.capture());
+    assertEquals(OWNER, sent.getValue().getReceiverId(), "only the owner's reminder goes out");
   }
 
   /**
