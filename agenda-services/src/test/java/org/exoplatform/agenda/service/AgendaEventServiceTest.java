@@ -447,9 +447,20 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                                         occurrences.get(0).getOccurrence().getId());
     Event followingDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
                                                                            occurrences.get(1).getOccurrence().getId());
+    // A room of its own keeps that date as a row; everything else stays the series'
+    Event followingDateUpdate = agendaEventService.getEventById(followingDate.getId(), ZoneOffset.UTC, creatorId).clone();
+    followingDateUpdate.setLocation("room B");
+    agendaEventService.updateEvent(followingDateUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(followingDate.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
     restartTransaction();
 
-    // One date is locked on its own, the other is left as it is
+    // One date is locked on its own, the other keeps the series' state
     Event lockedUpdate = agendaEventService.getEventById(lockedDate.getId(), ZoneOffset.UTC, creatorId).clone();
     lockedUpdate.setOpen(false);
     agendaEventService.updateEvent(lockedUpdate,
@@ -510,6 +521,17 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                                             occurrences.get(0).getOccurrence().getId());
     Event followingDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
                                                                            occurrences.get(1).getOccurrence().getId());
+    // A room of its own keeps that date as a row; its visibility stays the series'
+    Event followingUpdate = agendaEventService.getEventById(followingDate.getId(), ZoneOffset.UTC, creatorId).clone();
+    followingUpdate.setLocation("room B");
+    agendaEventService.updateEvent(followingUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(followingDate.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
     restartTransaction();
 
     // One date is made private on its own
@@ -6316,6 +6338,17 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                                            occurrences.get(0).getOccurrence().getId());
     Event movedDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
                                                                        occurrences.get(1).getOccurrence().getId());
+    // A room of its own keeps that date as a row; everything else stays the series'
+    Event followingDateUpdate = agendaEventService.getEventById(followingDate.getId(), ZoneOffset.UTC, creatorId).clone();
+    followingDateUpdate.setLocation("room B");
+    agendaEventService.updateEvent(followingDateUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(followingDate.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
     restartTransaction();
 
     // One date is moved two hours later on its own
@@ -6453,4 +6486,133 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                  triggerBefore.plusHours(1).toInstant(),
                  after.get(0).getDatetime().toInstant());
   }
+
+  /**
+   * A row the reminder job materialises carries nothing of its own: a change
+   * on the series drops it rather than merging into it, and the job rebuilds it
+   * from the new series when the date comes near. A row somebody customised is
+   * kept and merged. This is what bounds a series save to the dates a user
+   * touched.
+   */
+  @Test
+  public void testSeriesChangeDropsTheDatesThatCarryNoUserIntent() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity, testuser2Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(3), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 3);
+
+    // Materialised the way the reminder job does it, nothing changed on it
+    Event inheritedRow = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                          occurrences.get(1).getOccurrence().getId());
+    // Customised by the organiser: another room on that date
+    Event customisedRow = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                           occurrences.get(2).getOccurrence().getId());
+    Event customisedToUpdate = agendaEventService.getEventById(customisedRow.getId(), ZoneOffset.UTC, creatorId).clone();
+    customisedToUpdate.setLocation("room B");
+    agendaEventService.updateEvent(customisedToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(customisedRow.getId()).getEventAttendees(),
+                                   agendaEventConferenceService.getEventConferences(customisedRow.getId()),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    restartTransaction();
+
+    // The organiser corrects the summary of the whole series
+    Event seriesToUpdate = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
+    seriesToUpdate.setSummary("weekly sync");
+    agendaEventService.updateEvent(seriesToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(series.getId()).getEventAttendees(),
+                                   agendaEventConferenceService.getEventConferences(series.getId()),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+
+    assertNull("a row that carries nothing of its own is dropped by a change on the series",
+               agendaEventService.getEventById(inheritedRow.getId()));
+    Event kept = agendaEventService.getEventById(customisedRow.getId());
+    assertNotNull("a row somebody customised is kept", kept);
+    assertEquals("the property customised on that date is kept", "room B", kept.getLocation());
+    assertEquals("the property changed on the series reaches that date", "weekly sync", kept.getSummary());
+  }
+
+  /**
+   * A new meeting link on the series reaches the dates individually modified
+   * whose links were the series' own, and leaves alone a date with a link of
+   * its own: the three-way rule of the properties, applied to the conference
+   * list. Without it the dates kept for a customisation of their own would
+   * keep the old link.
+   */
+  @Test
+  public void testSeriesConferenceChangeReachesTheDatesIndividuallyModified() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity, testuser2Identity);
+    assertFalse("precondition: the series carries a conference",
+                agendaEventConferenceService.getEventConferences(series.getId()).isEmpty());
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(3), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 3);
+
+    // A date with another room and the series' own link
+    Event inheritedLinkRow = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                              occurrences.get(1).getOccurrence().getId());
+    Event inheritedLinkToUpdate = agendaEventService.getEventById(inheritedLinkRow.getId(), ZoneOffset.UTC, creatorId).clone();
+    inheritedLinkToUpdate.setLocation("room B");
+    agendaEventService.updateEvent(inheritedLinkToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(inheritedLinkRow.getId()).getEventAttendees(),
+                                   agendaEventConferenceService.getEventConferences(inheritedLinkRow.getId()),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    // A date with a link of its own
+    Event ownLinkRow = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                        occurrences.get(2).getOccurrence().getId());
+    Event ownLinkToUpdate = agendaEventService.getEventById(ownLinkRow.getId(), ZoneOffset.UTC, creatorId).clone();
+    agendaEventService.updateEvent(ownLinkToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(ownLinkRow.getId()).getEventAttendees(),
+                                   Collections.singletonList(new EventConference(0, ownLinkRow.getId(), "webrtc", "own_uri", null, null, null)),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    restartTransaction();
+
+    // The organiser changes the meeting link of the whole series
+    Event seriesToUpdate = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
+    agendaEventService.updateEvent(seriesToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(series.getId()).getEventAttendees(),
+                                   Collections.singletonList(new EventConference(0, series.getId(), "webrtc", "conf_uri_v2", null, null, null)),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+
+    assertEquals("the series' new link reaches the date that carried the series' link",
+                 Collections.singletonList("conf_uri_v2"),
+                 agendaEventConferenceService.getEventConferences(inheritedLinkRow.getId())
+                                             .stream()
+                                             .map(EventConference::getUrl)
+                                             .toList());
+    assertEquals("the date with a link of its own keeps it",
+                 Collections.singletonList("own_uri"),
+                 agendaEventConferenceService.getEventConferences(ownLinkRow.getId())
+                                             .stream()
+                                             .map(EventConference::getUrl)
+                                             .toList());
+  }
+
 }
