@@ -332,10 +332,34 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
       Calendar calendar = ExoContainerContext.getService(AgendaCalendarService.class).getCalendarById(event.getCalendarId());
       // do not send a reminder notification of the Recurrent parent event.
       // do not send a reminder notification if the calendar is removed!
-      if (event.getRecurrence() == null && calendar != null && !calendar.isDeleted()) {
+      if (event.getRecurrence() == null && calendar != null && !calendar.isDeleted()
+          && mayStillBeReminded(event, eventReminder.getReceiverId())) {
         sendReminderNotification(eventReminder);
       }
     }
+  }
+
+  /**
+   * Whether a reminder set earlier may still reach its receiver: their access
+   * to the event is read again when it is sent (EXO-90378). A colleague who
+   * set it as an editor of a shared calendar and has since been taken back to
+   * viewing, or lost the share, reads the event as busy time only or not at
+   * all, and the reminder would carry its title. When the event service cannot
+   * be reached the reminder is not sent.
+   *
+   * @param event the event
+   * @param receiverId identity identifier of the reminder's receiver
+   * @return true when the receiver reads more than busy time
+   */
+  private boolean mayStillBeReminded(Event event, long receiverId) {
+    if (agendaEventService == null) {
+      agendaEventService = ExoContainerContext.getService(AgendaEventService.class);
+    }
+    if (agendaEventService == null) {
+      return false;
+    }
+    EventAccess access = agendaEventService.getEventAccess(event, receiverId);
+    return access != EventAccess.SHARED && access != EventAccess.NONE;
   }
 
   @Override
@@ -500,7 +524,14 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
     return reminderDate;
   }
 
-  private void sendReminderNotification(EventReminder eventReminder) {
+  /**
+   * Hands one reminder to the notification executor. Package-private so that
+   * a test can tell which reminders {@link #sendReminders()} lets through
+   * without a running notification service.
+   *
+   * @param eventReminder the reminder
+   */
+  void sendReminderNotification(EventReminder eventReminder) {
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     ctx.append(EVENT_AGENDA_REMINDER, eventReminder);
     NotificationCommand command = ctx.makeCommand(PluginKey.key(AGENDA_REMINDER_NOTIFICATION_PLUGIN));
