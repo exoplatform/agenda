@@ -80,8 +80,7 @@
             question it answers is asked: "not sure this time works?" arises
             while looking at the time, and past the optional attributes the
             link is detached from the field it is an alternative to and reads
-            as one more action instead. It sat last in the body until now, on
-            an instruction of mine that was simply wrong.
+            as one more action instead.
 
             Disabled it is greyed and says nothing further. The two fields it
             waits on — the title and the destination — are the two above the
@@ -89,14 +88,18 @@
             a sentence spelling that out would cost this drawer the minimalism
             that is the whole reason the explanation lives in the full form.
 
-            Not on mobile. This drawer is reachable there (the empty timeline
+            Not on a phone. This drawer is reachable there (the empty timeline
             opens it), but the dialog behind it renders the mobile form, which
             has no date step and cannot create a poll at all — out of scope
             here, deliberately. A link advertising a feature and landing on a
             screen that does not have it is worse than the silence it replaced.
+            The test is the dialog's own (its mobileViewport), not
+            $root.isMobile: the agenda application's layout is also compact in
+            a narrow container on a desktop screen, where the dialog renders
+            the full form and the link has somewhere to go.
           -->
           <div
-            v-if="!$root.isMobile"
+            v-if="!mobileViewport"
             class="d-flex flex-row align-center my-3 ms-3">
             <v-icon size="20" class="icon-default-color my-auto me-4">far fa-calendar-check</v-icon>
             <a
@@ -197,6 +200,15 @@ export default {
     conferenceURL: null,
   }),
   computed: {
+    /**
+     * Whether the dialog this drawer hands over to will render the mobile
+     * form — the same viewport test AgendaEventDialog applies.
+     *
+     * @returns {Boolean} true on a phone-sized viewport
+     */
+    mobileViewport() {
+      return this.$vuetify.breakpoint.smAndDown;
+    },
     confirmCloseLabels() {
       return {
         title: this.$t('agenda.title.confirmCloseEditingEvent'),
