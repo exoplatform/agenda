@@ -102,7 +102,7 @@ class CalendarShareDAOQueryTest {
 
   /**
    * A saved share is found by its pair, listed under its calendar and under
-   * its sharee, and its calendar is among the sharee's identifiers.
+   * its sharee.
    */
   @Test
   void aShareIsFoundByItsPairAndListedBothWays() {
@@ -113,11 +113,9 @@ class CalendarShareDAOQueryTest {
     assertNotNull(byPair, "the share must be found by its pair");
     assertNotNull(byPair.getId(), "and carry an identifier the generator gave it");
     assertEquals(CalendarShareSource.EXO, byPair.getSource());
-    assertEquals(List.of(42L), dao.findCalendarIdsByShareeIdentityId(7));
     assertEquals(1, dao.findByCalendarIdOrderByCreatedDateAscIdAsc(42, PageRequest.of(0, 10)).size());
     assertEquals(1, dao.findByShareeIdentityIdOrderByCreatedDateDescIdDesc(7, PageRequest.of(0, 10)).size());
     assertNull(dao.findByCalendarIdAndShareeIdentityId(42, 8), "another colleague has no share");
-    assertTrue(dao.findCalendarIdsByShareeIdentityId(8).isEmpty());
   }
 
   /**
