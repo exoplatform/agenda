@@ -29,7 +29,7 @@ import lombok.NoArgsConstructor;
  * {@code EDIT} (EXO-90378) — is recorded in eXo silently, as an adopted share
  * at that level, the moment the owner lists their shares; {@link #deliveryRef}
  * is what the record then carries. The others — an address outside eXo, the whole server, a
- * published link, a colleague holding more than reading — are listed to the
+ * published link, a colleague holding more than eXo writes ({@code MORE}) — are listed to the
  * owner as access held outside eXo, and can only be removed on the server,
  * when the channel says they can.
  */
@@ -68,7 +68,10 @@ public class ExternalShare {
   /** Whether the share can be removed on the server from eXo. */
   private boolean removable;
 
-  /** Whether the share grants reading only; a share granting more cannot be recorded as is. */
+  /**
+   * Whether the share grants reading only; one granting more is recorded only
+   * when {@link #access} is {@code EDIT}.
+   */
   private boolean readOnly;
 
   /**

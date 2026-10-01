@@ -471,7 +471,7 @@ class AgendaCalendarShareServiceTest {
 
   /**
    * A channel that carried the share at a narrower level than the record asks
-   * for (BlueMind, until its write grant is proved) delivers all the same: the
+   * for (a server that cannot hold the level) delivers all the same: the
    * record keeps the owner's level, which is what decides every right in eXo.
    *
    * @throws Exception when the share is refused
