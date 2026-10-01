@@ -203,7 +203,7 @@ class AgendaEventRestTest {
     Response response = eventRest.getEventOccurrence(EVENT_ID, "2026-09-18T08:00:00.000Z", null, null);
 
     assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
-    assertEquals("Not allowed to access this event", response.getEntity());
+    assertEquals("Not allowed to access the occurrence served", response.getEntity());
   }
 
   private Response patch(MultivaluedMap<String, String> fields) {
