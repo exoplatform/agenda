@@ -158,26 +158,25 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (recurrentEvent == null) {
       return null;
     }
+    Event exceptionalOccurrenceEvent = agendaEventStorage.getExceptionalOccurrenceEvent(parentEventId, occurrenceId);
+    // Access is read on the event actually served, before anything else is
+    // computed: a stored exceptional occurrence through its own row (its own
+    // attendee list), a computed occurrence through the parent it inherits
+    // everything from. The same access masks what is served below.
+    Event servedEvent = exceptionalOccurrenceEvent == null ? recurrentEvent : exceptionalOccurrenceEvent;
+    EventAccess access = getEventAccess(servedEvent, userIdentityId);
+    if (access == EventAccess.NONE) {
+      throw new IllegalAccessException("User with identity id " + userIdentityId + " is not allowed to access event with id "
+          + servedEvent.getId());
+    }
 
     if (recurrentEvent.getRecurrence() == null) {
       throw new IllegalStateException("Event with id " + parentEventId + " is not a recurrent event");
     }
-    // The parent is what a computed occurrence is read from, so it is what
-    // the reader must be allowed to read: an occurrence with no exceptional
-    // row of its own used to be handed out to anyone naming the parent's id
-    EventAccess access = getEventAccess(recurrentEvent, userIdentityId);
-    if (access == EventAccess.NONE) {
-      throw new IllegalAccessException("User with identity id " + userIdentityId + " is not allowed to access event with id "
-          + parentEventId);
-    }
 
     Event event = null;
 
-    Event exceptionalOccurrenceEvent = agendaEventStorage.getExceptionalOccurrenceEvent(parentEventId, occurrenceId);
     if (exceptionalOccurrenceEvent != null) {
-      if (!canAccessEvent(exceptionalOccurrenceEvent, userIdentityId)) {
-        throw new IllegalAccessException("");
-      }
       event = exceptionalOccurrenceEvent;
     } else {
       List<Event> occurrences = Utils.getOccurrences(recurrentEvent,
@@ -368,6 +367,17 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     null,
                                     event.isAllowAttendeeToUpdate(),
                                     event.isAllowAttendeeToInvite());
+    // 'open' is not part of the positional constructor above: set it explicitly
+    // or it is silently lost. Absent on the wire means locked at creation. The
+    // invariant (canBeOpen) is enforced here, not only by the UI hiding the
+    // padlock: a date poll and a personal calendar event are never open. This
+    // is also the path the form's "this occurrence only" takes — it posts the
+    // computed occurrence with its parent — so the padlock the organiser left
+    // on that date is what the new row carries, its own from then on (US06).
+    // The status read is the one checkAndComputeDateOptions just derived from
+    // the date options.
+    eventToCreate.setOpen(Boolean.TRUE.equals(event.getOpen())
+        && canBeOpen(eventToCreate.getStatus(), calendar));
 
     Event createdEvent = agendaEventStorage.createEvent(eventToCreate);
     createOrUpdateEventProperties(event.getParameters(), createdEvent);
@@ -412,6 +422,550 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       Utils.broadcastEvent(listenerService, Utils.POST_DELETE_AGENDA_EVENT_EVENT, eventModifications, null);
     }
     return createdEvent;
+  }
+
+  /**
+   * Anchors the dates of one occurrence on the dates of its series: the
+   * occurrence keeps its own day and takes the series&#39; time of day and
+   * duration. Shared by the creation of an exceptional occurrence and by the
+   * propagation of a series change to the occurrences that did not customise
+   * their dates, so both compute the same instant for the same date.
+   *
+   * @param seriesEvent the recurrent parent, source of the time and duration
+   * @param occurrenceEvent the occurrence whose dates are written
+   * @param occurrenceId the date of the occurrence, already normalised
+   */
+  private void anchorOccurrenceDatesOnSeries(Event seriesEvent, Event occurrenceEvent, ZonedDateTime occurrenceId) {
+    ZonedDateTime start = seriesEvent.getStart();
+    ZonedDateTime end = seriesEvent.getEnd();
+    long diffInSeconds = end.toEpochSecond() - start.toEpochSecond();
+
+    ZonedDateTime occurrenceStart = null;
+    if (seriesEvent.isAllDay()) {
+      ZonedDateTime occurrenceStartTime = occurrenceId.withZoneSameInstant(seriesEvent.getTimeZoneId());
+      occurrenceStart = start.withYear(occurrenceStartTime.getYear())
+                             .withMonth(occurrenceStartTime.getMonthValue())
+                             .withDayOfMonth(occurrenceStartTime.getDayOfMonth());
+    } else {
+      ZonedDateTime startStartTime = start.withZoneSameInstant(seriesEvent.getTimeZoneId());
+      occurrenceStart = startStartTime.withYear(occurrenceId.getYear())
+                                      .withMonth(occurrenceId.getMonthValue())
+                                      .withDayOfMonth(occurrenceId.getDayOfMonth())
+                                      .withHour(startStartTime.getHour())
+                                      .withMinute(startStartTime.getMinute());
+    }
+    occurrenceEvent.setStart(occurrenceStart);
+    occurrenceEvent.setEnd(occurrenceStart.plusSeconds(diffInSeconds));
+    adjustEventDatesForWrite(occurrenceEvent);
+  }
+
+  /**
+   * Applies a change made on a whole series to the dates of that series which
+   * were individually modified, instead of deleting them.
+   * <p>
+   * <strong>The loop visits every stored exceptional occurrence of the
+   * series</strong>, not only the ones a user customised: the reminder
+   * computing job and its listener materialise a row for every occurrence of
+   * every confirmed recurrent event in the next two days, so the existence of a
+   * row carries no user intent. Telling the two apart is precisely what the
+   * merge below does, property by property.
+   * <p>
+   * The rule is per property, not per occurrence: a change on the series
+   * reaches a customised date like any other, <strong>except</strong> on the
+   * properties customised there, which keep their value. Deleting those rows
+   * on every save would instead discard, when the summary of a weekly meeting
+   * is corrected, the room changed on one date, the date cancelled on another,
+   * and the answers attached to both.
+   * <p>
+   * Which properties were customised is recorded nowhere: an exceptional
+   * occurrence is a full clone of its series and the only marker it carries is
+   * the one for its dates. So it is derived, by comparing three terms the way a
+   * merge does: a property of the occurrence that still equals the series value
+   * <em>before</em> the change was inherited and follows the change; one that
+   * differs was customised and is kept. The single blind spot is a property a
+   * user deliberately re-typed to the series value, which is indistinguishable
+   * from an inherited one and follows the change.
+   * <p>
+   * A row that carries no intent at all — every merged property equal to the
+   * series as it was, dates not moved, attendees, conferences and reminders
+   * the ones the series gave it for that date — is the reminder job's materialisation of an
+   * upcoming date: it is dropped rather than merged, and the job rebuilds it
+   * from the new series when the date comes near. The loop therefore works on
+   * the rows a user touched, not on every date the job ever materialised. An
+   * occurrence whose date the new recurrence no longer produces is the other
+   * case where the row is deleted.
+   *
+   * @param storedSeries the series as it was before this save
+   * @param updatedSeries the series as it is being saved
+   * @param previousSeriesAttendees the attendee list of the series as it was
+   *          before this save, or null on a path that cannot change it (a field
+   *          patch) — the deltas are then empty and no membership travels
+   * @param previousSeriesConferences the conferences of the series as they were
+   *          before this save, or null on a path that cannot change them
+   * @param modifierIdentityId who is saving, recorded on every row this touches
+   */
+  private void applySeriesChangeToExceptionalOccurrences(Event storedSeries,
+                                                         Event updatedSeries,
+                                                         List<EventAttendee> previousSeriesAttendees,
+                                                         List<EventConference> previousSeriesConferences,
+                                                         long modifierIdentityId) {
+    long seriesId = updatedSeries.getId();
+    List<Long> occurrenceEventIds = agendaEventStorage.getExceptionalOccurenceIds(seriesId);
+    if (CollectionUtils.isEmpty(occurrenceEventIds)) {
+      return;
+    }
+    // The series as the rows were cloned from it: a row equal to it carries
+    // inheritance, not intent. A path that cannot change a list passes null,
+    // and the current list is then that reference.
+    List<EventAttendee> seriesAttendeesBefore = previousSeriesAttendees != null ? previousSeriesAttendees
+                                                                               : attendeeService.getEventAttendees(seriesId)
+                                                                                                .getEventAttendees();
+    List<EventConference> seriesConferencesBefore = previousSeriesConferences != null ? previousSeriesConferences
+                                                                                     : conferenceService.getEventConferences(seriesId);
+    // Reminders are read as they are now: a per-user save on the series has
+    // just been carried onto its rows, so a row nobody touched equals it
+    List<EventReminder> seriesReminders = reminderService.getEventReminders(seriesId);
+    List<EventConference> seriesConferencesAfter = conferenceService.getEventConferences(seriesId);
+    boolean conferencesChanged = !conferenceKeys(seriesConferencesBefore).equals(conferenceKeys(seriesConferencesAfter));
+    OccurrenceLists seriesBefore = new OccurrenceLists(seriesAttendeesBefore, seriesConferencesBefore, seriesReminders);
+    // Who the series gained and lost, computed once: a date individually
+    // modified is not a place to hide from an invitation or from its
+    // withdrawal
+    Set<Long> attendeesAddedToSeries = new HashSet<>();
+    Set<Long> attendeesRemovedFromSeries = new HashSet<>();
+    if (previousSeriesAttendees != null) {
+      Set<Long> before = attendeeIdentityIds(previousSeriesAttendees);
+      Set<Long> after = attendeeIdentityIds(attendeeService.getEventAttendees(updatedSeries.getId()).getEventAttendees());
+      attendeesAddedToSeries.addAll(after);
+      attendeesAddedToSeries.removeAll(before);
+      attendeesRemovedFromSeries.addAll(before);
+      attendeesRemovedFromSeries.removeAll(after);
+    }
+    // Expanding a recurrence costs more than everything else in this loop, and
+    // only a change of the rule or of the times can make a date disappear from
+    // it: a corrected summary cannot, so it does not pay for the expansion
+    boolean datesOrRuleChanged = !sameRecurrenceRule(storedSeries, updatedSeries)
+        || !isSameInstant(storedSeries.getStart(), updatedSeries.getStart())
+        || !isSameInstant(storedSeries.getEnd(), updatedSeries.getEnd());
+    // Read once: every occurrence lives in the calendar of its series, and the
+    // open invariant is evaluated against it for each of them below
+    Calendar seriesCalendar = agendaCalendarService.getCalendarById(updatedSeries.getCalendarId());
+    for (Long occurrenceEventId : occurrenceEventIds) {
+      Event occurrence = agendaEventStorage.getEventById(occurrenceEventId);
+      if (occurrence == null || occurrence.getOccurrence() == null || occurrence.getOccurrence().getId() == null) {
+        continue;
+      }
+      Event occurrenceBeforeMerge = occurrence.clone();
+      ZonedDateTime occurrenceId = occurrence.getOccurrence().getId();
+      if (datesOrRuleChanged && !seriesStillProducesOccurrence(updatedSeries, occurrenceId)) {
+        // The one case where a date individually modified is dropped, and it
+        // takes its attendees, their answers, its conferences and its reminders
+        // with it: said here rather than left silent
+        LOG.info("Event {}: the recurrence no longer produces {}, dropping the exceptional occurrence {} saved for that date",
+                 updatedSeries.getId(),
+                 occurrenceId,
+                 occurrenceEventId);
+        agendaEventStorage.deleteEventAfterRead(occurrenceEventId);
+        continue;
+      }
+      // Read once per row: they decide whether the row carries intent, and the
+      // conference merge below reuses them
+      OccurrenceLists rowLists = new OccurrenceLists(attendeeService.getEventAttendees(occurrenceEventId).getEventAttendees(),
+                                                     conferenceService.getEventConferences(occurrenceEventId),
+                                                     reminderService.getEventReminders(occurrenceEventId));
+      if (!carriesUserIntent(occurrence, storedSeries, occurrenceId, rowLists, seriesBefore)) {
+        LOG.debug("Event {}: the exceptional occurrence {} saved for {} carries nothing of its own, dropping it; the reminder job rebuilds it from the series",
+                  seriesId,
+                  occurrenceEventId,
+                  occurrenceId);
+        agendaEventStorage.deleteEventAfterRead(occurrenceEventId);
+        continue;
+      }
+      // Structural, never a customisation: an occurrence lives in the calendar
+      // of its series
+      occurrence.setCalendarId(updatedSeries.getCalendarId());
+      occurrence.setSummary(mergeOccurrenceProperty(occurrence.getSummary(),
+                                                    storedSeries.getSummary(),
+                                                    updatedSeries.getSummary()));
+      occurrence.setDescription(mergeOccurrenceProperty(occurrence.getDescription(),
+                                                        storedSeries.getDescription(),
+                                                        updatedSeries.getDescription()));
+      occurrence.setLocation(mergeOccurrenceProperty(occurrence.getLocation(),
+                                                     storedSeries.getLocation(),
+                                                     updatedSeries.getLocation()));
+      occurrence.setColor(mergeOccurrenceProperty(occurrence.getColor(), storedSeries.getColor(), updatedSeries.getColor()));
+      occurrence.setAvailability(mergeOccurrenceProperty(occurrence.getAvailability(),
+                                                         storedSeries.getAvailability(),
+                                                         updatedSeries.getAvailability()));
+      // A property the merge does not name is one a series change never
+      // reaches on a customised date, and this one decides what a published
+      // calendar link shows of the event, so a date left more visible than its
+      // series leaks.
+      // Compared once a null is read as DEFAULT — the meaning the column already
+      // has everywhere visibility is honoured ("a null reads as not masked").
+      // VISIBILITY is nullable by design, and a database whose addColumn does
+      // not backfill leaves every pre-1.0.0-44 row null; the first full save of
+      // such a date writes DEFAULT onto its row while its series stays null,
+      // and a plain equality would then read that date as customised and leave
+      // it published when the series is made private.
+      occurrence.setVisibility(mergeOccurrenceProperty(visibilityOf(occurrence),
+                                                       visibilityOf(storedSeries),
+                                                       visibilityOf(updatedSeries)));
+      occurrence.setStatus(mergeOccurrenceProperty(occurrence.getStatus(),
+                                                   storedSeries.getStatus(),
+                                                   updatedSeries.getStatus()));
+      occurrence.setTimeZoneId(mergeOccurrenceProperty(occurrence.getTimeZoneId(),
+                                                       storedSeries.getTimeZoneId(),
+                                                       updatedSeries.getTimeZoneId()));
+      occurrence.setAllDay(mergeOccurrenceProperty(occurrence.isAllDay(),
+                                                   storedSeries.isAllDay(),
+                                                   updatedSeries.isAllDay()));
+      occurrence.setAllowAttendeeToUpdate(mergeOccurrenceProperty(occurrence.isAllowAttendeeToUpdate(),
+                                                                  storedSeries.isAllowAttendeeToUpdate(),
+                                                                  updatedSeries.isAllowAttendeeToUpdate()));
+      occurrence.setAllowAttendeeToInvite(mergeOccurrenceProperty(occurrence.isAllowAttendeeToInvite(),
+                                                                  storedSeries.isAllowAttendeeToInvite(),
+                                                                  updatedSeries.isAllowAttendeeToInvite()));
+      // 'open' is merged like the rest, then clamped: it is the flag
+      // canRespondToEvent reads, so a value customised on one date must not
+      // survive a change to the series that has to lock it — a series turned
+      // into a date poll or moved to a personal calendar. The status is the one
+      // merged just above, the calendar the series' own.
+      occurrence.setOpen(Boolean.TRUE.equals(mergeOccurrenceProperty(occurrence.getOpen(),
+                                                                    storedSeries.getOpen(),
+                                                                    updatedSeries.getOpen()))
+          && canBeOpen(occurrence.getStatus(), seriesCalendar));
+      // The dates have the one explicit marker the model carries, so they need
+      // no comparison: an occurrence that was moved keeps its own dates, one
+      // that was not follows the series' time and duration on its own day
+      if (!occurrence.getOccurrence().isDatesModified()) {
+        anchorOccurrenceDatesOnSeries(updatedSeries, occurrence, occurrenceId);
+      }
+      boolean datesMoved = !isSameInstant(occurrenceBeforeMerge.getStart(), occurrence.getStart());
+      Event storedOccurrence = occurrence;
+      if (!occurrence.equals(occurrenceBeforeMerge)) {
+        occurrence.setModifierId(updatedSeries.getModifierId());
+        occurrence.setUpdated(ZonedDateTime.now());
+        storedOccurrence = agendaEventStorage.updateEvent(occurrence);
+      }
+
+      if (datesMoved) {
+        // The trigger date of a reminder is stored, not recomputed when it is
+        // due, so moving the date of an occurrence leaves every reminder of
+        // every attendee pointing at the old time. Recomputed here for all
+        // receivers: the variant that follows occurrences elsewhere works on
+        // the acting user alone.
+        if (!rowLists.reminders().isEmpty()) {
+          reminderService.saveEventReminders(storedOccurrence, rowLists.reminders());
+        }
+      }
+
+      // Conferences merge like the properties: a row whose links are the ones
+      // the series had takes the series' new ones, a row with links of its own
+      // keeps them. Without it a changed meeting link never reaches the dates
+      // the reminder job materialised for the next days.
+      if (conferencesChanged && conferenceKeys(rowLists.conferences()).equals(conferenceKeys(seriesConferencesBefore))) {
+        conferenceService.saveEventConferences(storedOccurrence.getId(),
+                                               copyConferencesTo(seriesConferencesAfter, storedOccurrence.getId()));
+      }
+
+      applySeriesMembershipChange(storedOccurrence,
+                                  rowLists.attendees(),
+                                  attendeesAddedToSeries,
+                                  attendeesRemovedFromSeries,
+                                  modifierIdentityId);
+    }
+  }
+
+  /**
+   * Carries the people the series gained and lost into one date individually
+   * modified, leaving the people invited on that date alone untouched — the
+   * same rule as the properties, applied to a set.
+   *
+   * @param occurrence the stored occurrence, as it is after the properties were
+   *          merged
+   * @param occurrenceAttendees its attendees, as read before the merge
+   * @param addedToSeries identities the series gained
+   * @param removedFromSeries identities the series lost
+   * @param modifierIdentityId who is saving
+   */
+  private void applySeriesMembershipChange(Event occurrence,
+                                           List<EventAttendee> occurrenceAttendees,
+                                           Set<Long> addedToSeries,
+                                           Set<Long> removedFromSeries,
+                                           long modifierIdentityId) {
+    if (addedToSeries.isEmpty() && removedFromSeries.isEmpty()) {
+      return;
+    }
+    List<EventAttendee> merged = occurrenceAttendees.stream()
+                                                    .filter(attendee -> !removedFromSeries.contains(attendee.getIdentityId()))
+                                                    .collect(Collectors.toList());
+    Set<Long> present = attendeeIdentityIds(merged);
+    for (Long identityId : addedToSeries) {
+      if (!present.contains(identityId)) {
+        merged.add(new EventAttendee(0, occurrence.getId(), identityId, null));
+      }
+    }
+    Set<Long> attendeesBefore = attendeeIdentityIds(occurrenceAttendees);
+    if (attendeeIdentityIds(merged).equals(attendeesBefore)) {
+      return;
+    }
+    attendeeService.saveEventAttendees(occurrence,
+                                       merged,
+                                       modifierIdentityId,
+                                       false,
+                                       false,
+                                       new AgendaEventModification(occurrence.getId(),
+                                                                   occurrence.getCalendarId(),
+                                                                   modifierIdentityId));
+    // Removing the attendee row does not remove the reminders that person set
+    // on that date: nothing listens to the attendee-deleted event, and a
+    // reminder is sent from its own stored trigger date with no attendance
+    // check, so they are removed here.
+    for (Long identityId : removedFromSeries) {
+      if (attendeesBefore.contains(identityId)) {
+        reminderService.removeUserReminders(occurrence.getId(), identityId);
+      }
+    }
+  }
+
+  /**
+   * Whether an exceptional occurrence row holds anything a user put there, read
+   * against the series as it was when the row was cloned from it: a property
+   * that differs, dates that were moved, or an attendee list, a conference list
+   * or a reminder list other than the series' own for that date. A row with
+   * none of these is the reminder job's materialisation of an
+   * upcoming date, which the job rebuilds from the series whenever it needs it.
+   *
+   * @param row the stored occurrence, before the merge
+   * @param storedSeries the series before the change
+   * @param occurrenceId the date the row stands for
+   * @param rowLists the row's attendees, conferences and reminders
+   * @param seriesLists the series' attendees, conferences and reminders before
+   *          the change
+   * @return whether the row is kept and merged rather than dropped
+   */
+  private boolean carriesUserIntent(Event row,
+                                    Event storedSeries,
+                                    ZonedDateTime occurrenceId,
+                                    OccurrenceLists rowLists,
+                                    OccurrenceLists seriesLists) {
+    if (row.getOccurrence().isDatesModified()
+        || !Objects.equals(row.getSummary(), storedSeries.getSummary())
+        || !Objects.equals(row.getDescription(), storedSeries.getDescription())
+        || !Objects.equals(row.getLocation(), storedSeries.getLocation())
+        || !Objects.equals(row.getColor(), storedSeries.getColor())
+        || row.getAvailability() != storedSeries.getAvailability()
+        || visibilityOf(row) != visibilityOf(storedSeries)
+        || row.getStatus() != storedSeries.getStatus()
+        || !Objects.equals(row.getTimeZoneId(), storedSeries.getTimeZoneId())
+        || row.isAllDay() != storedSeries.isAllDay()
+        || row.isAllowAttendeeToUpdate() != storedSeries.isAllowAttendeeToUpdate()
+        || row.isAllowAttendeeToInvite() != storedSeries.isAllowAttendeeToInvite()
+        || Boolean.TRUE.equals(row.getOpen()) != Boolean.TRUE.equals(storedSeries.getOpen())) {
+      return true;
+    }
+    List<EventAttendee> seriesAttendeesOnThatDate = new EventAttendeeList(seriesLists.attendees()).getEventAttendees(occurrenceId);
+    // Reminders are compared with the series' reminders that apply to that
+    // date, the ones the row was built with: one turned off on the date alone
+    // is intent, and so is one set there, even when the series carries the
+    // same reminder for another range of its dates
+    List<EventReminder> seriesRemindersOnThatDate = remindersOnThatDate(seriesLists.reminders(), occurrenceId);
+    return !attendeeResponses(rowLists.attendees()).equals(attendeeResponses(seriesAttendeesOnThatDate))
+        || !conferenceKeys(rowLists.conferences()).equals(conferenceKeys(seriesLists.conferences()))
+        || !reminderKeys(rowLists.reminders()).equals(reminderKeys(seriesRemindersOnThatDate));
+  }
+
+  /**
+   * @param reminders the series' reminders
+   * @param occurrenceId a date of the series
+   * @return the ones that apply to that date by the range each carries, the
+   *         filter the row was built with
+   */
+  private List<EventReminder> remindersOnThatDate(List<EventReminder> reminders, ZonedDateTime occurrenceId) {
+    if (reminders == null) {
+      return Collections.emptyList();
+    }
+    return reminders.stream()
+                    .filter(reminder -> (reminder.getFromOccurrenceId() == null
+                        || reminder.getFromOccurrenceId().isEqual(occurrenceId)
+                        || reminder.getFromOccurrenceId().isBefore(occurrenceId))
+                        && (reminder.getUntilOccurrenceId() == null || reminder.getUntilOccurrenceId().isAfter(occurrenceId)))
+                    .toList();
+  }
+
+  /**
+   * @param attendees an attendee list
+   * @return each identity's answer, an unanswered invitation read as
+   *         {@link EventAttendeeResponse#NEEDS_ACTION}
+   */
+  private Map<Long, EventAttendeeResponse> attendeeResponses(List<EventAttendee> attendees) {
+    Map<Long, EventAttendeeResponse> responses = new HashMap<>();
+    if (attendees != null) {
+      for (EventAttendee attendee : attendees) {
+        responses.put(attendee.getIdentityId(),
+                      attendee.getResponse() == null ? EventAttendeeResponse.NEEDS_ACTION : attendee.getResponse());
+      }
+    }
+    return responses;
+  }
+
+  /**
+   * @param conferences a conference list
+   * @return what each conference is, without the row ids that differ between
+   *         a series and the rows cloned from it
+   */
+  private Set<String> conferenceKeys(List<EventConference> conferences) {
+    Set<String> keys = new HashSet<>();
+    if (conferences != null) {
+      for (EventConference conference : conferences) {
+        keys.add(String.join("|",
+                             String.valueOf(conference.getType()),
+                             String.valueOf(conference.getUrl()),
+                             String.valueOf(conference.getPhone()),
+                             String.valueOf(conference.getAccessCode()),
+                             String.valueOf(conference.getDescription())));
+      }
+    }
+    return keys;
+  }
+
+  /**
+   * @param reminders a reminder list
+   * @return who is reminded how long before, without the row ids and the
+   *         trigger dates that differ between a series and its dates
+   */
+  private Set<String> reminderKeys(List<EventReminder> reminders) {
+    Set<String> keys = new HashSet<>();
+    if (reminders != null) {
+      for (EventReminder reminder : reminders) {
+        keys.add(reminder.getReceiverId() + "|" + reminder.getBefore() + "|" + reminder.getBeforePeriodType());
+      }
+    }
+    return keys;
+  }
+
+  /**
+   * @param conferences the conferences to copy
+   * @param eventId the row they are copied onto
+   * @return copies with no id of their own yet, attached to that row
+   */
+  private List<EventConference> copyConferencesTo(List<EventConference> conferences, long eventId) {
+    List<EventConference> copies = new ArrayList<>();
+    for (EventConference conference : conferences) {
+      EventConference copy = conference.clone();
+      copy.setId(0);
+      copy.setEventId(eventId);
+      copies.add(copy);
+    }
+    return copies;
+  }
+
+  /**
+   * Whether two recurrences describe the same dates, compared on the rule both
+   * carry once they have been read back from storage.
+   *
+   * @param storedSeries the series before the change
+   * @param updatedSeries the series after it
+   * @return whether the rule is unchanged
+   */
+  private boolean sameRecurrenceRule(Event storedSeries, Event updatedSeries) {
+    EventRecurrence before = storedSeries.getRecurrence();
+    EventRecurrence after = updatedSeries.getRecurrence();
+    if (before == null || after == null) {
+      return before == after;
+    }
+    return StringUtils.equals(before.getRrule(), after.getRrule());
+  }
+
+  /**
+   * @param first a moment, or null
+   * @param second another moment, or null
+   * @return whether both name the same instant, two nulls included
+   */
+  private boolean isSameInstant(ZonedDateTime first, ZonedDateTime second) {
+    if (first == null || second == null) {
+      return first == null && second == null;
+    }
+    return first.toInstant().equals(second.toInstant());
+  }
+
+  /**
+   * @param attendees an attendee list
+   * @return the identities it names, without duplicates
+   */
+  private Set<Long> attendeeIdentityIds(List<EventAttendee> attendees) {
+    return attendees == null ? new HashSet<>()
+                             : attendees.stream().map(EventAttendee::getIdentityId).collect(Collectors.toSet());
+  }
+
+  /**
+   * One property of one occurrence, merged against the series change.
+   *
+   * @param occurrenceValue the value the occurrence carries today
+   * @param storedSeriesValue the value the series carried before the change
+   * @param updatedSeriesValue the value the series carries after it
+   * @return the new series value when the occurrence had inherited the old one,
+   *         the occurrence&#39;s own value when it had been customised
+   */
+  private <T> T mergeOccurrenceProperty(T occurrenceValue, T storedSeriesValue, T updatedSeriesValue) {
+    return Objects.equals(occurrenceValue, storedSeriesValue) ? updatedSeriesValue : occurrenceValue;
+  }
+
+  /**
+   * @param event an event as stored
+   * @return its visibility, a legacy null read as
+   *         {@link EventVisibility#DEFAULT} — the value the publish boundary
+   *         already gives it
+   */
+  private EventVisibility visibilityOf(Event event) {
+    return event.getVisibility() == null ? EventVisibility.DEFAULT : event.getVisibility();
+  }
+
+  /**
+   * Whether the recurrence of the series still produces the date of a stored
+   * occurrence. Deleting a row is the consequence of answering no, so the match
+   * is the <strong>same predicate</strong> that decides elsewhere whether a row
+   * is recognised as the exception of a date — recognising a row and keeping it
+   * must never give opposite answers.
+   *
+   * @param series the series as it is being saved
+   * @param occurrenceId the date of the stored occurrence
+   * @return false when the new recurrence no longer produces that day
+   */
+  private boolean seriesStillProducesOccurrence(Event series, ZonedDateTime occurrenceId) {
+    if (series.getRecurrence() == null) {
+      return false;
+    }
+    LocalDate occurrenceDate = occurrenceId.withZoneSameInstant(ZoneOffset.UTC).toLocalDate();
+    // No limit: the three-day window bounds the expansion per frequency, not
+    // absolutely — three dates for a daily rule, 72 for an hourly one — and a
+    // cap sized for the first would silently answer no for the second, whose
+    // dates all fall on the first day. Answering no deletes a row, so the cap
+    // is the more expensive mistake of the two
+    List<Event> occurrences = Utils.getOccurrences(series, occurrenceDate.minusDays(1), occurrenceDate.plusDays(1), 0);
+    return occurrences != null && occurrences.stream().anyMatch(occurrence -> {
+      EventOccurrence computed = occurrence.getOccurrence();
+      return computed != null && computed.getId() != null && isSameOccurrenceDate(computed.getId(), occurrenceId);
+    });
+  }
+
+  /**
+   * Whether a date produced by a recurrence and the date stored on an
+   * exceptional occurrence designate the same occurrence. The UTC day, plus the
+   * twelve-hour tolerance kept for identifiers produced before TASK-39591: the
+   * formula changed for all-day events only, and an all-day row of a zone east
+   * of UTC then sits on the previous UTC day, less than twelve hours away.
+   *
+   * @param computedOccurrenceId the date the recurrence produces
+   * @param storedOccurrenceId the date stored on the occurrence row
+   * @return whether both designate the same occurrence
+   */
+  private boolean isSameOccurrenceDate(ZonedDateTime computedOccurrenceId, ZonedDateTime storedOccurrenceId) {
+    return computedOccurrenceId.withZoneSameInstant(ZoneOffset.UTC)
+                               .toLocalDate()
+                               .isEqual(storedOccurrenceId.withZoneSameInstant(ZoneOffset.UTC).toLocalDate())
+        || Math.abs(storedOccurrenceId.toEpochSecond() - computedOccurrenceId.toEpochSecond()) < 43200;
   }
 
   /**
@@ -479,28 +1033,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     exceptionalEvent.setParentId(parentEvent.getId());
     exceptionalEvent.setRecurrence(null);
     exceptionalEvent.setOccurrence(new EventOccurrence(occurrenceId, true, false));
-    ZonedDateTime start = exceptionalEvent.getStart();
-    ZonedDateTime end = exceptionalEvent.getEnd();
-    long diffInSeconds = end.toEpochSecond() - start.toEpochSecond();
-
-    ZonedDateTime occurrenceStart = null;
-    if (allDay) {
-      ZonedDateTime occurrenceStartTime = occurrenceId.withZoneSameInstant(parentEvent.getTimeZoneId());
-      occurrenceStart = start.withYear(occurrenceStartTime.getYear())
-                             .withMonth(occurrenceStartTime.getMonthValue())
-                             .withDayOfMonth(occurrenceStartTime.getDayOfMonth());
-    } else {
-      ZonedDateTime startStartTime = start.withZoneSameInstant(parentEvent.getTimeZoneId());
-      occurrenceStart = startStartTime.withYear(occurrenceId.getYear())
-                                      .withMonth(occurrenceId.getMonthValue())
-                                      .withDayOfMonth(occurrenceId.getDayOfMonth())
-                                      .withHour(startStartTime.getHour())
-                                      .withMinute(startStartTime.getMinute());
-    }
-    ZonedDateTime occurrenceEnd = occurrenceStart.plusSeconds(diffInSeconds);
-    exceptionalEvent.setStart(occurrenceStart);
-    exceptionalEvent.setEnd(occurrenceEnd);
-    adjustEventDatesForWrite(exceptionalEvent);
+    // The open flag is inherited from the series like every other property of
+    // the clone, and may then be changed on this date alone (US06). It stays in
+    // step with its series through applySeriesChangeToExceptionalOccurrences
+    // until somebody changes it here.
+    anchorOccurrenceDatesOnSeries(parentEvent, exceptionalEvent, occurrenceId);
     exceptionalEvent = agendaEventStorage.createEvent(exceptionalEvent);
     long exceptionalEventId = exceptionalEvent.getId();
 
@@ -668,19 +1205,36 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                     allowAttendeeToUpdate,
                                     allowAttendeeToInvite);
 
-    // Delete exceptional occurrences when updating the whole recurrent event
-    if (eventToUpdate.getRecurrence() != null || storedEvent.getRecurrence() != null) {
-      agendaEventStorage.deleteExceptionalOccurences(eventToUpdate.getId());
-    }
+    // 'open' is not part of the positional constructor above. A payload that
+    // does not state it (null) keeps the stored value, so no client can lock or
+    // open an event by omission; an explicit value is applied under the same
+    // canUpdateEvent right as the rest of the save. The invariant (canBeOpen)
+    // is evaluated on the TARGET calendar and the derived status, so moving an
+    // event to a personal calendar or turning it into a date poll locks it.
+    // This is also the path that writes the flag onto one date of a series:
+    // since US06 each row carries its own, so the scope the organiser chose in
+    // the form is what decides which rows are written, not this method.
+    boolean open = event.getOpen() == null ? Boolean.TRUE.equals(storedEvent.getOpen()) : event.getOpen();
+    eventToUpdate.setOpen(open && canBeOpen(eventToUpdate.getStatus(), calendar));
 
     AgendaEventModification eventModifications = new AgendaEventModification(eventId, event.getCalendarId(), userIdentityId);
     eventModifications.addModificationType(AgendaEventModificationType.UPDATED);
+    // The modification is detected on the incoming event, whose 'open' is what
+    // the client asked for (null when it did not ask at all); the audit must
+    // report what was written instead, or it would announce a toggle on every
+    // partial payload and stay silent when a move actually locked the event
+    event.setOpen(eventToUpdate.getOpen());
     Utils.detectEventModifiedFields(event, storedEvent, eventModifications);
     if (eventToUpdate.getOccurrence() != null && eventModifications.hasModifiedDate()) {
       eventToUpdate.getOccurrence().setDatesModified(true);
     }
     Event updatedEvent = agendaEventStorage.updateEvent(eventToUpdate);
+
     createOrUpdateEventProperties(event.getParameters(), updatedEvent);
+    // Snapshotted before saving, like the attendees below: a date whose
+    // conferences are the ones the series had carries inheritance, not intent,
+    // and the merge below needs that reference
+    List<EventConference> previousConferences = conferenceService.getEventConferences(eventId);
     Set<AgendaEventModificationType> conferenceModifications = conferenceService.saveEventConferences(eventId, conferences);
     eventModifications.addModificationTypes(conferenceModifications);
 
@@ -705,6 +1259,22 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                                                                 resetResponses,
                                                                                                 eventModifications);
     eventModifications.addModificationTypes(attendeeModifications);
+
+    // A change on the series reaches the dates that were individually modified
+    // instead of deleting them. Run here, after the
+    // series and its attendee list are stored, for three reasons: an until is a
+    // LocalDate that does not round-trip across zones, so the stored recurrence
+    // is the one every later read expands; a series update that fails leaves
+    // its occurrences untouched; and the new attendee list of the series is
+    // what those dates must be carried towards.
+    if (updatedEvent.getParentId() <= 0
+        && (updatedEvent.getRecurrence() != null || storedEvent.getRecurrence() != null)) {
+      applySeriesChangeToExceptionalOccurrences(storedEvent,
+                                                updatedEvent,
+                                                previousAttendees,
+                                                previousConferences,
+                                                userIdentityId);
+    }
 
     if (eventModifications.hasModification(AgendaEventModificationType.START_DATE_UPDATED)) {
       List<EventReminder> allReminders = reminderService.getEventReminders(eventId);
@@ -783,9 +1353,31 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_BEFORE_END_DATE);
     }
 
-    // Delete exceptional occurrences when updating the whole recurrent event
-    if (updateAllOccurrences && event.getRecurrence() != null) {
-      agendaEventStorage.deleteExceptionalOccurences(event.getId());
+    // Both checks below are evaluated after the field loop, on the calendar the
+    // event lands in, so that a patch moving it and changing something else at
+    // once is judged where it ends up rather than where it started.
+    Calendar targetCalendar = agendaCalendarService.getCalendarById(event.getCalendarId());
+
+    // Moving the event to another calendar additionally requires the right to
+    // create events in the TARGET calendar, exactly as the full-save path
+    // requires it: being allowed to update an event must not grant filing it
+    // into someone else's calendar — and canUpdateEvent above is satisfied by a
+    // mere attendee when allowAttendeeToUpdate is set
+    if (originalEvent.getCalendarId() != event.getCalendarId() && !canCreateEvent(targetCalendar, userIdentityId)) {
+      throw new IllegalAccessException("User '" + userIdentityId + "' can't move event " + eventId + " to calendar "
+          + event.getCalendarId());
+    }
+
+    // What happens when the open invariant fails depends on who asked: a patch
+    // that carries 'open' is a deliberate act and is refused, while a patch that
+    // merely moves an already open event into a personal calendar, or turns it
+    // into a date poll, locks it silently — the same outcome the full-save path
+    // gives that operation.
+    if (Boolean.TRUE.equals(event.getOpen()) && !canBeOpen(event.getStatus(), targetCalendar)) {
+      if (fields.containsKey("open")) {
+        throw new IllegalArgumentException("agenda.openEvent.notAllowed");
+      }
+      event.setOpen(false);
     }
 
     event.setModifierId(Long.parseLong(userIdentity.getId()));
@@ -796,6 +1388,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       event.getOccurrence().setDatesModified(true);
     }
     event = agendaEventStorage.updateEvent(event);
+
+    // A patch meant for the whole series reaches the dates individually
+    // modified instead of deleting them, and leaves the properties customised
+    // there untouched. Run on the stored event for the same reasons as the
+    // full-save path.
+    if (updateAllOccurrences && event.getParentId() <= 0 && event.getRecurrence() != null) {
+      // No attendee list travels on this path: a patch changes fields, never
+      // the people invited
+      applySeriesChangeToExceptionalOccurrences(originalEvent, event, null, null, userIdentityId);
+    }
 
     if (fields.containsKey("start")) {
       List<EventReminder> reminders = reminderService.getEventReminders(event.getId());
@@ -970,7 +1572,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       return EventAccess.NONE;
     }
     boolean user = StringUtils.equals(OrganizationIdentityProvider.NAME, identity.getProviderId());
-    if (user && Utils.canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), identityId)) {
+    // The calendar half is the one the answer right of an open event reuses
+    // (AgendaEventAttendeeService#canRespondToEvent): one rule, written once
+    if (Utils.canAccessEventCalendar(identityManager, spaceService, calendar, identityId)) {
       return EventAccess.FULL;
     }
     if (attendeeService.isEventAttendee(getEventIdOrParentId(event), identityId)) {
@@ -1067,6 +1671,37 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       return false;
     }
     return Utils.canCreateEvent(identityManager, spaceService, calendar.getOwnerId(), userIdentityId);
+  }
+
+  /**
+   * Where the open flag may be true at all, whatever the client sends: an event
+   * that is not a date poll (opening a date poll is out of scope), in a space
+   * calendar (in a personal calendar nobody but the owner and the invitees can
+   * reach the event, so there is nobody to open it to). The server-side
+   * invariant behind the board's rules, independent of the UI hiding the
+   * padlock.
+   * <p>
+   * One occurrence of a series may carry its own value: the rule does not
+   * refuse an event that has a parent, since a change on the series merges
+   * into the dates individually modified instead of deleting them, so a value
+   * written on an occurrence row survives the next save of its series.
+   *
+   * @param status the status the save is about to store, as derived from the
+   *          date options
+   * @param calendar the calendar the event is saved into
+   * @return whether the open flag may be stored as true
+   */
+  private boolean canBeOpen(EventStatus status, Calendar calendar) {
+    return status != EventStatus.TENTATIVE && isSpaceCalendar(calendar);
+  }
+
+  /**
+   * In a personal calendar nobody but the owner and the invitees can reach the
+   * event, so there is nobody to open it to.
+   */
+  private boolean isSpaceCalendar(Calendar calendar) {
+    Identity owner = calendar == null ? null : identityManager.getIdentity(String.valueOf(calendar.getOwnerId()));
+    return owner != null && owner.isSpace();
   }
 
   /**
@@ -1698,8 +2333,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       case "allowAttendeeToInvite":
         event.setAllowAttendeeToInvite(Boolean.parseBoolean(fieldValue));
         break;
+      case "open":
+        // The invariant (canBeOpen) is checked once, after the whole field set
+        // is applied, so that a patch changing the calendar and the flag at
+        // once is evaluated on the calendar it lands in
+        event.setOpen(Boolean.parseBoolean(fieldValue));
+        break;
       default:
-        throw new UnsupportedOperationException();
+        throw new IllegalArgumentException("agenda.eventFieldNotSupported");
     }
   }
 
@@ -1827,24 +2468,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     return occurrences.stream()
                       .filter(occurrence -> {
                         ZonedDateTime occurrenceId = occurrence.getOccurrence().getId();
-                        LocalDate occurrenceDate = occurrenceId
-                                                               .withZoneSameInstant(ZoneOffset.UTC)
-                                                               .toLocalDate();
                         return exceptionalEvents.stream()
-                                                .noneMatch(exceptionalOccurence -> {
-                                                  ZonedDateTime exceptionalOccurenceId = exceptionalOccurence.getOccurrence()
-                                                                                                             .getId();
-                                                  LocalDate exceptionalOccurenceDate =
-                                                                                     exceptionalOccurenceId.withZoneSameInstant(ZoneOffset.UTC)
-                                                                                                           .toLocalDate();
-                                                  return occurrenceDate.isEqual(exceptionalOccurenceDate)
-                                                      // Added for retro
-                                                      // compatibility with
-                                                      // previous occurrenceId
-                                                      // computing algorithm
-                                                      || Math.abs(exceptionalOccurenceId.toEpochSecond()
-                                                          - occurrenceId.toEpochSecond()) < 43200;
-                                                });
+                                                .noneMatch(exceptionalOccurence -> isSameOccurrenceDate(occurrenceId,
+                                                                                                        exceptionalOccurence.getOccurrence()
+                                                                                                                            .getId()));
                       })
                       .collect(Collectors.toList());
   }

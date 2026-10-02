@@ -37,11 +37,712 @@ import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.util.AgendaDateUtils;
+import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 
 public class AgendaEventServiceTest extends BaseAgendaEventTest {
+
+  /**
+   * eXIP 7.3.0.20 Open Event, US01 (EXO-89477): the flag is carried end to end
+   * by the full saves that rebuild the Event positionally, is kept when a save
+   * does not state it, and is never true on a personal calendar. Reads go
+   * through the cached storage, which returns a clone: a clone() that dropped
+   * the field would fail the first assertion.
+   */
+  @Test
+  public void testOpenEventFlagCarriedByFullSaves() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+
+    // Created open in a space calendar
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setRecurrence(null);
+    event.setOpen(true);
+    Event createdEvent = createEvent(event.clone(), userIdentityId, testuser2Identity);
+    long eventId = createdEvent.getId();
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(eventId).getOpen());
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(eventId, null, userIdentityId).getOpen());
+
+    // A full save that does not state the flag (null) keeps it, and reports no
+    // toggle: the audit follows what was written, not what the payload carried
+    Event storedEvent = agendaEventService.getEventById(eventId, ZoneOffset.UTC, userIdentityId);
+    Event updatedEvent = storedEvent.clone();
+    updatedEvent.setOpen(null);
+    eventUpdateReference.set(null);
+    agendaEventService.updateEvent(updatedEvent,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(eventId).getOpen());
+    assertNotNull(eventUpdateReference.get());
+    assertFalse(eventUpdateReference.get().hasModification(AgendaEventModificationType.OPEN_UPDATED));
+
+    // An explicit value is applied by the same save
+    updatedEvent = agendaEventService.getEventById(eventId, ZoneOffset.UTC, userIdentityId).clone();
+    updatedEvent.setOpen(false);
+    agendaEventService.updateEvent(updatedEvent,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(eventId).getOpen());
+
+    // An explicit true by an editor opens it through the same save
+    updatedEvent = agendaEventService.getEventById(eventId, ZoneOffset.UTC, userIdentityId).clone();
+    updatedEvent.setOpen(true);
+    agendaEventService.updateEvent(updatedEvent,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(eventId).getOpen());
+
+    // Moved to a personal calendar with the flag unspecified: the invariant is
+    // evaluated on the target calendar, so the event is locked by the move —
+    // and the audit reports that toggle, which the payload never asked for
+    updatedEvent = agendaEventService.getEventById(eventId, ZoneOffset.UTC, userIdentityId).clone();
+    updatedEvent.setCalendarId(calendar.getId());
+    updatedEvent.setOpen(null);
+    eventUpdateReference.set(null);
+    agendaEventService.updateEvent(updatedEvent,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(eventId).getOpen());
+    assertNotNull(eventUpdateReference.get());
+    assertTrue(eventUpdateReference.get().hasModification(AgendaEventModificationType.OPEN_UPDATED));
+
+    // Absent at creation means locked
+    Event lockedEvent = newEventInstance(start, start, true);
+    lockedEvent.setCalendarId(spaceCalendar.getId());
+    lockedEvent.setRecurrence(null);
+    lockedEvent.setOpen(null);
+    Event createdLockedEvent = createEvent(lockedEvent.clone(), userIdentityId, testuser2Identity);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(createdLockedEvent.getId()).getOpen());
+
+    // Never open on a personal calendar, whatever the client sends
+    Event personalEvent = newEventInstance(start, start, true);
+    personalEvent.setRecurrence(null);
+    personalEvent.setOpen(true);
+    Event createdPersonalEvent = createEvent(personalEvent.clone(), userIdentityId, testuser2Identity);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(createdPersonalEvent.getId()).getOpen());
+
+    // ... nor through a full save that states it
+    Event personalUpdate = agendaEventService.getEventById(createdPersonalEvent.getId(), ZoneOffset.UTC, userIdentityId).clone();
+    personalUpdate.setOpen(true);
+    agendaEventService.updateEvent(personalUpdate,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(createdPersonalEvent.getId()).getOpen());
+
+    // Never open on a date poll either (open date polls are eXIP 7.3.0.40): the
+    // status is derived by the server from the date options, not sent by the
+    // client, so the invariant reads the derived status
+    Event datePoll = newEventInstance(start, start, true);
+    datePoll.setCalendarId(spaceCalendar.getId());
+    datePoll.setRecurrence(null);
+    datePoll.setOpen(true);
+    List<EventDateOption> dateOptions = Arrays.asList(new EventDateOption(0, 0, start, start.plusHours(1), false, false, null),
+                                                      new EventDateOption(0, 0, start.plusDays(1), start.plusDays(1).plusHours(1), false, false, null));
+    Event createdDatePoll = agendaEventService.createEvent(datePoll.clone(),
+                                                           Collections.emptyList(),
+                                                           Collections.emptyList(),
+                                                           Collections.emptyList(),
+                                                           dateOptions,
+                                                           null,
+                                                           false,
+                                                           userIdentityId);
+    assertEquals(EventStatus.TENTATIVE, agendaEventService.getEventById(createdDatePoll.getId()).getStatus());
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(createdDatePoll.getId()).getOpen());
+  }
+
+  /**
+   * eXIP 7.3.0.20 Open Event, US02 (EXO-89478): the padlock of the event page
+   * patches the flag. The right is the event's existing edit right; an
+   * invariant of US01 is refused when the patch asks to open, and applied
+   * silently — locking the event, as the full-save path does — when the patch
+   * merely moves an already-open event; the toggle resets no participant
+   * answer.
+   */
+  @Test
+  public void testOpenEventPatchedFromTheEventPage() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorIdentityId = Long.parseLong(testuser1Identity.getId());
+    long attendeeIdentityId = Long.parseLong(testuser2Identity.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setRecurrence(null);
+    Event createdEvent = createEvent(event.clone(), creatorIdentityId, testuser2Identity);
+    long eventId = createdEvent.getId();
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(eventId).getOpen());
+
+    // An attendee answers before the toggle
+    agendaEventAttendeeService.sendEventResponse(eventId, attendeeIdentityId, EventAttendeeResponse.ACCEPTED);
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(eventId, null, attendeeIdentityId));
+
+    // A user without the edit right cannot toggle
+    try {
+      agendaEventService.updateEventFields(eventId, getFields("open", "true"), false, false, attendeeIdentityId);
+      fail("An attendee without update right should not open the event");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(eventId).getOpen());
+
+    // The editor opens it, and no answer is reset by the toggle
+    agendaEventService.updateEventFields(eventId, getFields("open", "true"), false, false, creatorIdentityId);
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(eventId).getOpen());
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(eventId, null, attendeeIdentityId));
+    assertNotNull(eventUpdateReference.get());
+    assertTrue(eventUpdateReference.get().hasModification(AgendaEventModificationType.OPEN_UPDATED));
+
+    // ... and locks it again
+    agendaEventService.updateEventFields(eventId, getFields("open", "false"), false, false, creatorIdentityId);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(eventId).getOpen());
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(eventId, null, attendeeIdentityId));
+
+    // A patch that does not touch the flag leaves it, and reports no toggle
+    eventUpdateReference.set(null);
+    agendaEventService.updateEventFields(eventId, getFields("summary", "patched"), false, false, creatorIdentityId);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(eventId).getOpen());
+    assertFalse(eventUpdateReference.get().hasModification(AgendaEventModificationType.OPEN_UPDATED));
+
+    // Opening a personal-calendar event is refused, not silently ignored
+    Event personalEvent = newEventInstance(start, start, true);
+    personalEvent.setRecurrence(null);
+    Event createdPersonalEvent = createEvent(personalEvent.clone(), creatorIdentityId, testuser2Identity);
+    try {
+      agendaEventService.updateEventFields(createdPersonalEvent.getId(),
+                                           getFields("open", "true"),
+                                           false,
+                                           false,
+                                           creatorIdentityId);
+      fail("A personal calendar event should not be opened");
+    } catch (IllegalArgumentException e) {
+      assertEquals("agenda.openEvent.notAllowed", e.getMessage());
+    }
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(createdPersonalEvent.getId()).getOpen());
+
+    // Being allowed to update an event does not grant filing it into a calendar
+    // one may not create in: the patch path enforces this like the full save,
+    // and canUpdateEvent is satisfied by a mere attendee when the event allows
+    // attendees to update it
+    Event sharedEvent = newEventInstance(start, start, true);
+    sharedEvent.setCalendarId(spaceCalendar.getId());
+    sharedEvent.setRecurrence(null);
+    sharedEvent.setAllowAttendeeToUpdate(true);
+    Event createdSharedEvent = createEvent(sharedEvent.clone(), creatorIdentityId, testuser2Identity);
+    assertTrue(agendaEventService.canUpdateEvent(agendaEventService.getEventById(createdSharedEvent.getId()),
+                                                 attendeeIdentityId));
+    try {
+      agendaEventService.updateEventFields(createdSharedEvent.getId(),
+                                           getFields("calendarId", String.valueOf(calendar.getId())),
+                                           false,
+                                           false,
+                                           attendeeIdentityId);
+      fail("An attendee should not move the event into a calendar they cannot create in");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertEquals(spaceCalendar.getId(), agendaEventService.getEventById(createdSharedEvent.getId()).getCalendarId());
+
+    // An unsupported field is a caller error too (400), not a server error
+    try {
+      agendaEventService.updateEventFields(eventId, getFields("unknownField", "value"), false, false, creatorIdentityId);
+      fail("An unsupported field should be refused");
+    } catch (IllegalArgumentException e) {
+      assertEquals("agenda.eventFieldNotSupported", e.getMessage());
+    }
+
+    // A patch that does not carry the flag never fails on it: an already-open
+    // event stays patchable on any other field
+    agendaEventService.updateEventFields(eventId, getFields("open", "true"), false, false, creatorIdentityId);
+    agendaEventService.updateEventFields(eventId, getFields("location", "elsewhere"), false, false, creatorIdentityId);
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(eventId).getOpen());
+
+    // ... and moving that open event to a personal calendar locks it silently,
+    // as a full save of the same operation does — and the audit says so
+    eventUpdateReference.set(null);
+    agendaEventService.updateEventFields(eventId,
+                                         getFields("calendarId", String.valueOf(calendar.getId())),
+                                         false,
+                                         false,
+                                         creatorIdentityId);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(eventId).getOpen());
+    assertNotNull(eventUpdateReference.get());
+    assertTrue(eventUpdateReference.get().hasModification(AgendaEventModificationType.OPEN_UPDATED));
+  }
+
+  /**
+   * eXIP 7.3.0.20 Open Event, US02 (EXO-89478): on the event page of an
+   * occurrence, the padlock patches the SERIES id with
+   * {@code updateAllOccurrences = false}. That boolean is load-bearing: with
+   * {@code true}, {@code updateEventFields} deletes every exceptional
+   * occurrence of the series, which is the very reason the flag is a property
+   * of the series (spec §5). This pins the flow the page performs: the series
+   * flips and reports the toggle once, the exceptional occurrence survives
+   * with its own row still false (the wire carries the parent's value,
+   * {@code RestEntityBuilderOpenFlagTest}), and the page still resolves that
+   * surviving row for the occurrence.
+   * <p>
+   * Mutation note: with the {@code updateAllOccurrences} guard removed, the
+   * run dies inside {@code deleteExceptionalOccurences} (the occurrence's
+   * conference rows still reference the deleted event) before the survival
+   * assertions are reached; the pin kills the mutant either way.
+   */
+  @Test
+  public void testOpenEventPatchedOnTheSeriesKeepsItsExceptionalOccurrences() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorIdentityId = Long.parseLong(testuser1Identity.getId());
+
+    Event series = newEventInstance(start, start, true);
+    series.setCalendarId(spaceCalendar.getId());
+    Event createdSeries = createEvent(series.clone(), creatorIdentityId, testuser2Identity);
+    long seriesId = createdSeries.getId();
+    assertNotNull(createdSeries.getRecurrence());
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(seriesId).getOpen());
+
+    Event exceptionalOccurrence = agendaEventService.saveEventExceptionalOccurrence(seriesId, start);
+    assertNotNull(exceptionalOccurrence);
+    assertEquals(1, agendaEventService.getExceptionalOccurrenceEvents(seriesId, ZoneOffset.UTC, creatorIdentityId).size());
+
+    // What AgendaEventAttendees.toggleOpen sends for an occurrence of the series
+    eventUpdateReference.set(null);
+    agendaEventService.updateEventFields(seriesId, getFields("open", "true"), false, false, creatorIdentityId);
+
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(seriesId).getOpen());
+    assertNotNull(eventUpdateReference.get());
+    assertTrue(eventUpdateReference.get().hasModification(AgendaEventModificationType.OPEN_UPDATED));
+
+    // The exceptional occurrence survives the toggle, and its own row stays
+    // false: the flag is read on the series
+    List<Event> exceptionalOccurrences = agendaEventService.getExceptionalOccurrenceEvents(seriesId,
+                                                                                            ZoneOffset.UTC,
+                                                                                            creatorIdentityId);
+    assertEquals(1, exceptionalOccurrences.size());
+    assertEquals(exceptionalOccurrence.getId(), exceptionalOccurrences.get(0).getId());
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(exceptionalOccurrence.getId()).getOpen());
+
+    // The occurrence the page resolves is that surviving row, under the series
+    Event pageOccurrence = agendaEventService.getEventOccurrence(seriesId, start, ZoneOffset.UTC, creatorIdentityId);
+    assertNotNull(pageOccurrence);
+    assertEquals(exceptionalOccurrence.getId(), pageOccurrence.getId());
+    assertEquals(seriesId, pageOccurrence.getParentId());
+  }
+
+  /**
+   * eXIP 7.3.0.20 Open Event, US06 (EXO-90517): one date of a series may carry
+   * its own open state. A materialised date inherits the state of its series,
+   * and from then on it is its own — a date opened alone does not open its
+   * series, and a date left alone follows its series.
+   * <p>
+   * Until US06 the flag belonged to the series alone and this test asserted
+   * that an occurrence row stayed false whatever was written on it. The
+   * contract changed once a change on a series stopped deleting the dates
+   * modified under it: before that, a value written on such a row died at the
+   * next save of its series.
+   */
+  @Test
+  public void testOpenEventFlagOfOccurrenceIsItsOwn() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(true);
+    Event createdEvent = createEvent(event.clone(), userIdentityId, testuser2Identity);
+    assertNotNull(createdEvent.getRecurrence());
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(createdEvent.getId()).getOpen());
+
+    // A date materialised out of an open series inherits its state
+    Event exceptionalOccurrence = agendaEventService.saveEventExceptionalOccurrence(createdEvent.getId(), start);
+    assertNotNull(exceptionalOccurrence);
+    assertTrue(exceptionalOccurrence.getParentId() > 0);
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(exceptionalOccurrence.getId()).getOpen());
+
+    restartTransaction();
+
+    // and can then be locked alone, without locking its series
+    Event occurrenceUpdate = agendaEventService.getEventById(exceptionalOccurrence.getId(), ZoneOffset.UTC, userIdentityId)
+                                               .clone();
+    occurrenceUpdate.setOpen(false);
+    agendaEventService.updateEvent(occurrenceUpdate,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(exceptionalOccurrence.getId()).getOpen());
+    assertEquals("locking one date must not lock its series",
+                 Boolean.TRUE,
+                 agendaEventService.getEventById(createdEvent.getId()).getOpen());
+
+    // The form's "this occurrence only" creates the date through createEvent,
+    // and the state it carries is applied to that date alone
+    ZonedDateTime otherOccurrenceId = start.plusDays(1);
+    Event formOccurrence = newEventInstance(otherOccurrenceId, otherOccurrenceId, true);
+    formOccurrence.setCalendarId(spaceCalendar.getId());
+    formOccurrence.setRecurrence(null);
+    formOccurrence.setParentId(createdEvent.getId());
+    formOccurrence.setOccurrence(new EventOccurrence(otherOccurrenceId, true, false));
+    formOccurrence.setOpen(false);
+    Event createdOccurrence = createEvent(formOccurrence.clone(), userIdentityId, testuser2Identity);
+    assertTrue(createdOccurrence.getParentId() > 0);
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(createdOccurrence.getId()).getOpen());
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(createdEvent.getId()).getOpen());
+    // NOTE: RestEntityBuilder.fromEvent cannot be called from here: building the
+    // calendar owner's identity entity goes through the social
+    // EntityBuilder.updateCachedEtagValue, which dereferences
+    // ApplicationContextImpl.getCurrent() (null outside a JAX-RS request:
+    // NPE on ApplicationContext.getProperties(), observed 2026-09-17). The
+    // resolution rule the wire applies is pinned on its own in
+    // RestEntityBuilderOpenFlagTest.
+  }
+
+  /**
+   * The state a date carries of its own survives a change on its series, while
+   * a date that never had one follows it — the per-property rule of the PO
+   * (2026-09-23) applied to the padlock.
+   */
+  @Test
+  public void testOpenStateCustomisedOnOneDateSurvivesASeriesChange() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(true);
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(2), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 2);
+    Event lockedDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                        occurrences.get(0).getOccurrence().getId());
+    Event followingDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                           occurrences.get(1).getOccurrence().getId());
+    // A room of its own keeps that date as a row; everything else stays the series'
+    Event followingDateUpdate = agendaEventService.getEventById(followingDate.getId(), ZoneOffset.UTC, creatorId).clone();
+    followingDateUpdate.setLocation("room B");
+    agendaEventService.updateEvent(followingDateUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(followingDate.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    restartTransaction();
+
+    // One date is locked on its own, the other keeps the series' state
+    Event lockedUpdate = agendaEventService.getEventById(lockedDate.getId(), ZoneOffset.UTC, creatorId).clone();
+    lockedUpdate.setOpen(false);
+    agendaEventService.updateEvent(lockedUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(lockedDate.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    // The organiser then corrects the summary of the whole series
+    Event seriesToUpdate = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
+    seriesToUpdate.setSummary("weekly sync");
+    agendaEventService.updateEvent(seriesToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(series.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+
+    assertEquals("the date locked on purpose stays locked",
+                 Boolean.FALSE,
+                 agendaEventService.getEventById(lockedDate.getId()).getOpen());
+    assertEquals("the date that carried no state of its own stays with its series",
+                 Boolean.TRUE,
+                 agendaEventService.getEventById(followingDate.getId()).getOpen());
+    assertEquals("and both take the change made on the series",
+                 "weekly sync",
+                 agendaEventService.getEventById(lockedDate.getId()).getSummary());
+    // Known blind spot of a rule derived by comparison rather than recorded:
+    // once the organiser locks the whole series, a date locked on purpose holds
+    // the same value as one that merely followed, so re-opening the series
+    // re-opens both. Recording the overridden properties on the row is what
+    // would tell them apart; it is a schema change and a decision of its own.
+  }
+
+  /**
+   * visibility (EXO-90322) reached the model after this merge was written, and
+   * a property the merge does not name is one a series change never reaches on
+   * a customised date — where the rows used to be recreated from the series and
+   * inherited it. It decides what a published calendar link shows, so a date
+   * left more visible than its series would leak through the feed. Both entry
+   * points are exercised: the full save and the patch on every occurrence.
+   */
+  @Test
+  public void testVisibilityOfTheSeriesReachesTheDatesIndividuallyModified() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(2), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 2);
+    Event customisedDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                            occurrences.get(0).getOccurrence().getId());
+    Event followingDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                           occurrences.get(1).getOccurrence().getId());
+    // A room of its own keeps that date as a row; its visibility stays the series'
+    Event followingUpdate = agendaEventService.getEventById(followingDate.getId(), ZoneOffset.UTC, creatorId).clone();
+    followingUpdate.setLocation("room B");
+    agendaEventService.updateEvent(followingUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(followingDate.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    restartTransaction();
+
+    // One date is made private on its own
+    Event customisedUpdate = agendaEventService.getEventById(customisedDate.getId(), ZoneOffset.UTC, creatorId).clone();
+    customisedUpdate.setVisibility(EventVisibility.PRIVATE);
+    agendaEventService.updateEvent(customisedUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(customisedDate.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    restartTransaction();
+
+    // The organiser then makes the whole series public
+    Event seriesToUpdate = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
+    seriesToUpdate.setVisibility(EventVisibility.PUBLIC);
+    agendaEventService.updateEvent(seriesToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(series.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+
+    assertEquals("the date that carried no visibility of its own follows the series",
+                 EventVisibility.PUBLIC,
+                 agendaEventService.getEventById(followingDate.getId()).getVisibility());
+    assertEquals("the date made private on purpose stays private",
+                 EventVisibility.PRIVATE,
+                 agendaEventService.getEventById(customisedDate.getId()).getVisibility());
+
+    // The patch entry point is the second face of the same door
+    agendaEventService.updateEventFields(series.getId(),
+                                         getFields("visibility", EventVisibility.DEFAULT.name()),
+                                         true,
+                                         false,
+                                         creatorId);
+    assertEquals("a patch applied to every occurrence reaches the date that followed",
+                 EventVisibility.DEFAULT,
+                 agendaEventService.getEventById(followingDate.getId()).getVisibility());
+    assertEquals("and still leaves the customised date alone",
+                 EventVisibility.PRIVATE,
+                 agendaEventService.getEventById(customisedDate.getId()).getVisibility());
+
+    // The direction the harm names: the series made LESS visible, and the date
+    // that followed it must not be left more visible than its series
+    Event seriesToMask = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
+    seriesToMask.setVisibility(EventVisibility.PRIVATE);
+    agendaEventService.updateEvent(seriesToMask,
+                                   agendaEventAttendeeService.getEventAttendees(series.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    assertEquals("a date that followed its series is not left more visible than it",
+                 EventVisibility.PRIVATE,
+                 agendaEventService.getEventById(followingDate.getId()).getVisibility());
+  }
+
+  /**
+   * Legacy data. VISIBILITY is nullable by design, and a database whose
+   * addColumn does not backfill leaves every pre-1.0.0-44 row null. The first
+   * full save of such a date writes DEFAULT onto its row while its series stays
+   * null; compared as two different values, that date would read as customised
+   * and stay published when the series is made private — the organiser never
+   * chose DEFAULT for it, updateEvent's normalisation did. Null means "not
+   * masked" everywhere the column is honoured, so the merge reads it as
+   * DEFAULT. The legacy state is reproduced through the storage, the one writer
+   * that passes a null through.
+   */
+  @Test
+  public void testLegacyNullVisibilityIsMergedAsDefault() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(2), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 1);
+    Event legacyDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                        occurrences.get(0).getOccurrence().getId());
+    restartTransaction();
+
+    // The legacy state, written past the service: series and date both null
+    Event nullSeries = agendaEventStorage.getEventById(series.getId());
+    nullSeries.setVisibility(null);
+    agendaEventStorage.updateEvent(nullSeries);
+    Event nullDate = agendaEventStorage.getEventById(legacyDate.getId());
+    nullDate.setVisibility(null);
+    agendaEventStorage.updateEvent(nullDate);
+    restartTransaction();
+    assertNull("precondition: the stored series carries a legacy null",
+               agendaEventStorage.getEventById(series.getId()).getVisibility());
+    assertNull("precondition: so does the stored date",
+               agendaEventStorage.getEventById(legacyDate.getId()).getVisibility());
+
+    // A plain edit of that date — its room — normalises its own row to DEFAULT
+    Event dateUpdate = agendaEventService.getEventById(legacyDate.getId(), ZoneOffset.UTC, creatorId).clone();
+    dateUpdate.setLocation("room B");
+    agendaEventService.updateEvent(dateUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(legacyDate.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    restartTransaction();
+    assertEquals("precondition: the edited date now reads DEFAULT",
+                 EventVisibility.DEFAULT,
+                 agendaEventService.getEventById(legacyDate.getId()).getVisibility());
+    assertNull("precondition: while its series is still null",
+               agendaEventStorage.getEventById(series.getId()).getVisibility());
+
+    // The organiser makes the series private
+    Event seriesToMask = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
+    seriesToMask.setVisibility(EventVisibility.PRIVATE);
+    agendaEventService.updateEvent(seriesToMask,
+                                   agendaEventAttendeeService.getEventAttendees(series.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+
+    assertEquals("a date the organiser never made public follows its series into private",
+                 EventVisibility.PRIVATE,
+                 agendaEventService.getEventById(legacyDate.getId()).getVisibility());
+  }
+
+  /**
+   * The mirror of the test above, and the reason the merged value is clamped
+   * rather than written as it comes out of the merge: a date opened on its own
+   * keeps that value through a change of the series — that is the rule — but
+   * not through one that makes the event ineligible. Turning the series into a
+   * date poll locks the series itself; a date left open would then be a state
+   * the invariant forbids, on the very flag that decides who may answer.
+   */
+  @Test
+  public void testDateOpenedOnItsOwnIsLockedWhenTheSeriesBecomesADatePoll() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(false);
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(2), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 1);
+    Event openedDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                        occurrences.get(0).getOccurrence().getId());
+    restartTransaction();
+
+    // That one date is opened, while its series stays locked
+    Event openedUpdate = agendaEventService.getEventById(openedDate.getId(), ZoneOffset.UTC, creatorId).clone();
+    openedUpdate.setOpen(true);
+    agendaEventService.updateEvent(openedUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(openedDate.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    long spaceMemberNotInvited = Long.parseLong(testuser3Identity.getId());
+    assertEquals("precondition: the date carries an open state of its own",
+                 Boolean.TRUE,
+                 agendaEventService.getEventById(openedDate.getId()).getOpen());
+    assertTrue("precondition: while it is open, a member of the space may answer on that date",
+               agendaEventAttendeeService.canRespondToEvent(agendaEventService.getEventById(openedDate.getId()),
+                                                            spaceMemberNotInvited));
+    restartTransaction();
+
+    // The organiser then turns the series into a date poll
+    Event seriesToUpdate = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
+    List<EventDateOption> dateOptions =
+                                      Arrays.asList(new EventDateOption(0, 0, start, start.plusHours(1), false, false, null),
+                                                    new EventDateOption(0,
+                                                                        0,
+                                                                        start.plusDays(1),
+                                                                        start.plusDays(1).plusHours(1),
+                                                                        false,
+                                                                        false,
+                                                                        null));
+    agendaEventService.updateEvent(seriesToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(series.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   dateOptions,
+                                   null,
+                                   false,
+                                   creatorId);
+
+    assertEquals("the series itself is locked by the invariant",
+                 Boolean.FALSE,
+                 agendaEventService.getEventById(series.getId()).getOpen());
+    Event storedDate = agendaEventService.getEventById(openedDate.getId());
+    assertNotNull("the date individually modified is still there", storedDate);
+    assertEquals("and the state it carried is clamped with it: an open date poll is another eXip",
+                 Boolean.FALSE,
+                 storedDate.getOpen());
+    assertFalse("so the member of the space who could answer a moment ago no longer can",
+                agendaEventAttendeeService.canRespondToEvent(storedDate, spaceMemberNotInvited));
+  }
 
   /** A link back to the event in eXo, of the shape NotificationUtils mints. */
   private static final String EVENT_LINK      = "http://localhost:8080/portal/dw/agenda?eventId=42";
@@ -1896,8 +2597,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                            true,
                                            Long.parseLong(testuser1Identity.getId()));
       fail();
-    } catch (UnsupportedOperationException e) {
-      // Expected
+    } catch (IllegalArgumentException e) {
+      // Expected: an unsupported field is a caller error (400), was 500
+      assertEquals("agenda.eventFieldNotSupported", e.getMessage());
     }
 
     try {
@@ -1907,8 +2609,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                            true,
                                            Long.parseLong(testuser1Identity.getId()));
       fail();
-    } catch (UnsupportedOperationException e) {
-      // Expected
+    } catch (IllegalArgumentException e) {
+      // Expected: an unsupported field is a caller error (400), was 500
+      assertEquals("agenda.eventFieldNotSupported", e.getMessage());
     }
 
     try {
@@ -1918,8 +2621,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                            true,
                                            Long.parseLong(testuser1Identity.getId()));
       fail();
-    } catch (UnsupportedOperationException e) {
-      // Expected
+    } catch (IllegalArgumentException e) {
+      // Expected: an unsupported field is a caller error (400), was 500
+      assertEquals("agenda.eventFieldNotSupported", e.getMessage());
     }
 
     try {
@@ -1929,8 +2633,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                            true,
                                            Long.parseLong(testuser1Identity.getId()));
       fail();
-    } catch (UnsupportedOperationException e) {
-      // Expected
+    } catch (IllegalArgumentException e) {
+      // Expected: an unsupported field is a caller error (400), was 500
+      assertEquals("agenda.eventFieldNotSupported", e.getMessage());
     }
 
     try {
@@ -1940,8 +2645,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                            true,
                                            Long.parseLong(testuser1Identity.getId()));
       fail();
-    } catch (UnsupportedOperationException e) {
-      // Expected
+    } catch (IllegalArgumentException e) {
+      // Expected: an unsupported field is a caller error (400), was 500
+      assertEquals("agenda.eventFieldNotSupported", e.getMessage());
     }
 
     try {
@@ -1951,8 +2657,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                            true,
                                            Long.parseLong(testuser1Identity.getId()));
       fail();
-    } catch (UnsupportedOperationException e) {
-      // Expected
+    } catch (IllegalArgumentException e) {
+      // Expected: an unsupported field is a caller error (400), was 500
+      assertEquals("agenda.eventFieldNotSupported", e.getMessage());
     }
 
     createdEvent = newEventInstance(start, start, allDay);
@@ -4193,4 +4900,688 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     event.setOccurrence(new EventOccurrence(occurrence.getOccurrence().getId()));
     return event;
   }
+
+  /**
+   * Pre-existing gap closed with eXIP 7.3.0.20 (EXO-89479, closing review):
+   * getEventOccurrence checked canAccessEvent only when a stored exceptional
+   * occurrence existed, so a computed occurrence of any recurring event was
+   * served to any authenticated caller through
+   * GET /v1/agenda/events/occurrence/{parentEventId}/{occurrenceId}. The check
+   * now runs on the parent, for both branches.
+   */
+  @Test
+  public void testGetEventOccurrenceRefusesWhoeverCannotAccessTheParent() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    long memberId = Long.parseLong(testuser2Identity.getId()); // member of the space, not invited
+    long outsiderId = Long.parseLong(testuser4Identity.getId()); // neither member nor invited
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(2), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 2);
+    ZonedDateTime occurrenceId = occurrences.get(1).getOccurrence().getId();
+
+    // A computed occurrence: served to whoever can access the series
+    assertNotNull(agendaEventService.getEventOccurrence(series.getId(), occurrenceId, ZoneOffset.UTC, memberId));
+    try {
+      agendaEventService.getEventOccurrence(series.getId(), occurrenceId, ZoneOffset.UTC, outsiderId);
+      fail("a user who can't access the series can't read one of its computed occurrences");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+
+    // Once stored as an exceptional occurrence, the same rule applies
+    Event exceptionalOccurrence = agendaEventService.saveEventExceptionalOccurrence(series.getId(), occurrenceId);
+    assertNotNull(exceptionalOccurrence);
+    assertNotNull(agendaEventService.getEventOccurrence(series.getId(), occurrenceId, ZoneOffset.UTC, memberId));
+    try {
+      agendaEventService.getEventOccurrence(series.getId(), occurrenceId, ZoneOffset.UTC, outsiderId);
+      fail("a user who can't access the series can't read one of its exceptional occurrences");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+  }
+
+  /**
+   * The check is on the event served, not on the parent for every branch:
+   * someone invited on one stored occurrence only, neither a member of the
+   * space nor an attendee of the series, reads that occurrence through the
+   * occurrence address exactly as by id (the event dialog refreshes a stored
+   * occurrence through that address), and still nothing else of the series.
+   */
+  @Test
+  public void testGetEventOccurrenceServesAnInviteeOfTheStoredOccurrenceOnly() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    long rowInviteeId = Long.parseLong(testuser5Identity.getId()); // not a member, not on the series
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(2), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 3);
+
+    // The organiser invites testuser5 on one occurrence only (the form's
+    // "this occurrence" save, or the attendee drawer of that occurrence)
+    Event storedOccurrence = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                              occurrences.get(0).getOccurrence().getId());
+    // The address the client uses is the one the row carries on the wire
+    ZonedDateTime storedOccurrenceId = storedOccurrence.getOccurrence().getId();
+    ZonedDateTime computedOccurrenceId = occurrences.get(2).getOccurrence().getId();
+    // Both branches are genuinely exercised below
+    assertNotNull("the stored row must be reachable by its own occurrence id",
+                  agendaEventService.getExceptionalOccurrenceEvent(series.getId(), storedOccurrenceId));
+    assertNull("the other date must have no stored row, else the computed branch is not exercised",
+               agendaEventService.getExceptionalOccurrenceEvent(series.getId(), computedOccurrenceId));
+    List<EventAttendee> rowAttendees = new ArrayList<>(agendaEventAttendeeService.getEventAttendees(storedOccurrence.getId())
+                                                                                  .getEventAttendees());
+    rowAttendees.add(new EventAttendee(0, storedOccurrence.getId(), rowInviteeId, null));
+    agendaEventAttendeeService.saveEventAttendees(agendaEventService.getEventById(storedOccurrence.getId()),
+                                                  rowAttendees,
+                                                  creatorId,
+                                                  false,
+                                                  false,
+                                                  new AgendaEventModification(storedOccurrence.getId(),
+                                                                              storedOccurrence.getCalendarId(),
+                                                                              creatorId));
+    assertTrue(agendaEventAttendeeService.isEventAttendee(storedOccurrence.getId(), rowInviteeId));
+    assertFalse(agendaEventAttendeeService.isEventAttendee(series.getId(), rowInviteeId));
+
+    // Served through the occurrence address, as by id
+    assertNotNull(agendaEventService.getEventOccurrence(series.getId(), storedOccurrenceId, ZoneOffset.UTC, rowInviteeId));
+    assertNotNull(agendaEventService.getEventById(storedOccurrence.getId(), ZoneOffset.UTC, rowInviteeId));
+    // and refused on a computed occurrence of the same series, whose parent they can't access
+    try {
+      agendaEventService.getEventOccurrence(series.getId(), computedOccurrenceId, ZoneOffset.UTC, rowInviteeId);
+      fail("an invitee of one stored occurrence can't read the other occurrences of the series");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+  }
+
+  /*
+   * eXIP 7.3.0.20, US06 prerequisite: a change on a series reaches the dates
+   * that were individually modified instead of deleting them. Until this
+   * change, any save of a recurrent event dropped every exceptional occurrence
+   * it had, so correcting a summary discarded a room changed on one date, a
+   * cancelled date, and the attendees and answers attached to both.
+   */
+
+  @Test
+  public void testSeriesChangeKeepsTheDatesThatWereIndividuallyModified() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity, testuser2Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(2), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 2);
+
+    // The organiser changes the room of one date only
+    Event occurrence = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                        occurrences.get(1).getOccurrence().getId());
+    List<EventAttendee> occurrenceAttendees = agendaEventAttendeeService.getEventAttendees(occurrence.getId())
+                                                                       .getEventAttendees();
+    Event occurrenceToUpdate = agendaEventService.getEventById(occurrence.getId(), ZoneOffset.UTC, creatorId).clone();
+    occurrenceToUpdate.setLocation("room B");
+    agendaEventService.updateEvent(occurrenceToUpdate,
+                                   occurrenceAttendees,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    assertEquals("room B", agendaEventService.getEventById(occurrence.getId()).getLocation());
+
+    // The organiser's next gesture is another request
+    restartTransaction();
+
+    // then corrects the summary of the whole series
+    Event seriesToUpdate = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
+    seriesToUpdate.setSummary("weekly sync");
+    agendaEventService.updateEvent(seriesToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(series.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+
+    Event keptOccurrence = agendaEventService.getEventById(occurrence.getId());
+    assertNotNull("a change on the series must not delete the dates that were individually modified", keptOccurrence);
+    assertEquals("the property customised on that date is kept", "room B", keptOccurrence.getLocation());
+    assertEquals("the property changed on the series reaches that date", "weekly sync", keptOccurrence.getSummary());
+    assertFalse("the attendee list of that date survives with it",
+                agendaEventAttendeeService.getEventAttendees(keptOccurrence.getId()).getEventAttendees().isEmpty());
+  }
+
+  @Test
+  public void testSeriesChangeDropsADateItsRecurrenceNoLongerProduces() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(2), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 3);
+    Event lastOccurrence = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                            occurrences.get(2).getOccurrence().getId());
+    assertNotNull(agendaEventService.getEventById(lastOccurrence.getId()));
+
+    // The organiser's next gesture is another request
+    restartTransaction();
+
+    // The organiser makes the meeting weekly instead of daily, so the days in
+    // between are no longer produced
+    ZonedDateTime lastOccurrenceId = lastOccurrence.getOccurrence().getId();
+    Event seriesToUpdate = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
+    seriesToUpdate.getRecurrence().setType(EventRecurrenceType.WEEKLY);
+    seriesToUpdate.getRecurrence().setFrequency(EventRecurrenceFrequency.WEEKLY);
+    agendaEventService.updateEvent(seriesToUpdate,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+
+    Event reloadedSeries = agendaEventService.getEventById(series.getId());
+    assertNotNull(reloadedSeries.getRecurrence());
+    LocalDate droppedDay = lastOccurrenceId.withZoneSameInstant(ZoneOffset.UTC).toLocalDate();
+    assertTrue("precondition: the shortened recurrence must no longer produce that date",
+               Utils.getOccurrences(reloadedSeries, droppedDay.minusDays(1), droppedDay.plusDays(1), 3)
+                    .stream()
+                    .noneMatch(occ -> occ.getOccurrence() != null
+                        && occ.getOccurrence().getId().withZoneSameInstant(ZoneOffset.UTC).toLocalDate().isEqual(droppedDay)));
+
+    assertNull("a date the recurrence no longer produces is the one case where its row is dropped",
+               agendaEventService.getEventById(lastOccurrence.getId()));
+  }
+
+  /**
+   * The people a series gains and loses reach the dates individually modified,
+   * while the people invited on one of those dates alone stay there: the
+   * per-property rule applied to a set.
+   */
+  @Test
+  public void testSeriesMembershipChangeReachesTheDatesIndividuallyModified() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    long removedId = Long.parseLong(testuser2Identity.getId());
+    long addedId = Long.parseLong(testuser3Identity.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity, testuser2Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(2), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 2);
+    Event occurrence = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                        occurrences.get(1).getOccurrence().getId());
+    assertTrue(agendaEventAttendeeService.isEventAttendee(occurrence.getId(), removedId));
+    assertFalse(agendaEventAttendeeService.isEventAttendee(occurrence.getId(), addedId));
+
+    restartTransaction();
+
+    // The participant about to be removed has set a reminder on that date
+    List<EventReminder> removedAttendeeReminders = new ArrayList<>();
+    removedAttendeeReminders.add(new EventReminder(removedId, 30, ReminderPeriodType.MINUTE));
+    agendaEventReminderService.saveEventReminders(agendaEventService.getEventById(occurrence.getId()),
+                                                  removedAttendeeReminders,
+                                                  removedId);
+    restartTransaction();
+    assertFalse("precondition: the reminder is stored on that date",
+                agendaEventReminderService.getEventReminders(occurrence.getId(), removedId).isEmpty());
+
+    // The organiser swaps one participant for another on the whole series
+    Event seriesToUpdate = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
+    List<EventAttendee> newSeriesAttendees = new ArrayList<>();
+    newSeriesAttendees.add(new EventAttendee(0, series.getId(), creatorId, null));
+    newSeriesAttendees.add(new EventAttendee(0, series.getId(), addedId, null));
+    agendaEventService.updateEvent(seriesToUpdate,
+                                   newSeriesAttendees,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+
+    assertFalse("someone removed from the series loses the dates individually modified too",
+                agendaEventAttendeeService.isEventAttendee(occurrence.getId(), removedId));
+    assertTrue("and someone added to the series gains them",
+               agendaEventAttendeeService.isEventAttendee(occurrence.getId(), addedId));
+    // A reminder is sent from its own stored trigger date with no attendance
+    // check, so leaving it behind would keep reminding someone of a date they
+    // are no longer invited to. The row used to be deleted and the database
+    // cascaded them; now it is the merge's job
+    assertTrue("and their reminders on that date go with them",
+               agendaEventReminderService.getEventReminders(occurrence.getId(), removedId).isEmpty());
+  }
+
+  /**
+   * The date half of the rule: a date whose times were moved on purpose keeps
+   * them when the series moves, a date that never was follows the series.
+   */
+  @Test
+  public void testOccurrenceTimesFollowTheSeriesUnlessTheyWereMoved() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0).withHour(9).withMinute(0).withSecond(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setCalendarId(spaceCalendar.getId());
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(2), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 2);
+    Event followingDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                           occurrences.get(0).getOccurrence().getId());
+    Event movedDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                       occurrences.get(1).getOccurrence().getId());
+    // A room of its own keeps that date as a row; everything else stays the series'
+    Event followingDateUpdate = agendaEventService.getEventById(followingDate.getId(), ZoneOffset.UTC, creatorId).clone();
+    followingDateUpdate.setLocation("room B");
+    agendaEventService.updateEvent(followingDateUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(followingDate.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    restartTransaction();
+
+    // One date is moved two hours later on its own
+    Event movedUpdate = agendaEventService.getEventById(movedDate.getId(), ZoneOffset.UTC, creatorId).clone();
+    ZonedDateTime movedStart = movedUpdate.getStart().plusHours(2);
+    movedUpdate.setStart(movedStart);
+    movedUpdate.setEnd(movedUpdate.getEnd().plusHours(2));
+    agendaEventService.updateEvent(movedUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(movedDate.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    assertTrue("precondition: saving an occurrence with other times marks it as moved",
+               agendaEventService.getEventById(movedDate.getId()).getOccurrence().isDatesModified());
+    ZonedDateTime keptStart = agendaEventService.getEventById(movedDate.getId()).getStart();
+    ZonedDateTime followingStartBefore = agendaEventService.getEventById(followingDate.getId()).getStart();
+
+    restartTransaction();
+
+    // The organiser then moves the whole series one hour later
+    Event seriesToUpdate = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
+    seriesToUpdate.setStart(seriesToUpdate.getStart().plusHours(1));
+    seriesToUpdate.setEnd(seriesToUpdate.getEnd().plusHours(1));
+    agendaEventService.updateEvent(seriesToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(series.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+
+    assertEquals("a date that was never moved follows the series",
+                 followingStartBefore.plusHours(1).toInstant(),
+                 agendaEventService.getEventById(followingDate.getId()).getStart().toInstant());
+    assertEquals("a date moved on purpose keeps its own times",
+                 keptStart.toInstant(),
+                 agendaEventService.getEventById(movedDate.getId()).getStart().toInstant());
+  }
+
+  /**
+   * The merge is reachable from two entry points: the full save above, and a
+   * patch that says it applies to every occurrence — the one the padlock of the
+   * event page and a drag on the calendar both use.
+   */
+  @Test
+  public void testWholeSeriesPatchKeepsTheDatesIndividuallyModified() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(2), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 2);
+    Event occurrence = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                        occurrences.get(1).getOccurrence().getId());
+    restartTransaction();
+
+    Event occurrenceToUpdate = agendaEventService.getEventById(occurrence.getId(), ZoneOffset.UTC, creatorId).clone();
+    occurrenceToUpdate.setLocation("room B");
+    agendaEventService.updateEvent(occurrenceToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(occurrence.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    restartTransaction();
+
+    // The organiser patches the summary of every occurrence
+    agendaEventService.updateEventFields(series.getId(), getFields("summary", "weekly sync"), true, false, creatorId);
+
+    Event keptOccurrence = agendaEventService.getEventById(occurrence.getId());
+    assertNotNull("a patch applied to every occurrence must not delete the dates individually modified", keptOccurrence);
+    assertEquals("the property customised on that date is kept", "room B", keptOccurrence.getLocation());
+    assertEquals("the patched property reaches that date", "weekly sync", keptOccurrence.getSummary());
+  }
+
+  /**
+   * When a date follows a move of its series, the reminders of every attendee
+   * follow it too. A trigger date is stored, never recomputed when it falls
+   * due, and the recomputation that reaches occurrences elsewhere works on the
+   * acting user alone — so the attendee who is not the one saving is the case
+   * to pin.
+   */
+  @Test
+  public void testRemindersOfEveryAttendeeFollowAMovedOccurrence() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0).withHour(9).withMinute(0).withSecond(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    long otherAttendeeId = Long.parseLong(testuser2Identity.getId());
+
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setCalendarId(spaceCalendar.getId());
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity, testuser2Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(2), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 1);
+    Event occurrence = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                        occurrences.get(0).getOccurrence().getId());
+    restartTransaction();
+
+    // The other attendee sets a reminder of their own on that date
+    List<EventReminder> otherAttendeeReminders = new ArrayList<>();
+    otherAttendeeReminders.add(new EventReminder(otherAttendeeId, 30, ReminderPeriodType.MINUTE));
+    agendaEventReminderService.saveEventReminders(agendaEventService.getEventById(occurrence.getId()),
+                                                  otherAttendeeReminders,
+                                                  otherAttendeeId);
+    restartTransaction();
+
+    List<EventReminder> before = agendaEventReminderService.getEventReminders(occurrence.getId(), otherAttendeeId);
+    assertFalse("precondition: the other attendee has a reminder on that date", before.isEmpty());
+    ZonedDateTime triggerBefore = before.get(0).getDatetime();
+    assertNotNull(triggerBefore);
+
+    // The organiser moves the whole series one hour later
+    Event seriesToUpdate = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
+    seriesToUpdate.setStart(seriesToUpdate.getStart().plusHours(1));
+    seriesToUpdate.setEnd(seriesToUpdate.getEnd().plusHours(1));
+    agendaEventService.updateEvent(seriesToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(series.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+
+    List<EventReminder> after = agendaEventReminderService.getEventReminders(occurrence.getId(), otherAttendeeId);
+    assertFalse("the reminder of an attendee who is not saving must survive the move", after.isEmpty());
+    assertEquals("and must point at the new time, not the old one",
+                 triggerBefore.plusHours(1).toInstant(),
+                 after.get(0).getDatetime().toInstant());
+  }
+
+  /**
+   * A row the reminder job materialises carries nothing of its own: a change
+   * on the series drops it rather than merging into it, and the job rebuilds it
+   * from the new series when the date comes near. A row somebody customised is
+   * kept and merged. This is what bounds a series save to the dates a user
+   * touched.
+   */
+  @Test
+  public void testSeriesChangeDropsTheDatesThatCarryNoUserIntent() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity, testuser2Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(3), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 3);
+
+    // Materialised the way the reminder job does it, nothing changed on it
+    Event inheritedRow = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                          occurrences.get(1).getOccurrence().getId());
+    // Customised by the organiser: another room on that date
+    Event customisedRow = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                           occurrences.get(2).getOccurrence().getId());
+    Event customisedToUpdate = agendaEventService.getEventById(customisedRow.getId(), ZoneOffset.UTC, creatorId).clone();
+    customisedToUpdate.setLocation("room B");
+    agendaEventService.updateEvent(customisedToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(customisedRow.getId()).getEventAttendees(),
+                                   agendaEventConferenceService.getEventConferences(customisedRow.getId()),
+                                   agendaEventReminderService.getEventReminders(customisedRow.getId(), creatorId),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    restartTransaction();
+
+    // The organiser corrects the summary of the whole series
+    saveSeriesSummary(series, "weekly sync", creatorId);
+
+    assertNull("a row that carries nothing of its own is dropped by a change on the series",
+               agendaEventService.getEventById(inheritedRow.getId()));
+    Event kept = agendaEventService.getEventById(customisedRow.getId());
+    assertNotNull("a row somebody customised is kept", kept);
+    assertEquals("the property customised on that date is kept", "room B", kept.getLocation());
+    assertEquals("the property changed on the series reaches that date", "weekly sync", kept.getSummary());
+  }
+
+  /**
+   * A new meeting link on the series reaches the dates individually modified
+   * whose links were the series' own, and leaves alone a date with a link of
+   * its own: the three-way rule of the properties, applied to the conference
+   * list. Without it the dates kept for a customisation of their own would
+   * keep the old link.
+   */
+  @Test
+  public void testSeriesConferenceChangeReachesTheDatesIndividuallyModified() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity, testuser2Identity);
+    assertFalse("precondition: the series carries a conference",
+                agendaEventConferenceService.getEventConferences(series.getId()).isEmpty());
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(3), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 3);
+
+    // A date with another room and the series' own link
+    Event inheritedLinkRow = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                              occurrences.get(1).getOccurrence().getId());
+    Event inheritedLinkToUpdate = agendaEventService.getEventById(inheritedLinkRow.getId(), ZoneOffset.UTC, creatorId).clone();
+    inheritedLinkToUpdate.setLocation("room B");
+    agendaEventService.updateEvent(inheritedLinkToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(inheritedLinkRow.getId()).getEventAttendees(),
+                                   agendaEventConferenceService.getEventConferences(inheritedLinkRow.getId()),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    // A date with a link of its own
+    Event ownLinkRow = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                        occurrences.get(2).getOccurrence().getId());
+    Event ownLinkToUpdate = agendaEventService.getEventById(ownLinkRow.getId(), ZoneOffset.UTC, creatorId).clone();
+    agendaEventService.updateEvent(ownLinkToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(ownLinkRow.getId()).getEventAttendees(),
+                                   Collections.singletonList(new EventConference(0, ownLinkRow.getId(), "webrtc", "own_uri", null, null, null)),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    restartTransaction();
+
+    // The organiser changes the meeting link of the whole series
+    Event seriesToUpdate = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
+    agendaEventService.updateEvent(seriesToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(series.getId()).getEventAttendees(),
+                                   Collections.singletonList(new EventConference(0, series.getId(), "webrtc", "conf_uri_v2", null, null, null)),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+
+    assertEquals("the series' new link reaches the date that carried the series' link",
+                 Collections.singletonList("conf_uri_v2"),
+                 agendaEventConferenceService.getEventConferences(inheritedLinkRow.getId())
+                                             .stream()
+                                             .map(EventConference::getUrl)
+                                             .toList());
+    assertEquals("the date with a link of its own keeps it",
+                 Collections.singletonList("own_uri"),
+                 agendaEventConferenceService.getEventConferences(ownLinkRow.getId())
+                                             .stream()
+                                             .map(EventConference::getUrl)
+                                             .toList());
+  }
+
+
+  /**
+   * The organiser's gesture the intent tests share: the summary of the series
+   * changes, its attendees, conferences and the organiser's own reminders are
+   * saved as they are.
+   */
+  private void saveSeriesSummary(Event series, String summary, long creatorId) throws Exception {
+    Event seriesToUpdate = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
+    seriesToUpdate.setSummary(summary);
+    agendaEventService.updateEvent(seriesToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(series.getId()).getEventAttendees(),
+                                   agendaEventConferenceService.getEventConferences(series.getId()),
+                                   agendaEventReminderService.getEventReminders(series.getId(), creatorId),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+  }
+
+  /**
+   * The intent check, one property at a time: a row that differs from its
+   * series in exactly one of the properties the merge compares — a cancelled
+   * date, moved times, the open flag, the visibility — is kept by a series
+   * save. Each row keeps the series' own conferences and the organiser's own
+   * reminders, so that nothing but that property tells it apart.
+   */
+  @Test
+  public void testSeriesChangeKeepsADateThatDiffersInOnePropertyOnly() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now(ZoneOffset.UTC).plusDays(3).withNano(0).withHour(9).withMinute(0).withSecond(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    java.util.Map<String, java.util.function.Consumer<Event>> cases = new java.util.LinkedHashMap<>();
+    cases.put("a cancelled date", row -> row.setStatus(EventStatus.CANCELLED));
+    cases.put("a date with moved times", row -> {
+      row.setStart(row.getStart().plusHours(2));
+      row.setEnd(row.getEnd().plusHours(2));
+    });
+    cases.put("a date opened on its own", row -> row.setOpen(true));
+    cases.put("a date made private on its own", row -> row.setVisibility(EventVisibility.PRIVATE));
+    for (java.util.Map.Entry<String, java.util.function.Consumer<Event>> oneCase : cases.entrySet()) {
+      Event event = newEventInstance(start, start.plusHours(1), false);
+      event.setCalendarId(spaceCalendar.getId());
+      Event series = createEvent(event.clone(), creatorId, testuser1Identity, testuser2Identity);
+      List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(2), ZoneOffset.UTC, 0);
+      assertTrue(occurrences.size() >= 2);
+      Event row = agendaEventService.saveEventExceptionalOccurrence(series.getId(), occurrences.get(1).getOccurrence().getId());
+      Event rowToUpdate = agendaEventService.getEventById(row.getId(), ZoneOffset.UTC, creatorId).clone();
+      oneCase.getValue().accept(rowToUpdate);
+      agendaEventService.updateEvent(rowToUpdate,
+                                     agendaEventAttendeeService.getEventAttendees(row.getId()).getEventAttendees(),
+                                     agendaEventConferenceService.getEventConferences(row.getId()),
+                                     agendaEventReminderService.getEventReminders(row.getId(), creatorId),
+                                     null,
+                                     null,
+                                     false,
+                                     creatorId);
+      restartTransaction();
+
+      saveSeriesSummary(series, "weekly sync", creatorId);
+
+      Event kept = agendaEventService.getEventById(row.getId());
+      assertNotNull(oneCase.getKey() + " is kept by a series save", kept);
+      assertEquals(oneCase.getKey() + " takes the change made on the series", "weekly sync", kept.getSummary());
+    }
+  }
+
+  /**
+   * The patch entry point drops an inherited row too: a padlock click on the
+   * event page is a patch applied to every occurrence, and the rows the
+   * reminder job materialised must not survive it any more than a full save.
+   */
+  @Test
+  public void testWholeSeriesPatchDropsTheDatesThatCarryNoUserIntent() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity, testuser2Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(2), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 2);
+    Event inheritedRow = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                          occurrences.get(1).getOccurrence().getId());
+    restartTransaction();
+
+    agendaEventService.updateEventFields(series.getId(), getFields("summary", "weekly sync"), true, false, creatorId);
+
+    assertNull("a row that carries nothing of its own is dropped by a patch applied to every occurrence",
+               agendaEventService.getEventById(inheritedRow.getId()));
+    assertEquals("weekly sync", agendaEventService.getEventById(series.getId()).getSummary());
+  }
+
+  /**
+   * A reminder an attendee turned off on one date stays off: the row that
+   * records it differs from its series in that reminder alone, so a save of the
+   * series by somebody else keeps it, instead of dropping it and letting the
+   * reminder job put the reminder back.
+   */
+  @Test
+  public void testReminderTurnedOffOnOneDateSurvivesASeriesChange() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now(ZoneOffset.UTC).plusDays(3).withNano(0).withHour(9).withMinute(0).withSecond(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    long otherAttendeeId = Long.parseLong(testuser2Identity.getId());
+
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setCalendarId(spaceCalendar.getId());
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity, testuser2Identity);
+    // The other attendee has a reminder of their own on the series
+    agendaEventReminderService.saveEventReminders(agendaEventService.getEventById(series.getId()),
+                                                  Collections.singletonList(new EventReminder(otherAttendeeId, 10, ReminderPeriodType.MINUTE)),
+                                                  otherAttendeeId);
+    restartTransaction();
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(2), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 2);
+    Event row = agendaEventService.saveEventExceptionalOccurrence(series.getId(), occurrences.get(1).getOccurrence().getId());
+    assertFalse("precondition: the row carries the other attendee's reminder",
+                agendaEventReminderService.getEventReminders(row.getId(), otherAttendeeId).isEmpty());
+
+    // They turn it off on that date alone
+    agendaEventReminderService.saveEventReminders(agendaEventService.getEventById(row.getId()), Collections.emptyList(), otherAttendeeId);
+    restartTransaction();
+    assertTrue("precondition: off on that date", agendaEventReminderService.getEventReminders(row.getId(), otherAttendeeId).isEmpty());
+
+    // The organiser changes the summary of the series
+    saveSeriesSummary(series, "weekly sync", creatorId);
+
+    Event kept = agendaEventService.getEventById(row.getId());
+    assertNotNull("a date whose only difference is a reminder turned off is kept", kept);
+    assertTrue("and the reminder stays off", agendaEventReminderService.getEventReminders(kept.getId(), otherAttendeeId).isEmpty());
+    assertFalse("while the series still carries it",
+                agendaEventReminderService.getEventReminders(series.getId(), otherAttendeeId).isEmpty());
+    assertEquals("weekly sync", kept.getSummary());
+  }
+
 }

@@ -22,6 +22,7 @@
     <agenda-event-form-attendees-drawer
       ref="attendeesDrawer"
       :event="event"
+      @toggle-open="toggleOpen"
       @initialized="$emit('initialized')" />
   </div>
 </template>
@@ -67,6 +68,18 @@ export default {
     });
   },
   methods: {
+    /**
+     * In the event form the padlock is a form value: it is saved with the
+     * event, so an event can be created already open and no call is made here
+     * (the detail page patches instead, where the event already exists). On a
+     * date of a series it travels through the scope dialog like every other
+     * field of the form, which is what makes it answerable per date (US06).
+     *
+     * @returns {void}
+     */
+    toggleOpen() {
+      this.$set(this.event, 'open', !this.event.open);
+    },
     openDrawer() {
       this.$refs.attendeesDrawer.open();
     },

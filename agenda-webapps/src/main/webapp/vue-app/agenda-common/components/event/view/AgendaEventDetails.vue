@@ -20,6 +20,7 @@
       :event="event"
       :connected-connector="connectedConnector"
       :is-attendee="isAttendee"
+      :can-respond="canRespond"
       @close="$emit('close')"
       @edit="$root.$emit('agenda-event-form', event)"
       @delete="deleteConfirmDialog" />
@@ -37,7 +38,7 @@
         :event="event"
         :connectors="connectors"
         :conference-provider="conferenceProvider" />
-      <template v-if="isAttendee && $root.isMobile">
+      <template v-if="canRespond && $root.isMobile">
         <v-divider />
         <agenda-event-attendee-buttons
           ref="eventAttendeeButtons"
@@ -109,6 +110,18 @@ export default {
     },
     isAttendee() {
       return this.event.acl && this.event.acl.attendee;
+    },
+    /**
+     * Who gets the Yes / Maybe / No buttons: an invitee, or anyone who can see
+     * an open event (eXIP 7.3.0.20). event.open is the flag the wire carries for
+     * this event: its own when it has a row of its own, its series' one for a
+     * computed occurrence. The server applies the same rule when the answer
+     * arrives, so this only decides what is rendered.
+     *
+     * @returns {Boolean} whether the current user may answer the event
+     */
+    canRespond() {
+      return !!(this.isAttendee || this.event.open);
     },
   },
   methods: {

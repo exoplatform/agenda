@@ -74,6 +74,12 @@ public class CachedAgendaEventStorage extends AgendaEventStorage {
   }
 
   @Override
+  public void deleteEventAfterRead(long eventId) {
+    super.deleteEventAfterRead(eventId);
+    this.eventFutureCache.remove(eventId);
+  }
+
+  @Override
   public void deleteCalendarEvents(long calendarId) {
     super.deleteCalendarEvents(calendarId);
     clearCalendarEventsFromCache(calendarId);

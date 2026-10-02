@@ -422,14 +422,15 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @Produces(MediaType.APPLICATION_JSON)
   @RolesAllowed("users")
   @Operation(
-      summary = "Retrieves an event identified by its technical identifier",
-      description = "Retrieves an event identified by its technical identifier",
+      summary = "Retrieves an occurrence of a recurring event, identified by the parent event identifier and the occurrence date",
+      description = "Retrieves an occurrence of a recurring event, identified by the parent event identifier and the occurrence date. The caller must be able to access the occurrence served: a stored exceptional occurrence is checked against its own row (member of the calendar owner, or attendee of that date), a computed occurrence against its series. 403 otherwise.",
       method = "GET"
   )
   @ApiResponses(
       value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
-          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation: the caller can't access the parent event"),
+          @ApiResponse(responseCode = "404", description = "Event not found"),
           @ApiResponse(responseCode = "500", description = "Internal server error"), }
   )
   public Response getEventOccurrence(
@@ -456,7 +457,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     if (parentEventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
-    if (StringUtils.isBlank("occurrenceId")) {
+    if (StringUtils.isBlank(occurrenceId)) {
       return Response.status(Status.BAD_REQUEST).entity("Event occurrence identifier is mandatory").build();
     }
 
@@ -485,12 +486,14 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                expandProperties);
       return Response.ok(eventEntity).build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to access not authorized event with parentId '{}' and occurrenceId '{}'",
-               RestUtils.getCurrentUser(),
-               parentEventId,
-               occurrenceId,
-               e);
-      return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
+      // 403 like the other answers of this resource; a refusal is a normal
+      // flow, and the fixed body keeps the caller's identity out of it
+      LOG.debug("User '{}' attempts to access not authorized event with parentId '{}' and occurrenceId '{}'",
+                RestUtils.getCurrentUser(),
+                parentEventId,
+                occurrenceId,
+                e);
+      return Response.status(Status.FORBIDDEN).entity("Not allowed to access the occurrence served").build();
     } catch (Exception e) {
       LOG.warn("Error retrieving event with parentId '{}' and occurrenceId '{}'",
                RestUtils.getCurrentUser(),
@@ -714,8 +717,11 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       value = {
           @ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "404", description = "Object not found"),
-          @ApiResponse(responseCode = "400", description = "Invalid query input"),
-          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(
+              responseCode = "400",
+              description = "Invalid query input: unsupported field, or a value the event's invariants refuse. The body carries the message code"
+          ),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
           @ApiResponse(responseCode = "500", description = "Internal server error"),
       }
   )
@@ -812,9 +818,17 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     } catch (AgendaException e) {
       LOG.debug("Error in event validation", e);
       return Response.serverError().entity(e.getAgendaExceptionType().getCompleteMessage()).build();
+    } catch (IllegalArgumentException e) {
+      // An unsupported field, or a value the invariants refuse, is a caller
+      // error and not an incident: the message is a code the frontend and
+      // third-party integrators can act on
+      LOG.debug("Invalid field patched on event {}", eventId, e);
+      return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
     } catch (IllegalAccessException e) {
-      LOG.error("User '{}' attempts to update a non authorized event", RestUtils.getCurrentUser(), e);
-      return Response.status(Status.UNAUTHORIZED).build();
+      // The platform REST contract answers 403 when the caller is
+      // authenticated but not allowed (backend-spring.md §5)
+      LOG.debug("User '{}' attempts to update a non authorized event", RestUtils.getCurrentUser(), e);
+      return Response.status(Status.FORBIDDEN).build();
     } catch (Exception e) {
       LOG.warn("Error updating an event", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -1122,14 +1136,14 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   @Produces(MediaType.TEXT_PLAIN)
   @Operation(
       summary = "Retrieves currently authenticated user response to an event",
-      description = "Retrieves currently authenticated (using token or effectively authenticated) user response to an event.",
+      description = "Retrieves currently authenticated (using token or effectively authenticated) user response to an event. An invited attendee may always read it; on an open event, so may any user who can access it.",
       method = "GET"
   )
   @ApiResponses(
       value = { @ApiResponse(responseCode = "200", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
-          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
-          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation: not an attendee, and the event isn't open to the caller, or the caller could not be identified from the token"),
+          @ApiResponse(responseCode = "404", description = "Event not found"),
           @ApiResponse(responseCode = "500", description = "Internal server error"), }
   )
   public Response getEventResponse(
@@ -1172,11 +1186,14 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       LOG.debug("User '{}' attempts to get event response of a not existing event '{}'", identityId, eventId, e);
       return Response.status(Status.NOT_FOUND).entity("Event not found").build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to access invitation response for a not authorized event with Id '{}'",
-               RestUtils.getCurrentUser(),
-               eventId,
-               e);
-      return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
+      // A refused answer is a normal flow (a locked event, a page rendered
+      // before a lock), not an incident; the fixed body keeps the caller's
+      // identity, which the exception message carries, out of the response
+      LOG.debug("User '{}' attempts to access invitation response for a not authorized event with Id '{}'",
+                RestUtils.getCurrentUser(),
+                eventId,
+                e);
+      return Response.status(Status.FORBIDDEN).entity("Not allowed to answer this event").build();
     } catch (Exception e) {
       LOG.warn("Error retrieving event response with id '{}'", eventId, e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -1359,14 +1376,15 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   // This query modify data, and use GET verb. It is used in mail notification to accept events with a link, and it is not possible to make a POST by this way. So we keep GET here and assume that it will not be protected by CSRF protection
   @Operation(
       summary = "Send event invitation response for currently authenticated user",
-      description = "Send event invitation response for currently authenticated user (using token or effectively authenticated)",
+      description = "Send event invitation response for currently authenticated user (using token or effectively authenticated). An invited attendee may always answer; on an open event, so may any user who can access it.",
       method = "GET")
   @ApiResponses(
       value = {
           @ApiResponse(responseCode = "200", description = "Request fulfilled, answer acknowledged by an HTML page shown to an external attendee"),
           @ApiResponse(responseCode = "204", description = "Request fulfilled"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
-          @ApiResponse(responseCode = "401", description = "Unauthorized operation"),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation: not an attendee, and the event isn't open to the caller, or the caller could not be identified from the token"),
+          @ApiResponse(responseCode = "404", description = "Event not found"),
           @ApiResponse(responseCode = "410", description = "The invitation link has expired: the meeting it answers is over"),
           @ApiResponse(responseCode = "500", description = "Internal server error"), }
   )
@@ -1451,8 +1469,17 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       }
       currentUser = identity.getRemoteId();
       long identityId = Long.parseLong(identity.getId());
-      if (!agendaEventAttendeeService.isEventAttendee(eventId, identityId)) {
-        throw new IllegalAccessException("User " + currentUser + " isn't attendee of event with id " + eventId);
+      // Checked here, on the series, before anything is written: the
+      // occurrence branch below materialises an exceptional occurrence before
+      // it answers on it, and a refused caller must not leave one behind. The
+      // Service applies the same rule again on the event it writes.
+      Event event = agendaEventService.getEventById(eventId);
+      if (event == null) {
+        throw new ObjectNotFoundException("Event with id " + eventId + " wasn't found");
+      }
+      if (!agendaEventAttendeeService.canRespondToEvent(event, identityId)) {
+        throw new IllegalAccessException("User " + currentUser + " may not answer event with id " + eventId
+            + ": not an attendee, and the event isn't open to them");
       }
 
       if (StringUtils.isBlank(occurrenceId)) {
@@ -1513,8 +1540,11 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     } catch (ObjectNotFoundException e) {
       return Response.status(Status.NOT_FOUND).entity("Event not found").build();
     } catch (IllegalAccessException e) {
-      LOG.warn("User '{}' attempts to send invitation response for a not authorized event with Id '{}'", currentUser, eventId);
-      return Response.status(Status.UNAUTHORIZED).entity(e.getMessage()).build();
+      // Same contract as the other answers of this resource (403, platform
+      // REST contract); a refusal is a normal flow, and the fixed body keeps
+      // the caller's identity out of the response
+      LOG.debug("User '{}' attempts to send invitation response for a not authorized event with Id '{}'", currentUser, eventId, e);
+      return Response.status(Status.FORBIDDEN).entity("Not allowed to answer this event").build();
     } catch (Exception e) {
       LOG.warn("Error sending event invitation response for event with id '{}'", eventId, e);
       return Response.serverError().entity(e.getMessage()).build();

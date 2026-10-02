@@ -1141,6 +1141,34 @@ class AgendaEventMcpToolTest {
           times(1)).sendEventResponse(EVENT_ID, USER_IDENTITY_ID, EventAttendeeResponse.TENTATIVE);
   }
 
+  /**
+   * eXIP 7.3.0.20 Open Event, US06 (EXO-90517): a date that was individually
+   * modified has a row of its own and may carry its own open state, which the
+   * model must report — reading the series instead would show one state and let
+   * the caller answer under another. Until US06 the flag belonged to the series
+   * alone and this test asserted the opposite; the contract changed when a
+   * change on a series stopped deleting the dates modified under it.
+   */
+  @Test
+  void getAgendaEventByIdOfAnOccurrenceCarriesItsOwnOpenFlag() throws Exception {
+    when(userAcl.hasAccessPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
+    stubSpaceCalendarChain(SPACE_ID, SPACE_PRETTY_NAME, OWNER_IDENTITY_ID, CALENDAR_ID);
+    long parentId = 41L;
+    Event parent = buildEvent(parentId, CALENDAR_ID, START, END, EventStatus.CONFIRMED);
+    parent.setOpen(false);
+    Event occurrence = buildEvent(EVENT_ID, CALENDAR_ID, START, END, EventStatus.CONFIRMED);
+    occurrence.setParentId(parentId);
+    // This date alone was opened, its series stays locked
+    occurrence.setOpen(true);
+    when(agendaEventService.getEventById(eq(EVENT_ID), eq(ZoneOffset.UTC), eq(USER_IDENTITY_ID))).thenReturn(occurrence);
+    when(agendaEventService.getEventById(parentId)).thenReturn(parent);
+
+    AgendaEventModel model = tool.getAgendaEventById(EVENT_ID);
+
+    assertEquals(Boolean.TRUE, model.getOpen());
+    verify(agendaEventService, never()).getEventById(parentId);
+  }
+
   @Test
   void setEventRemindersSucceeds() throws Exception {
     when(userAcl.hasAccessPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(true);

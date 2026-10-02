@@ -803,7 +803,8 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     return getEventAttendees(agendaEventService.getEventById(eventId, TIMEZONE, getCurrentUserIdentityId()));
   }
 
-  // Respond to an event invitation as the current user with ACCEPTED, DECLINED or TENTATIVE (comment is not persisted).
+  // Respond to an event as the current user with ACCEPTED, DECLINED or TENTATIVE (comment is not persisted): as an
+  // invited attendee, or as any viewer of an open event (the Service applies the rule, this tool adds no check).
   public AgendaEventModel respondToAgendaEvent(Long eventId,
                                                String response,
                                                String comment) throws ObjectNotFoundException, IllegalAccessException {
@@ -1150,7 +1151,24 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                                 eventAttendees,
                                 userAnswer,
                                 getUserModel(event.getCreatorId()),
-                                null);
+                                null,
+                                isEffectivelyOpen(event));
+  }
+
+  /**
+   * Every event this tool serves was read by its own id, so it has a row of its
+   * own and answers with its own value: a series, a standalone event, or a date
+   * individually modified, which may carry a value of its own since US06. A
+   * computed occurrence has no id to be read by and never reaches here, so
+   * there is no parent to climb to — the same value the REST entity puts on the
+   * wire for a stored event, so that one event never lists as open here and
+   * locked there.
+   *
+   * @param event {@link Event} as stored
+   * @return whether that event is open to the members of its space
+   */
+  private boolean isEffectivelyOpen(Event event) {
+    return Boolean.TRUE.equals(event.getOpen());
   }
 
   private List<EventAttendee> toEventAttendees(List<String> attendeeUsernames, boolean includeCurrentUser) {

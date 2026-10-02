@@ -27,6 +27,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.exception.EventInvitationExpiredException;
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
@@ -73,14 +74,18 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
 
   private CodecInitializer           codecInitializer;
 
+  private AgendaCalendarService      calendarService;
+
   public AgendaEventAttendeeServiceImpl(AgendaEventAttendeeStorage attendeeStorage,
                                         AgendaEventStorage eventStorage,
+                                        AgendaCalendarService calendarService,
                                         ListenerService listenerService,
                                         IdentityManager identityManager,
                                         SpaceService spaceService,
                                         CodecInitializer codecInitializer) {
     this.attendeeStorage = attendeeStorage;
     this.eventStorage = eventStorage;
+    this.calendarService = calendarService;
     this.codecInitializer = codecInitializer;
     this.identityManager = identityManager;
     this.spaceService = spaceService;
@@ -160,8 +165,9 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (event == null) {
       throw new ObjectNotFoundException("Event with id " + eventId + " wasn't found");
     }
-    if (!isEventAttendee(eventId, identityId)) {
-      throw new IllegalAccessException("User " + identityId + " is not attendee of event " + eventId);
+    if (!canRespondToEvent(event, identityId)) {
+      throw new IllegalAccessException("User " + identityId + " may not answer event " + eventId
+          + ": not an attendee, and the event isn't open to them");
     }
     EventAttendeeList eventAttendeeList = attendeeStorage.getEventAttendees(eventId, identityId);
     if (eventAttendeeList.isEmpty()) {
@@ -213,8 +219,9 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       throw new ObjectNotFoundException("Identity with id " + identityId + " wasn't found");
     }
 
-    if (!isEventAttendee(eventId, identityId)) {
-      throw new IllegalAccessException("User with identity id " + identityId + " isn't attendee of event with id " + eventId);
+    if (!canRespondToEvent(event, identityId)) {
+      throw new IllegalAccessException("User with identity id " + identityId + " may not answer event with id " + eventId
+          + ": not an attendee, and the event isn't open to them");
     }
 
     saveEventAttendee(eventId, occurrenceId, identityId, response, true);
@@ -251,8 +258,9 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       throw new ObjectNotFoundException("Identity with id " + identityId + " wasn't found");
     }
 
-    if (!isEventAttendee(eventId, identityId)) {
-      throw new IllegalAccessException("User with identity id " + identityId + " isn't attendee of event with id " + eventId);
+    if (!canRespondToEvent(event, identityId)) {
+      throw new IllegalAccessException("User with identity id " + identityId + " may not answer event with id " + eventId
+          + ": not an attendee, and the event isn't open to them");
     }
 
     boolean isRecurrentEvent = eventStorage.isRecurrentEvent(eventId);
@@ -479,6 +487,41 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   public boolean isEventAttendee(long eventId, long identityId) {
     EventAttendeeList eventAttendees = getEventAttendees(eventId);
     return Utils.isEventAttendee(identityManager, spaceService, identityId, eventAttendees);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public boolean canRespondToEvent(Event event, long identityId) {
+    if (event == null || identityId <= 0) {
+      return false;
+    }
+    // The attendee half stays per event: on an exceptional occurrence, its own
+    // attendee list. Resolving it to the series would let a participant removed
+    // from one occurrence answer on it even on a locked series (US05)
+    if (isEventAttendee(event.getId(), identityId)) {
+      return true;
+    }
+    if (!isOpen(event)) {
+      return false;
+    }
+    Calendar calendar = calendarService.getCalendarById(event.getCalendarId());
+    return Utils.canAccessEventCalendar(identityManager, spaceService, calendar, identityId);
+  }
+
+  /**
+   * Since US06 the open flag is a property of each row: a date individually
+   * modified answers with its own value, which a series change merges into but
+   * never overwrites when it was customised there. The event this reads is
+   * always one that has a row — a computed occurrence is never stored and
+   * never reaches a response.
+   *
+   * @param event {@link Event} as stored
+   * @return whether that event is open to the members of its space
+   */
+  private boolean isOpen(Event event) {
+    return Boolean.TRUE.equals(event.getOpen());
   }
 
   /**

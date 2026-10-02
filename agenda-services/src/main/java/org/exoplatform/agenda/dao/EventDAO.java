@@ -132,6 +132,25 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     return calendarEventIds;
   }
 
+  /**
+   * Deletes an event whose attendees, conferences or reminders may have been
+   * read through this persistence context. They are deleted in bulk, which
+   * leaves such instances managed and pointing at a removed event when the
+   * context is flushed, so the pending changes are flushed and the context
+   * cleared first. The clear detaches <b>every</b> entity the persistence
+   * context holds, not only this event's children: a caller must not keep a
+   * managed entity across this call and rely on dirty checking or on a lazy
+   * collection of it afterwards.
+   *
+   * @param eventId the event to delete
+   * @return the deleted entity, null when there was none
+   */
+  public EventEntity deleteEventAfterRead(long eventId) {
+    getEntityManager().flush();
+    getEntityManager().clear();
+    return deleteEvent(eventId);
+  }
+
   public EventEntity deleteEvent(long eventId) {
     EventEntity eventEntity = find(eventId);
     if (eventEntity == null) {
