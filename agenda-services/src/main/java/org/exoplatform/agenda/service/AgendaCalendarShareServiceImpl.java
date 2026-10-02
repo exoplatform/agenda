@@ -319,17 +319,15 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
    * <p>
    * One pass over the channels, one ask each (EXO-90385): a channel answers
    * the grants its server holds and the meeting-copies flag out of the same
-   * read, so the drawer no longer makes every channel talk to its server
-   * twice.
+   * read, so no channel talks to its server twice for one opening of the
+   * drawer.
    * <p>
-   * This loop is now the only place the two can be lost together, where the
-   * two separate passes it replaces had a guard each. A channel that throws
-   * <em>out of</em> {@link CalendarShareChannelPlugin#listShares} therefore
-   * contributes nothing and no warning — where before it could fail the
-   * listing and still raise the warning. The SPI default keeps that apart by
-   * guarding each of the two questions it asks, so only a channel overriding
-   * {@code listShares} can throw past both, and the one that does
-   * (caldav) answers the flag on its own when the list cannot be read.
+   * A channel that throws <em>out of</em>
+   * {@link CalendarShareChannelPlugin#listShares} contributes neither shares
+   * nor the warning. The SPI default guards each of its two questions on its
+   * own, so only a channel overriding {@code listShares} can lose both, and
+   * the one that does (caldav) answers the flag on its own when the list
+   * cannot be read.
    */
   @Override
   public ChannelShares getChannelShares(long calendarId, String ownerUsername) throws ObjectNotFoundException,

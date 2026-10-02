@@ -266,7 +266,7 @@ class AgendaCalendarShareRestTest {
     org.mockito.InOrder order = org.mockito.Mockito.inOrder(service);
     order.verify(service).getChannelShares(CALENDAR, "owner");
     order.verify(service).getShares(CALENDAR, "owner");
-    // One ask, not two (EXO-90385): the drawer's warning rides on the same
+    // One ask (EXO-90385): the drawer's warning rides on the same
     // answer as the external shares, so no channel is made to read twice
     verify(service, never()).holdsMeetingCopies(anyLong(), anyString());
     verify(service, never()).getExternalShares(anyLong(), anyString());
