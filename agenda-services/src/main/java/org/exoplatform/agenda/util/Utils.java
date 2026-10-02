@@ -1014,9 +1014,20 @@ public class Utils {
       // and better than an identifier shared by every unnamed event.
       return new RandomUidGenerator().generateUid().getValue();
     }
+    return "agenda-event-" + eventId + "@" + icsUidHost();
+  }
+
+  /**
+   * The host this deployment writes into the UID of its own events
+   * ({@code agenda-event-<id>@<host>}): the configured domain without scheme,
+   * port or path, {@code exo} when none is configured. One derivation, read by
+   * whoever must recognise one of this deployment's own events from its UID.
+   *
+   * @return the host
+   */
+  public static String icsUidHost() {
     String domain = CommonsUtils.getCurrentDomain();
-    String host = StringUtils.isBlank(domain) ? "exo" : domain.replaceFirst("^https?://", "").replaceAll("[/:].*$", "");
-    return "agenda-event-" + eventId + "@" + host;
+    return StringUtils.isBlank(domain) ? "exo" : domain.replaceFirst("^https?://", "").replaceAll("[/:].*$", "");
   }
 
   /**

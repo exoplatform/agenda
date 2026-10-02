@@ -29,6 +29,8 @@
     <!-- 3rd party libraries versions -->
     <org.exoplatform.commons-exo.version>7.3.x-ai-contribution-SNAPSHOT</org.exoplatform.commons-exo.version>
     <io.meeds.mcp-server.version>7.3.x-SNAPSHOT</io.meeds.mcp-server.version>
+    <!-- The mail reader's calendar-invitation SPI agenda implements (EXO-90866); provided, never shipped -->
+    <addon.exo.email-connector.version>7.3.x-ai-contribution-SNAPSHOT</addon.exo.email-connector.version>
 
     <!-- ical4j dependencies -->
     <org.mnode.ical4j.version>3.2.19</org.mnode.ical4j.version>
@@ -56,6 +58,14 @@
         <version>${io.meeds.mcp-server.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+
+      <!-- The mail reader's InvitationCalendarPlugin, implemented by AgendaInvitationCalendarPlugin (EXO-90866) -->
+      <dependency>
+        <groupId>org.exoplatform.addons.email-connector</groupId>
+        <artifactId>email-connector-services</artifactId>
+        <version>${addon.exo.email-connector.version}</version>
+        <scope>provided</scope>
       </dependency>
 
       <!-- Current project artifacts -->
