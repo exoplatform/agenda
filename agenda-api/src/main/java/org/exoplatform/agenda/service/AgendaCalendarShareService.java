@@ -136,7 +136,10 @@ public interface AgendaCalendarShareService {
    * would keep writing the owner's events there, and those writes reach eXo.
    * When the channel fails, throws, or answers a level wider than the one
    * asked for, the level is unchanged and {@link #LEVEL_NOT_NARROWED} is
-   * thrown, for the owner to try again.
+   * thrown, for the owner to try again. A channel that answers that it no
+   * longer carries the share — the colleague left the server, the collection
+   * is gone — blocks nothing: the level changes and the delivery is forgotten,
+   * so a later unshare withdraws nothing there.
    * <p>
    * Downgrading {@link CalendarShareLevel#EDIT} to {@link CalendarShareLevel#VIEW}
    * moves nothing: the events the colleague created are the calendar's, and
