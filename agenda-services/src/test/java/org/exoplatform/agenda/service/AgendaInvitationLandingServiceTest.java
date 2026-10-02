@@ -413,16 +413,18 @@ public class AgendaInvitationLandingServiceTest extends BaseAgendaEventTest {
   }
 
   /**
-   * A user with a remote calendar account connected to agenda (Google here)
-   * is not agenda's: the connector shows the copy their mail server filed,
-   * and an eXo copy beside it would be the meeting twice. Disconnected, the
-   * same invitation lands.
+   * A user with a remote calendar account connected to agenda, on an enabled
+   * provider, is not agenda's: the connector shows the copy their mail server
+   * filed, and an eXo copy beside it would be the meeting twice. The same
+   * account on a provider an administrator switched off shows nothing, and the
+   * invitation lands, as it does once the account is disconnected.
    */
   @Test
   public void testAUserWithAConnectedRemoteCalendarIsNotAgendas() throws Exception {
     long user = identityOf("testuser4");
+    String provider = remoteProvider.getName();
     AgendaUserSettings settings = agendaUserSettingsService.getAgendaUserSettings(user);
-    settings.addOrUpdateConnectedConnector("agenda.googleCalendar", "testuser4@gmail.example");
+    settings.addOrUpdateConnectedConnector(provider, "testuser4@remote.example");
     agendaUserSettingsService.saveAgendaUserSettings(user, settings);
     try {
       String uid = uid();
@@ -431,15 +433,20 @@ public class AgendaInvitationLandingServiceTest extends BaseAgendaEventTest {
       assertNull(land("testuser4", "REQUEST", uid, 0, EventAttendeeResponse.ACCEPTED, object));
       assertEquals(0, eventsOf("testuser4", uid));
 
+      agendaRemoteEventService.saveRemoteProviderStatus(provider, false, false);
+      assertTrue(landingService().holdsCalendarFor("testuser4"));
+      agendaRemoteEventService.saveRemoteProviderStatus(provider, true, false);
+
       settings = agendaUserSettingsService.getAgendaUserSettings(user);
-      settings.removeConnectedConnector("agenda.googleCalendar");
+      settings.removeConnectedConnector(provider);
       agendaUserSettingsService.saveAgendaUserSettings(user, settings);
       assertTrue(landingService().holdsCalendarFor("testuser4"));
       assertNotNull(land("testuser4", "REQUEST", uid, 0, EventAttendeeResponse.ACCEPTED, object));
       assertEquals(1, eventsOf("testuser4", uid));
     } finally {
+      agendaRemoteEventService.saveRemoteProviderStatus(provider, true, false);
       settings = agendaUserSettingsService.getAgendaUserSettings(user);
-      settings.removeConnectedConnector("agenda.googleCalendar");
+      settings.removeConnectedConnector(provider);
       agendaUserSettingsService.saveAgendaUserSettings(user, settings);
     }
   }

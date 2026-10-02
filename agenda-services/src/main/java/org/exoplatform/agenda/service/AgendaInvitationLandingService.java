@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -46,6 +47,7 @@ import org.exoplatform.agenda.model.EventReminderParameter;
 import org.exoplatform.agenda.model.LandedMailInvitation;
 import org.exoplatform.agenda.model.MailInvitation;
 import org.exoplatform.agenda.model.MailInvitationEvent;
+import org.exoplatform.agenda.model.RemoteProvider;
 import org.exoplatform.agenda.util.CalendarFeedParser;
 import org.exoplatform.agenda.util.EventIcsBuilder;
 import org.exoplatform.agenda.util.MailInvitationReader;
@@ -208,8 +210,8 @@ public class AgendaInvitationLandingService {
    * platform, whose personal calendar agenda creates on first use, and who has
    * no remote calendar account connected to agenda. Whether another add-on
    * holds that user's calendar instead is not agenda's to read here; the
-   * plugin asks them. No round trip: an identity read and a settings read,
-   * both cached.
+   * plugin asks them. No round trip to a server: an identity read (cached)
+   * and a settings read (one small query for the remote providers).
    *
    * @param username the user's login
    * @return true when the invitation is agenda's to land
@@ -224,7 +226,8 @@ public class AgendaInvitationLandingService {
    * the event, answers it, or removes it, as the message and the click say.
    *
    * @param invitation the invitation, the user and what they asked
-   * @return what was done, or null when the user cannot have a calendar here,
+   * @return what was done, or null when the user cannot have a calendar here
+   *         or connected a remote calendar account,
    *         or when there was nothing to do — a decline, or a cancellation, of
    *         an event the user never added
    * @throws IllegalArgumentException when the message cannot be landed as it is
@@ -321,10 +324,12 @@ public class AgendaInvitationLandingService {
   /**
    * Whether the user has a remote calendar account connected to agenda —
    * Google, Office 365, Exchange through agenda-connectors, or a CalDAV
-   * account. Such a user's mail server has usually filed the invitation in
-   * that remote calendar, which the connector already shows or syncs; an eXo
-   * copy beside it would be the meeting twice. Fails closed: settings that
-   * cannot be read count as a connected account, and nothing lands.
+   * account — on a provider that is enabled, as agenda's own connector screen
+   * counts it. Such a user's mail server has usually filed the invitation in
+   * that remote calendar, which the connector shows or will sync (a CalDAV
+   * account with no calendar bound yet included); an eXo copy beside it would
+   * be the meeting twice. Fails closed: settings that cannot be read count as
+   * a connected account, and nothing lands.
    *
    * @param userIdentityId identity of the user
    * @return true when an account is connected, or the settings cannot be read
@@ -340,8 +345,20 @@ public class AgendaInvitationLandingService {
     if (settings == null) {
       return true;
     }
+    // Connected as agenda's own screen counts it: an account on a provider
+    // that exists and is enabled. A provider an administrator switched off
+    // shows nothing, so its account is no reason to step aside.
+    Set<String> enabledProviders = new HashSet<>();
+    if (settings.getRemoteProviders() != null) {
+      for (RemoteProvider provider : settings.getRemoteProviders()) {
+        if (provider != null && provider.isEnabled() && StringUtils.isNotBlank(provider.getName())) {
+          enabledProviders.add(provider.getName());
+        }
+      }
+    }
     List<AgendaConnectorAccount> accounts = settings.getConnectedConnectors();
-    return accounts != null && accounts.stream().anyMatch(account -> account != null && StringUtils.isNotBlank(account.getProviderName()));
+    return accounts != null
+        && accounts.stream().anyMatch(account -> account != null && enabledProviders.contains(account.getProviderName()));
   }
 
   /**
