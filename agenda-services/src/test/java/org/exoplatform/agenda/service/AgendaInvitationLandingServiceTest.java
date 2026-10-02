@@ -367,6 +367,51 @@ public class AgendaInvitationLandingServiceTest extends BaseAgendaEventTest {
   }
 
   /**
+   * An override moving one occurrence of the series is placed as a confirmed
+   * exceptional occurrence carrying the override's own time and title.
+   */
+  @Test
+  public void testAnOverrideMovesItsOccurrence() throws Exception {
+    String uid = uid();
+    String object = ics("REQUEST", uid, 0, ORGANIZER, "Weekly", "RRULE:FREQ=WEEKLY;COUNT=5\r\n");
+    object = object.replace("END:VCALENDAR\r\n",
+                            "BEGIN:VEVENT\r\nUID:" + uid + "\r\nSEQUENCE:0\r\nRECURRENCE-ID:20301022T090000Z\r\n"
+                                + "DTSTAMP:20300101T000000Z\r\nDTSTART:20301022T130000Z\r\nDTEND:20301022T140000Z\r\n"
+                                + "SUMMARY:Weekly, moved\r\nORGANIZER:mailto:" + ORGANIZER + "\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n");
+    LandedMailInvitation landed = land("testuser2", "REQUEST", uid, 0, EventAttendeeResponse.ACCEPTED, object);
+
+    Event moved = agendaEventService.getExceptionalOccurrenceEvent(landed.eventId(),
+                                                                   ZonedDateTime.of(2030, 10, 22, 9, 0, 0, 0, ZoneOffset.UTC));
+    assertNotNull(moved);
+    assertEquals(EventStatus.CONFIRMED, moved.getStatus());
+    assertEquals("Weekly, moved", moved.getSummary());
+    assertEquals(ZonedDateTime.of(2030, 10, 22, 13, 0, 0, 0, ZoneOffset.UTC).toInstant(), moved.getStart().toInstant());
+  }
+
+  /**
+   * A newer revision of a series rewrites it: agenda drops the exceptions it
+   * held, and the revision's own are placed again; the user's answer stands.
+   */
+  @Test
+  public void testANewerRevisionOfASeriesReplacesItsExclusions() throws Exception {
+    String uid = uid();
+    LandedMailInvitation landed = land("testuser2", "REQUEST", uid, 0, EventAttendeeResponse.TENTATIVE,
+                                       ics("REQUEST", uid, 0, ORGANIZER, "Weekly",
+                                           "RRULE:FREQ=WEEKLY;COUNT=5\r\nEXDATE:20301022T090000Z\r\n"));
+    land("testuser2", "REQUEST", uid, 1, null,
+         ics("REQUEST", uid, 1, ORGANIZER, "Weekly", "RRULE:FREQ=WEEKLY;COUNT=5\r\nEXDATE:20301029T090000Z\r\n"));
+
+    assertNull(agendaEventService.getExceptionalOccurrenceEvent(landed.eventId(),
+                                                                ZonedDateTime.of(2030, 10, 22, 9, 0, 0, 0, ZoneOffset.UTC)));
+    Event excluded = agendaEventService.getExceptionalOccurrenceEvent(landed.eventId(),
+                                                                      ZonedDateTime.of(2030, 10, 29, 9, 0, 0, 0, ZoneOffset.UTC));
+    assertNotNull(excluded);
+    assertEquals(EventStatus.CANCELLED, excluded.getStatus());
+    assertEquals(EventAttendeeResponse.TENTATIVE,
+                 agendaEventAttendeeService.getEventResponse(landed.eventId(), null, identityOf("testuser2")));
+  }
+
+  /**
    * A user who does not exist has no calendar here.
    */
   @Test
