@@ -91,7 +91,9 @@
           :event="event"
           :settings="settings"
           :current-space="currentSpace"
-          :conference-provider="conferenceProvider" />
+          :conference-provider="conferenceProvider"
+          :show-icon="false"
+          margin-class="my-0" />
         <!--
           A heading rather than a <label>: the row carries two controls, so no
           single label can be "for" one of them. Each select names itself with
