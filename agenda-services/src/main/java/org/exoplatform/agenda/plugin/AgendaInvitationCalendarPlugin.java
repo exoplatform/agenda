@@ -149,7 +149,9 @@ public class AgendaInvitationCalendarPlugin implements InvitationCalendarPlugin 
   @Override
   public HeldInvitation held(InvitationProbe probe) {
     if (!holdsCalendarFor(probe.username())) {
-      // The same step-aside as a landing: another add-on's calendar is not told of here.
+      // The same step-aside as a landing, checked here again as land() does: the
+      // reader asks only the add-on that just said it holds the calendar, but a
+      // caller that did not ask first must not be told of another add-on's user.
       return null;
     }
     HeldMailInvitation held = agendaInvitationLandingService.held(probe.username(),

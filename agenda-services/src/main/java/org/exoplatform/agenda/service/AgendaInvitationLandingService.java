@@ -137,6 +137,12 @@ public class AgendaInvitationLandingService {
   /** The event property holding the organiser's address, null for a published event. */
   public static final String       ORGANIZER_PROPERTY = "mailInvitationOrganizer";
 
+  /**
+   * The event property saying the event was added from a mail without an answer:
+   * agenda then holds its creator's line as ACCEPTED, which nobody said.
+   */
+  public static final String       UNANSWERED_PROPERTY = "mailInvitationUnanswered";
+
   private static final Log         LOG                = ExoLogger.getLogger(AgendaInvitationLandingService.class);
 
   /** The methods a message may carry to be landed: an invitation, a published event, a cancellation, or none. */
@@ -310,7 +316,10 @@ public class AgendaInvitationLandingService {
    * reader to say so when the invitation is opened (EXO-90873): found by the
    * same lookup a landing makes — this user's key, an event they created in a
    * calendar they own — with the answer agenda holds for them and the SEQUENCE
-   * landed. Reads only, no round trip to a server.
+   * landed. Reads only, no round trip to a server. An event added without an
+   * answer, whose line agenda still holds as its creator's ACCEPTED, is told
+   * with no answer: an acceptance given later from the mail is then said by the
+   * reader's own record of it, not by this.
    * <p>
    * Null wherever a landing would not act: a user agenda cannot serve or who
    * connected a remote calendar account, a message about one occurrence alone,
@@ -351,7 +360,14 @@ public class AgendaInvitationLandingService {
       LOG.debug("The event {} user {} holds for {} is not the message's organiser's to tell of", held.getId(), userIdentityId, uid);
       return null;
     }
-    return new HeldMailInvitation(held.getId(), linkOf(held.getId()), responseOf(held.getId(), userIdentityId), sequenceOf(held));
+    EventAttendeeResponse response = responseOf(held.getId(), userIdentityId);
+    if (response == EventAttendeeResponse.ACCEPTED && held.getParameters() != null
+        && Boolean.parseBoolean(held.getParameters().get(UNANSWERED_PROPERTY))) {
+      // Added without an answer: the ACCEPTED is agenda's line for its creator,
+      // not something the user said. A later Maybe or Decline is.
+      response = null;
+    }
+    return new HeldMailInvitation(held.getId(), linkOf(held.getId()), response, sequenceOf(held));
   }
 
   /**
@@ -617,7 +633,11 @@ public class AgendaInvitationLandingService {
     event.setCalendarId(calendar.getId());
     fill(event, read);
     event.setVisibility(EventVisibility.DEFAULT);
-    event.setParameters(propertiesOf(userIdentityId, read));
+    Map<String, String> properties = propertiesOf(userIdentityId, read);
+    if (response == null) {
+      properties.put(UNANSWERED_PROPERTY, "true");
+    }
+    event.setParameters(properties);
     List<EventAttendee> attendees = new ArrayList<>();
     attendees.add(new EventAttendee(0, userIdentityId, response == null ? EventAttendeeResponse.ACCEPTED : response));
     try {

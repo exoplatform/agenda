@@ -485,6 +485,29 @@ public class AgendaInvitationLandingServiceTest extends BaseAgendaEventTest {
   }
 
   /**
+   * An event added from the mail without an answer holds agenda's ACCEPTED for
+   * its creator, which nobody said: it is told with no answer, and a Maybe or
+   * a Decline given in agenda since is told as it is.
+   */
+  @Test
+  public void testHeldAfterAnAdditionWithoutAnswerSaysNoAnswer() throws Exception {
+    String uid = uid();
+    LandedMailInvitation landed = land("testuser2", "REQUEST", uid, 1, null, ics("REQUEST", uid, 1, ORGANIZER, "Sync", ""));
+    long user = identityOf("testuser2");
+    assertEquals(EventAttendeeResponse.ACCEPTED, agendaEventAttendeeService.getEventResponse(landed.eventId(), null, user));
+
+    restartTransaction();
+    HeldMailInvitation held = landingService().held("testuser2", MAILBOX, uid, null, ORGANIZER);
+    assertNotNull(held);
+    assertNull("nobody answered", held.response());
+    assertEquals(1, held.sequence());
+
+    agendaEventAttendeeService.sendEventResponse(landed.eventId(), user, EventAttendeeResponse.TENTATIVE, false);
+    restartTransaction();
+    assertEquals(EventAttendeeResponse.TENTATIVE, landingService().held("testuser2", MAILBOX, uid, null, ORGANIZER).response());
+  }
+
+  /**
    * Nothing is held where a landing would not act: another UID, another user's
    * event, one occurrence of the meeting, another organiser's message, an event
    * the user organises, an event cancelled since, an event removed, a user
