@@ -99,7 +99,7 @@ public final class CalendarFeedParser {
    * selected: ical4j builds a step's candidates whole, as the product of the
    * rule's BY-lists, so a rule is refused on that product, not on its instances.
    */
-  private static final int    MAX_CANDIDATES_PER_STEP = 1000;
+  static final int            MAX_CANDIDATES_PER_STEP = 1000;
 
   /**
    * Most candidate dates one rule may cost. A rule with a COUNT is walked from its
@@ -518,7 +518,7 @@ public final class CalendarFeedParser {
    * @param rule the rule
    * @return the bound, as a double so that no product overflows
    */
-  private static double candidatesPerStep(Recur rule) {
+  static double candidatesPerStep(Recur rule) {
     boolean yearly = "YEARLY".equals(rule.getFrequency().name());
     boolean monthly = "MONTHLY".equals(rule.getFrequency().name());
     int months = rule.getMonthList().size();
