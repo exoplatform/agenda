@@ -5361,7 +5361,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     agendaEventService.updateEvent(customisedToUpdate,
                                    agendaEventAttendeeService.getEventAttendees(customisedRow.getId()).getEventAttendees(),
                                    agendaEventConferenceService.getEventConferences(customisedRow.getId()),
-                                   Collections.emptyList(),
+                                   agendaEventReminderService.getEventReminders(customisedRow.getId(), creatorId),
                                    null,
                                    null,
                                    false,
@@ -5369,16 +5369,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     restartTransaction();
 
     // The organiser corrects the summary of the whole series
-    Event seriesToUpdate = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
-    seriesToUpdate.setSummary("weekly sync");
-    agendaEventService.updateEvent(seriesToUpdate,
-                                   agendaEventAttendeeService.getEventAttendees(series.getId()).getEventAttendees(),
-                                   agendaEventConferenceService.getEventConferences(series.getId()),
-                                   Collections.emptyList(),
-                                   null,
-                                   null,
-                                   false,
-                                   creatorId);
+    saveSeriesSummary(series, "weekly sync", creatorId);
 
     assertNull("a row that carries nothing of its own is dropped by a change on the series",
                agendaEventService.getEventById(inheritedRow.getId()));
@@ -5458,6 +5449,139 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                              .stream()
                                              .map(EventConference::getUrl)
                                              .toList());
+  }
+
+
+  /**
+   * The organiser's gesture the intent tests share: the summary of the series
+   * changes, its attendees, conferences and the organiser's own reminders are
+   * saved as they are.
+   */
+  private void saveSeriesSummary(Event series, String summary, long creatorId) throws Exception {
+    Event seriesToUpdate = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
+    seriesToUpdate.setSummary(summary);
+    agendaEventService.updateEvent(seriesToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(series.getId()).getEventAttendees(),
+                                   agendaEventConferenceService.getEventConferences(series.getId()),
+                                   agendaEventReminderService.getEventReminders(series.getId(), creatorId),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+  }
+
+  /**
+   * The intent check, one property at a time: a row that differs from its
+   * series in exactly one of the properties the merge compares — a cancelled
+   * date, moved times, the open flag, the visibility — is kept by a series
+   * save. Each row keeps the series' own conferences and the organiser's own
+   * reminders, so that nothing but that property tells it apart.
+   */
+  @Test
+  public void testSeriesChangeKeepsADateThatDiffersInOnePropertyOnly() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now(ZoneOffset.UTC).plusDays(3).withNano(0).withHour(9).withMinute(0).withSecond(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    java.util.Map<String, java.util.function.Consumer<Event>> cases = new java.util.LinkedHashMap<>();
+    cases.put("a cancelled date", row -> row.setStatus(EventStatus.CANCELLED));
+    cases.put("a date with moved times", row -> {
+      row.setStart(row.getStart().plusHours(2));
+      row.setEnd(row.getEnd().plusHours(2));
+    });
+    cases.put("a date opened on its own", row -> row.setOpen(true));
+    cases.put("a date made private on its own", row -> row.setVisibility(EventVisibility.PRIVATE));
+    for (java.util.Map.Entry<String, java.util.function.Consumer<Event>> oneCase : cases.entrySet()) {
+      Event event = newEventInstance(start, start.plusHours(1), false);
+      event.setCalendarId(spaceCalendar.getId());
+      Event series = createEvent(event.clone(), creatorId, testuser1Identity, testuser2Identity);
+      List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(2), ZoneOffset.UTC, 0);
+      assertTrue(occurrences.size() >= 2);
+      Event row = agendaEventService.saveEventExceptionalOccurrence(series.getId(), occurrences.get(1).getOccurrence().getId());
+      Event rowToUpdate = agendaEventService.getEventById(row.getId(), ZoneOffset.UTC, creatorId).clone();
+      oneCase.getValue().accept(rowToUpdate);
+      agendaEventService.updateEvent(rowToUpdate,
+                                     agendaEventAttendeeService.getEventAttendees(row.getId()).getEventAttendees(),
+                                     agendaEventConferenceService.getEventConferences(row.getId()),
+                                     agendaEventReminderService.getEventReminders(row.getId(), creatorId),
+                                     null,
+                                     null,
+                                     false,
+                                     creatorId);
+      restartTransaction();
+
+      saveSeriesSummary(series, "weekly sync", creatorId);
+
+      Event kept = agendaEventService.getEventById(row.getId());
+      assertNotNull(oneCase.getKey() + " is kept by a series save", kept);
+      assertEquals(oneCase.getKey() + " takes the change made on the series", "weekly sync", kept.getSummary());
+    }
+  }
+
+  /**
+   * The patch entry point drops an inherited row too: a padlock click on the
+   * event page is a patch applied to every occurrence, and the rows the
+   * reminder job materialised must not survive it any more than a full save.
+   */
+  @Test
+  public void testWholeSeriesPatchDropsTheDatesThatCarryNoUserIntent() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity, testuser2Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(2), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 2);
+    Event inheritedRow = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                          occurrences.get(1).getOccurrence().getId());
+    restartTransaction();
+
+    agendaEventService.updateEventFields(series.getId(), getFields("summary", "weekly sync"), true, false, creatorId);
+
+    assertNull("a row that carries nothing of its own is dropped by a patch applied to every occurrence",
+               agendaEventService.getEventById(inheritedRow.getId()));
+    assertEquals("weekly sync", agendaEventService.getEventById(series.getId()).getSummary());
+  }
+
+  /**
+   * A reminder an attendee turned off on one date stays off: the row that
+   * records it differs from its series in that reminder alone, so a save of the
+   * series by somebody else keeps it, instead of dropping it and letting the
+   * reminder job put the reminder back.
+   */
+  @Test
+  public void testReminderTurnedOffOnOneDateSurvivesASeriesChange() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now(ZoneOffset.UTC).plusDays(3).withNano(0).withHour(9).withMinute(0).withSecond(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    long otherAttendeeId = Long.parseLong(testuser2Identity.getId());
+
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setCalendarId(spaceCalendar.getId());
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity, testuser2Identity);
+    // The other attendee has a reminder of their own on the series
+    agendaEventReminderService.saveEventReminders(agendaEventService.getEventById(series.getId()),
+                                                  Collections.singletonList(new EventReminder(otherAttendeeId, 10, ReminderPeriodType.MINUTE)),
+                                                  otherAttendeeId);
+    restartTransaction();
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(2), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 2);
+    Event row = agendaEventService.saveEventExceptionalOccurrence(series.getId(), occurrences.get(1).getOccurrence().getId());
+    assertFalse("precondition: the row carries the other attendee's reminder",
+                agendaEventReminderService.getEventReminders(row.getId(), otherAttendeeId).isEmpty());
+
+    // They turn it off on that date alone
+    agendaEventReminderService.saveEventReminders(agendaEventService.getEventById(row.getId()), Collections.emptyList(), otherAttendeeId);
+    restartTransaction();
+    assertTrue("precondition: off on that date", agendaEventReminderService.getEventReminders(row.getId(), otherAttendeeId).isEmpty());
+
+    // The organiser changes the summary of the series
+    saveSeriesSummary(series, "weekly sync", creatorId);
+
+    Event kept = agendaEventService.getEventById(row.getId());
+    assertNotNull("a date whose only difference is a reminder turned off is kept", kept);
+    assertTrue("and the reminder stays off", agendaEventReminderService.getEventReminders(kept.getId(), otherAttendeeId).isEmpty());
+    assertFalse("while the series still carries it",
+                agendaEventReminderService.getEventReminders(series.getId(), otherAttendeeId).isEmpty());
+    assertEquals("weekly sync", kept.getSummary());
   }
 
 }
