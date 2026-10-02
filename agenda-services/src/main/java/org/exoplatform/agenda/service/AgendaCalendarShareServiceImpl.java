@@ -180,11 +180,13 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
       broadcast(CALENDAR_SHARE_LEVEL_CHANGED_EVENT, share, ownerIdentityId);
     }
     if (narrowed != null) {
+      boolean forgotten = narrowed.getStatus() == ChannelDelivery.Status.NOT_APPLICABLE;
       CalendarShare delivered = calendarShareStorage.setDelivery(share.getCalendarId(),
                                                                  share.getShareeIdentityId(),
-                                                                 StringUtils.defaultIfBlank(narrowed.getChannelId(),
-                                                                                            share.getDeliveredTo()),
-                                                                 narrowed.getDeliveryRef());
+                                                                 forgotten ? null
+                                                                           : StringUtils.defaultIfBlank(narrowed.getChannelId(),
+                                                                                                        share.getDeliveredTo()),
+                                                                 forgotten ? null : narrowed.getDeliveryRef());
       return delivered == null ? share : delivered;
     }
     // The channels are asked whatever the eXo record did: a level change is a
@@ -201,8 +203,9 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
    * @param share the record, at its current level
    * @param level the lower level
    * @param ownerUsername the owner
-   * @return the channel's delivery at that level, or null when no installed
-   *         channel carries the share
+   * @return the channel's delivery at that level; its {@code NOT_APPLICABLE}
+   *         answer when it no longer carries the share; null when no installed
+   *         channel carries it
    * @throws IllegalStateException with
    *           {@link AgendaCalendarShareService#LEVEL_NOT_NARROWED} when the
    *           channel failed, threw, or answered a wider level
@@ -231,6 +234,20 @@ public class AgendaCalendarShareServiceImpl implements AgendaCalendarShareServic
                level,
                e);
       throw new IllegalStateException(LEVEL_NOT_NARROWED, e);
+    }
+    if (delivery != null && delivery.getStatus() == ChannelDelivery.Status.NOT_APPLICABLE) {
+      // The channel no longer carries this share - the colleague left the
+      // server, the collection is gone - so there is nothing on the server to
+      // narrow and nothing to block: the eXo level changes alone, and the
+      // delivery is forgotten so that a later unshare withdraws nothing there
+      LOG.warn("Channel {} no longer carries the share of calendar {} by {} with colleague {} ({}); the eXo level changes alone"
+          + " and the delivery is forgotten",
+               share.getDeliveredTo(),
+               share.getCalendarId(),
+               ownerUsername,
+               share.getShareeIdentityId(),
+               StringUtils.defaultIfBlank(delivery.getFailureCode(), "not applicable"));
+      return delivery;
     }
     if (delivery == null || delivery.getStatus() != ChannelDelivery.Status.DELIVERED
         || isNarrower(level, delivery.getDeliveredLevel())) {
