@@ -130,21 +130,47 @@ export default {
      * what is already there reads as the connection having lost something,
      * and invites the user to make a second calendar beside the first.
      *
-     * A check that fails answers nothing, so the step is offered as it was
-     * before: an account left with no destination copies nowhere, which is
-     * the worse of the two ways to be wrong.
+     * <b>A check that fails is not an account without a destination</b>
+     * (EXO-90396). A server unreachable for a moment says nothing about
+     * whether the account has one, and offering to create a calendar on the
+     * strength of that would tell the user the connection left something out
+     * when it had not, and put a second calendar beside the first. So a
+     * failure offers nothing, and only a genuine "there is none" offers the
+     * step.
+     *
+     * Nothing is shown to the user here: the connection they asked for
+     * succeeded, and the destination is not the question they just answered.
+     * Where a destination that cannot be read IS the question — the copy
+     * setting in the user settings — it is already read on every render and
+     * reported in words (`retrieveDestination`, `pushEventsCheck*`), which is
+     * where a message about it belongs rather than in a toast over a page
+     * whose task went through.
      *
      * @param {Object} connector the connector just connected
-     * @returns {void}
+     * @returns {Promise} resolves once the step has been offered or declined
      */
     offerMirrorCalendarUnlessPresent(connector) {
-      Promise.resolve(this.readMirrorCalendar(connector))
+      // Called through a `then` rather than wrapped in `Promise.resolve(...)`,
+      // so that a connector throwing synchronously lands in the same catch as
+      // one rejecting: a failure must not offer the step, by whichever of the
+      // two ways it failed.
+      return Promise.resolve()
+        .then(() => this.readMirrorCalendar(connector))
         .then(mirror => {
           if (!mirror) {
             this.$root.$emit('agenda-connector-mirror-calendar-open', connector);
           }
         })
-        .catch(() => this.$root.$emit('agenda-connector-mirror-calendar-open', connector));
+        // Terminal, deliberately, and worded for whatever reaches it: the
+        // `catch` of a chain also catches its own `then`, so a listener
+        // throwing on the open event lands here beside a failed read. Moving
+        // it up onto the read alone would be worse than imprecise — a `catch`
+        // that swallows and returns resumes the chain with `undefined`, which
+        // the next `then` reads as "no destination", and the step would be
+        // offered on a failed read.
+        .catch(error => console.error('the calendar-creation step was not offered after connecting'
+                                      + ` ${connector && connector.name}: either the account's destination could not be read,`
+                                      + ' or offering the step failed', error));
     },
     /**
      * The calendar an account already uses for the copies, asked of the

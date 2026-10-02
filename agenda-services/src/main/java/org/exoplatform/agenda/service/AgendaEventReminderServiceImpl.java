@@ -296,15 +296,20 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
 
   /**
    * Refuses a reminder to a user who reads the event only through a calendar
-   * share (EXO-90357): the reminder's notification would carry the event's
-   * title, which a private event withholds from them, and a share grants
-   * reading, not a place in the event. The event service is a Kernel
-   * component reached on first use, as the calendar service is below; when it
-   * cannot be reached the reminder is refused, never allowed.
+   * share granted for <b>viewing</b> (EXO-90357): the reminder's notification
+   * would carry the event's title, which a private event withholds from them,
+   * and a view share grants reading, not a place in the event. A share granted
+   * for <b>editing</b> ({@link EventAccess#SHARED_EDIT}, EXO-90378) is not
+   * refused: an editor writes the calendar's events, sees the private ones in
+   * full and so has nothing withheld, and a reminder is per receiver — theirs
+   * reaches nobody else. The event service is a Kernel component reached on
+   * first use, as the calendar service is below; when it cannot be reached the
+   * reminder is refused, never allowed.
    *
    * @param event the event
    * @param identityId identity identifier of the user
-   * @throws IllegalAccessException when the user is a sharee only
+   * @throws IllegalAccessException when the user holds a view share and
+   *           nothing more
    */
   private void checkNotShareeOnly(Event event, long identityId) throws IllegalAccessException {
     if (agendaEventService == null) {
@@ -312,7 +317,7 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
     }
     if (agendaEventService == null || agendaEventService.getEventAccess(event, identityId) == EventAccess.SHARED) {
       throw new IllegalAccessException("User " + identityId + " reads event " + event.getId()
-          + " through a calendar share only and cannot set reminders on it");
+          + " through a view calendar share only and cannot set reminders on it");
     }
   }
 
@@ -327,10 +332,34 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
       Calendar calendar = ExoContainerContext.getService(AgendaCalendarService.class).getCalendarById(event.getCalendarId());
       // do not send a reminder notification of the Recurrent parent event.
       // do not send a reminder notification if the calendar is removed!
-      if (event.getRecurrence() == null && calendar != null && !calendar.isDeleted()) {
+      if (event.getRecurrence() == null && calendar != null && !calendar.isDeleted()
+          && mayStillBeReminded(event, eventReminder.getReceiverId())) {
         sendReminderNotification(eventReminder);
       }
     }
+  }
+
+  /**
+   * Whether a reminder set earlier may still reach its receiver: their access
+   * to the event is read again when it is sent (EXO-90378). A colleague who
+   * set it as an editor of a shared calendar and has since been taken back to
+   * viewing, or lost the share, reads the event as busy time only or not at
+   * all, and the reminder would carry its title. When the event service cannot
+   * be reached the reminder is not sent.
+   *
+   * @param event the event
+   * @param receiverId identity identifier of the reminder's receiver
+   * @return true when the receiver reads more than busy time
+   */
+  private boolean mayStillBeReminded(Event event, long receiverId) {
+    if (agendaEventService == null) {
+      agendaEventService = ExoContainerContext.getService(AgendaEventService.class);
+    }
+    if (agendaEventService == null) {
+      return false;
+    }
+    EventAccess access = agendaEventService.getEventAccess(event, receiverId);
+    return access != EventAccess.SHARED && access != EventAccess.NONE;
   }
 
   @Override
@@ -495,7 +524,14 @@ public class AgendaEventReminderServiceImpl implements AgendaEventReminderServic
     return reminderDate;
   }
 
-  private void sendReminderNotification(EventReminder eventReminder) {
+  /**
+   * Hands one reminder to the notification executor. Package-private so that
+   * a test can tell which reminders {@link #sendReminders()} lets through
+   * without a running notification service.
+   *
+   * @param eventReminder the reminder
+   */
+  void sendReminderNotification(EventReminder eventReminder) {
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     ctx.append(EVENT_AGENDA_REMINDER, eventReminder);
     NotificationCommand command = ctx.makeCommand(PluginKey.key(AGENDA_REMINDER_NOTIFICATION_PLUGIN));

@@ -20,7 +20,9 @@ import java.util.List;
 
 import org.exoplatform.agenda.model.CalendarShare;
 import org.exoplatform.agenda.model.ChannelDelivery;
+import org.exoplatform.agenda.model.ChannelShares;
 import org.exoplatform.agenda.model.ExternalShare;
+import org.exoplatform.services.log.ExoLogger;
 
 /**
  * A channel that can also carry a calendar share outside eXo — the CalDAV
@@ -71,10 +73,21 @@ public interface CalendarShareChannelPlugin {
   String id();
 
   /**
-   * Carries a share the owner just recorded, or shared again while it was
-   * still undelivered.
+   * Makes this channel's grant match a share record: carries a share the owner
+   * just recorded, shared again while it was still undelivered, or levelled
+   * (EXO-90378).
+   * <p>
+   * <b>Idempotent, and reconciling.</b> The record's
+   * {@code CalendarShare.getLevel()} is what the channel must end up holding:
+   * {@code EDIT} over an existing read grant widens it, {@code VIEW} over an
+   * edit grant narrows it, and either over a grant that already matches writes
+   * nothing. A channel that can carry the share but not at that level answers
+   * {@link ChannelDelivery#delivered(String, String, org.exoplatform.agenda.constant.CalendarShareLevel)}
+   * naming the level it does hold, rather than failing: the share still stands
+   * in eXo at the level the owner chose, and that is what decides every right
+   * inside eXo.
    *
-   * @param share the eXo record, never null
+   * @param share the eXo record, never null, carrying the level to match
    * @param ownerUsername the owner of the calendar
    * @return what happened, never null
    */
@@ -96,8 +109,10 @@ public interface CalendarShareChannelPlugin {
    * The shares of a calendar that exist on this channel's server without an
    * eXo record, read live. The channel leaves out every grantee agenda already
    * holds a record for — {@code recordedShareeIds} — so a delivered share is
-   * never listed twice. A read-only grant to a user of this deployment carries
-   * its {@code deliveryRef}: agenda records it as an adopted share, silently
+   * never listed twice. A grant to a user of this deployment whose shape eXo
+   * itself writes — {@code ExternalShare.access} {@code VIEW} or {@code EDIT}
+   * (EXO-90378) — carries its {@code deliveryRef}: agenda records it as an
+   * adopted share at that level, silently
    * and without touching the server, the moment the owner lists their shares.
    * Every other grant is listed to the owner as access held outside eXo.
    *
@@ -134,6 +149,71 @@ public interface CalendarShareChannelPlugin {
    */
   default boolean holdsMeetingCopies(long calendarId, String ownerUsername) {
     return false;
+  }
+
+  /**
+   * Everything this channel has to say about a calendar when the owner opens
+   * the Share drawer (EXO-90385): {@link #listExternalShares} and
+   * {@link #holdsMeetingCopies}, in one ask.
+   *
+   * <p>
+   * <b>Why agenda asks this one rather than the two.</b>
+   * The two answers come out of the same conversation with the channel's
+   * server, and a channel asked for them separately holds that conversation
+   * twice — resolving the same collection, asking the same account. Against a
+   * remote CalDAV server that is seconds of pure latency on every opening of
+   * the drawer. A channel that can answer both from one read <b>overrides this
+   * method</b> and does so; the default asks the two methods it stands for, so
+   * a channel that overrides neither needs nothing more.
+   *
+   * <p>
+   * The default asks the two <b>independently</b>, each under its own guard:
+   * an unreadable access list must not turn the warning off, which is the
+   * expensive direction per the tolerance below. A failure of either question
+   * is logged here, at WARN for the list and at DEBUG for the flag, because
+   * the caller sees only the answer.
+   *
+   * <p>
+   * Same contract as the two methods it stands for, including their
+   * tolerances: the external shares are those the channel's server holds that
+   * agenda has no record of, {@code recordedShareeIds} left out, and the flag
+   * is what {@link #holdsMeetingCopies} means. A channel that cannot read the
+   * server answers an empty list, and still answers the flag as best it can —
+   * a missed warning exposes the owner's meetings while a false one costs a
+   * click.
+   *
+   * @param calendarId technical identifier of the calendar
+   * @param ownerUsername the owner of the calendar
+   * @param recordedShareeIds identity identifiers of the colleagues agenda
+   *          already holds a record for, never null
+   * @return the external shares and the meeting-copies flag, never null
+   */
+  default ChannelShares listShares(long calendarId, String ownerUsername, List<Long> recordedShareeIds) {
+    List<ExternalShare> listed;
+    try {
+      listed = listExternalShares(calendarId, ownerUsername, recordedShareeIds);
+    } catch (RuntimeException | LinkageError e) {
+      // The flag is still owed: an unreadable access list must not silently
+      // turn the warning off, which is what one shared guard would do
+      ExoLogger.getLogger(CalendarShareChannelPlugin.class)
+               .warn("Channel {} could not list the external shares of calendar {} by {}; none is shown",
+                     getClass().getName(),
+                     calendarId,
+                     ownerUsername,
+                     e);
+      listed = List.of();
+    }
+    try {
+      return new ChannelShares(listed, holdsMeetingCopies(calendarId, ownerUsername));
+    } catch (RuntimeException | LinkageError e) {
+      ExoLogger.getLogger(CalendarShareChannelPlugin.class)
+               .debug("Channel {} could not say whether calendar {} by {} holds meeting copies; read as no",
+                      getClass().getName(),
+                      calendarId,
+                      ownerUsername,
+                      e);
+      return new ChannelShares(listed, false);
+    }
   }
 
 }

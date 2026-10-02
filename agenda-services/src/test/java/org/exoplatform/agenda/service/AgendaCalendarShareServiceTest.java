@@ -41,10 +41,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationContext;
 
+import org.exoplatform.agenda.constant.CalendarShareLevel;
 import org.exoplatform.agenda.constant.CalendarShareSource;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.CalendarShare;
 import org.exoplatform.agenda.model.ChannelDelivery;
+import org.exoplatform.agenda.model.ChannelShares;
 import org.exoplatform.agenda.model.ExternalShare;
 import org.exoplatform.agenda.plugin.CalendarShareChannelPlugin;
 import org.exoplatform.agenda.storage.CalendarShareStorage;
@@ -139,7 +141,7 @@ class AgendaCalendarShareServiceTest {
   void theOwnerSharesAPersonalCalendar() throws Exception {
     channel.answer = ChannelDelivery.notApplicable();
 
-    CalendarShare share = service.share(PERSONAL_CAL, "alice", "owner");
+    CalendarShare share = service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner");
 
     assertEquals(ALICE, share.getShareeIdentityId());
     assertEquals(CalendarShareSource.EXO, share.getSource());
@@ -155,15 +157,15 @@ class AgendaCalendarShareServiceTest {
    */
   @Test
   void theRefusalsComeInOrder() {
-    assertThrows(ObjectNotFoundException.class, () -> service.share(99, "nobody", "alice"), "missing calendar first, even for a stranger");
-    assertThrows(IllegalAccessException.class, () -> service.share(PERSONAL_CAL, "nobody", "alice"), "then the owner check, before the sharee");
-    IllegalArgumentException unknown = assertThrows(IllegalArgumentException.class, () -> service.share(PERSONAL_CAL, "nobody", "owner"));
+    assertThrows(ObjectNotFoundException.class, () -> service.share(99, "nobody", CalendarShareLevel.VIEW, "alice"), "missing calendar first, even for a stranger");
+    assertThrows(IllegalAccessException.class, () -> service.share(PERSONAL_CAL, "nobody", CalendarShareLevel.VIEW, "alice"), "then the owner check, before the sharee");
+    IllegalArgumentException unknown = assertThrows(IllegalArgumentException.class, () -> service.share(PERSONAL_CAL, "nobody", CalendarShareLevel.VIEW, "owner"));
     assertEquals(AgendaCalendarShareService.SHAREE_UNKNOWN, unknown.getMessage());
-    IllegalArgumentException self = assertThrows(IllegalArgumentException.class, () -> service.share(PERSONAL_CAL, "owner", "owner"));
+    IllegalArgumentException self = assertThrows(IllegalArgumentException.class, () -> service.share(PERSONAL_CAL, "owner", CalendarShareLevel.VIEW, "owner"));
     assertEquals(AgendaCalendarShareService.SHAREE_IS_OWNER, self.getMessage());
-    IllegalArgumentException disabled = assertThrows(IllegalArgumentException.class, () -> service.share(PERSONAL_CAL, "disabled", "owner"));
+    IllegalArgumentException disabled = assertThrows(IllegalArgumentException.class, () -> service.share(PERSONAL_CAL, "disabled", CalendarShareLevel.VIEW, "owner"));
     assertEquals(AgendaCalendarShareService.SHAREE_DISABLED, disabled.getMessage());
-    assertThrows(IllegalArgumentException.class, () -> service.share(0, "alice", "owner"));
+    assertThrows(IllegalArgumentException.class, () -> service.share(0, "alice", CalendarShareLevel.VIEW, "owner"));
     assertTrue(storage.rows.isEmpty(), "no refusal writes a row");
   }
 
@@ -173,8 +175,8 @@ class AgendaCalendarShareServiceTest {
    */
   @Test
   void spaceAndSubscribedCalendarsAreNotShareable() {
-    assertThrows(IllegalAccessException.class, () -> service.share(SPACE_CAL, "alice", "owner"));
-    assertThrows(IllegalAccessException.class, () -> service.share(SUBSCRIBED, "alice", "owner"));
+    assertThrows(IllegalAccessException.class, () -> service.share(SPACE_CAL, "alice", CalendarShareLevel.VIEW, "owner"));
+    assertThrows(IllegalAccessException.class, () -> service.share(SUBSCRIBED, "alice", CalendarShareLevel.VIEW, "owner"));
     assertTrue(storage.rows.isEmpty());
   }
 
@@ -187,7 +189,7 @@ class AgendaCalendarShareServiceTest {
   void aDeliveringChannelIsRecordedOnTheRow() throws Exception {
     channel.answer = ChannelDelivery.delivered("caldav:1", "/calendars/alice/shared-10/");
 
-    CalendarShare share = service.share(PERSONAL_CAL, "alice", "owner");
+    CalendarShare share = service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner");
 
     assertEquals("caldav:1", share.getDeliveredTo());
     assertEquals("/calendars/alice/shared-10/", share.getDeliveryRef());
@@ -206,19 +208,19 @@ class AgendaCalendarShareServiceTest {
   void aFailedDeliveryKeepsTheRecordUndeliveredAndSilent() throws Exception {
     channel.answer = ChannelDelivery.failed("SERVER_UNREACHABLE");
 
-    CalendarShare share = service.share(PERSONAL_CAL, "alice", "owner");
+    CalendarShare share = service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner");
 
     assertNull(share.getDeliveredTo());
     assertTrue(service.isSharedWith(PERSONAL_CAL, ALICE), "the eXo record stands on a server failure");
     assertEquals(1, storage.rows.size());
     assertNull(storage.rows.get(0).getDeliveredTo(), "so a delivery can be attempted later");
 
-    assertNull(service.share(PERSONAL_CAL, "alice", "owner").getDeliveredTo());
+    assertNull(service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner").getDeliveredTo());
     assertEquals(1, storage.rows.size(), "sharing again writes no second row");
     assertEquals(2, channel.deliveries, "and asks the channel again");
 
     channel.answer = ChannelDelivery.delivered("caldav:1", null);
-    assertEquals("caldav:1", service.share(PERSONAL_CAL, "alice", "owner").getDeliveredTo());
+    assertEquals("caldav:1", service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner").getDeliveredTo());
     assertEquals("caldav:1", storage.rows.get(0).getDeliveredTo());
   }
 
@@ -232,7 +234,7 @@ class AgendaCalendarShareServiceTest {
   void aThrowingChannelIsReadAsAFailure() throws Exception {
     channel.failure = new IllegalStateException("server down");
 
-    CalendarShare share = service.share(PERSONAL_CAL, "alice", "owner");
+    CalendarShare share = service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner");
 
     assertNull(share.getDeliveredTo());
     assertTrue(service.isSharedWith(PERSONAL_CAL, ALICE));
@@ -248,7 +250,7 @@ class AgendaCalendarShareServiceTest {
   @Test
   void revokingWithdrawsThenDeletesWhateverTheChannelAnswers() throws Exception {
     channel.answer = ChannelDelivery.delivered("caldav:1", null);
-    service.share(PERSONAL_CAL, "alice", "owner");
+    service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner");
     channel.withdrawAnswer = false;
 
     service.unshare(PERSONAL_CAL, ALICE, "owner");
@@ -263,6 +265,84 @@ class AgendaCalendarShareServiceTest {
   }
 
   /**
+   * The owner levels a colleague up and down (EXO-90378): the record carries
+   * the new level, the platform is told, and the channel is asked to
+   * reconcile its grant to it — carrying the level on the share it receives,
+   * so the SPI needs no extra parameter.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void theOwnerLevelsAColleagueUpAndDown() throws Exception {
+    channel.answer = ChannelDelivery.delivered("caldav:1", "/cal/alice/");
+    service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner");
+    assertEquals(CalendarShareLevel.VIEW, service.getShareLevel(PERSONAL_CAL, ALICE));
+    int delivered = channel.deliveries;
+
+    CalendarShare raised = service.setLevel(PERSONAL_CAL, ALICE, CalendarShareLevel.EDIT, "owner");
+
+    assertEquals(CalendarShareLevel.EDIT, raised.getLevel());
+    assertEquals(CalendarShareLevel.EDIT, service.getShareLevel(PERSONAL_CAL, ALICE));
+    assertEquals(Map.of(PERSONAL_CAL, CalendarShareLevel.EDIT), service.getShareLevels(ALICE));
+    assertEquals(delivered + 1, channel.deliveries, "the channel is asked to match its grant to the new level");
+    assertEquals(CalendarShareLevel.EDIT, channel.deliveredLevel, "and the share it receives carries that level");
+    verify(listenerService).broadcast(eq(AgendaCalendarShareService.CALENDAR_SHARE_LEVEL_CHANGED_EVENT),
+                                      any(CalendarShare.class),
+                                      eq(OWNER));
+
+    CalendarShare lowered = service.setLevel(PERSONAL_CAL, ALICE, CalendarShareLevel.VIEW, "owner");
+
+    assertEquals(CalendarShareLevel.VIEW, lowered.getLevel());
+    assertEquals(CalendarShareLevel.VIEW, channel.deliveredLevel, "a downgrade narrows the server grant too");
+    assertTrue(service.isSharedWith(PERSONAL_CAL, ALICE), "a downgrade is not a revoke");
+  }
+
+  /**
+   * Only the owner levels, the level is named, and there must be a share to
+   * level: the refusals come in the contract's order — calendar, owner,
+   * share — and the level check comes before any of them, since a request
+   * that names no level names nothing at all.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void onlyTheOwnerLevelsAndOnlyAnExistingShare() throws Exception {
+    service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner");
+
+    IllegalArgumentException noLevel = assertThrows(IllegalArgumentException.class,
+                                                    () -> service.setLevel(PERSONAL_CAL, ALICE, null, "owner"));
+    assertEquals(AgendaCalendarShareService.LEVEL_MANDATORY, noLevel.getMessage());
+    assertThrows(ObjectNotFoundException.class,
+                 () -> service.setLevel(99, ALICE, CalendarShareLevel.EDIT, "alice"),
+                 "missing calendar first, even for a stranger");
+    assertThrows(IllegalAccessException.class,
+                 () -> service.setLevel(PERSONAL_CAL, ALICE, CalendarShareLevel.EDIT, "alice"),
+                 "an editor levels nobody, themselves least of all");
+    assertThrows(ObjectNotFoundException.class,
+                 () -> service.setLevel(PERSONAL_CAL, 4, CalendarShareLevel.EDIT, "owner"),
+                 "there must be a share to level");
+    assertEquals(CalendarShareLevel.VIEW, service.getShareLevel(PERSONAL_CAL, ALICE), "no refusal moves a level");
+  }
+
+  /**
+   * Sharing again with a colleague who already has a record never widens
+   * their level: the second share is a retry of the delivery, and setLevel is
+   * the one call that levels.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void sharingAgainNeverWidensALevel() throws Exception {
+    channel.answer = ChannelDelivery.notApplicable();
+    service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner");
+
+    CalendarShare again = service.share(PERSONAL_CAL, "alice", CalendarShareLevel.EDIT, "owner");
+
+    assertEquals(CalendarShareLevel.VIEW, again.getLevel(), "the stored level stands");
+    assertEquals(CalendarShareLevel.VIEW, service.getShareLevel(PERSONAL_CAL, ALICE));
+  }
+
+  /**
    * An eXo-only record asks no channel to withdraw.
    *
    * @throws Exception when the share is refused
@@ -270,7 +350,7 @@ class AgendaCalendarShareServiceTest {
   @Test
   void anExoOnlyRecordAsksNoChannelToWithdraw() throws Exception {
     channel.answer = ChannelDelivery.notApplicable();
-    service.share(PERSONAL_CAL, "alice", "owner");
+    service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner");
 
     service.unshare(PERSONAL_CAL, ALICE, "owner");
 
@@ -290,8 +370,8 @@ class AgendaCalendarShareServiceTest {
   @Test
   void aReadOnlyGrantToAColleagueIsRecordedOnceAndSilently() throws Exception {
     user(4, "bob", true);
-    channel.external = List.of(new ExternalShare("caldav:1", "bob", "EXO_USER", 4, "Bob", true, true, null, "/calendars/owner/shared-10/"),
-                               new ExternalShare("caldav:1", "dis", "EXO_USER", DISABLED, "Disabled", true, true, null, "/calendars/owner/shared-10/"));
+    channel.external = List.of(new ExternalShare("caldav:1", "bob", "EXO_USER", 4, "Bob", true, true, "VIEW", null, "/calendars/owner/shared-10/"),
+                               new ExternalShare("caldav:1", "dis", "EXO_USER", DISABLED, "Disabled", true, true, "VIEW", null, "/calendars/owner/shared-10/"));
 
     List<ExternalShare> external = service.getExternalShares(PERSONAL_CAL, "owner");
     List<ExternalShare> again = service.getExternalShares(PERSONAL_CAL, "owner");
@@ -310,6 +390,129 @@ class AgendaCalendarShareServiceTest {
   }
 
   /**
+   * A grant a channel reports as an edit share — one of exactly the shape eXo
+   * writes — is adopted as an EDIT record (EXO-90378); one it reports as
+   * anything else stays outside eXo, however removable it says it is, because
+   * a record whose level eXo cannot reproduce would lie about what the server
+   * allows.
+   *
+   * @throws Exception when the listing is refused
+   */
+  @Test
+  void anEditShapedGrantIsAdoptedAtEditAndAWiderOneIsNot() throws Exception {
+    user(4, "bob", true);
+    user(5, "carol", true);
+    channel.external = List.of(new ExternalShare("caldav:1", "bob", "EXO_USER", 4, "Bob", true, false, "EDIT", null, "/c/"),
+                               new ExternalShare("caldav:1", "carol", "EXO_USER", 5, "Carol", true, false, "MORE", null, "/c/"));
+
+    List<ExternalShare> external = service.getExternalShares(PERSONAL_CAL, "owner");
+
+    assertEquals(List.of("carol"), external.stream().map(ExternalShare::getExternalId).toList());
+    assertEquals(1, storage.rows.size());
+    assertEquals(4, storage.rows.get(0).getShareeIdentityId());
+    assertEquals(CalendarShareLevel.EDIT, storage.rows.get(0).getLevel(), "adopted at the level the server holds");
+    assertEquals(CalendarShareSource.ADOPTED, storage.rows.get(0).getSource());
+    assertEquals(0, channel.deliveries, "the server is not touched");
+  }
+
+  /**
+   * A downgrade of a delivered share is narrowed on its channel before the eXo
+   * record changes: when the channel fails, throws, or answers the wider level
+   * still, the level is unchanged, the delivery is kept for a later withdraw,
+   * and the owner is told. Kills the mutant that records the lower level
+   * whatever the channel did.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void aDowngradeTheChannelDoesNotNarrowLeavesTheLevelUnchanged() throws Exception {
+    channel.answer = ChannelDelivery.delivered("caldav:1", "/cal/alice/");
+    service.share(PERSONAL_CAL, "alice", CalendarShareLevel.EDIT, "owner");
+    assertEquals("caldav:1", storage.rows.get(0).getDeliveredTo());
+
+    channel.answer = ChannelDelivery.failed("SERVER_REFUSED");
+    IllegalStateException refused = assertThrows(IllegalStateException.class,
+                                                 () -> service.setLevel(PERSONAL_CAL, ALICE, CalendarShareLevel.VIEW, "owner"));
+    assertEquals(AgendaCalendarShareService.LEVEL_NOT_NARROWED, refused.getMessage());
+    assertEquals(CalendarShareLevel.EDIT, service.getShareLevel(PERSONAL_CAL, ALICE), "the level is unchanged");
+    assertEquals("caldav:1", storage.rows.get(0).getDeliveredTo(), "and the delivery kept, for a withdraw to find");
+
+    channel.answer = ChannelDelivery.delivered("caldav:1", "/cal/alice/", CalendarShareLevel.EDIT);
+    assertThrows(IllegalStateException.class, () -> service.setLevel(PERSONAL_CAL, ALICE, CalendarShareLevel.VIEW, "owner"),
+                 "a channel that still grants editing has not narrowed anything");
+    channel.failure = new IllegalStateException("server down");
+    assertThrows(IllegalStateException.class, () -> service.setLevel(PERSONAL_CAL, ALICE, CalendarShareLevel.VIEW, "owner"));
+    assertEquals(CalendarShareLevel.EDIT, service.getShareLevel(PERSONAL_CAL, ALICE));
+    verify(listenerService, never()).broadcast(eq(AgendaCalendarShareService.CALENDAR_SHARE_LEVEL_CHANGED_EVENT),
+                                               any(CalendarShare.class),
+                                               anyLong());
+
+    channel.failure = null;
+    channel.answer = ChannelDelivery.delivered("caldav:1", "/cal/alice/", CalendarShareLevel.VIEW);
+    assertEquals(CalendarShareLevel.VIEW, service.setLevel(PERSONAL_CAL, ALICE, CalendarShareLevel.VIEW, "owner").getLevel(),
+                 "the owner's retry goes through once the server narrows");
+  }
+
+  /**
+   * A downgrade of a share its channel no longer carries - the colleague left
+   * the server, the collection is gone - is not blocked by it: the level
+   * changes, the delivery is forgotten, and a later unshare withdraws nothing
+   * there. Kills the mutant that reads NOT_APPLICABLE as a failure.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void aDowngradeOfAShareTheChannelNoLongerCarriesChangesTheLevelAndForgetsTheDelivery() throws Exception {
+    channel.answer = ChannelDelivery.delivered("caldav:1", "/cal/alice/");
+    service.share(PERSONAL_CAL, "alice", CalendarShareLevel.EDIT, "owner");
+    channel.answer = ChannelDelivery.notApplicable();
+
+    CalendarShare lowered = service.setLevel(PERSONAL_CAL, ALICE, CalendarShareLevel.VIEW, "owner");
+
+    assertEquals(CalendarShareLevel.VIEW, lowered.getLevel());
+    assertNull(lowered.getDeliveredTo(), "the delivery is forgotten");
+    assertEquals(CalendarShareLevel.VIEW, service.getShareLevel(PERSONAL_CAL, ALICE));
+    int withdrawals = channel.withdrawals;
+    service.unshare(PERSONAL_CAL, ALICE, "owner");
+    assertEquals(withdrawals, channel.withdrawals, "nothing is left to withdraw on the server");
+  }
+
+  /**
+   * A channel that carried the share at a wider level than the record asks
+   * for gave the colleague more on the server than eXo grants them: it is not
+   * recorded as a delivery. Kills the mutant that accepts any delivered level.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void aChannelCarryingAWiderLevelDoesNotDeliver() throws Exception {
+    channel.answer = ChannelDelivery.delivered("caldav:1", "/c/", CalendarShareLevel.EDIT);
+
+    CalendarShare share = service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner");
+
+    assertEquals(CalendarShareLevel.VIEW, share.getLevel());
+    assertNull(share.getDeliveredTo(), "not recorded as delivered");
+  }
+
+  /**
+   * A channel that carried the share at a narrower level than the record asks
+   * for (a server that cannot hold the level) delivers all the same: the
+   * record keeps the owner's level, which is what decides every right in eXo.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void aChannelCarryingANarrowerLevelStillDelivers() throws Exception {
+    channel.answer = ChannelDelivery.delivered("caldav:1", "/c/", CalendarShareLevel.VIEW);
+
+    CalendarShare share = service.share(PERSONAL_CAL, "alice", CalendarShareLevel.EDIT, "owner");
+
+    assertEquals(CalendarShareLevel.EDIT, share.getLevel(), "the eXo level is the owner's choice, not the server's");
+    assertEquals("caldav:1", share.getDeliveredTo(), "and the share is delivered, not failed");
+    assertEquals(CalendarShareLevel.EDIT, service.getShareLevel(PERSONAL_CAL, ALICE));
+  }
+
+  /**
    * The external shares are read live from the channels, the recorded sharees
    * left out, and a channel that throws empties nothing but its own answer.
    *
@@ -318,9 +521,9 @@ class AgendaCalendarShareServiceTest {
   @Test
   void externalSharesAreReadLiveWithoutTheRecordedSharees() throws Exception {
     channel.answer = ChannelDelivery.delivered("caldav:1", null);
-    service.share(PERSONAL_CAL, "alice", "owner");
-    channel.external = List.of(new ExternalShare("caldav:1", "grant-alice", "EXO_USER", ALICE, "Alice", true, true, null, "/c/"),
-                               new ExternalShare("caldav:1", "grant-bob", "EXO_USER", 4, "Bob", false, false, null, "/c/"),
+    service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner");
+    channel.external = List.of(new ExternalShare("caldav:1", "grant-alice", "EXO_USER", ALICE, "Alice", true, true, "VIEW", null, "/c/"),
+                               new ExternalShare("caldav:1", "grant-bob", "EXO_USER", 4, "Bob", false, false, "MORE", null, "/c/"),
                                new ExternalShare(null, "grant-out", "OUTSIDE_EXO", 0, "someone@else.org", true, true));
 
     List<ExternalShare> external = service.getExternalShares(PERSONAL_CAL, "owner");
@@ -345,7 +548,7 @@ class AgendaCalendarShareServiceTest {
   @Test
   void hidingNeverDeletesTheShare() throws Exception {
     channel.answer = ChannelDelivery.notApplicable();
-    service.share(PERSONAL_CAL, "alice", "owner");
+    service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner");
 
     service.setHidden(PERSONAL_CAL, "alice", true);
 
@@ -366,8 +569,8 @@ class AgendaCalendarShareServiceTest {
   @Test
   void theSharedWithMeListingLeavesOutDeadCalendars() throws Exception {
     channel.answer = ChannelDelivery.notApplicable();
-    service.share(PERSONAL_CAL, "alice", "owner");
-    storage.rows.add(new CalendarShare(9, 77, ALICE, OWNER, 0, CalendarShareSource.EXO, null, null, false));
+    service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner");
+    storage.rows.add(new CalendarShare(9, 77, ALICE, CalendarShareLevel.VIEW, OWNER, 0, CalendarShareSource.EXO, null, null, false));
     when(calendarService.getCalendarById(77L)).thenReturn(null);
 
     assertEquals(List.of(PERSONAL_CAL), service.getSharedWithMe("alice").stream().map(CalendarShare::getCalendarId).toList());
@@ -385,7 +588,7 @@ class AgendaCalendarShareServiceTest {
   @Test
   void countsAndCleanupsNameTheirIdentities() throws Exception {
     channel.answer = ChannelDelivery.delivered("caldav:1", null);
-    service.share(PERSONAL_CAL, "alice", "owner");
+    service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner");
 
     assertEquals(Map.of(PERSONAL_CAL, 1L), service.countShareesByCalendar("owner"));
 
@@ -395,7 +598,7 @@ class AgendaCalendarShareServiceTest {
 
     service.deleteSharesOfUser(ALICE);
     assertFalse(service.isSharedWith(PERSONAL_CAL, ALICE));
-    service.share(PERSONAL_CAL, "alice", "owner");
+    service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner");
     service.deleteShares(PERSONAL_CAL);
     assertFalse(service.isSharedWith(PERSONAL_CAL, ALICE));
     verify(applicationContext, never()).getBean(anyString());
@@ -411,7 +614,7 @@ class AgendaCalendarShareServiceTest {
   void withoutAChannelSharingIsExoOnly() throws Exception {
     when(applicationContext.getBeansOfType(CalendarShareChannelPlugin.class)).thenReturn(Map.of());
 
-    CalendarShare share = service.share(PERSONAL_CAL, "alice", "owner");
+    CalendarShare share = service.share(PERSONAL_CAL, "alice", CalendarShareLevel.VIEW, "owner");
 
     assertNull(share.getDeliveredTo());
     assertTrue(service.getExternalShares(PERSONAL_CAL, "owner").isEmpty());
@@ -437,6 +640,72 @@ class AgendaCalendarShareServiceTest {
     assertFalse(service.holdsMeetingCopies(PERSONAL_CAL, "owner"), "a channel that cannot answer copies nothing");
     when(applicationContext.getBeansOfType(CalendarShareChannelPlugin.class)).thenReturn(Map.of());
     assertFalse(service.holdsMeetingCopies(PERSONAL_CAL, "owner"));
+  }
+
+  /**
+   * <b>One ask per channel per opening of the drawer</b> (EXO-90385). What the
+   * Share drawer reads — the access held outside eXo and the meeting-copies
+   * warning — comes from a single call to each channel, so a channel that can
+   * answer both from one read of its server is never made to read twice. The
+   * channel here answers both itself; the owner check and the adoption of a
+   * read-only grant are unchanged.
+   *
+   * @throws Exception when the read is refused
+   */
+  @Test
+  void theDrawersAskIsOneCallPerChannel() throws Exception {
+    OneReadChannel single = new OneReadChannel();
+    single.external = List.of(new ExternalShare("caldav:1", "grant-9", "OUTSIDE_EXO", 0, "x@y.org", true, true));
+    single.meetingCopies = true;
+    when(applicationContext.getBeansOfType(CalendarShareChannelPlugin.class)).thenReturn(Map.of("single", single));
+
+    ChannelShares answer = service.getChannelShares(PERSONAL_CAL, "owner");
+
+    assertEquals(1, answer.shares().size());
+    assertEquals("grant-9", answer.shares().get(0).getExternalId());
+    assertTrue(answer.meetingCopies(), "the flag the one read carried");
+    assertEquals(1, single.listCalls, "one ask");
+    assertEquals(0, single.separateCalls, "and neither of the two it stands for");
+    assertThrows(IllegalAccessException.class, () -> service.getChannelShares(PERSONAL_CAL, "alice"));
+    assertThrows(ObjectNotFoundException.class, () -> service.getChannelShares(99, "owner"));
+  }
+
+  /**
+   * A channel that does not override {@code listShares} still answers both,
+   * through the SPI's default.
+   *
+   * @throws Exception when the read is refused
+   */
+  @Test
+  void aChannelThatDoesNotOverrideTheOneAskStillAnswersBoth() throws Exception {
+    channel.external = List.of(new ExternalShare("caldav:1", "grant-9", "OUTSIDE_EXO", 0, "x@y.org", true, true));
+    channel.meetingCopies = true;
+
+    ChannelShares answer = service.getChannelShares(PERSONAL_CAL, "owner");
+
+    assertEquals(1, answer.shares().size());
+    assertTrue(answer.meetingCopies());
+  }
+
+  /**
+   * <b>A failed list read does not silence the meeting-copies warning</b>
+   * (EXO-90385). One call answers both questions, and the SPI default guards
+   * each of them on its own, so a channel whose list read throws is still
+   * asked for the flag and still raises the warning. A missed warning
+   * exposes the owner's meetings, while a false one costs a click, so this is
+   * the direction that must not regress.
+   *
+   * @throws Exception when the read is refused
+   */
+  @Test
+  void aChannelThatCannotListItsSharesStillRaisesTheMeetingCopiesWarning() throws Exception {
+    channel.listFailure = new IllegalStateException("the access list could not be read");
+    channel.meetingCopies = true;
+
+    ChannelShares answer = service.getChannelShares(PERSONAL_CAL, "owner");
+
+    assertTrue(answer.shares().isEmpty(), "the list the channel could not read");
+    assertTrue(answer.meetingCopies(), "the warning it could still answer");
   }
 
   /**
@@ -478,6 +747,13 @@ class AgendaCalendarShareServiceTest {
 
     RuntimeException    failure;
 
+    /**
+     * Fails the list read alone, leaving the meeting-copies answer intact —
+     * the one case a single {@link #failure} cannot express, and the one the
+     * SPI default has to keep apart (EXO-90385).
+     */
+    RuntimeException    listFailure;
+
     boolean             withdrawAnswer = true;
 
 
@@ -488,6 +764,9 @@ class AgendaCalendarShareServiceTest {
     int                 deliveries;
 
     int                 withdrawals;
+
+    /** The level of the last share the channel was asked to carry (EXO-90378). */
+    CalendarShareLevel  deliveredLevel;
 
     /**
      * The bare channel id: its deliveries say {@code caldav:1}, the server,
@@ -506,6 +785,7 @@ class AgendaCalendarShareServiceTest {
     @Override
     public ChannelDelivery deliver(CalendarShare share, String ownerUsername) {
       deliveries++;
+      deliveredLevel = share.getLevel();
       if (failure != null) {
         throw failure;
       }
@@ -526,6 +806,9 @@ class AgendaCalendarShareServiceTest {
      */
     @Override
     public List<ExternalShare> listExternalShares(long calendarId, String ownerUsername, List<Long> recordedShareeIds) {
+      if (listFailure != null) {
+        throw listFailure;
+      }
       if (failure != null) {
         throw failure;
       }
@@ -553,6 +836,82 @@ class AgendaCalendarShareServiceTest {
   }
 
   /**
+   * A channel that answers the drawer's two questions from one read
+   * (EXO-90385), as the CalDAV one does, and counts what it was asked.
+   */
+  private static class OneReadChannel implements CalendarShareChannelPlugin {
+
+    List<ExternalShare> external = List.of();
+
+    boolean             meetingCopies;
+
+    /** How many times the one ask was made. */
+    int                 listCalls;
+
+    /** How many times either of the two methods it stands for was made. */
+    int                 separateCalls;
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String id() {
+      return "one-read";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ChannelDelivery deliver(CalendarShare share, String ownerUsername) {
+      return ChannelDelivery.notApplicable();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean withdraw(CalendarShare share, String ownerUsername) {
+      return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<ExternalShare> listExternalShares(long calendarId, String ownerUsername, List<Long> recordedShareeIds) {
+      separateCalls++;
+      return external;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean removeExternalShare(long calendarId, String externalId, String ownerUsername) {
+      return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean holdsMeetingCopies(long calendarId, String ownerUsername) {
+      separateCalls++;
+      return meetingCopies;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ChannelShares listShares(long calendarId, String ownerUsername, List<Long> recordedShareeIds) {
+      listCalls++;
+      return new ChannelShares(external, meetingCopies);
+    }
+  }
+
+  /**
    * A storage over a list, with the storage's own contract: no cache, so
    * every read sees the last write.
    */
@@ -575,6 +934,26 @@ class AgendaCalendarShareServiceTest {
     @Override
     public List<Long> getSharedCalendarIds(long viewerIdentityId) {
       return rows.stream().filter(row -> row.getShareeIdentityId() == viewerIdentityId).map(CalendarShare::getCalendarId).toList();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Map<Long, CalendarShareLevel> getShareLevels(long viewerIdentityId) {
+      Map<Long, CalendarShareLevel> levels = new HashMap<>();
+      rows.stream()
+          .filter(row -> row.getShareeIdentityId() == viewerIdentityId)
+          .forEach(row -> levels.put(row.getCalendarId(), row.getLevel()));
+      return levels;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CalendarShareLevel getShareLevel(long calendarId, long viewerIdentityId) {
+      return getShareLevels(viewerIdentityId).get(calendarId);
     }
 
     /**
@@ -626,6 +1005,7 @@ class AgendaCalendarShareServiceTest {
     public CalendarShare save(long calendarId,
                               long shareeIdentityId,
                               long grantedById,
+                              CalendarShareLevel level,
                               CalendarShareSource source,
                               String deliveredTo,
                               String deliveryRef,
@@ -637,6 +1017,7 @@ class AgendaCalendarShareServiceTest {
       CalendarShare row = new CalendarShare(nextId++,
                                             calendarId,
                                             shareeIdentityId,
+                                            level == null ? CalendarShareLevel.VIEW : level,
                                             grantedById,
                                             createdDate.getTime(),
                                             source,
@@ -644,6 +1025,19 @@ class AgendaCalendarShareServiceTest {
                                             deliveryRef,
                                             false);
       rows.add(row);
+      return row.clone();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CalendarShare setLevel(long calendarId, long shareeIdentityId, CalendarShareLevel level) {
+      CalendarShare row = find(calendarId, shareeIdentityId);
+      if (row == null) {
+        return null;
+      }
+      row.setLevel(level == null ? CalendarShareLevel.VIEW : level);
       return row.clone();
     }
 

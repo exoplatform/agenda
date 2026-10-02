@@ -92,6 +92,9 @@
     <type>org.exoplatform.agenda.notification.pwa.CalendarSharedNotificationPwaPlugin</type>
   </component>
   <component>
+    <type>org.exoplatform.agenda.notification.pwa.CalendarEditedNotificationPwaPlugin</type>
+  </component>
+  <component>
     <key>org.exoplatform.agenda.service.AgendaCalendarService</key>
     <type>org.exoplatform.agenda.service.AgendaCalendarServiceImpl</type>
     <init-params>

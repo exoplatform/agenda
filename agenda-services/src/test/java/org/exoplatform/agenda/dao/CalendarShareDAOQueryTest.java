@@ -26,6 +26,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -40,6 +41,7 @@ import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Persistence;
 import jakarta.persistence.PersistenceException;
 
+import org.exoplatform.agenda.constant.CalendarShareLevel;
 import org.exoplatform.agenda.constant.CalendarShareSource;
 import org.exoplatform.agenda.entity.CalendarEntity;
 import org.exoplatform.agenda.entity.CalendarShareEntity;
@@ -100,7 +102,7 @@ class CalendarShareDAOQueryTest {
 
   /**
    * A saved share is found by its pair, listed under its calendar and under
-   * its sharee, and its calendar is among the sharee's identifiers.
+   * its sharee.
    */
   @Test
   void aShareIsFoundByItsPairAndListedBothWays() {
@@ -111,11 +113,33 @@ class CalendarShareDAOQueryTest {
     assertNotNull(byPair, "the share must be found by its pair");
     assertNotNull(byPair.getId(), "and carry an identifier the generator gave it");
     assertEquals(CalendarShareSource.EXO, byPair.getSource());
-    assertEquals(List.of(42L), dao.findCalendarIdsByShareeIdentityId(7));
     assertEquals(1, dao.findByCalendarIdOrderByCreatedDateAscIdAsc(42, PageRequest.of(0, 10)).size());
     assertEquals(1, dao.findByShareeIdentityIdOrderByCreatedDateDescIdDesc(7, PageRequest.of(0, 10)).size());
     assertNull(dao.findByCalendarIdAndShareeIdentityId(42, 8), "another colleague has no share");
-    assertTrue(dao.findCalendarIdsByShareeIdentityId(8).isEmpty());
+  }
+
+  /**
+   * The level projection (EXO-90378) is a statement the engine parses and
+   * runs: every calendar shared with a colleague, each with its own level,
+   * read through a real repository proxy on HSQLDB and not a mock.
+   */
+  @Test
+  void theLevelsOfAShareeAreReadInOneStatement() {
+    inTransaction(() -> {
+      dao.saveAndFlush(share(42, 7, new Date(1000), CalendarShareLevel.EDIT));
+      dao.saveAndFlush(share(43, 7, new Date(2000), CalendarShareLevel.VIEW));
+      dao.saveAndFlush(share(42, 8, new Date(3000), CalendarShareLevel.EDIT));
+    });
+    entityManager.clear();
+
+    Map<Long, CalendarShareLevel> levels = new HashMap<>();
+    for (Object[] row : dao.findCalendarLevelsByShareeIdentityId(7)) {
+      levels.put(((Number) row[0]).longValue(), (CalendarShareLevel) row[1]);
+    }
+    assertEquals(2, levels.size(), "both calendars shared with the colleague");
+    assertEquals(CalendarShareLevel.EDIT, levels.get(42L), "each with the level its own row carries");
+    assertEquals(CalendarShareLevel.VIEW, levels.get(43L));
+    assertTrue(dao.findCalendarLevelsByShareeIdentityId(9).isEmpty(), "a colleague with no share has no level");
   }
 
   /**
@@ -279,10 +303,24 @@ class CalendarShareDAOQueryTest {
    * @return the entity
    */
   private CalendarShareEntity share(long calendarId, long shareeId, Date createdDate) {
+    return share(calendarId, shareeId, createdDate, CalendarShareLevel.VIEW);
+  }
+
+  /**
+   * A share row at a given level.
+   *
+   * @param calendarId calendar identifier
+   * @param shareeId sharee identity identifier
+   * @param createdDate when it was created
+   * @param level what the colleague may do with the calendar
+   * @return the row, not yet saved
+   */
+  private CalendarShareEntity share(long calendarId, long shareeId, Date createdDate, CalendarShareLevel level) {
     CalendarShareEntity entity = new CalendarShareEntity();
     entity.setCalendarId(calendarId);
     entity.setShareeIdentityId(shareeId);
     entity.setGrantedById(1);
+    entity.setLevel(level);
     entity.setSource(CalendarShareSource.EXO);
     entity.setCreatedDate(createdDate);
     return entity;

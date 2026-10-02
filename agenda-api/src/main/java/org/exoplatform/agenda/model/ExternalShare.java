@@ -24,11 +24,12 @@ import lombok.NoArgsConstructor;
  * A share of a calendar that exists on a delivery channel's server but not as
  * an eXo record (EXO-90357), read live from the channel.
  * <p>
- * A read-only share granted to a user of this deployment ({@link #shareeIdentityId}
- * set, {@link #readOnly}) is recorded in eXo silently, as an adopted share, the
- * moment the owner lists their shares — {@link #deliveryRef} is what the record
- * then carries. The others — an address outside eXo, the whole server, a
- * published link, a colleague holding more than reading — are listed to the
+ * A share granted to a user of this deployment ({@link #shareeIdentityId} set)
+ * whose {@link #access} is one eXo itself would write — {@code VIEW} or
+ * {@code EDIT} (EXO-90378) — is recorded in eXo silently, as an adopted share
+ * at that level, the moment the owner lists their shares; {@link #deliveryRef}
+ * is what the record then carries. The others — an address outside eXo, the whole server, a
+ * published link, a colleague holding more than eXo writes ({@code MORE}) — are listed to the
  * owner as access held outside eXo, and can only be removed on the server,
  * when the channel says they can.
  */
@@ -67,8 +68,21 @@ public class ExternalShare {
   /** Whether the share can be removed on the server from eXo. */
   private boolean removable;
 
-  /** Whether the share grants reading only; a share granting more cannot be recorded as is. */
+  /**
+   * Whether the share grants reading only; one granting more is recorded only
+   * when {@link #access} is {@code EDIT}.
+   */
   private boolean readOnly;
+
+  /**
+   * What the grant amounts to in eXo's own vocabulary (EXO-90378):
+   * {@code VIEW} for reading, {@code EDIT} for a grant of exactly the shape
+   * eXo writes for an edit share, {@code MORE} for anything else — a
+   * privilege set eXo would not write, and which it therefore never adopts.
+   * Null from a channel that does not answer for it, which is read as
+   * {@code MORE} when it is not read-only.
+   */
+  private String  access;
 
   /** The grantee's mail address, when the channel knows one; may be null. */
   private String  email;
@@ -98,7 +112,7 @@ public class ExternalShare {
                        String displayName,
                        boolean removable,
                        boolean readOnly) {
-    this(channelId, externalId, kind, shareeIdentityId, displayName, removable, readOnly, null, null);
+    this(channelId, externalId, kind, shareeIdentityId, displayName, removable, readOnly, null, null, null);
   }
 
 }

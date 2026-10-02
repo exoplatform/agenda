@@ -166,7 +166,7 @@
               connector names only by a display name — a share made on the
               server by someone who is not a user here — has no profile to
               link, so that row keeps the lock and names the owner in the
-              hover.
+              hover: "Shared by Marie Dupont — read-only" (EXO-90350).
 
               The icon alone would not be announced: Vuetify hides a v-icon
               that has no click listener from assistive technology, so the
@@ -200,20 +200,36 @@
                   fas fa-cube
                 </v-icon>
               </span>
-              <exo-user-avatar
-                v-else-if="hasKnownOwner(calendar)"
-                :profile-id="calendar.ownerUsername"
-                :name="calendar.ownerDisplayName"
-                :aria-label="sharedLabel(calendar)"
-                :size="20"
-                avatar
-                popover />
+              <span v-else-if="hasKnownOwner(calendar)" class="d-flex align-center">
+                <!--
+                  A calendar shared for editing (EXO-90378) carries a pencil
+                  beside its owner's avatar, where a read-only one carries
+                  nothing: the marker says what the row lets the user do, and
+                  the hover says it in words.
+                -->
+                <v-icon
+                  v-if="calendar.editable === true"
+                  :title="sharedLabel(calendar)"
+                  :aria-label="sharedLabel(calendar)"
+                  size="12"
+                  role="img"
+                  class="text-light-color me-1 agenda-remote-calendar-editable">
+                  fas fa-pencil-alt
+                </v-icon>
+                <exo-user-avatar
+                  :profile-id="calendar.ownerUsername"
+                  :name="calendar.ownerDisplayName"
+                  :aria-label="sharedLabel(calendar)"
+                  :size="20"
+                  avatar
+                  popover />
+              </span>
               <span
                 v-else
-                :title="$t('agenda.leftPanel.readOnlyCalendar')"
-                :aria-label="$t('agenda.leftPanel.readOnlyCalendar')"
+                :title="readOnlyLabel(calendar)"
+                :aria-label="readOnlyLabel(calendar)"
                 role="img"
-                class="d-flex">
+                class="d-flex agenda-remote-calendar-read-only">
                 <v-icon size="14" class="text-light-color">
                   fas fa-lock
                 </v-icon>
@@ -725,7 +741,11 @@ export default {
         calendarId: Number(share.calendarId),
         name: share.name,
         color: share.color,
-        readOnly: true,
+        // What the owner let this colleague do (EXO-90378): a Can-view share
+        // is read-only as every share was in EXO-90357; a Can-edit one is
+        // not, and the row says so with a pencil beside the owner's avatar
+        readOnly: share.access !== 'EDIT',
+        editable: share.access === 'EDIT',
         shared: true,
         sharedWithMe: true,
         ownerUsername: share.ownerUsername,
@@ -843,7 +863,8 @@ export default {
      * server's display name of a stranger — and "Shared with you" when the
      * connector names no owner at all. Which servers can name one is the
      * connector's business, not this panel's. A resource's calendar is said
-     * to be one instead: "Resource: <name>".
+     * to be one instead: "Resource: <name>". A calendar shared for editing
+     * (EXO-90378) says that too: "Shared by <owner> — you can edit".
      *
      * @param {Object} calendar calendar as the connector described it
      * @returns {String} the sentence, in the user's language
@@ -852,9 +873,48 @@ export default {
       if (this.isResource(calendar)) {
         return this.resourceLabel(calendar);
       }
-      return calendar.ownerDisplayName
-        ? this.$t('agenda.leftPanel.sharedBy', {0: calendar.ownerDisplayName})
-        : this.$t('agenda.leftPanel.sharedCalendar');
+      if (!calendar.ownerDisplayName) {
+        return this.$t('agenda.leftPanel.sharedCalendar');
+      }
+      // A share the owner granted for editing says so in the same breath as
+      // who shared it (EXO-90378): one sentence, one hover
+      return calendar.editable === true
+        ? this.$t('agenda.leftPanel.sharedCalendarEditable', {0: calendar.ownerDisplayName})
+        : this.$t('agenda.leftPanel.sharedBy', {0: calendar.ownerDisplayName});
+    },
+    /**
+     * What the lock says: "Shared by <owner> — read-only" when the calendar
+     * is one shared with the user and the connector named its owner
+     * (EXO-90350), and the generic read-only sentence otherwise.
+     *
+     * The lock is only ever drawn on a read-only calendar — the row's marker
+     * slot is drawn for a resource, for a share whose owner is an eXo user,
+     * or for `readOnly`, and the first two take the glyph before this branch
+     * is reached — so naming the owner and saying "read-only" in one breath
+     * is true wherever this shows. Which calendars it covers: a share made
+     * on the calendar server by somebody this deployment cannot match to one
+     * of its users, whom the connector names by a display name alone. The
+     * user's own read-only calendars carry no owner — the connector leaves
+     * the owner fields null unless the calendar is shared — and keep the
+     * generic read-only sentence.
+     *
+     * The name is the calendar server's, which is text this deployment did
+     * not author: it reaches the DOM through an attribute binding, never
+     * through `v-html`, so a name carrying markup is shown as the characters
+     * the server sent and is never parsed.
+     *
+     * The name the connector sends is already the best one it could get —
+     * the owner principal's display name, else the address or login the
+     * server spells the principal with — so nothing is asked of the server
+     * here; the address fallback is the connector's, not this panel's.
+     *
+     * @param {Object} calendar calendar as buildGroups stamped it
+     * @returns {String} the sentence, in the user's language
+     */
+    readOnlyLabel(calendar) {
+      return calendar && calendar.sharedWithMe === true && calendar.ownerDisplayName
+        ? this.$t('agenda.leftPanel.sharedByReadOnly', {0: calendar.ownerDisplayName})
+        : this.$t('agenda.leftPanel.readOnlyCalendar');
     },
     /**
      * The row's hover: the calendar's full name, and on a calendar shared
