@@ -671,9 +671,8 @@ class AgendaCalendarShareServiceTest {
   }
 
   /**
-   * A channel written before EXO-90385 — one that does not override
-   * {@code listShares} — still answers both, through the SPI's default, and
-   * agenda reads it exactly as it did.
+   * A channel that does not override {@code listShares} still answers both,
+   * through the SPI's default.
    *
    * @throws Exception when the read is refused
    */
@@ -690,11 +689,9 @@ class AgendaCalendarShareServiceTest {
 
   /**
    * <b>A failed list read does not silence the meeting-copies warning</b>
-   * (EXO-90385 review round 1). Before EXO-90385 agenda made two passes over
-   * the channels with a guard each, so a channel whose list read threw was
-   * still asked for the flag and could still raise the warning. There is now
-   * one call in which to lose both, and the SPI default is what keeps them
-   * apart — it guards each of the two questions it asks. A missed warning
+   * (EXO-90385). One call answers both questions, and the SPI default guards
+   * each of them on its own, so a channel whose list read throws is still
+   * asked for the flag and still raises the warning. A missed warning
    * exposes the owner's meetings, while a false one costs a click, so this is
    * the direction that must not regress.
    *
