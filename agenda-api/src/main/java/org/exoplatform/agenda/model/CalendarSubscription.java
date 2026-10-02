@@ -20,13 +20,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * A user's subscription to a calendar link (EXO-90278): the remote iCal feed,
- * the personal calendar its events are imported into, and the state of its
- * refreshes.
+ * A subscription to a calendar link (EXO-90278) of a user, or of a space
+ * (EXO-90373): the remote iCal feed, the calendar of its owner its events are
+ * imported into, and the state of its refreshes.
  * <p>
- * The storage fills every field but {@code url}, {@code name} and
- * {@code color}; the service decrypts the URL for its owner, reads the name and
- * colour from the calendar, and clears the stored secrets
+ * The storage fills every field but {@code url}, {@code name},
+ * {@code color} and the creator's names; the service decrypts the URL for
+ * whoever manages it, reads the name and colour from the calendar, names the
+ * creator, and clears the stored secrets
  * ({@code urlEncrypted}, {@code urlKey}) and the validators before a
  * subscription leaves it. Dates are epoch milliseconds, 0 for never.
  */
@@ -40,8 +41,25 @@ public class CalendarSubscription {
   /** The personal calendar the feed's events are imported into. */
   private long    calendarId;
 
-  /** Identity identifier of the user who subscribed, the only one managing it. */
+  /**
+   * Identity identifier of the user who subscribed: for a personal
+   * subscription its owner, for a space's the manager who added it, shown and
+   * never used to decide who manages it (EXO-90373).
+   */
   private long    userIdentityId;
+
+  /**
+   * Identity identifier of the owner of the calendar the feed fills: the user
+   * for a personal subscription, the space for a space's. Who may manage the
+   * subscription is decided from it (EXO-90373).
+   */
+  private long    ownerIdentityId;
+
+  /** Username of the user who subscribed, filled for the managers' listing. */
+  private String  creatorUsername;
+
+  /** Full name of the user who subscribed, filled for the managers' listing. */
+  private String  creatorFullName;
 
   /** The feed URL in clear, for its owner only; null when it cannot be decrypted. */
   private String  url;
@@ -49,7 +67,7 @@ public class CalendarSubscription {
   /** The feed URL encrypted by the platform codec, as stored. */
   private String  urlEncrypted;
 
-  /** SHA-256 of the owner and the normalized URL, unique per user. */
+  /** SHA-256 of the owner and the normalized URL, unique per owner. */
   private String  urlKey;
 
   /** Name of the calendar the events are imported into. */

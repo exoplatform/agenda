@@ -435,6 +435,17 @@ export default {
         return this.retrieveEventsFromStore();
       }
     },
+    /**
+     * Fetches the events of the configured period and displays them.
+     *
+     * <p>Under the "accepted events" filter the widget lists what the viewer
+     * personally accepted, so it asks for none of the calendars their spaces
+     * subscribed to (EXO-90373): nobody is invited to those events and nobody
+     * answered them, and this widget's source and filter are portlet
+     * preferences a member cannot change, so they could not remove them.</p>
+     *
+     * @returns {Promise} resolved when the events are displayed
+     */
     retrieveEventsFromStore() {
       this.loadingStore = true;
       let agendaFilter = this.$root.timelineSettings.agendaFilter;
@@ -447,7 +458,7 @@ export default {
       }
       const userIdentityId = agendaFilter === 'acceptedEvents' && eXo.env.portal.userIdentityId || null;
       const responseTypes = agendaFilter === 'acceptedEvents' ? ['ACCEPTED'] : ['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
-      return this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, false), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences')
+      return this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, false), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences', null, null)
         .then(data => {
           const events = data && data.events || [];
           events.forEach(event => {

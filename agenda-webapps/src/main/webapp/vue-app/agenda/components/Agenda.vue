@@ -141,6 +141,12 @@
       shared sign open it through one root event.
     -->
     <agenda-calendar-share-drawer />
+    <!--
+      The calendars a space subscribes to (EXO-90373), once for the whole
+      application for the same reason: every space calendar row a manager sees
+      opens it through one root event.
+    -->
+    <agenda-space-subscriptions-drawer />
   </v-app>
 </template>
 <script>
@@ -647,7 +653,10 @@ export default {
       const responseTypes = this.spaceContextId && this.eventType === 'allEvents' ? null : this.eventType === 'declinedEvent' ? ['DECLINED']:['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
       // No shared calendar in a space agenda: the selection is the space
       const sharedCalendarIds = this.leftPanelAvailable ? this.sharedCalendarIds : [];
-      return this.$eventService.getEvents(this.searchTerm, this.effectiveOwnerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences', this.hiddenOwnCalendarIds, sharedCalendarIds)
+      // The calendars the selected owners subscribed to carry no attendee row:
+      // the user's own events view asks for them, the declined view does not
+      const includeSubscribedCalendars = this.eventType !== 'declinedEvent';
+      return this.$eventService.getEvents(this.searchTerm, this.effectiveOwnerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, true), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences', this.hiddenOwnCalendarIds, sharedCalendarIds, includeSubscribedCalendars)
         .then(data => {
           if (requestId !== this.eventsRequestId) {
             // A newer retrieval was started since: its response is the one
@@ -757,7 +766,8 @@ export default {
     /**
      * Fetches the remote events of every signed-in connected account for the
      * displayed period and merges them into one deduplicated array, each
-     * event tagged with the account it came from.
+     * event tagged with the account it came from. Never in a space's agenda,
+     * which shows the space's calendars alone (EXO-90373).
      *
      * @returns {void}
      */
@@ -768,6 +778,16 @@ export default {
       // Skipping loses nothing: the period watcher retrieves again as soon as
       // the calendar has a real period.
       if (!this.period || !this.period.start || !this.period.end) {
+        return;
+      }
+      // A space's agenda shows the space's calendars and nothing that reaches
+      // the viewer personally (EXO-90373): the events of a connected account
+      // are the viewer's own, and that account may hold copies of the space's
+      // events, which would be drawn a second time beside them. The personal
+      // agenda is where a connected account belongs.
+      if (!this.leftPanelAvailable) {
+        this.remoteEvents = [];
+        this.failedConnectors = [];
         return;
       }
       if (this.settingsLoaded && this.connectorStatus === 1) {
