@@ -199,6 +199,10 @@ public interface AgendaCalendarShareService {
    * and notifies nobody: the colleague already had access. What is answered
    * is the rest: an address outside eXo, the whole server, a published link,
    * a colleague holding more than reading.
+   * <p>
+   * The Share drawer reads {@link #getChannelShares}, which answers this and
+   * {@link #holdsMeetingCopies} in one ask of each channel; this method stays
+   * for a caller that needs the shares alone, and it pays for the flag too.
    *
    * @param calendarId technical identifier of the calendar
    * @param ownerUsername the owner
@@ -213,6 +217,9 @@ public interface AgendaCalendarShareService {
    * Whether a channel writes copies of the owner's eXo meetings into the
    * calendar: what the drawer asks a confirmation for before sharing it
    * (EXO-90345), since a share then exposes every meeting the owner attends.
+   * <p>
+   * The Share drawer reads {@link #getChannelShares}; this method stays for a
+   * caller that needs the flag alone.
    *
    * @param calendarId technical identifier of the calendar
    * @param ownerUsername the owner
