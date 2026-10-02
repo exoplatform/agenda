@@ -107,6 +107,7 @@ function updateConference(event, conference) {
         group: true,
         startDate,
         endDate,
+        recurrence: event.recurrence,
       });
     })
     .then(callDetails => {
