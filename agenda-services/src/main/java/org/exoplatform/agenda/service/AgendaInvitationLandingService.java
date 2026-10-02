@@ -44,6 +44,7 @@ import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.model.EventReminder;
 import org.exoplatform.agenda.model.EventReminderParameter;
+import org.exoplatform.agenda.model.HeldMailInvitation;
 import org.exoplatform.agenda.model.LandedMailInvitation;
 import org.exoplatform.agenda.model.MailInvitation;
 import org.exoplatform.agenda.model.MailInvitationEvent;
@@ -302,6 +303,55 @@ public class AgendaInvitationLandingService {
     answer(held.getId(), userIdentityId, response == null ? heldResponse : response);
     LOG.debug("The invitation {} of user {} is event {}, {}", read.uid(), userIdentityId, held.getId(), newer ? "updated" : "kept");
     return landed(held.getId());
+  }
+
+  /**
+   * The event the user's personal calendar holds for an invitation, for the mail
+   * reader to say so when the invitation is opened (EXO-90873): found by the
+   * same lookup a landing makes — this user's key, an event they created in a
+   * calendar they own — with the answer agenda holds for them and the SEQUENCE
+   * landed. Reads only, no round trip to a server.
+   * <p>
+   * Null wherever a landing would not act: a user agenda cannot serve or who
+   * connected a remote calendar account, a message about one occurrence alone,
+   * an event the user does not hold — one of this deployment's own meetings
+   * included, which is never landed and so never found — an event cancelled
+   * since, and an event the message's organiser is not the organiser of, or
+   * that the user organises: the UID is the sender's, and only an event's own
+   * organiser speaks for it.
+   *
+   * @param username the user's login
+   * @param attendeeAddress the user's mailbox address, may be null
+   * @param uid the invitation's UID
+   * @param recurrenceId the occurrence the message is about, null for the
+   *          series or a single event
+   * @param organizer the message's organiser, null for a published event
+   *          naming none
+   * @return the event held, or null
+   */
+  public HeldMailInvitation held(String username, String attendeeAddress, String uid, String recurrenceId, String organizer) {
+    if (StringUtils.isBlank(uid) || StringUtils.isNotBlank(recurrenceId)) {
+      return null;
+    }
+    Identity identity = userIdentityOf(username);
+    if (identity == null) {
+      return null;
+    }
+    long userIdentityId = Long.parseLong(identity.getId());
+    if (connectsARemoteCalendar(userIdentityId)) {
+      return null;
+    }
+    Event held = heldEvent(userIdentityId, uid.trim());
+    if (held == null || held.getStatus() == EventStatus.CANCELLED) {
+      return null;
+    }
+    String heldOrganizer = organizerOf(held);
+    if (heldOrganizer != null && addressesOf(identity, attendeeAddress).contains(heldOrganizer)
+        || !StringUtils.equals(heldOrganizer, MailInvitationReader.bareAddress(organizer))) {
+      LOG.debug("The event {} user {} holds for {} is not the message's organiser's to tell of", held.getId(), userIdentityId, uid);
+      return null;
+    }
+    return new HeldMailInvitation(held.getId(), linkOf(held.getId()), responseOf(held.getId(), userIdentityId), sequenceOf(held));
   }
 
   /**

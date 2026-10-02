@@ -41,6 +41,7 @@ import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.model.HeldMailInvitation;
 import org.exoplatform.agenda.model.LandedMailInvitation;
 import org.exoplatform.agenda.model.MailInvitation;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -443,12 +444,117 @@ public class AgendaInvitationLandingServiceTest extends BaseAgendaEventTest {
       assertTrue(landingService().holdsCalendarFor("testuser4"));
       assertNotNull(land("testuser4", "REQUEST", uid, 0, EventAttendeeResponse.ACCEPTED, object));
       assertEquals(1, eventsOf("testuser4", uid));
+      restartTransaction();
+      assertNotNull(landingService().held("testuser4", MAILBOX, uid, null, ORGANIZER));
+
+      // Connected again: the event agenda holds is not told of, as nothing would be landed.
+      settings = agendaUserSettingsService.getAgendaUserSettings(user);
+      settings.addOrUpdateConnectedConnector(provider, "testuser4@remote.example");
+      agendaUserSettingsService.saveAgendaUserSettings(user, settings);
+      restartTransaction();
+      assertNull(landingService().held("testuser4", MAILBOX, uid, null, ORGANIZER));
     } finally {
       agendaRemoteEventService.saveRemoteProviderStatus(provider, true, false);
       settings = agendaUserSettingsService.getAgendaUserSettings(user);
       settings.removeConnectedConnector(provider);
       agendaUserSettingsService.saveAgendaUserSettings(user, settings);
     }
+  }
+
+  /**
+   * The mail reader asks whether the user's calendar holds an invitation when
+   * it is opened (EXO-90873): the event landed is told with its link, the answer
+   * agenda holds for the user — the one given in agenda since included — and the
+   * SEQUENCE landed; nothing is written by asking.
+   */
+  @Test
+  public void testHeldTellsTheEventItsAnswerAndItsSequence() throws Exception {
+    String uid = uid();
+    LandedMailInvitation landed = land("testuser2", "REQUEST", uid, 3, EventAttendeeResponse.TENTATIVE, ics("REQUEST", uid, 3, ORGANIZER, "Sync", ""));
+
+    restartTransaction();
+    HeldMailInvitation held = landingService().held("testuser2", MAILBOX, uid, null, ORGANIZER);
+    assertEquals(new HeldMailInvitation(landed.eventId(), landed.link(), EventAttendeeResponse.TENTATIVE, 3), held);
+
+    long user = identityOf("testuser2");
+    agendaEventAttendeeService.sendEventResponse(landed.eventId(), user, EventAttendeeResponse.DECLINED, false);
+    restartTransaction();
+    assertEquals(EventAttendeeResponse.DECLINED, landingService().held("testuser2", MAILBOX, " " + uid + " ", null, ORGANIZER).response());
+    assertEquals(1, eventsOf("testuser2", uid));
+    assertEquals(EventAttendeeResponse.DECLINED, agendaEventAttendeeService.getEventResponse(landed.eventId(), null, user));
+  }
+
+  /**
+   * Nothing is held where a landing would not act: another UID, another user's
+   * event, one occurrence of the meeting, another organiser's message, an event
+   * the user organises, an event cancelled since, an event removed, a user
+   * agenda cannot serve — and a forged key on another user's event is not
+   * adopted.
+   */
+  @Test
+  public void testHeldIsNullWhereALandingWouldNotAct() throws Exception {
+    String uid = uid();
+    LandedMailInvitation landed = land("testuser2", "REQUEST", uid, 0, EventAttendeeResponse.ACCEPTED, ics("REQUEST", uid, 0, ORGANIZER, "Sync", ""));
+    restartTransaction();
+    assertNotNull(landingService().held("testuser2", MAILBOX, uid, null, ORGANIZER));
+
+    assertNull(landingService().held("testuser2", MAILBOX, uid(), null, ORGANIZER));
+    assertNull(landingService().held("testuser3", MAILBOX, uid, null, ORGANIZER));
+    assertNull(landingService().held("testuser2", MAILBOX, uid, "20301015T090000Z", ORGANIZER));
+    assertNull(landingService().held("testuser2", MAILBOX, " ", null, ORGANIZER));
+    assertNull(landingService().held("nobody-" + UUID.randomUUID(), MAILBOX, uid, null, ORGANIZER));
+    assertNull("another organiser", landingService().held("testuser2", MAILBOX, uid, null, "intruder@else.example"));
+    assertNull("no organiser", landingService().held("testuser2", MAILBOX, uid, null, null));
+    assertNotNull("the organiser's address in any case",
+                  landingService().held("testuser2", MAILBOX, uid, null, ORGANIZER.toUpperCase()));
+
+    // An event the user organises is not told of from a mail; a published event
+    // naming no organiser is.
+    String mine = uid();
+    land("testuser2", "PUBLISH", mine, 0, null, ics("PUBLISH", mine, 0, MAILBOX, "Mine", ""));
+    restartTransaction();
+    assertNull("the user's own", landingService().held("testuser2", MAILBOX, mine, null, MAILBOX));
+    String published = uid();
+    land("testuser2", "PUBLISH", published, 0, null, ics("PUBLISH", published, 0, null, "Published", ""));
+    restartTransaction();
+    assertNotNull("published", landingService().held("testuser2", MAILBOX, published, null, null));
+    assertNull("published, claimed by an organiser", landingService().held("testuser2", MAILBOX, published, null, ORGANIZER));
+
+    Event event = agendaEventService.getEventById(landed.eventId());
+    event.setStatus(EventStatus.CANCELLED);
+    event.setVisibility(null);
+    long user = identityOf("testuser2");
+    agendaEventService.updateEvent(event,
+                                   agendaEventAttendeeService.getEventAttendees(event.getId()).getEventAttendees(),
+                                   List.of(),
+                                   List.of(),
+                                   null,
+                                   null,
+                                   false,
+                                   user);
+    restartTransaction();
+    assertNull("cancelled since", landingService().held("testuser2", MAILBOX, uid, null, ORGANIZER));
+
+    agendaEventService.deleteEventById(landed.eventId(), user);
+    restartTransaction();
+    assertNull("removed", landingService().held("testuser2", MAILBOX, uid, null, ORGANIZER));
+
+    // Another user's event carrying this user's key.
+    String forgedUid = uid();
+    long forger = identityOf("testuser3");
+    owners.add(forger);
+    Event forged = new Event();
+    forged.setCalendarId(agendaCalendarService.getOrCreateCalendarByOwnerId(forger).getId());
+    forged.setSummary("Forged");
+    forged.setStart(ZonedDateTime.of(2030, 10, 15, 9, 0, 0, 0, ZoneOffset.UTC));
+    forged.setEnd(ZonedDateTime.of(2030, 10, 15, 10, 0, 0, 0, ZoneOffset.UTC));
+    forged.setTimeZoneId(ZoneOffset.UTC);
+    Map<String, String> properties = new HashMap<>();
+    properties.put(AgendaInvitationLandingService.UID_PROPERTY, AgendaInvitationLandingService.uidKey(user, forgedUid));
+    forged.setParameters(properties);
+    agendaEventService.createEvent(forged, List.of(), List.of(), List.of(), null, null, false, forger);
+    restartTransaction();
+    assertNull("forged", landingService().held("testuser2", MAILBOX, forgedUid, null, ORGANIZER));
   }
 
   /**
