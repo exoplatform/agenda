@@ -453,6 +453,30 @@ class AgendaCalendarShareServiceTest {
   }
 
   /**
+   * A downgrade of a share its channel no longer carries - the colleague left
+   * the server, the collection is gone - is not blocked by it: the level
+   * changes, the delivery is forgotten, and a later unshare withdraws nothing
+   * there. Kills the mutant that reads NOT_APPLICABLE as a failure.
+   *
+   * @throws Exception when the share is refused
+   */
+  @Test
+  void aDowngradeOfAShareTheChannelNoLongerCarriesChangesTheLevelAndForgetsTheDelivery() throws Exception {
+    channel.answer = ChannelDelivery.delivered("caldav:1", "/cal/alice/");
+    service.share(PERSONAL_CAL, "alice", CalendarShareLevel.EDIT, "owner");
+    channel.answer = ChannelDelivery.notApplicable();
+
+    CalendarShare lowered = service.setLevel(PERSONAL_CAL, ALICE, CalendarShareLevel.VIEW, "owner");
+
+    assertEquals(CalendarShareLevel.VIEW, lowered.getLevel());
+    assertNull(lowered.getDeliveredTo(), "the delivery is forgotten");
+    assertEquals(CalendarShareLevel.VIEW, service.getShareLevel(PERSONAL_CAL, ALICE));
+    int withdrawals = channel.withdrawals;
+    service.unshare(PERSONAL_CAL, ALICE, "owner");
+    assertEquals(withdrawals, channel.withdrawals, "nothing is left to withdraw on the server");
+  }
+
+  /**
    * A channel that carried the share at a wider level than the record asks
    * for gave the colleague more on the server than eXo grants them: it is not
    * recorded as a delivery. Kills the mutant that accepts any delivered level.
