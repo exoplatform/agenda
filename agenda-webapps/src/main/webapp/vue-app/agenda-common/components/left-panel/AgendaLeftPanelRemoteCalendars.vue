@@ -166,9 +166,7 @@
               connector names only by a display name — a share made on the
               server by someone who is not a user here — has no profile to
               link, so that row keeps the lock and names the owner in the
-              hover: "Shared by Marie Dupont — read-only" (EXO-90350), where
-              the lock alone used to say only that the calendar is read-only
-              and nothing about who shared it.
+              hover: "Shared by Marie Dupont — read-only" (EXO-90350).
 
               The icon alone would not be announced: Vuetify hides a v-icon
               that has no click listener from assistive technology, so the
@@ -898,8 +896,7 @@ export default {
      * of its users, whom the connector names by a display name alone. The
      * user's own read-only calendars carry no owner — the connector leaves
      * the owner fields null unless the calendar is shared — and keep the
-     * sentence they always had; the stamp is tested all the same, so that a
-     * connector that ever named one does not turn a lock into a share.
+     * generic read-only sentence.
      *
      * The name is the calendar server's, which is text this deployment did
      * not author: it reaches the DOM through an attribute binding, never
