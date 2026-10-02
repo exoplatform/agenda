@@ -36,6 +36,7 @@ import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.exception.AgendaException;
+import org.exoplatform.agenda.model.AgendaConnectorAccount;
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.Event;
@@ -63,7 +64,10 @@ import org.exoplatform.social.metadata.model.MetadataItem;
  * Lands an invitation a user received by mail in their personal eXo calendar,
  * for a user whose calendar no calendar server holds (EXO-90866) — the
  * counterpart of caldav-integration's landing (EXO-90848), whose rules it
- * keeps.
+ * keeps. A user who connected a remote calendar account to agenda (Google,
+ * Office 365, Exchange through agenda-connectors, or CalDAV) is not landed
+ * for: their mail server has usually filed the invitation there, and the
+ * connector shows or syncs that copy.
  *
  * <h2>What each click does</h2>
  * <p>
@@ -201,15 +205,18 @@ public class AgendaInvitationLandingService {
 
   /**
    * Whether agenda holds a calendar for the user: an enabled user of the
-   * platform, whose personal calendar agenda creates on first use. Whether
-   * another add-on holds that user's calendar instead is not agenda's to read
-   * here; the plugin asks them. No round trip: an identity read, cached.
+   * platform, whose personal calendar agenda creates on first use, and who has
+   * no remote calendar account connected to agenda. Whether another add-on
+   * holds that user's calendar instead is not agenda's to read here; the
+   * plugin asks them. No round trip: an identity read and a settings read,
+   * both cached.
    *
    * @param username the user's login
-   * @return true when the user can have a personal calendar
+   * @return true when the invitation is agenda's to land
    */
   public boolean holdsCalendarFor(String username) {
-    return userIdentityOf(username) != null;
+    Identity identity = userIdentityOf(username);
+    return identity != null && !connectsARemoteCalendar(Long.parseLong(identity.getId()));
   }
 
   /**
@@ -235,6 +242,10 @@ public class AgendaInvitationLandingService {
       return null;
     }
     long userIdentityId = Long.parseLong(identity.getId());
+    if (connectsARemoteCalendar(userIdentityId)) {
+      LOG.debug("The invitation of user {} is not landed in agenda: a remote calendar account is connected", userIdentityId);
+      return null;
+    }
     if (StringUtils.isNotBlank(invitation.recurrenceId())) {
       throw new IllegalArgumentException("The invitation is about one occurrence of a series, which is not landed");
     }
@@ -305,6 +316,32 @@ public class AgendaInvitationLandingService {
       return null;
     }
     return identity;
+  }
+
+  /**
+   * Whether the user has a remote calendar account connected to agenda —
+   * Google, Office 365, Exchange through agenda-connectors, or a CalDAV
+   * account. Such a user's mail server has usually filed the invitation in
+   * that remote calendar, which the connector already shows or syncs; an eXo
+   * copy beside it would be the meeting twice. Fails closed: settings that
+   * cannot be read count as a connected account, and nothing lands.
+   *
+   * @param userIdentityId identity of the user
+   * @return true when an account is connected, or the settings cannot be read
+   */
+  private boolean connectsARemoteCalendar(long userIdentityId) {
+    AgendaUserSettings settings;
+    try {
+      settings = agendaUserSettingsService.getAgendaUserSettings(userIdentityId);
+    } catch (RuntimeException e) {
+      LOG.debug("The agenda settings of user {} could not be read; agenda does not claim their calendar", userIdentityId, e);
+      return true;
+    }
+    if (settings == null) {
+      return true;
+    }
+    List<AgendaConnectorAccount> accounts = settings.getConnectedConnectors();
+    return accounts != null && accounts.stream().anyMatch(account -> account != null && StringUtils.isNotBlank(account.getProviderName()));
   }
 
   /**

@@ -89,7 +89,8 @@ public class AgendaInvitationCalendarPlugin implements InvitationCalendarPlugin 
 
   /**
    * Whether agenda holds the user's calendar: an enabled user of the platform
-   * whose calendar no other add-on holds.
+   * who connected no remote calendar account to agenda, and whose calendar no
+   * other add-on holds.
    *
    * @param username the user's login
    * @return true when the invitation is agenda's to land
