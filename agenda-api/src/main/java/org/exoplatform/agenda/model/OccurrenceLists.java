@@ -14,13 +14,9 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <gnu.org/licenses>.
  */
-package org.exoplatform.agenda.service;
+package org.exoplatform.agenda.model;
 
 import java.util.List;
-
-import org.exoplatform.agenda.model.EventAttendee;
-import org.exoplatform.agenda.model.EventConference;
-import org.exoplatform.agenda.model.EventReminder;
 
 /**
  * The three lists an exceptional occurrence is cloned with, read for a row and
@@ -31,5 +27,5 @@ import org.exoplatform.agenda.model.EventReminder;
  * @param conferences the web conferences
  * @param reminders the reminders of every receiver
  */
-record OccurrenceLists(List<EventAttendee> attendees, List<EventConference> conferences, List<EventReminder> reminders) {
+public record OccurrenceLists(List<EventAttendee> attendees, List<EventConference> conferences, List<EventReminder> reminders) {
 }
