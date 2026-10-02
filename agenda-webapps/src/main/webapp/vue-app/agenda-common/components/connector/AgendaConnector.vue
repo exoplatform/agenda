@@ -131,16 +131,12 @@ export default {
      * and invites the user to make a second calendar beside the first.
      *
      * <b>A check that fails is not an account without a destination</b>
-     * (EXO-90396). It used to be read as one, and the step was offered on the
-     * failure branch too — on the reasoning that copying nowhere is the worse
-     * way to be wrong. The reasoning held only while the answer was in doubt:
-     * a server that could not be reached for one moment says nothing at all
-     * about whether the account has a destination, and offering to create one
-     * on the strength of that told a user the connection had left something
-     * out when it had not. It cost a transient 500 to show it — the account
-     * had a destination, the copies were landing in it, and the drawer offered
-     * to create a calendar over the top. So a failure offers nothing, and a
-     * genuine "there is none" still offers the step exactly as before.
+     * (EXO-90396). A server unreachable for a moment says nothing about
+     * whether the account has one, and offering to create a calendar on the
+     * strength of that would tell the user the connection left something out
+     * when it had not, and put a second calendar beside the first. So a
+     * failure offers nothing, and only a genuine "there is none" offers the
+     * step.
      *
      * Nothing is shown to the user here: the connection they asked for
      * succeeded, and the destination is not the question they just answered.
@@ -170,8 +166,8 @@ export default {
         // throwing on the open event lands here beside a failed read. Moving
         // it up onto the read alone would be worse than imprecise — a `catch`
         // that swallows and returns resumes the chain with `undefined`, which
-        // the next `then` reads as "no destination" and offers the step for,
-        // reinstating exactly the defect this commit removes.
+        // the next `then` reads as "no destination", and the step would be
+        // offered on a failed read.
         .catch(error => console.error('the calendar-creation step was not offered after connecting'
                                       + ` ${connector && connector.name}: either the account's destination could not be read,`
                                       + ' or offering the step failed', error));
