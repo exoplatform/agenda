@@ -277,6 +277,21 @@ export function isCaldavManaged(connectors) {
 }
 
 /**
+ * The CalDAV descriptor of the server managed mode keeps the user on - the one a
+ * managed user with no account yet connects in one click (EXO-90836). Read off
+ * the descriptors as {@link isCaldavManaged} is.
+ *
+ * @param {Array} connectors the connector descriptors agenda loaded
+ * @returns {Object} the designated descriptor, null when there is none
+ */
+export function managedCaldavConnector(connectors) {
+  return (connectors || []).find(connector => connector
+    && connector.isCaldav === true
+    && connector.managed === true
+    && connector.designated === true) || null;
+}
+
+/**
  * Whether eXo meetings are copied into the user's connected calendar account
  * — the EFFECTIVE value, which is not always the stored preference.
  *
