@@ -659,8 +659,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * from an inherited one and follows the change.
    * <p>
    * A row that carries no intent at all — every merged property equal to the
-   * series as it was, dates not moved, attendees and conferences the ones the
-   * series gave it, no reminder of its own — is the reminder job's materialisation of an
+   * series as it was, dates not moved, attendees, conferences and reminders
+   * the ones the series gave it for that date — is the reminder job's materialisation of an
    * upcoming date: it is dropped rather than merged, and the job rebuilds it
    * from the new series when the date comes near. The loop therefore works on
    * the rows a user touched, not on every date the job ever materialised. An
@@ -674,15 +674,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    *          patch) — the deltas are then empty and no membership travels
    * @param previousSeriesConferences the conferences of the series as they were
    *          before this save, or null on a path that cannot change them
-   * @param previousSeriesReminders the reminders of the series as they were
-   *          before this save, or null on a path that cannot change them
    * @param modifierIdentityId who is saving, recorded on every row this touches
    */
   private void applySeriesChangeToExceptionalOccurrences(Event storedSeries,
                                                          Event updatedSeries,
                                                          List<EventAttendee> previousSeriesAttendees,
                                                          List<EventConference> previousSeriesConferences,
-                                                         List<EventReminder> previousSeriesReminders,
                                                          long modifierIdentityId) {
     long seriesId = updatedSeries.getId();
     List<Long> occurrenceEventIds = agendaEventStorage.getExceptionalOccurenceIds(seriesId);
@@ -697,11 +694,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                                                                 .getEventAttendees();
     List<EventConference> seriesConferencesBefore = previousSeriesConferences != null ? previousSeriesConferences
                                                                                      : conferenceService.getEventConferences(seriesId);
-    List<EventReminder> seriesRemindersBefore = previousSeriesReminders != null ? previousSeriesReminders
-                                                                               : reminderService.getEventReminders(seriesId);
+    // Reminders are read as they are now: a per-user save on the series has
+    // just been carried onto its rows, so a row nobody touched equals it
+    List<EventReminder> seriesReminders = reminderService.getEventReminders(seriesId);
     List<EventConference> seriesConferencesAfter = conferenceService.getEventConferences(seriesId);
     boolean conferencesChanged = !conferenceKeys(seriesConferencesBefore).equals(conferenceKeys(seriesConferencesAfter));
-    OccurrenceLists seriesBefore = new OccurrenceLists(seriesAttendeesBefore, seriesConferencesBefore, seriesRemindersBefore);
+    OccurrenceLists seriesBefore = new OccurrenceLists(seriesAttendeesBefore, seriesConferencesBefore, seriesReminders);
     // Who the series gained and lost, computed once: a date individually
     // modified is not a place to hide from an invitation or from its
     // withdrawal
@@ -829,9 +827,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         // every attendee pointing at the old time. Recomputed here for all
         // receivers: the variant that follows occurrences elsewhere works on
         // the acting user alone.
-        List<EventReminder> occurrenceReminders = reminderService.getEventReminders(storedOccurrence.getId());
-        if (!occurrenceReminders.isEmpty()) {
-          reminderService.saveEventReminders(storedOccurrence, occurrenceReminders);
+        if (!rowLists.reminders().isEmpty()) {
+          reminderService.saveEventReminders(storedOccurrence, rowLists.reminders());
         }
       }
 
@@ -844,7 +841,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                copyConferencesTo(seriesConferencesAfter, storedOccurrence.getId()));
       }
 
-      applySeriesMembershipChange(storedOccurrence, attendeesAddedToSeries, attendeesRemovedFromSeries, modifierIdentityId);
+      applySeriesMembershipChange(storedOccurrence,
+                                  rowLists.attendees(),
+                                  attendeesAddedToSeries,
+                                  attendeesRemovedFromSeries,
+                                  modifierIdentityId);
     }
   }
 
@@ -855,18 +856,19 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    *
    * @param occurrence the stored occurrence, as it is after the properties were
    *          merged
+   * @param occurrenceAttendees its attendees, as read before the merge
    * @param addedToSeries identities the series gained
    * @param removedFromSeries identities the series lost
    * @param modifierIdentityId who is saving
    */
   private void applySeriesMembershipChange(Event occurrence,
+                                           List<EventAttendee> occurrenceAttendees,
                                            Set<Long> addedToSeries,
                                            Set<Long> removedFromSeries,
                                            long modifierIdentityId) {
     if (addedToSeries.isEmpty() && removedFromSeries.isEmpty()) {
       return;
     }
-    List<EventAttendee> occurrenceAttendees = attendeeService.getEventAttendees(occurrence.getId()).getEventAttendees();
     List<EventAttendee> merged = occurrenceAttendees.stream()
                                                     .filter(attendee -> !removedFromSeries.contains(attendee.getIdentityId()))
                                                     .collect(Collectors.toList());
@@ -902,9 +904,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   /**
    * Whether an exceptional occurrence row holds anything a user put there, read
    * against the series as it was when the row was cloned from it: a property
-   * that differs, dates that were moved, an attendee list or a conference list
-   * other than the series' own for that date, or a reminder the series does not
-   * carry. A row with none of these is the reminder job's materialisation of an
+   * that differs, dates that were moved, or an attendee list, a conference list
+   * or a reminder list other than the series' own for that date. A row with
+   * none of these is the reminder job's materialisation of an
    * upcoming date, which the job rebuilds from the series whenever it needs it.
    *
    * @param row the stored occurrence, before the merge
@@ -936,21 +938,32 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       return true;
     }
     List<EventAttendee> seriesAttendeesOnThatDate = new EventAttendeeList(seriesLists.attendees()).getEventAttendees(occurrenceId);
-    // A reminder the series carries and the row lost is not intent: a trigger
-    // in the past is never stored on a row, and a sent reminder is removed. A
-    // reminder the series does not carry is one somebody set on that date.
+    // Reminders are compared with the series' reminders that apply to that
+    // date, the ones the row was built with: one turned off on the date alone
+    // is intent, and so is one set there, even when the series carries the
+    // same reminder for another range of its dates
+    List<EventReminder> seriesRemindersOnThatDate = remindersOnThatDate(seriesLists.reminders(), occurrenceId);
     return !attendeeResponses(rowLists.attendees()).equals(attendeeResponses(seriesAttendeesOnThatDate))
         || !conferenceKeys(rowLists.conferences()).equals(conferenceKeys(seriesLists.conferences()))
-        || !reminderKeys(seriesLists.reminders()).containsAll(reminderKeys(rowLists.reminders()));
+        || !reminderKeys(rowLists.reminders()).equals(reminderKeys(seriesRemindersOnThatDate));
   }
 
   /**
-   * The three lists an exceptional occurrence is cloned with, read for a row and
-   * for the series it came from.
+   * @param reminders the series' reminders
+   * @param occurrenceId a date of the series
+   * @return the ones that apply to that date by the range each carries, the
+   *         filter the row was built with
    */
-  private record OccurrenceLists(List<EventAttendee> attendees,
-                                 List<EventConference> conferences,
-                                 List<EventReminder> reminders) {
+  private List<EventReminder> remindersOnThatDate(List<EventReminder> reminders, ZonedDateTime occurrenceId) {
+    if (reminders == null) {
+      return Collections.emptyList();
+    }
+    return reminders.stream()
+                    .filter(reminder -> (reminder.getFromOccurrenceId() == null
+                        || reminder.getFromOccurrenceId().isEqual(occurrenceId)
+                        || reminder.getFromOccurrenceId().isBefore(occurrenceId))
+                        && (reminder.getUntilOccurrenceId() == null || reminder.getUntilOccurrenceId().isAfter(occurrenceId)))
+                    .toList();
   }
 
   /**
@@ -1395,10 +1408,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     createOrUpdateEventProperties(event.getParameters(), updatedEvent);
     // Snapshotted before saving, like the attendees below: a date whose
-    // conferences and reminders are the ones the series had carries inheritance,
-    // not intent, and the merge below needs that reference
+    // conferences are the ones the series had carries inheritance, not intent,
+    // and the merge below needs that reference
     List<EventConference> previousConferences = conferenceService.getEventConferences(eventId);
-    List<EventReminder> previousReminders = reminderService.getEventReminders(eventId);
     Set<AgendaEventModificationType> conferenceModifications = conferenceService.saveEventConferences(eventId, conferences);
     eventModifications.addModificationTypes(conferenceModifications);
 
@@ -1437,7 +1449,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                 updatedEvent,
                                                 previousAttendees,
                                                 previousConferences,
-                                                previousReminders,
                                                 userIdentityId);
     }
 
@@ -1565,7 +1576,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (updateAllOccurrences && event.getParentId() <= 0 && event.getRecurrence() != null) {
       // No attendee list travels on this path: a patch changes fields, never
       // the people invited
-      applySeriesChangeToExceptionalOccurrences(originalEvent, event, null, null, null, userIdentityId);
+      applySeriesChangeToExceptionalOccurrences(originalEvent, event, null, null, userIdentityId);
     }
 
     if (fields.containsKey("start")) {
