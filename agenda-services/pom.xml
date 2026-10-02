@@ -99,6 +99,17 @@
       <artifactId>app-center-services</artifactId>
       <scope>provided</scope>
     </dependency>
+    <!--
+      The mail reader's InvitationCalendarPlugin, which AgendaInvitationCalendarPlugin
+      implements (EXO-90866). Provided: the jar sits in the server's shared lib folder
+      when that add-on is installed, and the plugin is conditional on its class, so a
+      server without the mail reader boots agenda unchanged.
+    -->
+    <dependency>
+      <groupId>org.exoplatform.addons.email-connector</groupId>
+      <artifactId>email-connector-services</artifactId>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
   <build>
     <finalName>agenda-services</finalName>
