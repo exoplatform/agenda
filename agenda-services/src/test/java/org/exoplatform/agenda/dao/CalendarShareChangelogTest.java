@@ -101,8 +101,9 @@ class CalendarShareChangelogTest {
   }
 
   /**
-   * Rolling back the four added changesets removes what they created, and the
-   * changelog applies again from there — so none shipped with an unusable
+   * Rolling back the added changesets — the four of the share, and whatever a
+   * later delivery appended after them — removes what they created, and the
+   * changelog applies again from there, so none shipped with an unusable
    * rollback.
    *
    * @throws Exception when Liquibase fails
@@ -111,7 +112,7 @@ class CalendarShareChangelogTest {
   void theAddedChangesetsRollBackAndReapply() throws Exception {
     CalendarLinkChangelogTest.update(connection);
     int added = CalendarLinkChangelogTest.changesetsSince(connection, FIRST_CHANGESET);
-    assertEquals(4, added, "EXO-90357 adds the table, its unique key, its index and its sequence");
+    assertTrue(added >= 4, "EXO-90357 adds the table, its unique key, its index and its sequence; later changesets may follow");
     liquibase(connection).rollback(added, new Contexts(), new LabelExpression());
 
     assertFalse(tableExists(TABLE), "rolling back must drop the share table");
