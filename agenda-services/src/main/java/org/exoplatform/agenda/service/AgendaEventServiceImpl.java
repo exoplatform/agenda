@@ -162,26 +162,19 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       return null;
     }
     Event exceptionalOccurrenceEvent = agendaEventStorage.getExceptionalOccurrenceEvent(parentEventId, occurrenceId);
-    // Access is checked on the event actually served, before anything else
-    // is computed: a stored exceptional occurrence through its own row (its
-    // own attendee list), a computed occurrence through the parent it
-    // inherits everything from.
+    // Access is read on the event actually served, before anything else is
+    // computed: a stored exceptional occurrence through its own row (its own
+    // attendee list), a computed occurrence through the parent it inherits
+    // everything from. The same access masks what is served below.
     Event servedEvent = exceptionalOccurrenceEvent == null ? recurrentEvent : exceptionalOccurrenceEvent;
-    if (!canAccessEvent(servedEvent, userIdentityId)) {
+    EventAccess access = getEventAccess(servedEvent, userIdentityId);
+    if (access == EventAccess.NONE) {
       throw new IllegalAccessException("User with identity id " + userIdentityId + " is not allowed to access event with id "
           + servedEvent.getId());
     }
 
     if (recurrentEvent.getRecurrence() == null) {
       throw new IllegalStateException("Event with id " + parentEventId + " is not a recurrent event");
-    }
-    // The parent is what a computed occurrence is read from, so it is what
-    // the reader must be allowed to read: an occurrence with no exceptional
-    // row of its own used to be handed out to anyone naming the parent's id
-    EventAccess access = getEventAccess(recurrentEvent, userIdentityId);
-    if (access == EventAccess.NONE) {
-      throw new IllegalAccessException("User with identity id " + userIdentityId + " is not allowed to access event with id "
-          + parentEventId);
     }
 
     Event event = null;
@@ -746,7 +739,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                  updatedSeries.getId(),
                  occurrenceId,
                  occurrenceEventId);
-        agendaEventStorage.deleteEventById(occurrenceEventId);
+        agendaEventStorage.deleteEventAfterRead(occurrenceEventId);
         continue;
       }
       // Read once per row: they decide whether the row carries intent, and the
@@ -759,7 +752,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                   seriesId,
                   occurrenceEventId,
                   occurrenceId);
-        agendaEventStorage.deleteEventById(occurrenceEventId);
+        agendaEventStorage.deleteEventAfterRead(occurrenceEventId);
         continue;
       }
       // Structural, never a customisation: an occurrence lives in the calendar

@@ -165,6 +165,18 @@ public class AgendaEventStorage {
     eventDAO.deleteEvent(eventId);
   }
 
+  /**
+   * Deletes an event whose attendees, conferences or reminders were read in
+   * the same request, which {@link #deleteEventById(long)} cannot: the
+   * persistence context is cleared before the bulk deletion of its children.
+   *
+   * @param eventId the event to delete
+   */
+  @ExoTransactional
+  public void deleteEventAfterRead(long eventId) {
+    eventDAO.deleteEventAfterRead(eventId);
+  }
+
   @ExoTransactional
   public void deleteCalendarEvents(long calendarId) {
     eventDAO.deleteCalendarEvents(calendarId);
