@@ -123,7 +123,7 @@ public class AgendaCalendarShareRest {
       // for a colleague is recorded as a share on the way, and the list of
       // shares must hold it. The same ask answers whether sharing exposes the
       // owner's eXo meetings (EXO-90345), which the drawer asks a confirmation
-      // for — asking it separately made every channel talk to its server twice
+      // for, so no channel is asked twice
       ChannelShares channelShares = calendarShareService.getChannelShares(calendarId, request.getRemoteUser());
       List<CalendarShareeEntity> shares = calendarShareService.getShares(calendarId, request.getRemoteUser())
                                                               .stream()
