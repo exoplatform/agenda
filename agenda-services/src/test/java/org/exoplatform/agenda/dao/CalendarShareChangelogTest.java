@@ -57,8 +57,11 @@ class CalendarShareChangelogTest {
 
   private static final String INDEX           = "IDX_AGENDA_CALENDAR_SHARE_SHAREE";
 
-  /** The first changeset EXO-90357 adds. */
-  private static final String FIRST_CHANGESET = "1.0.0-45";
+  /** The four changesets EXO-90357 adds: the table, its unique key, its index and its sequence. */
+  private static final String[] SHARE_CHANGESETS = { "1.0.0-45", "1.0.0-46", "1.0.0-47", "1.0.0-48" };
+
+  /** The first of them. */
+  private static final String FIRST_CHANGESET = SHARE_CHANGESETS[0];
 
   /** The column EXO-90378 adds. */
   private static final String LEVEL_COLUMN    = "ACCESS_LEVEL";
@@ -116,6 +119,9 @@ class CalendarShareChangelogTest {
   @Test
   void theAddedChangesetsRollBackAndReapply() throws Exception {
     CalendarLinkChangelogTest.update(connection);
+    for (String id : SHARE_CHANGESETS) {
+      assertTrue(changesetRan(id), "EXO-90357 adds changeset " + id + ", and the changelog must have run it");
+    }
     // Counted from EXO-90357's first changeset to the end of the changelog, so
     // it also rolls back what later deliveries appended (EXO-90373 appended
     // two): the four of EXO-90357 are a floor, not the count
@@ -270,6 +276,20 @@ class CalendarShareChangelogTest {
       statement.executeUpdate("INSERT INTO " + TABLE
           + " (SHARE_ID, CALENDAR_ID, SHAREE_IDENTITY_ID, GRANTED_BY_IDENTITY_ID, CREATED_DATE, SOURCE) VALUES ("
           + id + ", " + calendarId + ", " + shareeId + ", 1, CURRENT_TIMESTAMP, 'EXO')");
+    }
+  }
+
+  /**
+   * @param id a changeset id of the agenda changelog
+   * @return whether the changelog has run it on this database
+   * @throws SQLException when the changelog table cannot be read
+   */
+  private boolean changesetRan(String id) throws SQLException {
+    try (Statement statement = connection.createStatement();
+        ResultSet rows = statement.executeQuery("SELECT COUNT(*) FROM DATABASECHANGELOG WHERE AUTHOR = 'agenda' AND ID = '" + id
+            + "'")) {
+      rows.next();
+      return rows.getInt(1) == 1;
     }
   }
 
