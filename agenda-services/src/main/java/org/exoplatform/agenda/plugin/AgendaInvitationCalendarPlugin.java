@@ -24,10 +24,14 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.agenda.model.HeldMailInvitation;
 import org.exoplatform.agenda.model.LandedMailInvitation;
 import org.exoplatform.agenda.model.MailInvitation;
 import org.exoplatform.agenda.service.AgendaInvitationLandingService;
+import org.exoplatform.emailConnector.model.HeldInvitation;
+import org.exoplatform.emailConnector.model.InvitationAnswer;
 import org.exoplatform.emailConnector.model.InvitationLanding;
+import org.exoplatform.emailConnector.model.InvitationProbe;
 import org.exoplatform.emailConnector.model.LandedInvitation;
 import org.exoplatform.emailConnector.plugin.InvitationCalendarPlugin;
 import org.exoplatform.services.log.ExoLogger;
@@ -131,6 +135,35 @@ public class AgendaInvitationCalendarPlugin implements InvitationCalendarPlugin 
                                                                                                                                                        .name()),
                                                                                        landing.icalendar()));
     return landed == null ? null : new LandedInvitation(landed.eventId(), landed.link(), landed.removed(), landed.alreadyHeld());
+  }
+
+  /**
+   * The event the user's personal calendar holds for the invitation, when agenda
+   * holds that calendar (EXO-90873): the answer as agenda holds it, NEEDS_ACTION
+   * told as none.
+   *
+   * @param probe the user and the event's UID
+   * @return the event held, null when agenda does not hold the user's calendar
+   *         or holds no event for the invitation
+   */
+  @Override
+  public HeldInvitation held(InvitationProbe probe) {
+    if (!holdsCalendarFor(probe.username())) {
+      // The same step-aside as a landing, checked here again as land() does: the
+      // reader asks only the add-on that just said it holds the calendar, but a
+      // caller that did not ask first must not be told of another add-on's user.
+      return null;
+    }
+    HeldMailInvitation held = agendaInvitationLandingService.held(probe.username(),
+                                                                               probe.attendeeAddress(),
+                                                                               probe.uid(),
+                                                                               probe.recurrenceId(),
+                                                                               probe.organizer());
+    if (held == null) {
+      return null;
+    }
+    InvitationAnswer answer = held.response() == null ? null : InvitationAnswer.ofPartStat(held.response().name());
+    return new HeldInvitation(held.eventId(), held.link(), answer, held.sequence());
   }
 
   /**

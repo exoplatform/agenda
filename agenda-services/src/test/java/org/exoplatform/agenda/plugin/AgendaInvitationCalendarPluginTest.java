@@ -42,11 +42,14 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.agenda.model.HeldMailInvitation;
 import org.exoplatform.agenda.model.LandedMailInvitation;
 import org.exoplatform.agenda.model.MailInvitation;
 import org.exoplatform.agenda.service.AgendaInvitationLandingService;
+import org.exoplatform.emailConnector.model.HeldInvitation;
 import org.exoplatform.emailConnector.model.InvitationAnswer;
 import org.exoplatform.emailConnector.model.InvitationLanding;
+import org.exoplatform.emailConnector.model.InvitationProbe;
 import org.exoplatform.emailConnector.model.LandedInvitation;
 import org.exoplatform.emailConnector.plugin.InvitationCalendarPlugin;
 
@@ -177,6 +180,41 @@ class AgendaInvitationCalendarPluginTest {
 
     assertNull(plugin.land(new InvitationLanding(USER, null, "REQUEST", "uid-1", null, 0, null, "BEGIN:VCALENDAR")));
     verify(landingService, never()).land(any());
+  }
+
+  /**
+   * What agenda holds for an invitation is told to the reader, the answer by
+   * its name and NEEDS_ACTION as none (EXO-90873).
+   */
+  @Test
+  void translatesWhatIsHeld() {
+    InvitationProbe probe = new InvitationProbe(USER, "john@mail.example", "uid-1", null, "boss@partner.example");
+    when(landingService.held(USER, "john@mail.example", "uid-1", null, "boss@partner.example")).thenReturn(new HeldMailInvitation(42L, "http://x/portal/dw/agenda?eventId=42",
+                                                                                     EventAttendeeResponse.TENTATIVE, 3));
+    assertEquals(new HeldInvitation(42L, "http://x/portal/dw/agenda?eventId=42", InvitationAnswer.TENTATIVE, 3), plugin.held(probe));
+
+    when(landingService.held(USER, "john@mail.example", "uid-1", null, "boss@partner.example")).thenReturn(new HeldMailInvitation(42L, null, EventAttendeeResponse.NEEDS_ACTION, 0));
+    assertNull(plugin.held(probe).answer());
+    when(landingService.held(USER, "john@mail.example", "uid-1", null, "boss@partner.example")).thenReturn(new HeldMailInvitation(42L, null, null, 0));
+    assertNull(plugin.held(probe).answer());
+
+    when(landingService.held(USER, "john@mail.example", "uid-1", null, "boss@partner.example")).thenReturn(null);
+    assertNull(plugin.held(probe));
+  }
+
+  /**
+   * For a user whose calendar another add-on holds, agenda tells of nothing it
+   * may hold: the same step-aside as a landing.
+   */
+  @Test
+  void tellsNothingForAUserItDoesNotHold() {
+    InvitationCalendarPlugin caldav = mock(InvitationCalendarPlugin.class);
+    when(caldav.holdsCalendarFor(USER)).thenReturn(true);
+    plugins.put("caldavInvitationCalendarPlugin", caldav);
+    when(landingService.held(any(), any(), any(), any(), any())).thenReturn(new HeldMailInvitation(42L, null, EventAttendeeResponse.ACCEPTED, 0));
+
+    assertNull(plugin.held(new InvitationProbe(USER, null, "uid-1", null, null)));
+    verify(landingService, never()).held(any(), any(), any(), any(), any());
   }
 
   /**
