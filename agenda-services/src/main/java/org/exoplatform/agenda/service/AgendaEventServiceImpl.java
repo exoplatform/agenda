@@ -525,8 +525,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * <p>
    * No creator only disables {@code isOtherAttendeeResponse}, so the responses
    * carried by the copied rows are stored as they stand. <b>They do not
-   * survive the call</b>, and the earlier wording of this comment claimed they
-   * did: {@code createEvent} broadcasts {@code POST_CREATE_AGENDA_EVENT_EVENT}
+   * survive the call</b>: {@code createEvent} broadcasts
+   * {@code POST_CREATE_AGENDA_EVENT_EVENT}
    * a few lines further down, {@code AgendaReplyOnSaveListener} is registered
    * on it synchronously, and on an {@code ADDED} modification it answers
    * {@code NEEDS_ACTION} for every attendee who is not the modifier and
@@ -2012,8 +2012,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * allowed to update it is a calendar they may not write to at all. Such a
    * payload falls through to the creation right, as it always did.
    * <p>
-   * Two further things about that payload decide it, both found in review and
-   * both client-controlled like the parent. The occurrence identifier must name
+   * Two further things about that payload decide it, both client-controlled
+   * like the parent. The occurrence identifier must name
    * a date the series <b>has</b>, not merely be non-null — otherwise the same
    * caller posts any event at any date, and the row is purely additive because
    * it replaces no computed date in exchange. And the series must not
@@ -2084,9 +2084,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * {@code AgendaEvent.getExceptionalOccurenceIdsByPeriod} matches it on a
    * window it is not in, so {@code filterExceptionalEvents} removes nothing in
    * exchange, while {@link #inheritSeriesAttendees} puts every invitee of the
-   * series on it. Reproduced against this branch before the check was added,
-   * and refused by the pre-image at the unconditional creation right this
-   * delivery relaxes.
+   * series on it.
    *
    * @param event the event to create, as the client sent it
    * @param parentEvent the stored event it names as parent, never null here
