@@ -4182,18 +4182,14 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
    * events to that calendar — which an attendee of somebody else's personal
    * calendar never has — is not asked, so the edit is stored.
    * <p>
-   * The call used to end in an {@link IllegalAccessException} all the same,
-   * thrown <b>after</b> the row was written, by the read-back
-   * {@code createEvent} performs before it stores the payload's attendees: at
-   * that instant the new row carried no attendee of its own, so the reader was
-   * refused access to an event they had just been allowed to create. That was
-   * a second, distinct defect on the read path, reported with EXO-90382 and
-   * fixed by EXO-90408, which reads the created row back without asking the
-   * read ACL of it a second time. Per the instruction this pin carried until
-   * then, the {@code assertThrows} has been replaced by an assertion on the
-   * returned event; the two halves are still asserted separately — the
-   * permission check lets the attendee through, and the call now answers with
-   * the occurrence instead of refusing it.
+   * The read-back {@code createEvent} performs before it stores the payload's
+   * attendees must not refuse the caller either: at that instant the new row
+   * carries no attendee of its own, so a reader asked for the read ACL would be
+   * refused access to an event they had just been allowed to create.
+   * {@code readCreatedEvent} therefore reads the created row back without
+   * asking the read ACL of it a second time (EXO-90408). The two halves are
+   * asserted separately: the permission check lets the attendee through, and
+   * the call answers with the occurrence instead of refusing it.
    *
    * @throws Exception when a service call fails unexpectedly
    */
@@ -4417,7 +4413,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
   /**
    * Naming a parent is not the same as amending one date of it, and only the
-   * second relaxes the creation right (EXO-90382, review round 1).
+   * second relaxes the creation right.
    * <p>
    * The attacker here is the strongest one the relaxed branch admits: an
    * attendee the organiser allowed to update <b>one plain, non-repeating</b>
@@ -4531,7 +4527,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     // And the state those copies end in, which is decided one frame later by
     // AgendaReplyOnSaveListener on the creation event, not by the arguments
-    // this seeding passes (review round 2): everyone is asked again, and the
+    // this seeding passes: everyone is asked again, and the
     // one who made the edit is on it
     List<EventAttendee> rows = agendaEventAttendeeService.getEventAttendees(created.getId()).getEventAttendees();
     for (EventAttendee row : rows) {
@@ -4685,9 +4681,8 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     // 3. An event naming a NON-REPEATING event as parent, and carrying an
     // occurrence identifier: there is no such thing as one date of it, so the
     // same guard that refuses the relaxed permission branch refuses the
-    // seeding. Review round 2: the seeding used to make this check for itself,
-    // and more weakly — it asked for a parent and an identifier and never that
-    // the parent be a series
+    // seeding, which relies on that guard rather than on a weaker check of its
+    // own (a parent and an identifier, without requiring a series)
     Event plainInstance = newEventInstance(start.plusDays(20), start.plusDays(20).plusHours(1), false);
     plainInstance.setRecurrence(null);
     Event plain = createEvent(plainInstance, user1IdentityId, testuser2Identity, testuser3Identity);
@@ -4707,9 +4702,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
   /**
    * Naming a date the series does not have is not amending one of its dates
-   * either (review round 2 of EXO-90382 + EXO-90408).
+   * either.
    * <p>
-   * The relaxed branch used to be entered on the payload's <i>shape</i> alone —
+   * Without the date check the relaxed branch would be entered on the payload's
+   * <i>shape</i> alone —
    * a parent with a recurrence, and any non-null occurrence identifier. Both
    * come from the client, and {@code createEvent} stores the payload's own
    * start, end and summary verbatim instead of deriving them from the
@@ -4720,7 +4716,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
    * instant as the date it amends — as often as they liked, since nothing
    * rejects a second row for the same identifier either.
    * <p>
-   * Two things made it worse than a stray row, and both are asserted here: an
+   * Two things make such a row worse than a stray one, and both are asserted here: an
    * identifier outside the series strips no date from the series in exchange
    * ({@code getExceptionalOccurenceIdsByPeriod} matches on a window the row is
    * not in), so the injection is purely additive; and EXO-90408's seeding puts
@@ -4780,7 +4776,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
   /**
    * An identifier on a date the series has, at another time of day, is still
-   * an amendment of that date (review round 3 of EXO-90382 + EXO-90408).
+   * an amendment of that date.
    * <p>
    * The date check matches on the UTC date, not on the instant, and this is
    * the half of it that a match on the instant alone would refuse. It is not a
@@ -4833,8 +4829,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   /**
-   * Amending one date of a series is a thing there is one of (review round 2 of
-   * EXO-90382 + EXO-90408).
+   * Amending one date of a series is a thing there is one of.
    * <p>
    * Nothing on the {@code createEvent} path deduplicates an exceptional
    * occurrence — {@code saveEventExceptionalOccurrence} is the path that looks
@@ -4865,7 +4860,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertTrue("The series must have several occurrences", occurrences.size() > 1);
     Event occurrence = occurrences.get(1);
 
-    // The first amendment is the grant this delivery makes
+    // The first amendment of a date is allowed
     assertNotNull(createEvent(newOccurrenceInstance(seriesId, occurrence, calendar.getId()), user2IdentityId));
 
     boolean refused = false;
