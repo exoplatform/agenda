@@ -62,11 +62,12 @@
       </exclusions>
     </dependency>
 
-    <!-- HTTP client of the calendar subscriptions (EXO-90278): its DnsResolver is
-         where the address of every connection is checked. Shipped by commons. -->
+    <!-- The platform's guarded HTTP fetcher (io.meeds.commons.http), which reads the
+         calendar subscriptions (EXO-90278): its DnsResolver is where the address of
+         every connection is checked. -->
     <dependency>
-      <groupId>org.apache.httpcomponents.client5</groupId>
-      <artifactId>httpclient5</artifactId>
+      <groupId>io.meeds.commons</groupId>
+      <artifactId>commons-component-common</artifactId>
       <scope>provided</scope>
     </dependency>
 
