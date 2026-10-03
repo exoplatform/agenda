@@ -263,17 +263,15 @@ export default {
      * failure — an external ICS or webcal address that stopped answering, most
      * of them — is retried for ever and purges nothing, so the warning says
      * since when nothing has been imported and that the events stay as they
-     * are. It used to promise the week-long cleanup for both, which the product
-     * performs for one.
+     * are.
      *
      * A withdrawn link that never imported anything is the third state, and it
      * is told apart because the cleanup does not reach it either: the purge is
      * guarded on the digest of a read that succeeded
      * (`refreshClaimed`, `getContentHash() != null`), which a subscription that
      * never imported does not carry, so nothing is ever removed from it and it
-     * has nothing to remove. Promising it a cleanup would be the very fault
-     * this change came to mend, one state further along, and the row would say
-     * so directly under its own "Not refreshed yet".
+     * has nothing to remove. A cleanup is therefore never promised to it, and
+     * the row says so directly under its own "Not refreshed yet".
      *
      * What is deliberately not claimed, in any of the three, is that the events
      * are on screen *now*. The purge runs once and the row then keeps its
