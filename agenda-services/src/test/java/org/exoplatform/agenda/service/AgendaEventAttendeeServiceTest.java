@@ -875,6 +875,42 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     assertFalse(agendaEventAttendeeService.isEventAttendee(eventId, spaceIdentityId));
   }
 
+  /**
+   * The row an answer writes on an open event is a full attendee row, and
+   * canUpdateEvent is satisfied by an attendee when the event allows its
+   * participants to modify it. The exclusion between the flag and the two
+   * permissions is what keeps that row from carrying the edit, delete and
+   * invite right: pinned from the answering side, on the rights themselves.
+   */
+  @Test
+  public void testAnsweringAnOpenEventGrantsNoEditRight() throws Exception { // NOSONAR
+    Event event = createSpaceEvent(getDate().withNano(0), true, false, testuser1Identity);
+    long eventId = event.getId();
+    long memberId = Long.parseLong(testuser2Identity.getId()); // member, not invited
+
+    agendaEventAttendeeService.sendEventResponse(eventId, memberId, EventAttendeeResponse.ACCEPTED);
+    assertTrue(agendaEventAttendeeService.isEventAttendee(eventId, memberId));
+
+    Event storedEvent = agendaEventService.getEventById(eventId);
+    assertEquals(Boolean.TRUE, storedEvent.getOpen());
+    assertFalse("an open event never allows its participants to modify it", storedEvent.isAllowAttendeeToUpdate());
+    assertFalse("nor to invite", storedEvent.isAllowAttendeeToInvite());
+    assertFalse("so answering granted no edit right", agendaEventService.canUpdateEvent(storedEvent, memberId));
+    try {
+      agendaEventService.updateEventFields(eventId, getFields("summary", "hijacked"), false, false, memberId);
+      fail("a self-registered participant must not edit the event");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    try {
+      agendaEventService.deleteEventById(eventId, memberId);
+      fail("nor delete it");
+    } catch (IllegalAccessException e) {
+      // Expected
+    }
+    assertEquals("the event is untouched", event.getSummary(), agendaEventService.getEventById(eventId).getSummary());
+  }
+
   @Test
   public void testLockedEventStillRefusesANonAttendee() throws Exception { // NOSONAR
     long creatorId = Long.parseLong(testuser1Identity.getId());

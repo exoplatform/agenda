@@ -78,7 +78,15 @@ export default {
      * @returns {void}
      */
     toggleOpen() {
-      this.$set(this.event, 'open', !this.event.open);
+      const open = !this.event.open;
+      this.$set(this.event, 'open', open);
+      if (open) {
+        // An open event excludes both participant permissions (the integration
+        // review's finding 1, settled by the PO): the drawer blocks the padlock
+        // while either is on, so this only clears a state the form was given
+        this.$set(this.event, 'allowAttendeeToUpdate', false);
+        this.$set(this.event, 'allowAttendeeToInvite', false);
+      }
     },
     openDrawer() {
       this.$refs.attendeesDrawer.open();

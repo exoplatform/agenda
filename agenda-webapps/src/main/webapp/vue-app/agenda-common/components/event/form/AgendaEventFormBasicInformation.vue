@@ -125,12 +125,20 @@
             class="ms-4"
             @initialized="$emit('initialized')" />
         </div>
-        <div class="d-flex flex-row">
+        <!--
+          Disabled, with a title, while the event is open: an open event
+          excludes the participant permissions (the integration review's
+          finding 1, settled by the PO), and the padlock is blocked the other
+          way round while this option is on.
+        -->
+        <div
+          class="d-flex flex-row"
+          :title="allowAttendeeToUpdateBlockedTitle">
           <label class="switch-label-text mt-1 text-subtitle-1 font-weight-bold">{{ $t('agenda.modifyEventPermission') }}</label>
           <v-switch
             ref="allowAttendeeToUpdateRef"
             v-model="event.allowAttendeeToUpdate"
-            :disabled="!canInviteeEdit"
+            :disabled="!canInviteeEdit || isOpenEvent"
             class="mt-0 ms-4" />
         </div>
         <div class="d-flex flex-row font-weight-regular">
@@ -178,6 +186,12 @@ export default {
     allowAttendeeToUpdate() {
       return this.event.allowAttendeeToUpdate;
     },
+    isOpenEvent() {
+      return !!(this.event && this.event.open);
+    },
+    allowAttendeeToUpdateBlockedTitle() {
+      return this.isOpenEvent ? this.$t('agenda.modifyEventPermission.blockedByOpenEvent.tooltip') : null;
+    },
     hasRecurrence() {
       return this.event.recurrence || this.event.parent && this.event.parent.recurrence;
     },
@@ -196,7 +210,9 @@ export default {
       this.reset();
     },
     allowAttendeeToUpdate() {
-      if (this.allowAttendeeToUpdate) {
+      // Inviting follows modifying, except on an open event, which excludes
+      // both: the padlock has just switched them off
+      if (this.allowAttendeeToUpdate && !this.isOpenEvent) {
         this.event.allowAttendeeToInvite = true;
       }
     },
