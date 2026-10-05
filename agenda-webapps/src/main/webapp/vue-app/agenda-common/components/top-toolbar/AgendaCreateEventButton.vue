@@ -11,7 +11,7 @@
         width="36"
         height="36"
         @click="openNewEventForm">
-        <v-icon size="20" class="text-light-color">
+        <v-icon size="20">
           fa-plus
         </v-icon>
       </v-btn>

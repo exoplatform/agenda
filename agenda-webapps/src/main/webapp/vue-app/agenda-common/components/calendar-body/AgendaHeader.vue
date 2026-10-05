@@ -15,7 +15,7 @@
           width="36"
           height="36"
           @click="toggleLeftPanel">
-          <v-icon size="20" class="text-light-color">
+          <v-icon size="20">
             fas fa-calendar-alt
           </v-icon>
         </v-btn>

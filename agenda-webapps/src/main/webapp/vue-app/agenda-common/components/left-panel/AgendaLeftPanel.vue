@@ -86,7 +86,7 @@
               max-height="24"
               class="flex-grow-0 agenda-left-panel-add"
               v-on="on">
-              <v-icon size="14" class="text-light-color">
+              <v-icon size="14">
                 fas fa-plus
               </v-icon>
             </v-btn>
@@ -154,7 +154,7 @@
             max-height="24"
             class="flex-grow-0"
             @click="expandSpaceFilter">
-            <v-icon size="14" class="text-light-color">
+            <v-icon size="14">
               fas fa-filter
             </v-icon>
           </v-btn>
@@ -168,7 +168,7 @@
             max-height="24"
             class="flex-grow-0 me-1"
             @click="collapseSpaceFilter">
-            <v-icon size="14" class="text-light-color">
+            <v-icon size="14">
               {{ backIcon }}
             </v-icon>
           </v-btn>
