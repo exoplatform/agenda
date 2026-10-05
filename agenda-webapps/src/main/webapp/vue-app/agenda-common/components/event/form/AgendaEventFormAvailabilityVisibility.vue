@@ -63,10 +63,9 @@
       would be unreachable.
 
       KNOWN BOUND, written down rather than discovered later: helpAsText is set
-      by the mobile form, and which form renders is decided by $root.isMobile —
-      which is defined once per app root, in agenda/main.js and again in
-      agenda-timeline/main.js (the event dialog is mounted under both), and is
-      a VIEWPORT WIDTH test in both, with no touch or hover input. So a touch
+      by the mobile form, and which form renders is decided by
+      AgendaEventDialog's mobileViewport — the Vuetify smAndDown breakpoint,
+      a VIEWPORT WIDTH test with no touch or hover input. So a touch
       device wider than sm — a tablet in landscape, a touch laptop — gets the
       full form, and there the help is behind a hover again. The property that
       actually matters is "@media (hover: none)".
