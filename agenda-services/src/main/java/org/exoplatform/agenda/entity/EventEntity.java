@@ -346,8 +346,8 @@ public class EventEntity implements Serializable {
 
   /**
    * Open event: anyone who can access the event may answer it without being
-   * invited. A property of the series: the row of an exceptional occurrence
-   * keeps false and is ignored, the parent's value applies.
+   * invited. Each stored row carries its own flag: an exceptional occurrence
+   * is cloned from its series and may differ from it (US06).
    */
   @Column(name = "IS_OPEN", nullable = false)
   private boolean                   open;

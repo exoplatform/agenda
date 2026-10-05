@@ -172,8 +172,8 @@ public class EventEntity implements Serializable, Cloneable {
   private boolean                     masked;
 
   /**
-   * Open event flag. On read: the effective value (an occurrence carries its
-   * series' value), never null — except on a search result
+   * Open event flag. On read: the effective value (a stored row carries its own
+   * flag, a computed occurrence its series'), never null — except on a search result
    * ({@link EventSearchResultEntity}), where the flag is not indexed and stays
    * null, meaning "unknown", never "locked". On write: optional — null means
    * "not specified", i.e. kept as stored on update and false on creation, so

@@ -133,8 +133,8 @@ public class Event implements Cloneable {
    * Whether anyone who can access the event may answer it without being
    * invited (open event). On a write, {@code null} means "not specified": the
    * stored value is kept on update and the event is created locked. Never
-   * {@code null} once read from storage. The flag is a property of the series:
-   * an occurrence reads its parent's value.
+   * {@code null} once read from storage. Each stored row carries its own flag:
+   * an exceptional occurrence is cloned from its series and may differ (US06).
    */
   private Boolean           open;
 
