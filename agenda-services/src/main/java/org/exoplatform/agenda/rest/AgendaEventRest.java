@@ -574,6 +574,79 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     }
   }
 
+  @Path("{eventId}/exceptionalOccurrences/move")
+  @POST
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @Operation(
+      summary = "Moves the exceptional occurrences of a recurring event dated from a day on under another recurring event",
+      description = "The second half of a 'this and upcoming' split: the dates the organiser had customised from the split day on move under the series that continues the first one, and are merged into it as a series change merges them — what was customised on a date is kept, what was not follows the new series, a day the new series does not produce is dropped. Called after the continuing series is created and before the first series is shortened",
+      method = "POST"
+  )
+  @ApiResponses(
+      value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled: the identifiers of the rows moved and kept"),
+          @ApiResponse(
+              responseCode = "400",
+              description = "Invalid query input: a missing or malformed parameter, or two events a split cannot join. The body carries the message code"
+          ),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+          @ApiResponse(responseCode = "404", description = "Object not found"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
+      }
+  )
+  public Response moveEventExceptionalOccurrences(
+                                                  @Parameter(
+                                                      description = "Technical identifier of the recurring event the rows belong to",
+                                                      required = true
+                                                  )
+                                                  @PathParam("eventId")
+                                                  long eventId,
+                                                  @Parameter(
+                                                      description = "Technical identifier of the recurring event they move under",
+                                                      required = true
+                                                  )
+                                                  @QueryParam("toEventId")
+                                                  long toEventId,
+                                                  @Parameter(
+                                                      description = "First day moved, inclusive, as an RFC 3339 date-time",
+                                                      required = true
+                                                  )
+                                                  @QueryParam("from")
+                                                  String from) {
+    if (eventId <= 0 || toEventId <= 0) {
+      return Response.status(Status.BAD_REQUEST)
+                     .entity(AgendaExceptionType.EVENT_ID_MANDATORY.getCompleteMessage())
+                     .build();
+    }
+    long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    try {
+      ZonedDateTime fromDate = AgendaDateUtils.parseRFC3339ToZonedDateTime(from, ZoneOffset.UTC);
+      List<Long> keptIds = agendaEventService.moveExceptionalOccurrences(eventId, toEventId, fromDate, userIdentityId);
+      return Response.ok(keptIds).build();
+    } catch (AgendaException e) {
+      LOG.debug("Error in event validation", e);
+      if (e.getAgendaExceptionType() == AgendaExceptionType.EVENT_NOT_FOUND) {
+        return Response.status(Status.NOT_FOUND).entity("Event not found").build();
+      }
+      return Response.status(Status.BAD_REQUEST).entity(e.getAgendaExceptionType().getCompleteMessage()).build();
+    } catch (IllegalArgumentException | DateTimeException e) {
+      // Two events a split cannot join, or a day that does not parse: a caller
+      // error and not an incident, answered with the code the frontend and
+      // third-party integrators can act on
+      LOG.debug("Invalid move of the exceptional occurrences of event {} under event {}", eventId, toEventId, e);
+      return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
+    } catch (IllegalAccessException e) {
+      // The platform REST contract answers 403 when the caller is
+      // authenticated but not allowed (backend-spring.md §5)
+      LOG.debug("User '{}' attempts to split a non authorized event", RestUtils.getCurrentUser(), e);
+      return Response.status(Status.FORBIDDEN).build();
+    } catch (Exception e) {
+      LOG.warn("Error moving the exceptional occurrences of event {}", eventId, e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
