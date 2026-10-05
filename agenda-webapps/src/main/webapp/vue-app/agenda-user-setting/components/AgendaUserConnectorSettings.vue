@@ -90,7 +90,7 @@
       <v-list-item-action>
         <v-btn
           :aria-label="$t('agenda.connect')"
-          :loading="managedConnector && managedConnector.loading"
+          :loading="!!(managedConnector && managedConnector.loading)"
           class="btn"
           @click="connectAccount">
           <v-icon size="14" class="me-1">fa-plug</v-icon>
