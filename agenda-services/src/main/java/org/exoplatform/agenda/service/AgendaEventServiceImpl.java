@@ -368,14 +368,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // 'open' is not part of the positional constructor above: set it explicitly
     // or it is silently lost. Absent on the wire means locked at creation. The
     // invariant (canBeOpen) is enforced here, not only by the UI hiding the
-    // padlock: a date poll and a personal calendar event are never open. This
+    // padlock: a date poll, a personal calendar event and an event whose
+    // participants may modify it or invite are never open; asked together with
+    // such a permission, the flag yields and the permission is kept. This
     // is also the path the form's "this occurrence only" takes — it posts the
     // computed occurrence with its parent — so the padlock the organiser left
     // on that date is what the new row carries, its own from then on (US06).
     // The status read is the one checkAndComputeDateOptions just derived from
     // the date options.
     eventToCreate.setOpen(Boolean.TRUE.equals(event.getOpen())
-        && canBeOpen(eventToCreate.getStatus(), calendar));
+        && canBeOpen(eventToCreate, calendar));
 
     Event createdEvent = agendaEventStorage.createEvent(eventToCreate);
     createOrUpdateEventProperties(event.getParameters(), createdEvent);
@@ -801,12 +803,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       // 'open' is merged like the rest, then clamped: it is the flag
       // canRespondToEvent reads, so a value customised on one date must not
       // survive a change to the series that has to lock it — a series turned
-      // into a date poll or moved to a personal calendar. The status is the one
-      // merged just above, the calendar the series' own.
+      // into a date poll, moved to a personal calendar, or whose participants
+      // may now modify it or invite. The status and the two permissions are
+      // the ones merged just above, the calendar the series' own.
       occurrence.setOpen(Boolean.TRUE.equals(mergeOccurrenceProperty(occurrence.getOpen(),
                                                                     storedSeries.getOpen(),
                                                                     updatedSeries.getOpen()))
-          && canBeOpen(occurrence.getStatus(), seriesCalendar));
+          && canBeOpen(occurrence, seriesCalendar));
       // The dates have the one explicit marker the model carries, so they need
       // no comparison: an occurrence that was moved keeps its own dates, one
       // that was not follows the series' time and duration on its own day
@@ -1385,13 +1388,15 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // does not state it (null) keeps the stored value, so no client can lock or
     // open an event by omission; an explicit value is applied under the same
     // canUpdateEvent right as the rest of the save. The invariant (canBeOpen)
-    // is evaluated on the TARGET calendar and the derived status, so moving an
-    // event to a personal calendar or turning it into a date poll locks it.
+    // is evaluated on the TARGET calendar, the derived status and the two
+    // participant permissions as the creator-only rule above resolved them, so
+    // moving an event to a personal calendar, turning it into a date poll or
+    // allowing its participants to modify it or invite locks it.
     // This is also the path that writes the flag onto one date of a series:
     // since US06 each row carries its own, so the scope the organiser chose in
     // the form is what decides which rows are written, not this method.
     boolean open = event.getOpen() == null ? Boolean.TRUE.equals(storedEvent.getOpen()) : event.getOpen();
-    eventToUpdate.setOpen(open && canBeOpen(eventToUpdate.getStatus(), calendar));
+    eventToUpdate.setOpen(open && canBeOpen(eventToUpdate, calendar));
 
     AgendaEventModification eventModifications = new AgendaEventModification(eventId, event.getCalendarId(), userIdentityId);
     eventModifications.addModificationType(AgendaEventModificationType.UPDATED);
@@ -1548,12 +1553,24 @@ public class AgendaEventServiceImpl implements AgendaEventService {
           + event.getCalendarId());
     }
 
+    // The open invariant excludes the two participant permissions, in both
+    // directions. A patch that allows the participants to modify the event or
+    // to invite while it stays open is a deliberate act, refused with its own
+    // code: the form never sends it, each option being disabled while the other
+    // is on, and the full-save path resolves the same conflict by locking.
+    boolean openAfterPatch = Boolean.TRUE.equals(event.getOpen());
+    if (openAfterPatch
+        && !fields.containsKey("open")
+        && (fields.containsKey("allowAttendeeToUpdate") || fields.containsKey("allowAttendeeToInvite"))
+        && (event.isAllowAttendeeToUpdate() || event.isAllowAttendeeToInvite())) {
+      throw new IllegalArgumentException("agenda.openEvent.attendeePermissionNotAllowed");
+    }
     // What happens when the open invariant fails depends on who asked: a patch
     // that carries 'open' is a deliberate act and is refused, while a patch that
     // merely moves an already open event into a personal calendar, or turns it
     // into a date poll, locks it silently — the same outcome the full-save path
     // gives that operation.
-    if (Boolean.TRUE.equals(event.getOpen()) && !canBeOpen(event.getStatus(), targetCalendar)) {
+    if (openAfterPatch && !canBeOpen(event, targetCalendar)) {
       if (fields.containsKey("open")) {
         throw new IllegalArgumentException("agenda.openEvent.notAllowed");
       }
@@ -2079,22 +2096,31 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * Where the open flag may be true at all, whatever the client sends: an event
    * that is not a date poll (opening a date poll is out of scope), in a space
    * calendar (in a personal calendar nobody but the owner and the invitees can
-   * reach the event, so there is nobody to open it to). The server-side
-   * invariant behind the board's rules, independent of the UI hiding the
-   * padlock.
+   * reach the event, so there is nobody to open it to), and whose participants
+   * are allowed neither to modify it nor to invite. Answering an open event
+   * writes a full attendee row, and either permission would hand the edit,
+   * delete or invite right to whoever clicks Yes, Maybe or No on an event they
+   * were not invited to: opening widens the right to answer and nothing else,
+   * so the flag and the two permissions are mutually exclusive. The server-side
+   * invariant behind the board's rules, independent of the UI hiding or
+   * disabling the padlock.
    * <p>
    * One occurrence of a series may carry its own value: the rule does not
    * refuse an event that has a parent, since a change on the series merges
    * into the dates individually modified instead of deleting them, so a value
    * written on an occurrence row survives the next save of its series.
    *
-   * @param status the status the save is about to store, as derived from the
-   *          date options
+   * @param eventToStore the event as the save is about to store it: its status
+   *          as derived from the date options, its participant permissions as
+   *          resolved for this save
    * @param calendar the calendar the event is saved into
    * @return whether the open flag may be stored as true
    */
-  private boolean canBeOpen(EventStatus status, Calendar calendar) {
-    return status != EventStatus.TENTATIVE && isSpaceCalendar(calendar);
+  private boolean canBeOpen(Event eventToStore, Calendar calendar) {
+    return eventToStore.getStatus() != EventStatus.TENTATIVE
+        && isSpaceCalendar(calendar)
+        && !eventToStore.isAllowAttendeeToUpdate()
+        && !eventToStore.isAllowAttendeeToInvite();
   }
 
   /**
