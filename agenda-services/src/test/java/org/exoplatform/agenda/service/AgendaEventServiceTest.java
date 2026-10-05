@@ -301,21 +301,21 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   /**
-   * eXIP 7.3.0.20 Open Event, US02 (EXO-89478): on the event page of an
-   * occurrence, the padlock patches the SERIES id with
-   * {@code updateAllOccurrences = false}. That boolean is load-bearing: with
-   * {@code true}, {@code updateEventFields} deletes every exceptional
-   * occurrence of the series, which is the very reason the flag is a property
-   * of the series (spec §5). This pins the flow the page performs: the series
-   * flips and reports the toggle once, the exceptional occurrence survives
-   * with its own row still false (the wire carries the parent's value,
+   * eXIP 7.3.0.20 Open Event, US02 (EXO-89478), then US06 (EXO-90517): a
+   * series patched with {@code updateAllOccurrences = false} flips alone. That
+   * boolean is load-bearing: with {@code true}, {@code updateEventFields}
+   * merges the change into every exceptional occurrence of the series (the
+   * padlock sends {@code true} since US06, and the flag is a property of each
+   * row); with {@code false}, the stored rows are left as they are, flag
+   * included. This pins the series-only path: the series flips and reports
+   * the toggle once, the exceptional occurrence survives with its own row
+   * still false (which is what the wire then carries for it,
    * {@code RestEntityBuilderOpenFlagTest}), and the page still resolves that
    * surviving row for the occurrence.
    * <p>
    * Mutation note: with the {@code updateAllOccurrences} guard removed, the
-   * run dies inside {@code deleteExceptionalOccurences} (the occurrence's
-   * conference rows still reference the deleted event) before the survival
-   * assertions are reached; the pin kills the mutant either way.
+   * merge runs on the row, which carries nothing of its own, and the intent
+   * rule drops it: the survival assertion (one row left) fails first.
    */
   @Test
   public void testOpenEventPatchedOnTheSeriesKeepsItsExceptionalOccurrences() throws Exception { // NOSONAR
@@ -333,7 +333,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertNotNull(exceptionalOccurrence);
     assertEquals(1, agendaEventService.getExceptionalOccurrenceEvents(seriesId, ZoneOffset.UTC, creatorIdentityId).size());
 
-    // What AgendaEventAttendees.toggleOpen sends for an occurrence of the series
+    // A series-only patch; the padlock of the page sends true since US06
     eventUpdateReference.set(null);
     agendaEventService.updateEventFields(seriesId, getFields("open", "true"), false, false, creatorIdentityId);
 
@@ -342,7 +342,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertTrue(eventUpdateReference.get().hasModification(AgendaEventModificationType.OPEN_UPDATED));
 
     // The exceptional occurrence survives the toggle, and its own row stays
-    // false: the flag is read on the series
+    // false: a series-only patch leaves the stored rows alone
     List<Event> exceptionalOccurrences = agendaEventService.getExceptionalOccurrenceEvents(seriesId,
                                                                                             ZoneOffset.UTC,
                                                                                             creatorIdentityId);
