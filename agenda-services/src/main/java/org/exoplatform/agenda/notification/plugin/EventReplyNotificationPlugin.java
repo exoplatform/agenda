@@ -8,13 +8,16 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
+import org.exoplatform.agenda.constant.CalendarShareLevel;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.service.AgendaEventService;
+import org.exoplatform.agenda.service.CalendarShareAccess;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.model.NotificationInfo;
 import org.exoplatform.commons.api.notification.plugin.BaseNotificationPlugin;
@@ -42,6 +45,9 @@ public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
   private AgendaEventService         eventService;
 
   private SpaceService               spaceService;
+
+  /** The level a calendar is shared at, read as the event service reads it. */
+  private CalendarShareAccess        calendarShareAccess             = new CalendarShareAccess();
 
   public EventReplyNotificationPlugin(InitParams initParams,
                                       IdentityManager identityManager,
@@ -79,6 +85,85 @@ public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
     return identity != null && !identity.isDeleted() && identity.isUser();
   }
 
+  /**
+   * Who hears an attendee's reply: the event's creator, while they may, and the
+   * owner of the personal calendar the event is in; when the creator declines
+   * their own event, the attendees who can still edit it.
+   *
+   * @param event the event replied to
+   * @param calendar its calendar, null when it is gone
+   * @param eventParticipantId the identity that replied
+   * @param eventResponse the reply
+   * @param occurrenceId the occurrence replied to, null for the whole event
+   * @return the identities to notify
+   */
+  Set<Long> replyRecipients(Event event,
+                            Calendar calendar,
+                            long eventParticipantId,
+                            EventAttendeeResponse eventResponse,
+                            ZonedDateTime occurrenceId) {
+    Set<Long> receivers = new HashSet<>();
+    if (eventParticipantId != event.getCreatorId()) {
+      if (creatorHearsReplies(event, calendar)) {
+        receivers.add(event.getCreatorId());
+      }
+    } else if (EventAttendeeResponse.DECLINED.equals(eventResponse) && eventParticipantId == event.getCreatorId()) {
+      List<EventAttendee> eventAttendees = eventAttendeeService.getEventAttendees(event.getId(),
+                                                                                  occurrenceId,
+                                                                                  EventAttendeeResponse.ACCEPTED,
+                                                                                  EventAttendeeResponse.TENTATIVE);
+      Set<Long> eventAttendeeIds = eventAttendees.stream()
+                                                 .map(EventAttendee::getIdentityId)
+                                                 .filter(identityId -> eventService.canUpdateEvent(event, identityId))
+                                                 .collect(Collectors.toSet());
+      eventAttendeeIds.add(event.getCreatorId());
+      eventAttendeeIds.remove(eventParticipantId);
+      receivers = new HashSet<>(eventAttendeeIds);
+    }
+    // The owner of a personal calendar hears the replies to a meeting held
+    // in it, even when a colleague they shared it with for editing created
+    // it (EXO-90378): without this the owner would never learn who accepted a
+    // meeting in their own calendar, and once that colleague's share no longer
+    // lets them read the event in full, the owner is the one who hears them.
+    // Never the replier themselves, and never a space — a space calendar's
+    // owner is the space, which is nobody to notify.
+    if (calendar != null && !calendar.isDeleted() && calendar.getOwnerId() != event.getCreatorId()
+        && calendar.getOwnerId() != eventParticipantId && isUser(calendar.getOwnerId())) {
+      receivers.add(calendar.getOwnerId());
+    }
+    return receivers;
+  }
+
+  /**
+   * Whether the creator of an event still hears its attendees' replies
+   * (EXO-90378). In a personal calendar a creator other than the owner made the
+   * event through an edit share, and hears the replies while that share lets
+   * them read the event in full: an edit share, or a view share on an event
+   * that is not private. Once the share is removed, or downgraded to view on a
+   * private event, the replies go to the owner alone, who hears them anyway.
+   * Being invited to the event does not count: an attendee keeps the
+   * notifications every attendee gets, and replies are not one of them. A space
+   * calendar keeps its creator as the one who hears them: its owner, the space,
+   * is nobody to notify.
+   *
+   * @param event the event replied to
+   * @param calendar its calendar, null when it is gone
+   * @return true when the creator is notified
+   */
+  private boolean creatorHearsReplies(Event event, Calendar calendar) {
+    long creatorId = event.getCreatorId();
+    if (calendar == null || calendar.isDeleted() || calendar.getOwnerId() == creatorId || !isUser(calendar.getOwnerId())) {
+      return true;
+    }
+    CalendarShareLevel level = calendarShareAccess.levelOf(calendar.getId(), creatorId);
+    return level == CalendarShareLevel.EDIT
+        || level == CalendarShareLevel.VIEW && event.getVisibility() != EventVisibility.PRIVATE;
+  }
+
+  void setCalendarShareAccess(CalendarShareAccess calendarShareAccess) {
+    this.calendarShareAccess = calendarShareAccess;
+  }
+
   @Override
   public boolean isValid(NotificationContext ctx) {
     if (getEventId(ctx) == 0) {
@@ -101,32 +186,7 @@ public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
     NotificationInfo notification = NotificationInfo.instance();
     notification.key(getId());
     if (event.getId() > 0) {
-      Set<Long> receivers = new HashSet<>();
-      if (eventParticipantId != event.getCreatorId()) {
-        receivers.add(event.getCreatorId());
-      } else if (EventAttendeeResponse.DECLINED.equals(eventResponse) && eventParticipantId == event.getCreatorId()) {
-        List<EventAttendee> eventAttendees = eventAttendeeService.getEventAttendees(event.getId(),
-                                                                                    occurrenceId,
-                                                                                    EventAttendeeResponse.ACCEPTED,
-                                                                                    EventAttendeeResponse.TENTATIVE);
-        Set<Long> eventAttendeeIds = eventAttendees.stream()
-                                                   .map(EventAttendee::getIdentityId)
-                                                   .filter(identityId -> eventService.canUpdateEvent(event, identityId))
-                                                   .collect(Collectors.toSet());
-        eventAttendeeIds.add(event.getCreatorId());
-        eventAttendeeIds.remove(eventParticipantId);
-        receivers = new HashSet<>(eventAttendeeIds);
-      }
-      // The owner of a personal calendar hears the replies to a meeting held
-      // in it, even when a colleague they shared it with for editing created
-      // it (EXO-90378): the replies go to the creator, and without this the
-      // owner would never learn who accepted a meeting in their own calendar.
-      // Never the replier themselves, and never a space — a space calendar's
-      // owner is the space, which is nobody to notify.
-      if (calendar != null && !calendar.isDeleted() && calendar.getOwnerId() != event.getCreatorId()
-          && calendar.getOwnerId() != eventParticipantId && isUser(calendar.getOwnerId())) {
-        receivers.add(calendar.getOwnerId());
-      }
+      Set<Long> receivers = replyRecipients(event, calendar, eventParticipantId, eventResponse, occurrenceId);
       setEventReminderNotificationRecipients(identityManager, notification, receivers.toArray(new Long[receivers.size()]));
     }
     if (notification.getSendToUserIds() == null || notification.getSendToUserIds().isEmpty()) {
