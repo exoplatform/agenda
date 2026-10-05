@@ -103,15 +103,20 @@
           {{ $t('agenda.label.availabilityAndVisibility') }}
         </div>
         <agenda-event-form-availability-visibility :event="event" help-as-text />
-        <!-- Disabled, with a title, while the event is open: an open event excludes this permission -->
+        <!--
+          Disabled, with a title, while the event is open: an open event excludes
+          this permission. The value is written back through $set, the way the
+          hosts of the participants drawer write the event they are given.
+        -->
         <div
           class="d-flex flex-row my-2 align-center"
           :title="allowAttendeeToUpdateBlockedTitle">
           <label class="font-weight-bold">{{ $t('agenda.modifyEventPermission') }}</label>
           <v-switch
-            v-model="event.allowAttendeeToUpdate"
+            :input-value="event.allowAttendeeToUpdate"
             :disabled="isOpenEvent"
-            class="pa-0 mt-0 ms-4" />
+            class="pa-0 mt-0 ms-4"
+            @change="value => $set(event, 'allowAttendeeToUpdate', !!value)" />
         </div>
         <div class="d-flex flex-row font-weight-regular">
           {{ $t('agenda.modifyEventPermissionDescription') }}
