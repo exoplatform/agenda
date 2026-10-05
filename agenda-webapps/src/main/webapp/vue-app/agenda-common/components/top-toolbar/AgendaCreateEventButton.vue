@@ -50,8 +50,22 @@ export default {
     this.$root.$on('agenda-application-loaded', () => this.initialized = true);
   },
   methods: {
-    openNewEventForm(){
-      this.$root.$emit('agenda-event-form', {
+    /**
+     * Opens the creation form the button's context calls for.
+     *
+     * The compact layout ($root.isMobile) is also what the application
+     * renders when its container is narrow on a desktop viewport: the App
+     * Center drawer, a narrow page column. There the application is a
+     * widget, and the quick drawer is what the timeline widget's own "+"
+     * opens, with the full form one "More details" away. On a phone the
+     * mobile form opens directly: the quick drawer there is the empty
+     * timeline's route, not this button's. On a desktop page the full form
+     * opens directly, the desktop calendar's own route.
+     *
+     * @returns {void}
+     */
+    openNewEventForm() {
+      const event = {
         summary: '',
         allDay: false,
         calendar: {
@@ -60,7 +74,14 @@ export default {
         reminders: [],
         attachments: [],
         attendees: [],
-      });
+      };
+      if (this.$root.isMobile && !this.$vuetify.breakpoint.smAndDown) {
+        event.startDate = new Date();
+        event.endDate = new Date();
+        this.$root.$emit('agenda-event-quick-form', event);
+      } else {
+        this.$root.$emit('agenda-event-form', event);
+      }
     },
     setToday() {
       this.$root.$emit('agenda-display-calendar-atDate');

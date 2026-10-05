@@ -81,7 +81,9 @@
           :event="event"
           :settings="settings"
           :current-space="currentSpace"
-          :conference-provider="conferenceProvider" />
+          :conference-provider="conferenceProvider"
+          :show-icon="false"
+          margin-class="my-0" />
         <label class="font-weight-bold my-2">
           {{ $t('agenda.participants') }}
         </label>

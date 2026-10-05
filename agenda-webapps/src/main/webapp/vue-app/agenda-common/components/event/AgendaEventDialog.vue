@@ -11,7 +11,7 @@
     <template v-if="event && dialog">
       <template v-if="isForm">
         <agenda-event-mobile-form
-          v-if="$root.isMobile"
+          v-if="mobileViewport"
           ref="eventForm"
           :event="event"
           :current-space="currentSpace"
@@ -103,6 +103,22 @@ export default {
     };
   },
   computed: {
+    /**
+     * Whether the mobile form renders rather than the full one.
+     *
+     * The dialog is fullscreen and attached to the page, so the viewport is
+     * what bounds it — not the container the application was dropped into.
+     * $root.isMobile is the application's layout, not the viewport: in the
+     * agenda application it is also true when the container is narrow (the
+     * App Center drawer, a narrow page column) on a desktop screen, where
+     * the full form has room. The viewport test is the one both application
+     * roots apply inside their own isMobile.
+     *
+     * @returns {Boolean} true on a phone-sized viewport
+     */
+    mobileViewport() {
+      return this.$vuetify.breakpoint.smAndDown;
+    },
     isModified() {
       return !this.saving && this.isForm && this.event && this.originalEventString && this.originalEventString !== JSON.stringify(this.event);
     },
@@ -130,13 +146,13 @@ export default {
   watch: {
     dialog() {
       if (this.dialog) {
-        if (!this.$root.isMobile) {
+        if (!this.mobileViewport) {
           $('body').addClass('hide-scroll');
         }
       } else {
-        if (!this.isMobile) {
-          setTimeout(() => $('body').removeClass('hide-scroll'), 200);
-        }
+        // unconditional: the viewport may have crossed the breakpoint while
+        // the dialog was open, and removing an absent class costs nothing
+        setTimeout(() => $('body').removeClass('hide-scroll'), 200);
         this.event = null;
       }
     },

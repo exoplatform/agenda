@@ -1,7 +1,7 @@
 <template>
   <div class="d-flex flex-row">
     <v-icon
-      v-if="showIcon && !$root.isMobile"
+      v-if="showIcon"
       :class="`darkGreyIcon my-auto ${this.iconClass} mt-4`"
       size="32px">
       fa-video
@@ -97,16 +97,24 @@ export default {
     showIcon: {
       type: Boolean,
       default: true
-    }
+    },
+    /*
+     * The vertical margin of the controls. The forms with icons space them
+     * on the row (my-3); the mobile form, which labels the row above,
+     * aligns them to the top (my-0). A prop rather than $root.isMobile: that
+     * flag is the application's layout, compact in a narrow container too,
+     * and this row cannot tell from it which form hosts it.
+     */
+    marginClass: {
+      type: String,
+      default: 'my-3',
+    },
   },
   data: () => ({
     loading: false,
     conferenceURL: null,
   }),
   computed: {
-    marginClass() {
-      return this.$root.isMobile ? 'my-0' : 'my-3';
-    },
     isConferenceEnabled() {
       return this.conferenceProvider && (!this.eventConferenceType || this.conferenceProvider.getType() === this.eventConferenceType || this.eventConferenceType === 'manual');
     },
