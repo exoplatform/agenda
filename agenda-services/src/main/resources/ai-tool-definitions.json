@@ -1,4 +1,5 @@
 {
+  "icon": "fa-calendar-alt",
   "tools": [
     {
       "name": "get_agenda_events",
