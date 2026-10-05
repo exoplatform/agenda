@@ -25,16 +25,16 @@ import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.rest.model.EventEntity;
 
 /**
- * eXIP 7.3.0.20 Open Event (EXO-89477): the open flag put on the wire is the
- * series' value. An occurrence answers with its parent's flag, whatever its
- * own row holds; a standalone event answers with its own; a search hit, whose
- * source carries no flag and no parent, answers "unknown" (null), never
- * "locked".
+ * eXIP 7.3.0.20 Open Event (EXO-89477, then US06): the open flag put on the
+ * wire is the row's own as soon as the event has a row — a series, a standalone
+ * event, an occurrence individually modified; a computed occurrence has no row
+ * and answers with its parent's flag; a search hit, whose source carries no
+ * flag and no parent, answers "unknown" (null), never "locked".
  */
 class RestEntityBuilderOpenFlagTest {
 
   @Test
-  void occurrenceCarriesTheParentFlagWhateverItsRowHolds() {
+  void computedOccurrenceCarriesTheParentFlag() {
     EventEntity parent = new EventEntity();
     parent.setOpen(true);
     Event occurrence = new Event();
@@ -45,6 +45,22 @@ class RestEntityBuilderOpenFlagTest {
 
     parent.setOpen(false);
     occurrence.setOpen(true);
+    assertEquals(Boolean.FALSE, RestEntityBuilder.effectiveOpen(parent, occurrence));
+  }
+
+  @Test
+  void storedOccurrenceCarriesItsOwnFlag() {
+    EventEntity parent = new EventEntity();
+    parent.setOpen(false);
+    Event occurrence = new Event();
+    occurrence.setId(42L);
+    occurrence.setParentId(41L);
+    occurrence.setOpen(true);
+
+    assertEquals(Boolean.TRUE, RestEntityBuilder.effectiveOpen(parent, occurrence));
+
+    parent.setOpen(true);
+    occurrence.setOpen(false);
     assertEquals(Boolean.FALSE, RestEntityBuilder.effectiveOpen(parent, occurrence));
   }
 
