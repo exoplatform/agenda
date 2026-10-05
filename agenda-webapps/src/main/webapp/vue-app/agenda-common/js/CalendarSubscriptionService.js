@@ -64,7 +64,9 @@ export const ERROR_CODES = [
 
 /**
  * The refusal code of a link of this eXo its publisher withdrew: the one a
- * space's managers are warned about in words of their own (EXO-90373).
+ * space's managers and a subscriber are warned about in words of their own,
+ * since it is the one failure whose imported events are removed, a week after
+ * the last refresh (EXO-90373).
  */
 export const WITHDRAWN_CODE = 'agenda.calendarSubscription.linkNotFound';
 
