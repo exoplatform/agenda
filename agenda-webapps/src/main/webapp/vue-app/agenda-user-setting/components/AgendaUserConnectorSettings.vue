@@ -246,7 +246,7 @@ export default {
      * line. Taking the container away to remove the header took those with it,
      * device setup included, which is the row a managed user most needs: the
      * instance chose the server, they still have to point their phone at it.
-     * What managed mode suppresses is `headerDisplayed` below.
+     * Managed mode only removes the header line's pencil.
      *
      * <p>
      * A managed user with no account yet is offered the designated server in
