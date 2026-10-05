@@ -32,6 +32,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.agenda.exception.AgendaException;
+import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
@@ -70,6 +72,11 @@ import javax.ws.rs.core.Response;
  * and the occurrence read answer a refusal with 403 and a fixed body, like the
  * PATCH of the same resource (they answered 401 with the exception message,
  * which carries the caller's identity). Pinned here as well.
+ * <p>
+ * The move of a split's customised dates
+ * ({@code POST /v1/agenda/events/{id}/exceptionalOccurrences/move}, finding 14
+ * of the integration review) answers under the same contract: 403, 400 with
+ * the code, 404, and the identifiers kept on success.
  */
 class AgendaEventRestTest {
 
@@ -204,6 +211,43 @@ class AgendaEventRestTest {
 
     assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
     assertEquals("Not allowed to access the occurrence served", response.getEntity());
+  }
+
+  @Test
+  void aSplitByACallerWithoutTheEditRightGetsForbidden() throws Exception {
+    Mockito.doThrow(new IllegalAccessException("not allowed"))
+           .when(agendaEventService)
+           .moveExceptionalOccurrences(eq(EVENT_ID), eq(43L), any(), anyLong());
+    Response response = eventRest.moveEventExceptionalOccurrences(EVENT_ID, 43L, "2026-10-05T09:00:00.000Z");
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
+  }
+
+  @Test
+  void aSplitOfTwoEventsItCannotJoinGetsBadRequestWithItsMessageCode() throws Exception {
+    Mockito.doThrow(new IllegalArgumentException("agenda.seriesSplit.notAllowed"))
+           .when(agendaEventService)
+           .moveExceptionalOccurrences(eq(EVENT_ID), eq(43L), any(), anyLong());
+    Response response = eventRest.moveEventExceptionalOccurrences(EVENT_ID, 43L, "2026-10-05T09:00:00.000Z");
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    assertEquals("agenda.seriesSplit.notAllowed", response.getEntity());
+  }
+
+  @Test
+  void aSplitOfAnUnknownEventGetsNotFound() throws Exception {
+    Mockito.doThrow(new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND))
+           .when(agendaEventService)
+           .moveExceptionalOccurrences(eq(EVENT_ID), eq(43L), any(), anyLong());
+    Response response = eventRest.moveEventExceptionalOccurrences(EVENT_ID, 43L, "2026-10-05T09:00:00.000Z");
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response.getStatus());
+  }
+
+  @Test
+  void aSplitAnswersTheIdentifiersKept() throws Exception {
+    java.util.List<Long> kept = java.util.Arrays.asList(7L, 8L);
+    when(agendaEventService.moveExceptionalOccurrences(eq(EVENT_ID), eq(43L), any(), anyLong())).thenReturn(kept);
+    Response response = eventRest.moveEventExceptionalOccurrences(EVENT_ID, 43L, "2026-10-05T09:00:00.000Z");
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals(kept, response.getEntity());
   }
 
   private Response patch(MultivaluedMap<String, String> fields) {

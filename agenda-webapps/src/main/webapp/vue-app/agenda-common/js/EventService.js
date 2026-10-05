@@ -144,6 +144,31 @@ export function getEventExceptionalOccurrences(eventId, expand) {
   });
 }
 
+/**
+ * The second half of a "this and upcoming" split: moves the dates the
+ * organiser had customised from the displayed one on under the series that
+ * continues the first one, so that the shortening of the first series does not
+ * drop them with their answers. Called after the continuing series is created
+ * and before the first series is shortened.
+ *
+ * @param {number} eventId the first series
+ * @param {number} toEventId the continuing series
+ * @param {string} from the occurrence id of the displayed date (RFC 3339)
+ * @returns {Promise<Array<number>>} the identifiers of the rows moved and kept
+ */
+export function moveExceptionalOccurrences(eventId, toEventId, from) {
+  return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/exceptionalOccurrences/move?toEventId=${toEventId}&from=${encodeURIComponent(from)}`, {
+    method: 'POST',
+    credentials: 'include',
+  }).then((resp) => {
+    if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error moving the exceptional occurrences');
+    }
+  });
+}
+
 export function createEvent(event) {
   if (!Object.prototype.hasOwnProperty.call(event, 'sendInvitation')) {
     event.sendInvitation = true;

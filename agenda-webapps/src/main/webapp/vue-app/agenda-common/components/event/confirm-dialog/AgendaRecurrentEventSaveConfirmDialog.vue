@@ -159,72 +159,74 @@ export default {
           // Then change all current recurrent event
           if (startDate >= untilDate) {
             return this.saveRecurrentEvent();
-          } else {
-            parentRecurrentEvent.recurrence.until = this.$agendaUtils.toRFC3339(untilDate);
-            parentRecurrentEvent.sendInvitation = false;
-            return this.$eventService.updateEvent(parentRecurrentEvent)
-              .then(() => {
-                if (this.changedFields) {
-                  // The second series continues the first one and keeps its
-                  // rule, its fields and its time of day; it only starts on the
-                  // displayed date, and carries the fields the host changed
-                  recurrentEvent.start = this.$agendaUtils.getSameTime(this.event.start, recurrentEvent.start);
-                  recurrentEvent.end = this.$agendaUtils.getSameTime(this.event.end, recurrentEvent.end);
-                  this.changedFields.forEach(field => {
-                    recurrentEvent[field] = this.event[field];
-                  });
-                  this.applyAttendeesDelta(recurrentEvent);
-                  recurrentEvent.sendInvitation = !!this.event.sendInvitation;
-                } else {
-                  recurrentEvent.start = this.event.start;
-                  recurrentEvent.end = this.event.end;
-                  recurrentEvent.attachments = this.event.attachments;
-                  recurrentEvent.attendees = this.event.attendees;
-                  recurrentEvent.conferences = this.event.conferences;
-                  recurrentEvent.description = this.event.description;
-                  recurrentEvent.location = this.event.location;
-                  // The padlock is a value of the form like the others since
-                  // US06: without this line the new series would be created
-                  // with the flag the old one carried, and "this and upcoming
-                  // events" would silently drop the change the organiser just
-                  // made
-                  recurrentEvent.open = this.event.open;
-                  recurrentEvent.summary = this.event.summary;
-                  recurrentEvent.dateOptions = this.event.dateOptions || [];
-                  if (this.event.recurrence) {
-                    recurrentEvent.recurrence = this.event.recurrence;
-                  } else {
-                    const eventRecurrence = this.event?.recurrence || this.event?.parent?.recurrence;
-                    const recurrenceType = eventRecurrence?.type || 'NO_REPEAT';
-                    if (recurrenceType === 'WEEKLY') {
-                      const dayNameFromDate = this.$agendaUtils.getDayNameFromDate(this.event.start);
-                      recurrentEvent.recurrence.byDay = [dayNameFromDate.substring(0, 2).toUpperCase()];
-                    }
-
-                  }
-                }
-                delete recurrentEvent.id;
-                // Returned as a promise rather than left as a bare setTimeout:
-                // the catch below guards the chain this callback returns, and a
-                // timer that is merely started settles nothing, so the chain
-                // completed before the creation was even attempted. That is the
-                // failure that costs the most — the first series has already
-                // been shortened above, so a creation that fails in silence
-                // leaves the organiser with a truncated series and no
-                // continuation
-                return new Promise(resolve => setTimeout(resolve, 200))
-                  .then(() => this.$eventService.createEvent(recurrentEvent))
-                  .then(createdEvent => {
-                    recurrentEvent = createdEvent;
-                    this.close();
-                    this.$root.$emit('agenda-event-saved', recurrentEvent);
-                  });
-              });           
           }
+          if (this.changedFields) {
+            // The second series continues the first one and keeps its
+            // rule, its fields and its time of day; it only starts on the
+            // displayed date, and carries the fields the host changed
+            recurrentEvent.start = this.$agendaUtils.getSameTime(this.event.start, recurrentEvent.start);
+            recurrentEvent.end = this.$agendaUtils.getSameTime(this.event.end, recurrentEvent.end);
+            this.changedFields.forEach(field => {
+              recurrentEvent[field] = this.event[field];
+            });
+            this.applyAttendeesDelta(recurrentEvent);
+            recurrentEvent.sendInvitation = !!this.event.sendInvitation;
+          } else {
+            recurrentEvent.start = this.event.start;
+            recurrentEvent.end = this.event.end;
+            recurrentEvent.attachments = this.event.attachments;
+            recurrentEvent.attendees = this.event.attendees;
+            recurrentEvent.conferences = this.event.conferences;
+            recurrentEvent.description = this.event.description;
+            recurrentEvent.location = this.event.location;
+            // The padlock is a value of the form like the others since
+            // US06: without this line the new series would be created
+            // with the flag the old one carried, and "this and upcoming
+            // events" would silently drop the change the organiser just
+            // made
+            recurrentEvent.open = this.event.open;
+            recurrentEvent.summary = this.event.summary;
+            recurrentEvent.dateOptions = this.event.dateOptions || [];
+            if (this.event.recurrence) {
+              recurrentEvent.recurrence = this.event.recurrence;
+            } else {
+              const eventRecurrence = this.event?.recurrence || this.event?.parent?.recurrence;
+              const recurrenceType = eventRecurrence?.type || 'NO_REPEAT';
+              if (recurrenceType === 'WEEKLY') {
+                const dayNameFromDate = this.$agendaUtils.getDayNameFromDate(this.event.start);
+                recurrentEvent.recurrence.byDay = [dayNameFromDate.substring(0, 2).toUpperCase()];
+              }
+            }
+          }
+          delete recurrentEvent.id;
+          // The continuing series is created first, the dates the organiser
+          // had customised from this one on are moved under it, and the first
+          // series is shortened last. In that order a step that fails leaves
+          // every date in place — at worst the two series overlap until the
+          // save is retried — whereas shortening first dropped those dates
+          // with their answers before the continuation existed, and a
+          // creation that then failed left a truncated series with no
+          // continuation at all. A customisation is kept whatever the scope
+          // (the PO's rule; integration review, finding 14)
+          const splitFrom = this.event.occurrence.id;
+          return this.$eventService.createEvent(recurrentEvent)
+            .then(createdEvent => {
+              recurrentEvent = createdEvent;
+              return this.$eventService.moveExceptionalOccurrences(parentRecurrentEvent.id, createdEvent.id, splitFrom);
+            })
+            .then(() => {
+              parentRecurrentEvent.recurrence.until = this.$agendaUtils.toRFC3339(untilDate);
+              parentRecurrentEvent.sendInvitation = false;
+              return this.$eventService.updateEvent(parentRecurrentEvent);
+            })
+            .then(() => {
+              this.close();
+              this.$root.$emit('agenda-event-saved', recurrentEvent);
+            });
         })
-        // Reaches all three calls of this scope — the read, the shortening and
-        // the creation. The other two scopes are answered by their host's
-        // catch; this one does its own work, so it carries its own
+        // Reaches all four calls of this scope — the read, the creation, the
+        // move and the shortening. The other two scopes are answered by their
+        // host's catch; this one does its own work, so it carries its own
         .catch(this.saveFailed);
     },
     /**

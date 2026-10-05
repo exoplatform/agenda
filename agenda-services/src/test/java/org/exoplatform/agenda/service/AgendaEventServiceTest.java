@@ -6881,6 +6881,214 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   /**
+   * Finding 14 of the integration review, settled by the PO on 2026-10-05: a
+   * "this and upcoming" split keeps the dates the organiser had customised
+   * from the split point on, answers included. The client creates the
+   * continuing series first, moves those dates under it, then shortens the
+   * first series — the order this pins, with what each date keeps and takes:
+   * its own customisation, and the change the split made to the series, as a
+   * save of the whole series would give it (the PO's rule of 2026-09-23).
+   */
+  @Test
+  public void testThisAndUpcomingSplitKeepsTheDatesCustomisedAfterTheSplit() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now(ZoneOffset.UTC).plusDays(3).withNano(0).withHour(9).withMinute(0).withSecond(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    long inviteeId = Long.parseLong(testuser2Identity.getId());
+
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setCalendarId(spaceCalendar.getId());
+    event.getRecurrence().setUntil(start.plusDays(6).toLocalDate());
+    Event first = createEvent(event.clone(), creatorId, testuser1Identity, testuser2Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(first, start, start.plusDays(7), ZoneOffset.UTC, 0);
+    assertTrue("precondition: a week of dates", occurrences.size() >= 6);
+
+    // One date customised before the split point, two after it — a room of
+    // its own on day 4, an answer on day 5. The organiser splits on day 3.
+    Event before = customiseLocation(first, occurrences.get(1), "room before the split", creatorId);
+    Event after = customiseLocation(first, occurrences.get(4), "room after the split", creatorId);
+    Event answered = agendaEventService.saveEventExceptionalOccurrence(first.getId(), occurrences.get(5).getOccurrence().getId());
+    agendaEventAttendeeService.sendEventResponse(answered.getId(), inviteeId, EventAttendeeResponse.ACCEPTED);
+    restartTransaction();
+    ZonedDateTime splitDate = occurrences.get(3).getOccurrence().getId();
+
+    // The continuing series as the client creates it: the first series' rule
+    // and fields from the split date on, renamed by the split
+    Event continuation = agendaEventService.getEventById(first.getId(), ZoneOffset.UTC, creatorId).clone();
+    continuation.setId(0);
+    continuation.setStart(occurrences.get(3).getStart());
+    continuation.setEnd(occurrences.get(3).getEnd());
+    continuation.setSummary("renamed by the split");
+    Event second = createEvent(continuation, creatorId, testuser1Identity, testuser2Identity);
+    restartTransaction();
+
+    List<Long> kept = agendaEventService.moveExceptionalOccurrences(first.getId(), second.getId(), splitDate, creatorId);
+    restartTransaction();
+    assertEquals("the two dates customised from the split point on move, the one before stays", 2, kept.size());
+    assertTrue(kept.contains(after.getId()));
+    assertTrue(kept.contains(answered.getId()));
+
+    // The first series is shortened to the day before the split, as the client
+    // does last — the day read in the event zone, where the client reads it in
+    // the browser zone
+    Event shortened = agendaEventService.getEventById(first.getId(), ZoneOffset.UTC, creatorId).clone();
+    shortened.getRecurrence().setUntil(splitDate.withZoneSameInstant(first.getTimeZoneId()).toLocalDate().minusDays(1));
+    updateSeries(shortened, creatorId);
+    restartTransaction();
+    // The stored rule is checked as written: the until a read gives back is a
+    // day in the JVM zone (EntityMapper.fromEntity, TASK-39591), which the
+    // test base sets to another zone than the event one on purpose
+    ZonedDateTime expectedUntil = splitDate.withZoneSameInstant(first.getTimeZoneId())
+                                           .toLocalDate()
+                                           .minusDays(1)
+                                           .atStartOfDay(first.getTimeZoneId())
+                                           .plusDays(1)
+                                           .minusSeconds(1)
+                                           .withZoneSameInstant(ZoneOffset.UTC);
+    String storedRule = agendaEventService.getEventById(first.getId()).getRecurrence().getRrule();
+    assertTrue("precondition: the first series now ends the day before the split (" + storedRule + ")",
+               storedRule.contains("UNTIL=" + expectedUntil.format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'"))));
+
+    Event keptAfter = agendaEventService.getEventById(after.getId());
+    assertNotNull("a date customised after the split point survives the split", keptAfter);
+    assertEquals("under the continuing series", second.getId(), keptAfter.getParentId());
+    assertEquals("with its own room", "room after the split", keptAfter.getLocation());
+    assertEquals("and the name the split gave the series, as a save of the whole series would",
+                 "renamed by the split",
+                 keptAfter.getSummary());
+    Event keptAnswered = agendaEventService.getEventById(answered.getId());
+    assertNotNull("so does a date answered after the split point", keptAnswered);
+    assertEquals(second.getId(), keptAnswered.getParentId());
+    assertEquals("with the answer given on it",
+                 EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(answered.getId(), null, inviteeId));
+    Event keptBefore = agendaEventService.getEventById(before.getId());
+    assertNotNull("a date customised before the split point stays where it was", keptBefore);
+    assertEquals(first.getId(), keptBefore.getParentId());
+    assertEquals("room before the split", keptBefore.getLocation());
+    assertTrue("the first series keeps no date from the split point on",
+               agendaEventService.getExceptionalOccurrenceEvents(first.getId(), ZoneOffset.UTC, creatorId)
+                                 .stream()
+                                 .allMatch(row -> row.getOccurrence().getId().isBefore(splitDate)));
+    // The page resolves the moved date under the continuing series
+    Event resolved = agendaEventService.getEventOccurrence(second.getId(),
+                                                           occurrences.get(4).getOccurrence().getId(),
+                                                           ZoneOffset.UTC,
+                                                           creatorId);
+    assertNotNull(resolved);
+    assertEquals(after.getId(), resolved.getId());
+  }
+
+  /**
+   * The move is guarded like the saves it stands between: the caller needs
+   * the right to update both series, the two must be distinct recurring
+   * events of one calendar, and a date the continuing series does not produce
+   * is dropped as a series change drops it.
+   */
+  @Test
+  public void testMovingTheExceptionalOccurrencesIsGuarded() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now(ZoneOffset.UTC).plusDays(3).withNano(0).withHour(9).withMinute(0).withSecond(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    long inviteeId = Long.parseLong(testuser2Identity.getId());
+
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setCalendarId(spaceCalendar.getId());
+    event.getRecurrence().setUntil(start.plusDays(6).toLocalDate());
+    Event first = createEvent(event.clone(), creatorId, testuser1Identity, testuser2Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(first, start, start.plusDays(7), ZoneOffset.UTC, 0);
+    Event customised = customiseLocation(first, occurrences.get(4), "a room of its own", creatorId);
+    ZonedDateTime splitDate = occurrences.get(3).getOccurrence().getId();
+
+    Event continuation = agendaEventService.getEventById(first.getId(), ZoneOffset.UTC, creatorId).clone();
+    continuation.setId(0);
+    continuation.setStart(occurrences.get(3).getStart());
+    continuation.setEnd(occurrences.get(3).getEnd());
+    Event second = createEvent(continuation, creatorId, testuser1Identity, testuser2Identity);
+    Event standalone = newEventInstance(start, start.plusHours(1), false);
+    standalone.setCalendarId(spaceCalendar.getId());
+    standalone.setRecurrence(null);
+    Event standaloneEvent = createEvent(standalone, creatorId, testuser1Identity);
+    Event elsewhereSeries = createEvent(newEventInstance(start, start.plusHours(1), false), creatorId, testuser1Identity);
+    restartTransaction();
+
+    // An invitee may not update either series
+    try {
+      agendaEventService.moveExceptionalOccurrences(first.getId(), second.getId(), splitDate, inviteeId);
+      fail("an invitee may not split a series");
+    } catch (IllegalAccessException e) {
+      // expected
+    }
+    // A series and itself, a series and a standalone event, two series of
+    // different calendars: nothing a split can join
+    for (long target : new long[] { first.getId(), standaloneEvent.getId(), elsewhereSeries.getId() }) {
+      try {
+        agendaEventService.moveExceptionalOccurrences(first.getId(), target, splitDate, creatorId);
+        fail("event " + target + " cannot continue the series");
+      } catch (IllegalArgumentException e) {
+        assertEquals("agenda.seriesSplit.notAllowed", e.getMessage());
+      }
+    }
+    assertEquals("nothing moved", first.getId(), agendaEventService.getEventById(customised.getId()).getParentId());
+
+    // A continuation whose rule does not produce the customised day — weekly
+    // on the split day's weekday, where the customised date is the day after —
+    // drops the row, as a series change drops a day its rule no longer
+    // produces, and the result says so
+    Event weeklyContinuation = agendaEventService.getEventById(second.getId(), ZoneOffset.UTC, creatorId).clone();
+    weeklyContinuation.getRecurrence().setType(EventRecurrenceType.WEEKLY);
+    weeklyContinuation.getRecurrence().setFrequency(EventRecurrenceFrequency.WEEKLY);
+    String splitWeekday = splitDate.withZoneSameInstant(second.getTimeZoneId()).getDayOfWeek().name().substring(0, 2);
+    weeklyContinuation.getRecurrence().setByDay(Collections.singletonList(splitWeekday));
+    updateSeries(weeklyContinuation, creatorId);
+    restartTransaction();
+    Event storedContinuation = agendaEventService.getEventById(second.getId());
+    ZonedDateTime customisedDay = occurrences.get(4).getOccurrence().getId();
+    assertTrue("precondition: the weekly continuation does not produce the customised day ("
+        + storedContinuation.getRecurrence().getRrule() + ")",
+               agendaEventService.getEventOccurrencesInPeriod(storedContinuation,
+                                                              customisedDay.minusDays(1),
+                                                              customisedDay.plusDays(1),
+                                                              second.getTimeZoneId(),
+                                                              0)
+                                 .stream()
+                                 .noneMatch(o -> o.getOccurrence()
+                                                  .getId()
+                                                  .withZoneSameInstant(ZoneOffset.UTC)
+                                                  .toLocalDate()
+                                                  .isEqual(customisedDay.withZoneSameInstant(ZoneOffset.UTC).toLocalDate())));
+    List<Long> kept = agendaEventService.moveExceptionalOccurrences(first.getId(), second.getId(), splitDate, creatorId);
+    restartTransaction();
+    assertNull("a moved date the continuation does not produce is dropped", agendaEventService.getEventById(customised.getId()));
+    assertTrue("and the result does not list it", kept.isEmpty());
+  }
+
+  /**
+   * One date of a series given a room of its own, as the organiser does from
+   * the form with "this event only".
+   */
+  private Event customiseLocation(Event series, Event occurrence, String location, long creatorId) throws Exception {
+    Event row = agendaEventService.saveEventExceptionalOccurrence(series.getId(), occurrence.getOccurrence().getId());
+    Event rowToUpdate = agendaEventService.getEventById(row.getId(), ZoneOffset.UTC, creatorId).clone();
+    rowToUpdate.setLocation(location);
+    updateSeries(rowToUpdate, creatorId);
+    return agendaEventService.getEventById(row.getId());
+  }
+
+  /**
+   * A full save of an event as it is, its attendees, conferences and the
+   * organiser's own reminders read back and saved unchanged.
+   */
+  private void updateSeries(Event eventToUpdate, long creatorId) throws Exception {
+    agendaEventService.updateEvent(eventToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(eventToUpdate.getId()).getEventAttendees(),
+                                   agendaEventConferenceService.getEventConferences(eventToUpdate.getId()),
+                                   agendaEventReminderService.getEventReminders(eventToUpdate.getId(), creatorId),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+  }
+
+  /**
    * The intent check, one property at a time: a row that differs from its
    * series in exactly one of the properties the merge compares — a cancelled
    * date, moved times, the open flag, the visibility — is kept by a series
