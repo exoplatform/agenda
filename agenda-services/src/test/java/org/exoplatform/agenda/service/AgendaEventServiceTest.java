@@ -40,6 +40,7 @@ import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.model.Profile;
+import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 
 public class AgendaEventServiceTest extends BaseAgendaEventTest {
@@ -851,6 +852,90 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     stored = agendaEventService.getEventById(openId);
     assertEquals(Boolean.FALSE, stored.getOpen());
     assertTrue(stored.isAllowAttendeeToInvite());
+  }
+
+  /**
+   * The participant permissions are the creator's to grant, and another editor
+   * keeps the stored values on a full save — which, with the exclusion, would
+   * leave an event whose invite permission was left on impossible to open for
+   * a space manager: the stored value would stay and the invariant would drop
+   * the opening without a word. Opening clears that permission for whoever may
+   * open the event; it never raises it.
+   */
+  @Test
+  public void testAnEditorWhoIsNotTheCreatorOpensAnEventWhoseInvitePermissionWasLeftOn() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    long managerId = Long.parseLong(identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "root").getId());
+
+    // Locked, with the invite permission on and the modify permission off: the
+    // state the one-way watcher used to leave behind
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setRecurrence(null);
+    event.setAllowAttendeeToInvite(true);
+    long eventId = createEvent(event.clone(), creatorId, testuser2Identity).getId();
+    Event stored = agendaEventService.getEventById(eventId);
+    assertEquals(Boolean.FALSE, stored.getOpen());
+    assertTrue(stored.isAllowAttendeeToInvite());
+    assertFalse(stored.isAllowAttendeeToUpdate());
+    assertTrue("precondition: a space manager who is not the creator may update the event",
+               agendaEventService.canUpdateEvent(stored, managerId));
+    assertNotEquals(creatorId, managerId);
+
+    // The manager opens it as the hosts do, the invite permission cleared with the flag
+    Event opening = agendaEventService.getEventById(eventId, ZoneOffset.UTC, managerId).clone();
+    opening.setOpen(true);
+    opening.setAllowAttendeeToInvite(false);
+    agendaEventService.updateEvent(opening,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   managerId);
+    stored = agendaEventService.getEventById(eventId);
+    assertEquals("the opening is stored", Boolean.TRUE, stored.getOpen());
+    assertFalse("and the invite permission is cleared with it", stored.isAllowAttendeeToInvite());
+
+    // Never a raise: the same manager cannot give the permission back, opening or not
+    Event raising = agendaEventService.getEventById(eventId, ZoneOffset.UTC, managerId).clone();
+    raising.setAllowAttendeeToInvite(true);
+    agendaEventService.updateEvent(raising,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   managerId);
+    stored = agendaEventService.getEventById(eventId);
+    assertFalse("a non-creator does not raise a participant permission", stored.isAllowAttendeeToInvite());
+    assertEquals(Boolean.TRUE, stored.getOpen());
+
+    // The modify permission keeps the creator-only rule: an event the creator
+    // left with it on stays as it is for the manager, so the opening yields
+    Event modifiable = newEventInstance(start, start, true);
+    modifiable.setCalendarId(spaceCalendar.getId());
+    modifiable.setRecurrence(null);
+    modifiable.setAllowAttendeeToUpdate(true);
+    long modifiableId = createEvent(modifiable.clone(), creatorId, testuser2Identity).getId();
+    Event openingModifiable = agendaEventService.getEventById(modifiableId, ZoneOffset.UTC, managerId).clone();
+    openingModifiable.setOpen(true);
+    openingModifiable.setAllowAttendeeToUpdate(false);
+    openingModifiable.setAllowAttendeeToInvite(false);
+    agendaEventService.updateEvent(openingModifiable,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   managerId);
+    stored = agendaEventService.getEventById(modifiableId);
+    assertTrue("the modify permission is the creator's", stored.isAllowAttendeeToUpdate());
+    assertEquals("so the event stays locked", Boolean.FALSE, stored.getOpen());
   }
 
   /**

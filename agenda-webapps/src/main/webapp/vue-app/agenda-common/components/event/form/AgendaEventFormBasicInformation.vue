@@ -214,7 +214,7 @@ export default {
       // nobody sees and nobody can take back. On an open event, which excludes
       // both, the padlock has just switched them off and nothing is turned on.
       if (!this.isOpenEvent) {
-        this.event.allowAttendeeToInvite = this.allowAttendeeToUpdate;
+        this.$set(this.event, 'allowAttendeeToInvite', this.allowAttendeeToUpdate);
       }
     },
     selectedCalendar() {

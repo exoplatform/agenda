@@ -1354,11 +1354,21 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     adjustEventDatesForWrite(event);
 
-    boolean allowAttendeeToUpdate = storedEvent.getCreatorId() == userIdentityId ? event.isAllowAttendeeToUpdate()
-                                                                                 : storedEvent.isAllowAttendeeToUpdate();
+    // The participant permissions are the creator's to grant: another editor
+    // keeps the stored values. One lowering is let through: opening the event
+    // clears the invite permission for whoever may open it, since the two
+    // exclude each other and the forms never show that permission — it follows
+    // "can modify" through a watcher, and an older one left it on. Without
+    // this, an editor who is not the creator could never open such an event
+    // through a full save: the stored value would stay and the invariant
+    // below would drop the opening without a word. Never a raise: a payload
+    // that opens while asking for the permission keeps the stored value.
+    boolean creator = storedEvent.getCreatorId() == userIdentityId;
+    boolean opening = Boolean.TRUE.equals(event.getOpen());
+    boolean allowAttendeeToUpdate = creator ? event.isAllowAttendeeToUpdate() : storedEvent.isAllowAttendeeToUpdate();
     boolean allowAttendeeToInvite = allowAttendeeToUpdate
-        || (storedEvent.getCreatorId() == userIdentityId ? event.isAllowAttendeeToInvite()
-                                                         : storedEvent.isAllowAttendeeToInvite());
+        || (creator ? event.isAllowAttendeeToInvite()
+                    : storedEvent.isAllowAttendeeToInvite() && (!opening || event.isAllowAttendeeToInvite()));
 
     Event eventToUpdate = new Event(event.getId(),
                                     event.getParentId(),
