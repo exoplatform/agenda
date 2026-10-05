@@ -3,6 +3,7 @@
     <v-btn
       v-if="!connectedConnector && connectOffered"
       :title="$t('agenda.connectYourPersonalAgenda')"
+      :loading="caldavManaged && managedConnector && managedConnector.loading"
       icon
       :max-width="width"
       :max-height="height" 
