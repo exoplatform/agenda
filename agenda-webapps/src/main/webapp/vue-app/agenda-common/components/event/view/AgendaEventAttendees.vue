@@ -224,6 +224,9 @@ export default {
       const open = !this.event.open;
       if (this.isOccurrence) {
         this.$set(this.event, 'open', open);
+        if (open) {
+          this.clearInvitePermission();
+        }
         return;
       }
       const eventId = this.event.id;
@@ -235,9 +238,18 @@ export default {
       // reaches the dates individually modified as well: since US06 such a
       // patch merges into those dates instead of deleting them, leaving
       // untouched only the properties customised there
-      this.$eventService.updateEventFields({id: eventId}, {open}, true, false)
+      // Opening clears "participants can invite" in the same patch: an open
+      // event excludes it, the forms never show it (it follows "can modify"
+      // through a watcher), and an event whose modify option was switched on
+      // and off keeps it on — the server accepts the two fields together and
+      // would refuse the opening alone
+      const fields = open ? {open, allowAttendeeToInvite: false} : {open};
+      this.$eventService.updateEventFields({id: eventId}, fields, true, false)
         .then(() => {
           this.$set(this.event, 'open', open);
+          if (open) {
+            this.clearInvitePermission();
+          }
           // Stored, so it is the drawer's new reference point. Without this the
           // close would read a changed padlock and full-save the event a second
           // time — and since the wire never carries sendInvitation (the WS JSON
@@ -334,7 +346,8 @@ export default {
         // invitation, not a padlock.
         const eventToSave = JSON.parse(JSON.stringify(this.event));
         eventToSave.sendInvitation = listChanged;
-        const fields = padlockChanged ? ['open'] : [];
+        // Opening travels with the invite permission it clears (see toggleOpen)
+        const fields = padlockChanged ? (this.event.open ? ['open', 'allowAttendeeToInvite'] : ['open']) : [];
         const delta = listChanged ? this.attendeesDelta() : null;
         this.askScope(eventToSave, fields, delta);
         return;
@@ -459,6 +472,16 @@ export default {
      * @param {Object} error the rejected response
      * @returns {void}
      */
+    /**
+     * An open event excludes "participants can invite", which the forms never
+     * show: cleared on the page as the server clears it, so that the drawer's
+     * next close compares like with like.
+     *
+     * @returns {void}
+     */
+    clearInvitePermission() {
+      this.$set(this.event, 'allowAttendeeToInvite', false);
+    },
     changeFailed(error) {
       const code = error && error.code;
       const message = code && this.$te(code) ? this.$t(code) : this.$t('agenda.openEvent.updateError');

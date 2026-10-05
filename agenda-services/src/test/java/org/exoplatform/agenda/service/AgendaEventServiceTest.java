@@ -745,9 +745,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   /**
-   * Finding 1 of the integration review, settled by the PO: an open event
-   * excludes "participants can modify the event" and "participants can
-   * invite". Answering an open event writes a full attendee row, and either
+   * An open event excludes "participants can modify the event" and
+   * "participants can invite". Answering an open event writes a full attendee
+   * row, and either
    * permission would hand the edit, delete or invite right to whoever clicks
    * Yes, Maybe or No on an event they were not invited to. Both directions,
    * both flags, on the three write paths: creation and full save resolve the
