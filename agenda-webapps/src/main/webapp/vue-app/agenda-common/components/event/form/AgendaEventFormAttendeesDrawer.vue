@@ -66,9 +66,9 @@
             PATCH on the detail page, a form value saved with the event in the
             creation / edit form). A viewer who cannot edit gets the icon and
             its title, no button: nothing to click, no hover background. So
-            does an editor while the participants may modify the event or
-            invite: an open event excludes both permissions, and the title
-            says what to deactivate first.
+            does an editor while the participants may modify the event: an
+            open event excludes that permission, and the title says what to
+            deactivate first.
           -->
           <template v-if="showOpenToggle">
             <v-btn
@@ -242,16 +242,17 @@ export default {
     },
     /**
      * An open event excludes "participants can modify the event" and
-     * "participants can invite" (the integration review's finding 1, settled
-     * by the PO): while either is on, the padlock is shown but not clickable,
-     * and its title says what to deactivate first. The server refuses the same
-     * toggle with a 400, so this only spares the click.
+     * "participants can invite": while "can modify" is on, the padlock is
+     * shown but not clickable, and its title says what to deactivate first.
+     * Only that option blocks: it is the one the forms show, while "can
+     * invite" — set by its watcher, never shown — is cleared by the opening
+     * itself in both hosts. The server refuses a toggle that breaks the rule
+     * with a 400, so this only spares the click.
      *
-     * @returns {Boolean} whether a participant permission blocks the padlock
+     * @returns {Boolean} whether the modify permission blocks the padlock
      */
     openToggleBlocked() {
-      return !this.isOpenEvent
-        && !!(this.event && (this.event.allowAttendeeToUpdate || this.event.allowAttendeeToInvite));
+      return !this.isOpenEvent && !!(this.event && this.event.allowAttendeeToUpdate);
     },
     openIcon() {
       return this.isOpenEvent ? 'fas fa-lock-open' : 'fas fa-lock';

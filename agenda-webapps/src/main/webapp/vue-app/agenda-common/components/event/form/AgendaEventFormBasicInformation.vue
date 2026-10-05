@@ -127,9 +127,8 @@
         </div>
         <!--
           Disabled, with a title, while the event is open: an open event
-          excludes the participant permissions (the integration review's
-          finding 1, settled by the PO), and the padlock is blocked the other
-          way round while this option is on.
+          excludes the participant permissions, and the padlock is blocked the
+          other way round while this option is on.
         -->
         <div
           class="d-flex flex-row"
@@ -210,10 +209,12 @@ export default {
       this.reset();
     },
     allowAttendeeToUpdate() {
-      // Inviting follows modifying, except on an open event, which excludes
-      // both: the padlock has just switched them off
-      if (this.allowAttendeeToUpdate && !this.isOpenEvent) {
-        this.event.allowAttendeeToInvite = true;
+      // Inviting follows modifying both ways: the form shows one switch for
+      // the two, and a flag left on after the switch went off would be a right
+      // nobody sees and nobody can take back. On an open event, which excludes
+      // both, the padlock has just switched them off and nothing is turned on.
+      if (!this.isOpenEvent) {
+        this.event.allowAttendeeToInvite = this.allowAttendeeToUpdate;
       }
     },
     selectedCalendar() {
