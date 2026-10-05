@@ -65,11 +65,14 @@
             state and emits: the host decides what a click means (an immediate
             PATCH on the detail page, a form value saved with the event in the
             creation / edit form). A viewer who cannot edit gets the icon and
-            its title, no button: nothing to click, no hover background.
+            its title, no button: nothing to click, no hover background. So
+            does an editor while the participants may modify the event or
+            invite: an open event excludes both permissions, and the title
+            says what to deactivate first.
           -->
           <template v-if="showOpenToggle">
             <v-btn
-              v-if="editable"
+              v-if="editable && !openToggleBlocked"
               icon
               class="flex-shrink-0 me-1"
               :title="openToggleTitle"
@@ -237,6 +240,19 @@ export default {
     isOpenEvent() {
       return !!(this.event && this.event.open);
     },
+    /**
+     * An open event excludes "participants can modify the event" and
+     * "participants can invite" (the integration review's finding 1, settled
+     * by the PO): while either is on, the padlock is shown but not clickable,
+     * and its title says what to deactivate first. The server refuses the same
+     * toggle with a 400, so this only spares the click.
+     *
+     * @returns {Boolean} whether a participant permission blocks the padlock
+     */
+    openToggleBlocked() {
+      return !this.isOpenEvent
+        && !!(this.event && (this.event.allowAttendeeToUpdate || this.event.allowAttendeeToInvite));
+    },
     openIcon() {
       return this.isOpenEvent ? 'fas fa-lock-open' : 'fas fa-lock';
     },
@@ -244,6 +260,9 @@ export default {
       return this.isOpenEvent ? 'primary--text' : 'icon-default-color';
     },
     openToggleTitle() {
+      if (this.editable && this.openToggleBlocked) {
+        return this.$t('agenda.openEvent.blockedByAttendeePermission.tooltip');
+      }
       if (this.editable) {
         return this.isOpenEvent
           ? this.$t('agenda.openEvent.open.editable.tooltip')

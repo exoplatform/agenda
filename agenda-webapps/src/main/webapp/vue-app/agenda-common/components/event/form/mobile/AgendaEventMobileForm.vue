@@ -103,9 +103,15 @@
           {{ $t('agenda.label.availabilityAndVisibility') }}
         </div>
         <agenda-event-form-availability-visibility :event="event" help-as-text />
-        <div class="d-flex flex-row my-2 align-center">
+        <!-- Disabled, with a title, while the event is open: an open event excludes this permission -->
+        <div
+          class="d-flex flex-row my-2 align-center"
+          :title="allowAttendeeToUpdateBlockedTitle">
           <label class="font-weight-bold">{{ $t('agenda.modifyEventPermission') }}</label>
-          <v-switch v-model="event.allowAttendeeToUpdate" class="pa-0 mt-0 ms-4" />
+          <v-switch
+            v-model="event.allowAttendeeToUpdate"
+            :disabled="isOpenEvent"
+            class="pa-0 mt-0 ms-4" />
         </div>
         <div class="d-flex flex-row font-weight-regular">
           {{ $t('agenda.modifyEventPermissionDescription') }}
@@ -157,6 +163,12 @@ export default {
   computed: {
     isNew() {
       return !this.event || (!this.event.id && !this.event.parent);
+    },
+    isOpenEvent() {
+      return !!(this.event && this.event.open);
+    },
+    allowAttendeeToUpdateBlockedTitle() {
+      return this.isOpenEvent ? this.$t('agenda.modifyEventPermission.blockedByOpenEvent.tooltip') : null;
     },
     eventTitle() {
       return this.event && this.event.summary;

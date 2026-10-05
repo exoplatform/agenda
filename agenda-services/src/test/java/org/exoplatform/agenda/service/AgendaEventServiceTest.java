@@ -744,6 +744,176 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                 agendaEventAttendeeService.canRespondToEvent(storedDate, spaceMemberNotInvited));
   }
 
+  /**
+   * Finding 1 of the integration review, settled by the PO: an open event
+   * excludes "participants can modify the event" and "participants can
+   * invite". Answering an open event writes a full attendee row, and either
+   * permission would hand the edit, delete or invite right to whoever clicks
+   * Yes, Maybe or No on an event they were not invited to. Both directions,
+   * both flags, on the three write paths: creation and full save resolve the
+   * conflict by keeping the permission and locking; a patch is refused, with a
+   * code of its own for each direction.
+   */
+  @Test
+  public void testOpenEventExcludesTheAttendeePermissions() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+
+    // Created with both: the permission is kept, the flag yields
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setRecurrence(null);
+    event.setOpen(true);
+    event.setAllowAttendeeToUpdate(true);
+    Event created = createEvent(event.clone(), creatorId, testuser2Identity);
+    Event stored = agendaEventService.getEventById(created.getId());
+    assertEquals(Boolean.FALSE, stored.getOpen());
+    assertTrue(stored.isAllowAttendeeToUpdate());
+
+    // The invite permission alone excludes it as well
+    Event inviteEvent = newEventInstance(start, start, true);
+    inviteEvent.setCalendarId(spaceCalendar.getId());
+    inviteEvent.setRecurrence(null);
+    inviteEvent.setOpen(true);
+    inviteEvent.setAllowAttendeeToInvite(true);
+    Event createdInvite = createEvent(inviteEvent.clone(), creatorId, testuser2Identity);
+    stored = agendaEventService.getEventById(createdInvite.getId());
+    assertEquals(Boolean.FALSE, stored.getOpen());
+    assertFalse(stored.isAllowAttendeeToUpdate());
+    assertTrue(stored.isAllowAttendeeToInvite());
+
+    // An open event, whose creator then allows modification through a full
+    // save that does not state the flag: the save locks it, and the audit
+    // reports the toggle the payload never asked for
+    Event openEvent = newEventInstance(start, start, true);
+    openEvent.setCalendarId(spaceCalendar.getId());
+    openEvent.setRecurrence(null);
+    openEvent.setOpen(true);
+    long openId = createEvent(openEvent.clone(), creatorId, testuser2Identity).getId();
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(openId).getOpen());
+    Event update = agendaEventService.getEventById(openId, ZoneOffset.UTC, creatorId).clone();
+    update.setAllowAttendeeToUpdate(true);
+    update.setOpen(null);
+    eventUpdateReference.set(null);
+    agendaEventService.updateEvent(update,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    stored = agendaEventService.getEventById(openId);
+    assertEquals(Boolean.FALSE, stored.getOpen());
+    assertTrue(stored.isAllowAttendeeToUpdate());
+    assertTrue("inviting follows modifying on a full save", stored.isAllowAttendeeToInvite());
+    assertNotNull(eventUpdateReference.get());
+    assertTrue(eventUpdateReference.get().hasModification(AgendaEventModificationType.OPEN_UPDATED));
+
+    // A patch that opens it while a permission is on is refused ...
+    try {
+      agendaEventService.updateEventFields(openId, getFields("open", "true"), false, false, creatorId);
+      fail("An event whose participants may modify it should not be opened");
+    } catch (IllegalArgumentException e) {
+      assertEquals("agenda.openEvent.notAllowed", e.getMessage());
+    }
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(openId).getOpen());
+
+    // ... and accepted once the same patch switches both permissions off
+    Map<String, List<String>> fields = getFields("open", "true");
+    fields.put("allowAttendeeToUpdate", Collections.singletonList("false"));
+    fields.put("allowAttendeeToInvite", Collections.singletonList("false"));
+    agendaEventService.updateEventFields(openId, fields, false, false, creatorId);
+    stored = agendaEventService.getEventById(openId);
+    assertEquals(Boolean.TRUE, stored.getOpen());
+    assertFalse(stored.isAllowAttendeeToUpdate());
+    assertFalse(stored.isAllowAttendeeToInvite());
+
+    // The other direction: a patch that allows either permission while the
+    // event stays open is refused, with its own code, and writes nothing
+    for (String permission : Arrays.asList("allowAttendeeToUpdate", "allowAttendeeToInvite")) {
+      try {
+        agendaEventService.updateEventFields(openId, getFields(permission, "true"), false, false, creatorId);
+        fail("The participants of an open event should not be allowed to " + permission);
+      } catch (IllegalArgumentException e) {
+        assertEquals("agenda.openEvent.attendeePermissionNotAllowed", e.getMessage());
+      }
+      stored = agendaEventService.getEventById(openId);
+      assertEquals(Boolean.TRUE, stored.getOpen());
+      assertFalse(permission, stored.isAllowAttendeeToUpdate());
+      assertFalse(permission, stored.isAllowAttendeeToInvite());
+    }
+
+    // A patch that locks and allows at once is consistent, and accepted
+    fields = getFields("open", "false");
+    fields.put("allowAttendeeToInvite", Collections.singletonList("true"));
+    agendaEventService.updateEventFields(openId, fields, false, false, creatorId);
+    stored = agendaEventService.getEventById(openId);
+    assertEquals(Boolean.FALSE, stored.getOpen());
+    assertTrue(stored.isAllowAttendeeToInvite());
+  }
+
+  /**
+   * The third leg of the same exclusion: a date opened on its own is clamped
+   * when a save of its series allows the participants to modify the event — the
+   * permission is merged onto the date like every other property, and the flag
+   * canRespondToEvent reads must not survive it there.
+   */
+  @Test
+  public void testDateOpenedOnItsOwnIsLockedWhenTheSeriesAllowsItsAttendeesToModify() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(false);
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(2), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 1);
+    Event openedDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                        occurrences.get(0).getOccurrence().getId());
+    restartTransaction();
+
+    Event openedUpdate = agendaEventService.getEventById(openedDate.getId(), ZoneOffset.UTC, creatorId).clone();
+    openedUpdate.setOpen(true);
+    agendaEventService.updateEvent(openedUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(openedDate.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    long spaceMemberNotInvited = Long.parseLong(testuser3Identity.getId());
+    assertEquals("precondition: the date carries an open state of its own",
+                 Boolean.TRUE,
+                 agendaEventService.getEventById(openedDate.getId()).getOpen());
+    assertTrue("precondition: while it is open, a member of the space may answer on that date",
+               agendaEventAttendeeService.canRespondToEvent(agendaEventService.getEventById(openedDate.getId()),
+                                                            spaceMemberNotInvited));
+    restartTransaction();
+
+    // The organiser then allows the participants of the series to modify it
+    Event seriesToUpdate = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
+    seriesToUpdate.setAllowAttendeeToUpdate(true);
+    agendaEventService.updateEvent(seriesToUpdate,
+                                   agendaEventAttendeeService.getEventAttendees(series.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+
+    assertTrue("the series carries the permission", agendaEventService.getEventById(series.getId()).isAllowAttendeeToUpdate());
+    Event storedDate = agendaEventService.getEventById(openedDate.getId());
+    assertNotNull("the date individually modified is still there", storedDate);
+    assertTrue("the permission reached it, like every property it had not customised", storedDate.isAllowAttendeeToUpdate());
+    assertEquals("and the open state it carried is clamped with it", Boolean.FALSE, storedDate.getOpen());
+    assertFalse("so the member of the space who could answer a moment ago no longer can",
+                agendaEventAttendeeService.canRespondToEvent(storedDate, spaceMemberNotInvited));
+  }
+
   /** A link back to the event in eXo, of the shape NotificationUtils mints. */
   private static final String EVENT_LINK      = "http://localhost:8080/portal/dw/agenda?eventId=42";
 
