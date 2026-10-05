@@ -111,6 +111,36 @@ public interface AgendaEventService {
   List<Event> getExceptionalOccurrenceEvents(long eventId, ZoneId timeZone, long userIdentityId) throws IllegalAccessException;
 
   /**
+   * Moves the exceptional occurrences of a recurring event dated from a given
+   * day on under another recurring event: the second half of a "this and
+   * upcoming" split, whose continuing series is created first so that the
+   * dates the organiser had customised from the split point on survive the
+   * shortening of the first series instead of being dropped with their
+   * answers. Each moved row is then merged into its new series as a date
+   * individually modified is merged into a series change: what was customised
+   * on the date is kept, what was not follows the new series, and a day the
+   * new series does not produce is dropped, as a series change drops it.
+   *
+   * @param fromEventId the recurring event the rows belong to
+   * @param toEventId the recurring event they move under, in the same calendar
+   * @param fromDate the first day moved, inclusive, compared by UTC day
+   * @param userIdentityId who is splitting; must be allowed to update both
+   *          events
+   * @return the identifiers of the rows moved and kept by the merge
+   * @throws IllegalAccessException when the user may not update one of the two
+   *           events
+   * @throws AgendaException when one of the two events does not exist
+   * @throws IllegalArgumentException when the two events are one, when one of
+   *           them is not a recurring series or when they live in different
+   *           calendars; the message is the code
+   *           {@code agenda.seriesSplit.notAllowed}
+   */
+  List<Long> moveExceptionalOccurrences(long fromEventId,
+                                        long toEventId,
+                                        ZonedDateTime fromDate,
+                                        long userIdentityId) throws IllegalAccessException, AgendaException;
+
+  /**
    * Retrieves an event identified by its technical identifier.
    *
    * @param eventId technical identifier of parent recurrent event

@@ -975,6 +975,74 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * {@inheritDoc}
    */
   @Override
+  public List<Long> moveExceptionalOccurrences(long fromEventId,
+                                               long toEventId,
+                                               ZonedDateTime fromDate,
+                                               long userIdentityId) throws IllegalAccessException, AgendaException {
+    if (fromDate == null) {
+      throw new IllegalArgumentException("agenda.seriesSplit.notAllowed");
+    }
+    Event fromSeries = agendaEventStorage.getEventById(fromEventId);
+    Event toSeries = agendaEventStorage.getEventById(toEventId);
+    if (fromSeries == null || toSeries == null) {
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+    }
+    // Both series are written, so the right asked is the one each of their
+    // saves asks: a split grants nothing a save would not
+    if (!canUpdateEvent(fromSeries, userIdentityId) || !canUpdateEvent(toSeries, userIdentityId)) {
+      throw new IllegalAccessException("User " + userIdentityId + " is not allowed to move the exceptional occurrences of event "
+          + fromEventId + " under event " + toEventId);
+    }
+    if (fromEventId == toEventId || fromSeries.getRecurrence() == null || toSeries.getRecurrence() == null
+        || fromSeries.getParentId() > 0 || toSeries.getParentId() > 0
+        || fromSeries.getCalendarId() != toSeries.getCalendarId()) {
+      throw new IllegalArgumentException("agenda.seriesSplit.notAllowed");
+    }
+    LocalDate firstDay = fromDate.withZoneSameInstant(ZoneOffset.UTC).toLocalDate();
+    List<Long> movedIds = new ArrayList<>();
+    for (Long rowId : agendaEventStorage.getExceptionalOccurenceIds(fromEventId)) {
+      Event row = agendaEventStorage.getEventById(rowId);
+      if (row == null || row.getOccurrence() == null || row.getOccurrence().getId() == null
+          || row.getOccurrence().getId().withZoneSameInstant(ZoneOffset.UTC).toLocalDate().isBefore(firstDay)) {
+        continue;
+      }
+      row.setParentId(toEventId);
+      row.setModifierId(userIdentityId);
+      row.setUpdated(ZonedDateTime.now());
+      agendaEventStorage.updateEvent(row);
+      movedIds.add(rowId);
+    }
+    if (movedIds.isEmpty()) {
+      return movedIds;
+    }
+    // The rows were cloned from the first series, so they are merged into the
+    // second as a series change merges them, the first series standing for
+    // "the series as it was" and the second for "the series as it is saved":
+    // what was customised on a date is kept, what was not follows the second
+    // series, and a day it does not produce is dropped. The first series'
+    // lists are the reference the rows inherited from; the reminders compared
+    // are the second series' own, so a row whose reminders differ from them is
+    // kept rather than dropped — the safe side of that test.
+    applySeriesChangeToExceptionalOccurrences(fromSeries,
+                                              toSeries,
+                                              attendeeService.getEventAttendees(fromEventId).getEventAttendees(),
+                                              conferenceService.getEventConferences(fromEventId),
+                                              userIdentityId);
+    List<Long> keptIds = new ArrayList<>(movedIds);
+    keptIds.retainAll(agendaEventStorage.getExceptionalOccurenceIds(toEventId));
+    LOG.info("Event {}: {} exceptional occurrence(s) dated from {} on moved under event {}, {} kept after the merge",
+             fromEventId,
+             movedIds.size(),
+             firstDay,
+             toEventId,
+             keptIds.size());
+    return keptIds;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public Event saveEventExceptionalOccurrence(long eventId, ZonedDateTime occurrenceId) throws AgendaException {
     Event exceptionalOccurrenceEvent = getExceptionalOccurrenceEvent(eventId, occurrenceId);
     if (exceptionalOccurrenceEvent != null) {
