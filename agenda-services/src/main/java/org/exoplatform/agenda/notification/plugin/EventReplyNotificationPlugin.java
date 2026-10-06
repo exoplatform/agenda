@@ -141,10 +141,12 @@ public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
    * them read the event in full: an edit share, or a view share on an event
    * that is not private. Once the share is removed, or downgraded to view on a
    * private event, the replies go to the owner alone, who hears them anyway.
-   * Being invited to the event does not count: an attendee keeps the
-   * notifications every attendee gets, and replies are not one of them. A space
-   * calendar keeps its creator as the one who hears them: its owner, the space,
-   * is nobody to notify.
+   * A creator who attends the event still reads it in full, as
+   * {@link AgendaEventService#getEventAccess(Event, long)} answers for any
+   * attendee, so they keep hearing its replies whatever their share: the
+   * attendance is asked on the event, or on its series when the event has no id
+   * of its own. A space calendar keeps its creator as the one who hears them:
+   * its owner, the space, is nobody to notify.
    *
    * @param event the event replied to
    * @param calendar its calendar, null when it is gone
@@ -153,6 +155,10 @@ public class EventReplyNotificationPlugin extends BaseNotificationPlugin {
   private boolean creatorHearsReplies(Event event, Calendar calendar) {
     long creatorId = event.getCreatorId();
     if (calendar == null || calendar.isDeleted() || calendar.getOwnerId() == creatorId || !isUser(calendar.getOwnerId())) {
+      return true;
+    }
+    long attendedEventId = event.getId() > 0 ? event.getId() : event.getParentId();
+    if (attendedEventId > 0 && eventAttendeeService.isEventAttendee(attendedEventId, creatorId)) {
       return true;
     }
     CalendarShareLevel level = calendarShareAccess.levelOf(calendar.getId(), creatorId);
