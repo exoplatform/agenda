@@ -17,9 +17,7 @@
 package org.exoplatform.agenda.notification.plugin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -31,7 +29,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import org.exoplatform.agenda.constant.CalendarShareLevel;
-import org.exoplatform.agenda.constant.EventAccess;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.model.Calendar;
@@ -70,6 +67,8 @@ class EventReplyRecipientsTest {
 
   private AgendaEventService         eventService;
 
+  private AgendaEventAttendeeService attendeeService;
+
   private EventReplyNotificationPlugin plugin;
 
   @BeforeEach
@@ -83,6 +82,7 @@ class EventReplyRecipientsTest {
     when(identityManager.getIdentity(String.valueOf(SPACE))).thenReturn(space);
     eventService = mock(AgendaEventService.class);
     shareService = mock(AgendaCalendarShareService.class);
+    attendeeService = mock(AgendaEventAttendeeService.class);
     InitParams initParams = new InitParams();
     ValueParam key = new ValueParam();
     key.setName("agenda.notification.plugin.key");
@@ -91,7 +91,7 @@ class EventReplyRecipientsTest {
     plugin = new EventReplyNotificationPlugin(initParams,
                                               identityManager,
                                               mock(AgendaCalendarService.class),
-                                              mock(AgendaEventAttendeeService.class),
+                                              attendeeService,
                                               eventService,
                                               mock(SpaceService.class));
     plugin.setCalendarShareAccess(new CalendarShareAccess(shareService));
@@ -156,16 +156,33 @@ class EventReplyRecipientsTest {
   }
 
   /**
-   * Being invited to the event does not bring the replies back: an attendee
-   * reads the event in full, and keeps the notifications every attendee gets,
-   * but replies are not one of them. The reply rule asks the share alone.
+   * A former editor who attends the meeting they created still reads it in
+   * full, as any attendee does, and keeps hearing its replies beside the owner,
+   * even with the share removed and the event private. Killed by the mutant
+   * that drops the attendance check from creatorHearsReplies.
    */
   @Test
-  void aFormerEditorWhoIsAlsoInvitedDoesNotHearTheReplies() {
+  void aFormerEditorWhoAttendsTheMeetingKeepsHearingItsReplies() {
     when(shareService.getShareLevel(CALENDAR, EDITOR)).thenReturn(null);
-    when(eventService.getEventAccess(any(), eq(EDITOR))).thenReturn(EventAccess.FULL);
+    when(attendeeService.isEventAttendee(100L, EDITOR)).thenReturn(true);
 
-    assertEquals(Set.of(OWNER), recipientsOfAReplyTo(event(EDITOR, EventVisibility.PRIVATE), calendarOf(OWNER)));
+    assertEquals(Set.of(EDITOR, OWNER), recipientsOfAReplyTo(event(EDITOR, EventVisibility.PRIVATE), calendarOf(OWNER)));
+  }
+
+  /**
+   * An event with no id of its own is answered on its series: a former editor
+   * who attends the series keeps hearing the replies. Killed by the mutant that
+   * asks the attendance on the event's own id alone.
+   */
+  @Test
+  void aFormerEditorWhoAttendsTheSeriesKeepsHearingTheRepliesToAnOccurrence() {
+    when(shareService.getShareLevel(CALENDAR, EDITOR)).thenReturn(null);
+    when(attendeeService.isEventAttendee(100L, EDITOR)).thenReturn(true);
+    Event occurrence = event(EDITOR, EventVisibility.PRIVATE);
+    occurrence.setId(0L);
+    occurrence.setParentId(100L);
+
+    assertEquals(Set.of(EDITOR, OWNER), recipientsOfAReplyTo(occurrence, calendarOf(OWNER)));
   }
 
   /** The owner who created the meeting hears its replies once, and no share is read. */
