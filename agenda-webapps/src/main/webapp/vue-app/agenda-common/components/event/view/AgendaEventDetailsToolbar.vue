@@ -54,7 +54,7 @@
       </div>
     </v-col>
     <v-col class="px-0 flex-grow-1 flex-shrink-0 mx-2">
-      <template v-if="!isTentativeEvent && isAttendee && !$root.isMobile">
+      <template v-if="!isTentativeEvent && isAttendee && !mobileViewport">
         <agenda-event-attendee-buttons
           ref="eventAttendeeButtons"
           :event="event" />
@@ -131,6 +131,9 @@ export default {
     eventMenu: null,
   }),
   computed: {
+    mobileViewport() {
+      return this.$vuetify.breakpoint.smAndDown;
+    },
     calendarOwnerLink() {
       if (this.owner) {
         if (this.owner.providerId === 'organization') {

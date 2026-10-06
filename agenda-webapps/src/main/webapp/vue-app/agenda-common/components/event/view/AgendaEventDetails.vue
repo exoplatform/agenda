@@ -4,14 +4,14 @@
     flat
     class="event-details d-flex flex-column">
     <agenda-event-details-mobile-toolbar
-      v-if="$root.isMobile && !isDatePoll"
+      v-if="mobileViewport && !isDatePoll"
       :event="event"
       :connected-connector="connectedConnector"
       @close="$emit('close')"
       @edit="$root.$emit('agenda-event-form', event)"
       @delete="deleteConfirmDialog" />
     <agenda-date-poll-details-mobile-toolbar
-      v-else-if="$root.$root.isMobile && isDatePoll"
+      v-else-if="mobileViewport && isDatePoll"
       :event="event"
       @close="$emit('close')"
       @edit="$root.$emit('agenda-event-form', event)" />
@@ -37,12 +37,12 @@
         :event="event"
         :connectors="connectors"
         :conference-provider="conferenceProvider" />
-      <template v-if="isAttendee && $root.isMobile">
+      <template v-if="isAttendee && mobileViewport">
         <v-divider />
         <agenda-event-attendee-buttons
           ref="eventAttendeeButtons"
           :event="event"
-          :class="$root.isMobile && 'me-1' || 'me-10'"
+          :class="mobileViewport && 'me-1' || 'me-10'"
           class="flex-grow-0 my-2" />
       </template>
     </template>
@@ -95,6 +95,9 @@ export default {
     },
   },
   computed: {
+    mobileViewport() {
+      return this.$vuetify.breakpoint.smAndDown;
+    },
     isContentEvent() {
       return !!this.eventContentId;
     },
