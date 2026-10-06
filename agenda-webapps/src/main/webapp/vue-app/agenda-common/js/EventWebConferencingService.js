@@ -1,3 +1,5 @@
+import {toDate} from './AgendaUtils.js';
+
 export function checkWebConferencingEnabled() {
   return loadWebContferencing();
 }
@@ -60,8 +62,7 @@ function createConference(event, conference) {
     .then(identities => {
       const participants = identities.filter(identity => identity && identity.providerId === 'organization' && identity?.profile?.dataEntity?.enabled).map(identity => identity.remoteId);
       const spaces = identities.filter(identity => identity && identity.providerId === 'space').map(identity => identity.remoteId);
-      const startDate = new Date(event.start);
-      const endDate = event.end && new Date(event.end) || event.recurrence && event.recurrence.until && new Date(event.recurrence.until) || null;
+      const {startDate, endDate} = getConferenceDates(event);
       return global.webConferencing.addCall({
         title: event.title,
         owner: event.calendar.owner.id,
@@ -72,7 +73,8 @@ function createConference(event, conference) {
         group: true,
         startDate,
         endDate,
-        recurrence: event.recurrence
+        recurrence: event.recurrence,
+        allDay: !!event.allDay,
       });
     })
     .then(callDetails => {
@@ -95,8 +97,7 @@ function updateConference(event, conference) {
       // FIXME : Web conferencing uses userName for users and Space Identity id for spaces
       const participants = identities.filter(identity => identity && identity.providerId === 'organization').map(identity => identity.remoteId);
       const spaces = identities.filter(identity => identity && identity.providerId === 'space').map(identity => identity.remoteId);
-      const startDate = new Date(event.start);
-      const endDate = event.end && new Date(event.end) || event.recurrence && event.recurrence.until && new Date(event.recurrence.until) || null;
+      const {startDate, endDate} = getConferenceDates(event);
       return global.webConferencing.updateCall(callId, {
         title: event.title,
         owner: event.calendar.owner.id,
@@ -108,6 +109,7 @@ function updateConference(event, conference) {
         startDate,
         endDate,
         recurrence: event.recurrence,
+        allDay: !!event.allDay,
       });
     })
     .then(callDetails => {
@@ -115,6 +117,21 @@ function updateConference(event, conference) {
       return conference;
     })
     .catch(() => createConference(event, conference));
+}
+
+/**
+ * An all-day event comes back from the server as a day without time
+ * ('2026-10-06'), which new Date() reads as midnight UTC: toDate reads it as
+ * midnight in the browser time zone, so that the provider gets the event day.
+ *
+ * @param {Object} event the event being saved
+ * @returns {Object} the startDate and endDate given to the provider
+ */
+function getConferenceDates(event) {
+  const parseDate = event.allDay ? toDate : date => new Date(date);
+  const startDate = parseDate(event.start);
+  const endDate = event.end && parseDate(event.end) || event.recurrence && event.recurrence.until && new Date(event.recurrence.until) || null;
+  return {startDate, endDate};
 }
 
 function getAllIdentities(attendees) {
