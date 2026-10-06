@@ -38,7 +38,6 @@
         <v-btn
           :loading="loading"
           :title="$t('agenda.deleteEventConference')"
-          color="grey"
           icon
           dark
           :class="`${this.marginClass}`"
