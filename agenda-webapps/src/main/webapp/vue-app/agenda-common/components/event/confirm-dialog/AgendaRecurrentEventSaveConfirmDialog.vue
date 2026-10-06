@@ -201,13 +201,14 @@ export default {
           delete recurrentEvent.id;
           // The continuing series is created first, the dates the organiser
           // had customised from this one on are moved under it, and the first
-          // series is shortened last. In that order a step that fails leaves
-          // every date in place — at worst the two series overlap until the
-          // save is retried — whereas shortening first dropped those dates
-          // with their answers before the continuation existed, and a
-          // creation that then failed left a truncated series with no
-          // continuation at all. A customisation is kept whatever the scope
-          // (the PO's rule; integration review, finding 14)
+          // series is shortened last. In that order a step that fails loses
+          // no date: if the move or the shortening fails, the continuing
+          // series stays, its invitations sent, overlapping the first one,
+          // and the organiser deletes it before trying again — a retry
+          // creates another continuation. Shortening first dropped those
+          // dates with their answers before the continuation existed. A
+          // customisation is kept whatever the scope (the PO's rule;
+          // integration review, finding 14)
           const splitFrom = this.event.occurrence.id;
           return this.$eventService.createEvent(recurrentEvent)
             .then(createdEvent => {

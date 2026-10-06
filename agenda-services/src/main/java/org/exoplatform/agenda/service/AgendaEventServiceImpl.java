@@ -1170,12 +1170,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         || fromSeries.getCalendarId() != toSeries.getCalendarId()) {
       throw new IllegalArgumentException("agenda.seriesSplit.notAllowed");
     }
-    LocalDate firstDay = fromDate.withZoneSameInstant(ZoneOffset.UTC).toLocalDate();
+    // The occurrence tolerance rather than the UTC day: on the night daylight
+    // saving starts, two daily dates 23 hours apart can share a UTC day, and
+    // the one before the split, which the first series keeps producing, would
+    // move and be dropped by a continuation that does not produce it
+    ZonedDateTime firstOccurrence = fromDate.minusHours(12);
     List<Long> movedIds = new ArrayList<>();
     for (Long rowId : agendaEventStorage.getExceptionalOccurenceIds(fromEventId)) {
       Event row = agendaEventStorage.getEventById(rowId);
       if (row == null || row.getOccurrence() == null || row.getOccurrence().getId() == null
-          || row.getOccurrence().getId().withZoneSameInstant(ZoneOffset.UTC).toLocalDate().isBefore(firstDay)) {
+          || row.getOccurrence().getId().isBefore(firstOccurrence)) {
         continue;
       }
       row.setParentId(toEventId);
@@ -1202,13 +1206,74 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                               userIdentityId);
     List<Long> keptIds = new ArrayList<>(movedIds);
     keptIds.retainAll(agendaEventStorage.getExceptionalOccurenceIds(toEventId));
+    removeContinuationRowsOfMovedDates(toSeries, keptIds);
     LOG.info("Event {}: {} exceptional occurrence(s) dated from {} on moved under event {}, {} kept after the merge",
              fromEventId,
              movedIds.size(),
-             firstDay,
+             fromDate,
              toEventId,
              keptIds.size());
     return keptIds;
+  }
+
+  /**
+   * After a split, one row per date under the continuing series. The series
+   * may already hold its own row for a date a kept row moved to: its creation
+   * broadcasts {@code exo.agenda.event.created}, and the reminder computing
+   * listener, which runs inline, materialises its next days. That row is
+   * deleted when it carries nothing of its own against the continuing series,
+   * which a fresh materialisation never does; otherwise both are left, logged,
+   * since the endpoint may be called again on a retry, when that row may
+   * already hold an answer. Done after the merge, not before the move: a moved
+   * row with nothing of its own is dropped by the merge, and the date then
+   * keeps the continuation's row, from which its reminders are sent.
+   */
+  private void removeContinuationRowsOfMovedDates(Event toSeries, List<Long> keptIds) {
+    if (keptIds.isEmpty()) {
+      return;
+    }
+    List<Event> keptRows = keptIds.stream().map(agendaEventStorage::getEventById).filter(Objects::nonNull).toList();
+    OccurrenceLists seriesLists = null;
+    for (Long otherId : agendaEventStorage.getExceptionalOccurenceIds(toSeries.getId())) {
+      if (keptIds.contains(otherId)) {
+        continue;
+      }
+      Event other = agendaEventStorage.getEventById(otherId);
+      if (other == null || other.getOccurrence() == null || other.getOccurrence().getId() == null) {
+        continue;
+      }
+      ZonedDateTime otherOccurrenceId = other.getOccurrence().getId();
+      Event keptRow = keptRows.stream()
+                              .filter(row -> row.getOccurrence() != null && row.getOccurrence().getId() != null
+                                  && isSameOccurrenceDate(otherOccurrenceId, row.getOccurrence().getId()))
+                              .findFirst()
+                              .orElse(null);
+      if (keptRow == null) {
+        continue;
+      }
+      if (seriesLists == null) {
+        seriesLists = new OccurrenceLists(attendeeService.getEventAttendees(toSeries.getId()).getEventAttendees(),
+                                          conferenceService.getEventConferences(toSeries.getId()),
+                                          reminderService.getEventReminders(toSeries.getId()));
+      }
+      OccurrenceLists otherLists = new OccurrenceLists(attendeeService.getEventAttendees(otherId).getEventAttendees(),
+                                                       conferenceService.getEventConferences(otherId),
+                                                       reminderService.getEventReminders(otherId));
+      if (carriesUserIntent(other, toSeries, otherOccurrenceId, otherLists, seriesLists)) {
+        LOG.warn("Event {}: the exceptional occurrence {} moved there for {} meets the series' own occurrence {}, which carries changes of its own; both are kept",
+                 toSeries.getId(),
+                 keptRow.getId(),
+                 otherOccurrenceId,
+                 otherId);
+        continue;
+      }
+      LOG.debug("Event {}: dropping its own exceptional occurrence {} for {}, the occurrence {} moved there takes its date",
+                toSeries.getId(),
+                otherId,
+                otherOccurrenceId,
+                keptRow.getId());
+      agendaEventStorage.deleteEventAfterRead(otherId);
+    }
   }
 
   /**
