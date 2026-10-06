@@ -5894,6 +5894,53 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   /**
+   * The other half of the one-row rule: a row the continuing series holds for
+   * a moved date is kept when it carries something of its own against the
+   * continuing series — the case of a move called again after someone answered
+   * on the continuation's row. Both rows stay, and the one-row rule logs it.
+   */
+  @Test
+  public void testThisAndUpcomingSplitKeepsAContinuationRowThatCarriesAnAnswer() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now(ZoneOffset.UTC).plusDays(3).withNano(0).withHour(9).withMinute(0).withSecond(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    long inviteeId = Long.parseLong(testuser2Identity.getId());
+
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setCalendarId(spaceCalendar.getId());
+    event.getRecurrence().setUntil(start.plusDays(6).toLocalDate());
+    Event first = createEvent(event.clone(), creatorId, testuser1Identity, testuser2Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(first, start, start.plusDays(7), ZoneOffset.UTC, 0);
+    assertTrue("precondition: a week of dates", occurrences.size() >= 6);
+    ZonedDateTime answeredDate = occurrences.get(4).getOccurrence().getId();
+    Event answered = agendaEventService.saveEventExceptionalOccurrence(first.getId(), answeredDate);
+    agendaEventAttendeeService.sendEventResponse(answered.getId(), inviteeId, EventAttendeeResponse.ACCEPTED);
+    restartTransaction();
+
+    Event continuation = agendaEventService.getEventById(first.getId(), ZoneOffset.UTC, creatorId).clone();
+    continuation.setId(0);
+    continuation.setStart(occurrences.get(3).getStart());
+    continuation.setEnd(occurrences.get(3).getEnd());
+    continuation.setSummary("renamed by the split");
+    Event second = createEvent(continuation, creatorId, testuser1Identity, testuser2Identity);
+    Event secondOwn = agendaEventService.saveEventExceptionalOccurrence(second.getId(), answeredDate);
+    agendaEventAttendeeService.sendEventResponse(secondOwn.getId(), inviteeId, EventAttendeeResponse.DECLINED);
+    restartTransaction();
+
+    List<Long> kept = agendaEventService.moveExceptionalOccurrences(first.getId(),
+                                                                    second.getId(),
+                                                                    occurrences.get(3).getOccurrence().getId(),
+                                                                    creatorId);
+    restartTransaction();
+    assertEquals(Collections.singletonList(answered.getId()), kept);
+    assertNotNull("the continuation's row that carries an answer is kept", agendaEventService.getEventById(secondOwn.getId()));
+    assertEquals("with its answer",
+                 EventAttendeeResponse.DECLINED,
+                 agendaEventAttendeeService.getEventResponse(secondOwn.getId(), null, inviteeId));
+    assertNotNull("beside the moved row", agendaEventService.getEventById(answered.getId()));
+    assertEquals(EventAttendeeResponse.ACCEPTED, agendaEventAttendeeService.getEventResponse(answered.getId(), null, inviteeId));
+  }
+
+  /**
    * The move is guarded like the saves it stands between: the caller needs
    * the right to update both series, the two must be distinct recurring
    * events of one calendar, and a date the continuing series does not produce
