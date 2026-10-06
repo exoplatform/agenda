@@ -274,7 +274,11 @@ export default {
           this.$set(connector, 'loading', false);
           if (error.error !== 'popup_closed_by_user') {
             console.error('Error while connecting to remote account: ', error);
-            this.errorMessage = this.$t('agenda.connectionFailure');
+            // A connector may reject with a message code of its own bundle - the
+            // CalDAV managed-mode refusal does - shown when the page knows it.
+            this.errorMessage = error && error.code && this.$te(error.code)
+              ? this.$t(error.code)
+              : this.$t('agenda.connectionFailure');
           }
         });
     },
