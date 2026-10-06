@@ -119,11 +119,16 @@ public interface AgendaEventService {
    * answers. Each moved row is then merged into its new series as a date
    * individually modified is merged into a series change: what was customised
    * on the date is kept, what was not follows the new series, and a day the
-   * new series does not produce is dropped, as a series change drops it.
+   * new series does not produce is dropped, as a series change drops it. A
+   * row the new series already holds for a date a kept row moved to — the
+   * reminder computing listener materialises the next days of a series on
+   * its creation — is deleted when it carries nothing of its own against the
+   * new series, so that a date keeps one row.
    *
    * @param fromEventId the recurring event the rows belong to
    * @param toEventId the recurring event they move under, in the same calendar
-   * @param fromDate the first day moved, inclusive, compared by UTC day
+   * @param fromDate the occurrence the split starts from, inclusive, compared
+   *          as occurrences are, within twelve hours
    * @param userIdentityId who is splitting; must be allowed to update both
    *          events
    * @return the identifiers of the rows moved and kept by the merge
