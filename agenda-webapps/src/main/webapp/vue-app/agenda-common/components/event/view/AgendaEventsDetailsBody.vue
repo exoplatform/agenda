@@ -1,7 +1,7 @@
 <template>
   <div class="event-details-body overflow-auto flex-grow-1 d-flex flex-column flex-md-row pa-4 mt-5">
-    <div class="flex-grow-1 flex-shrink-0 event-details-body-left " :class="{ 'd-flex' : !$root.isMobile }">
-      <div class="full-width" :class="{'mx-auto' : $root.isMobile}">
+    <div class="flex-grow-1 flex-shrink-0 event-details-body-left " :class="{ 'd-flex' : !mobileViewport }">
+      <div class="full-width" :class="{'mx-auto' : mobileViewport}">
         <div class="event-date align-center d-flex pb-5">
           <v-icon size="20" class="icon-default-color pe-5">fas fa-calendar-alt</v-icon>
           <div class="d-inline-flex">
@@ -246,6 +246,9 @@ export default {
         template: this.ExtendedDomPurify.purify(`<div>${this.body}</div>`) || '',
       };
     },*/
+    mobileViewport() {
+      return this.$vuetify.breakpoint.smAndDown;
+    },
     connectedConnector() {
       return this.connectors && this.connectors.find(connector => connector.connected);
     },

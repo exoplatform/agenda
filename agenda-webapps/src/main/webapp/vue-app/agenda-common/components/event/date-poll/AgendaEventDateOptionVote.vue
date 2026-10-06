@@ -23,9 +23,9 @@
       <v-btn
         v-show="conflictWithOtherEvent"
         :title="$t('agenda.conflictWithOtherEvent')"
-        :absolute="!$root.isMobile"
-        :small="$root.isMobile"
-        :class="$root.isMobile && 'ms-2 mb-3' || 'ms-8'"
+        :absolute="!mobileViewport"
+        :small="mobileViewport"
+        :class="mobileViewport && 'ms-2 mb-3' || 'ms-8'"
         class="event-conflicted"
         icon
         @click="$root.$emit('agenda-conflict-events-drawer-open', dateOption, conflictEvents, conflictingDatePolls)">
@@ -64,6 +64,9 @@ export default {
     };
   },
   computed: {
+    mobileViewport() {
+      return this.$vuetify.breakpoint.smAndDown;
+    },
     isCurrentUser() {
       return this.voter && this.voter.isCurrentUser;
     },
