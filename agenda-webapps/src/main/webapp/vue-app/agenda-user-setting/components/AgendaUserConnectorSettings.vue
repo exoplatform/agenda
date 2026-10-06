@@ -48,10 +48,8 @@
       -->
       <v-list-item-action class="d-flex flex-row align-center">
         <!--
-          Sync now and the pencil carry no managed guard of their own: they live
-          inside the header line, which managed mode already removes whole. A
-          second condition here would be a branch nothing can reach, and an
-          unreachable guard reads as a rule that is still doing work.
+          Sync now stays for a managed user; the pencil opens the connectors
+          drawer, which managed mode takes away (EXO-90836).
         -->
         <v-btn
           v-if="syncableConnector"
@@ -65,6 +63,7 @@
           <v-icon size="20" class="icon-default-color">fa-sync-alt</v-icon>
         </v-btn>
         <v-btn
+          v-if="!caldavManaged"
           :aria-label="$t('agenda.settings.myCalendarsManage')"
           :title="$t('agenda.settings.myCalendarsManage')"
           icon
@@ -91,8 +90,9 @@
       <v-list-item-action>
         <v-btn
           :aria-label="$t('agenda.connect')"
+          :loading="!!(managedConnector && managedConnector.loading)"
           class="btn"
-          @click="openDrawer">
+          @click="connectAccount">
           <v-icon size="14" class="me-1">fa-plug</v-icon>
           {{ $t('agenda.connect') }}
         </v-btn>
@@ -217,16 +217,24 @@ export default {
      * feature is not there.
      *
      * <p>
-     * Not offered in managed mode: the instance chose the account, and
-     * connecting one is precisely what such a user cannot do. That is the same
-     * rule `headerDisplayed` states for the account line, applied before there
-     * is an account.
+     * In managed mode the instance chose the account: what is offered is
+     * connecting that one, in one click, never the connectors drawer
+     * (EXO-90836) - and nothing when no descriptor says which server it is.
      *
      * @returns {Boolean} true when connecting is this user's to do and they
      *          have not done it yet
      */
     connectOffered() {
-      return this.caldavKnown && !this.connected && !this.caldavManaged;
+      return this.caldavKnown && !this.connected && (!this.caldavManaged || !!this.managedConnector);
+    },
+    /**
+     * The CalDAV descriptor of the server managed mode keeps this user on.
+     *
+     * @returns {Object} the descriptor, null when managed mode does not govern
+     *          the user or names no descriptor here
+     */
+    managedConnector() {
+      return this.$remoteEventConnector.managedCaldavConnector(this.connectors);
     },
     /**
      * Whether this section is on the page at all.
@@ -238,13 +246,11 @@ export default {
      * line. Taking the container away to remove the header took those with it,
      * device setup included, which is the row a managed user most needs: the
      * instance chose the server, they still have to point their phone at it.
-     * What managed mode suppresses is `headerDisplayed` below.
+     * Managed mode only removes the header line's pencil.
      *
      * <p>
-     * The one case left with nothing on it is a managed user not yet
-     * provisioned: no account to describe, no connection of theirs to make,
-     * and every nested row speaks about an account. They see nothing, rather
-     * than a heading over an empty space.
+     * A managed user with no account yet is offered the designated server in
+     * one click, as `connectOffered` says.
      *
      * @returns {Boolean} true when the section has either an account to
      *          describe or a connection to offer
@@ -257,31 +263,14 @@ export default {
      * how stale it is, Sync now and the manage pencil.
      *
      * <p>
-     * Everything on that line is addressed to somebody who might act on it —
-     * the address matters because you could reconnect as somebody else, the
-     * last sync because you could press the button beside it. A managed user
-     * can do none of that, so each line answers a question they have no reason
-     * to ask and raises one they cannot act on. Sync now and the last-sync
-     * phrase are the mechanism reporting on itself, and being told a
-     * synchronisation failed is no use to somebody with no way to fix it: in
-     * managed mode the connection is the administrator's, so a broken one is
-     * the administrator's problem. Managed mode's whole promise is that the
-     * synchronisation is transparent, so it is transparent.
+     * Shown to a managed user too, with Sync now: synchronising is the one
+     * thing managed mode leaves them (EXO-90836). Only the pencil goes, since
+     * it opens the connectors drawer.
      *
-     * <p>
-     * The section's TITLE goes with the line rather than staying behind as a
-     * heading of its own. The nested rows underneath are each titled — "Your
-     * calendars on your phone", "Hidden calendars" — so they read perfectly
-     * well without one, whereas a "My Calendars" heading over nothing but them
-     * would be a header whose own row had silently vanished. No replacement
-     * wording is proposed because none is needed: nothing has to be said in
-     * place of a line whose whole content was things the user cannot do.
-     *
-     * @returns {Boolean} true when the account line and its buttons belong on
-     *          the page
+     * @returns {Boolean} true when the account line belongs on the page
      */
     headerDisplayed() {
-      return this.connected && !this.caldavManaged;
+      return this.connected;
     },
     /**
      * Whether the instance chose this user's CalDAV server for them, read
@@ -391,6 +380,19 @@ export default {
      */
     openDrawer() {
       this.$root.$emit('agenda-connectors-drawer-open', this.caldavKnown && {filter: 'caldav'} || null);
+    },
+    /**
+     * Connects an account: the designated server in one click when managed mode
+     * governs the user (EXO-90836), the connect drawer otherwise.
+     *
+     * @returns {void}
+     */
+    connectAccount() {
+      if (this.caldavManaged) {
+        this.$root.$emit('agenda-connector-connect', this.managedConnector);
+      } else {
+        this.openDrawer();
+      }
     },
     /**
      * Resolves a day abbreviation into the localised day name.
