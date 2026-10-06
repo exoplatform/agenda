@@ -96,7 +96,7 @@
         :class="`d-flex agenda-calendar-published-${linkStateOf(calendar)}`"
         role="img">
         <v-icon
-          :class="linkStateOf(calendar) === 'published' ? 'text-light-color' : 'warning--text'"
+          :class="linkStateOf(calendar) !== 'published' && 'warning--text'"
           size="14">
           {{ linkStateOf(calendar) === 'published' ? 'fas fa-link' : 'fas fa-unlink' }}
         </v-icon>

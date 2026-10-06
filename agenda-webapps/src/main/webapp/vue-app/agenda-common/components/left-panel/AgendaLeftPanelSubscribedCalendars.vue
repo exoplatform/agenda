@@ -102,7 +102,7 @@
               :aria-label="$t('agenda.calendarSubscription.subscriptionTooltip')"
               class="d-flex agenda-calendar-subscription-sign"
               role="img">
-              <v-icon size="14" class="text-light-color">fas fa-rss</v-icon>
+              <v-icon size="14">fas fa-rss</v-icon>
             </span>
           </v-list-item-action>
         </v-list-item>

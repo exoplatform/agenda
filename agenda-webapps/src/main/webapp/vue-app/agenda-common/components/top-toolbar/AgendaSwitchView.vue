@@ -19,9 +19,9 @@
           <v-icon
             v-if="selectedDispalyOption"
             :class="selectedDispalyOption.icon"
-            class="text-light-color ps-2"
+            class="ps-2"
             size="20" />
-          <v-icon class="px-2 text-light-color" size="12">fa-chevron-down</v-icon>
+          <v-icon class="px-2" size="12">fa-chevron-down</v-icon>
         </v-btn>
       </template>
       <v-list class="pa-0">
@@ -33,7 +33,7 @@
           @click="setDisplayOption(item)">
           <v-list-item-icon class="me-2 my-0 align-self-center">
             <v-icon
-              :class="[item.icon, 'text-light-color']"
+              :class="item.icon"
               size="16" />
           </v-list-item-icon>
           <div>{{ item.label }}</div>
