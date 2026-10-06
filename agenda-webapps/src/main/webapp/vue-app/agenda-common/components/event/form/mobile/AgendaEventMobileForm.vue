@@ -6,7 +6,6 @@
       </div>
       <div class="flex-grow-0 flex-shrink-0 px-0 me-2">
         <v-btn
-          color="grey"
           icon
           @click="$emit('close')">
           <v-icon>

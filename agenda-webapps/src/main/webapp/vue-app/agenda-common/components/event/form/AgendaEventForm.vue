@@ -16,7 +16,6 @@
         </div>
         <v-btn
           class="my-auto me-2"
-          color="grey"
           icon
           dark
           @click="close">

@@ -75,7 +75,6 @@
     <div class="d-flex flex-grow-0">
       <v-btn
         class="my-auto me-2"
-        color="grey"
         icon
         @click="$emit('close')">
         <v-icon>

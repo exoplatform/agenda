@@ -23,7 +23,6 @@
       </select>
       <span class="subtitle-1 ms-4">{{ $t('agenda.label.beforeStart') }}</span>
       <v-btn
-        color="grey"
         icon
         dark
         @click="removeReminder(index)">

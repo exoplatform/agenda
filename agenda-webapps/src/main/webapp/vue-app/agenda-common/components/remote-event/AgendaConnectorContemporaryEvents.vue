@@ -27,7 +27,7 @@
             max-width="36"
             max-height="36"
             @click="downloadICS">
-            <v-icon size="20" class="text-light-color">
+            <v-icon size="20">
               fa-calendar-plus
             </v-icon>
           </v-btn>

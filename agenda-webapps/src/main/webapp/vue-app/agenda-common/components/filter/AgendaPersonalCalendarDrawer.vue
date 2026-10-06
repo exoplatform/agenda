@@ -91,7 +91,7 @@
                   height="24"
                   width="24"
                   outlined>
-                  <v-icon size="14" class="text-light-color">fa-palette</v-icon>
+                  <v-icon size="14">fa-palette</v-icon>
                 </v-card>
                 <div class="ms-2">{{ calendar.color || $t('agenda.calendar.colorAuto') }}</div>
               </div>

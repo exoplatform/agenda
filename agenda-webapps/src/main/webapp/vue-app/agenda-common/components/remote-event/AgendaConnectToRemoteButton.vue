@@ -7,7 +7,7 @@
       :max-width="width"
       :max-height="height" 
       @click="openPersonalCalendarDrawer">
-      <v-icon :size="size" class="text-light-color">
+      <v-icon :size="size">
         fas fa-plug
       </v-icon>
     </v-btn>
@@ -18,7 +18,7 @@
       :max-width="width"
       :max-height="height"
       @click="openPersonalCalendarDrawer">
-      <v-icon :size="size" class="text-light-color">
+      <v-icon :size="size">
         fas fa-plug
       </v-icon>
     </v-btn>
@@ -29,7 +29,7 @@
       :max-width="width"
       :max-height="height"
       @click="showRemoteEvents">
-      <v-icon :size="size" :color="showDefaultRemoteEvents ? 'primary' : 'text-light-color'">
+      <v-icon :size="size" :color="showDefaultRemoteEvents && 'primary'">
         fas fa-calendar-check
       </v-icon>
     </v-btn>

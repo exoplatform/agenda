@@ -5,7 +5,7 @@
     max-width="36"
     max-height="36"
     @click="$root.$emit('agenda-filter-drawer-open')">
-    <v-icon size="20" class="text-light-color">
+    <v-icon size="20">
       fa-sliders-h
     </v-icon>
   </v-btn>
