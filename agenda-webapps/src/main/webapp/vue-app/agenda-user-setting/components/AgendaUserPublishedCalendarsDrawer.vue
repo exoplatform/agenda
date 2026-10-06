@@ -39,7 +39,7 @@
                 <v-list-item-title class="d-flex align-center">
                   <v-icon
                     size="16"
-                    class="me-2 text-light-color agenda-published-calendar-kind">
+                    class="me-2 agenda-published-calendar-kind">
                     {{ isSpace(link) ? 'fas fa-users' : 'fas fa-user' }}
                   </v-icon>
                   <span class="text-truncate agenda-published-calendar-title">{{ titleOf(link) }}</span>

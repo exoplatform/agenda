@@ -196,7 +196,7 @@
                 :aria-label="resourceLabel(calendar)"
                 role="img"
                 class="d-flex agenda-remote-calendar-resource">
-                <v-icon size="14" class="text-light-color">
+                <v-icon size="14">
                   fas fa-cube
                 </v-icon>
               </span>
@@ -230,7 +230,7 @@
                 :aria-label="readOnlyLabel(calendar)"
                 role="img"
                 class="d-flex agenda-remote-calendar-read-only">
-                <v-icon size="14" class="text-light-color">
+                <v-icon size="14">
                   fas fa-lock
                 </v-icon>
               </span>

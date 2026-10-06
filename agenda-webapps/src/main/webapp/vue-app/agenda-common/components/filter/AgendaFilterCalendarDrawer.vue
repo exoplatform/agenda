@@ -37,7 +37,7 @@
             max-height="24"
             class="flex-grow-0"
             @click="openPersonalCalendarDrawer">
-            <v-icon size="14" class="text-light-color">
+            <v-icon size="14">
               fas fa-plus
             </v-icon>
           </v-btn>
@@ -72,7 +72,7 @@
           <v-icon
             left
             size="20"
-            class="text-light-color me-3">
+            class="me-3">
             fa-redo
           </v-icon>
           {{ $t('agenda.button.init') }}

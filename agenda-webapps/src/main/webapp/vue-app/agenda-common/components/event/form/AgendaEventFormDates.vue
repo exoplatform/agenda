@@ -52,7 +52,6 @@
         </div>
         <v-btn
           icon
-          color="grey darken-2"
           @click="nextDate">
           <i class="uiIconArrowRight uiIconMedium darkGreyIcon"></i>
         </v-btn>
