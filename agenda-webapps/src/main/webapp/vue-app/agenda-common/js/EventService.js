@@ -19,9 +19,12 @@ import {deleteEventWebConferencing, saveEventWebConferencing} from './EventWebCo
  *          alone cannot express a selection among them
  * @param {Array} calendarIds identifiers of the calendars other users shared
  *          with the user whose events are wanted too, may be empty (EXO-90357)
+ * @param {boolean} includeSubscribedCalendars with an attendee, also reads
+ *          the calendars the owners of this listing subscribed to (EXO-90373),
+ *          whatever the response types: their events carry no attendee row
  * @returns {Promise} resolved with the event list
  */
-export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit, responseTypes, expand, excludedCalendarIds, calendarIds) {
+export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit, responseTypes, expand, excludedCalendarIds, calendarIds, includeSubscribedCalendars) {
   if (typeof start === 'object') {
     start = toRFC3339(start);
   }
@@ -65,6 +68,11 @@ export function getEvents(query, ownerIds, attendeeIdentityId, start, end, limit
   // top of the owner selection: the server checks each against the user
   if (calendarIds && calendarIds.length) {
     params.calendarIds = calendarIds;
+  }
+
+  // Only sent when true: absent is the server's default, which leaves them out
+  if (includeSubscribedCalendars) {
+    params.includeSubscribedCalendars = true;
   }
 
   params = $.param(params, true);

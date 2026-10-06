@@ -16,9 +16,16 @@
  */
 
 import AgendaSpaceAdministration from './components/AgendaSpaceAdministration.vue';
+import AgendaCalendarSubscriptionDrawer from '../agenda-common/components/filter/AgendaCalendarSubscriptionDrawer.vue';
+import AgendaSpaceSubscriptionsDrawer from '../agenda-common/components/filter/AgendaSpaceSubscriptionsDrawer.vue';
 
+// The drawers managing the calendars a space subscribes to (EXO-90373) are
+// imported here rather than through a dependency on AgendaCommon, which would
+// load its whole chain on every space-settings page, for every viewer
 const components = {
   'agenda-space-administration': AgendaSpaceAdministration,
+  'agenda-calendar-subscription-drawer': AgendaCalendarSubscriptionDrawer,
+  'agenda-space-subscriptions-drawer': AgendaSpaceSubscriptionsDrawer,
 };
 
 for (const key in components) {
@@ -27,10 +34,22 @@ for (const key in components) {
 
 
 import * as calendarService from '../agenda-common/js/CalendarService.js';
+import * as calendarSubscriptionService from '../agenda-common/js/CalendarSubscriptionService.js';
+import * as agendaUtils from '../agenda-common/js/AgendaUtils.js';
 
 
 if (!Vue.prototype.$calendarService) {
   window.Object.defineProperty(Vue.prototype, '$calendarService', {
     value: calendarService,
+  });
+}
+if (!Vue.prototype.$calendarSubscriptionService) {
+  window.Object.defineProperty(Vue.prototype, '$calendarSubscriptionService', {
+    value: calendarSubscriptionService,
+  });
+}
+if (!Vue.prototype.$agendaUtils) {
+  window.Object.defineProperty(Vue.prototype, '$agendaUtils', {
+    value: agendaUtils,
   });
 }

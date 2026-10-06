@@ -695,4 +695,37 @@
     </rollback>
   </changeSet>
 
+  <!--
+    EXO-90373: a subscription owned by a space. OWNER_IDENTITY_ID is the owner
+    of the calendar the feed fills - a user for a personal subscription, a
+    space for a space's - and USER_IDENTITY_ID becomes who added it, shown to
+    the managers and never used to decide who may manage it. Every existing
+    row is a personal subscription, whose owner is the user who added it.
+    The update has no automatic rollback, hence the rollback written out: with
+    none the changeset could not be rolled back, and an empty one would also
+    suppress the dropColumn.
+  -->
+  <changeSet author="agenda" id="1.0.0-49">
+    <addColumn tableName="EXO_AGENDA_SUBSCRIPTION">
+      <column name="OWNER_IDENTITY_ID" type="BIGINT" />
+    </addColumn>
+    <update tableName="EXO_AGENDA_SUBSCRIPTION">
+      <column name="OWNER_IDENTITY_ID" valueComputed="USER_IDENTITY_ID" />
+    </update>
+    <addNotNullConstraint tableName="EXO_AGENDA_SUBSCRIPTION" columnName="OWNER_IDENTITY_ID" columnDataType="BIGINT" />
+    <rollback>
+      <dropColumn tableName="EXO_AGENDA_SUBSCRIPTION" columnName="OWNER_IDENTITY_ID" />
+    </rollback>
+  </changeSet>
+
+  <!-- The owner index in a changeset of its own: no modifySql may reach a CREATE INDEX. -->
+  <changeSet author="agenda" id="1.0.0-50">
+    <createIndex tableName="EXO_AGENDA_SUBSCRIPTION" indexName="IDX_AGENDA_SUBSCRIPTION_OWNER">
+      <column name="OWNER_IDENTITY_ID" />
+    </createIndex>
+    <rollback>
+      <dropIndex tableName="EXO_AGENDA_SUBSCRIPTION" indexName="IDX_AGENDA_SUBSCRIPTION_OWNER" />
+    </rollback>
+  </changeSet>
+
 </databaseChangeLog>

@@ -110,8 +110,11 @@ class CalendarShareChangelogTest {
   @Test
   void theAddedChangesetsRollBackAndReapply() throws Exception {
     CalendarLinkChangelogTest.update(connection);
+    // Counted from EXO-90357's first changeset to the end of the changelog, so
+    // it also rolls back what later deliveries appended (EXO-90373 appended
+    // two): the four of EXO-90357 are a floor, not the count
     int added = CalendarLinkChangelogTest.changesetsSince(connection, FIRST_CHANGESET);
-    assertEquals(4, added, "EXO-90357 adds the table, its unique key, its index and its sequence");
+    assertTrue(added >= 4, "EXO-90357 adds the table, its unique key, its index and its sequence");
     liquibase(connection).rollback(added, new Contexts(), new LabelExpression());
 
     assertFalse(tableExists(TABLE), "rolling back must drop the share table");

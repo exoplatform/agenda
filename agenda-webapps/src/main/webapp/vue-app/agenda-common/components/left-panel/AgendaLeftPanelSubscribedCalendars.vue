@@ -120,7 +120,7 @@
 
 <script>
 import calendarRowMenuMixin from '../../js/CalendarRowMenuMixin.js';
-import {errorMessageKey} from '../../js/CalendarSubscriptionService.js';
+import {WITHDRAWN_CODE, errorMessageKey} from '../../js/CalendarSubscriptionService.js';
 
 export default {
   mixins: [calendarRowMenuMixin],
@@ -210,11 +210,31 @@ export default {
       }
     },
     /**
+     * What the warning sign says: a link its publisher withdrew says that the
+     * events it imported are removed a week after the last refresh, or, when
+     * nothing was ever imported from it, that there is nothing to show; any
+     * other failure gives its reason.
+     *
      * @param {Object} subscription a row
-     * @returns {String} what the warning sign says
+     * @returns {String} the warning
      */
     errorTooltip(subscription) {
-      return this.$t('agenda.calendarSubscription.lastErrorTooltip', {0: this.$t(errorMessageKey(subscription.lastError))});
+      const key = this.warningKey(subscription.lastError, subscription.lastSuccessDate);
+      return this.$t(key, {0: this.$t(errorMessageKey(subscription.lastError))});
+    },
+    /**
+     * The bundle key of a failed refresh's warning. The removal is said only
+     * where it happens: a withdrawn link of this eXo that imported something.
+     *
+     * @param {String} lastError the failure's code
+     * @param {Number} lastSuccessDate when the feed was last imported, if ever
+     * @returns {String} the key
+     */
+    warningKey(lastError, lastSuccessDate) {
+      if (lastError !== WITHDRAWN_CODE) {
+        return 'agenda.calendarSubscription.lastErrorTooltip';
+      }
+      return lastSuccessDate ? 'agenda.calendarSubscription.withdrawnPersonal' : 'agenda.calendarSubscription.withdrawnNeverImported';
     },
     /**
      * Opens the drawer on a subscription.
@@ -241,7 +261,10 @@ export default {
         .then(refreshed => {
           this.subscriptions = this.subscriptions.map(row => row.id === subscription.id && refreshed || row);
           if (refreshed && refreshed.lastError) {
-            this.$root.$emit('alert-message', this.$t(errorMessageKey(refreshed.lastError)), 'warning');
+            const warning = refreshed.lastError === WITHDRAWN_CODE
+              ? this.warningKey(refreshed.lastError, refreshed.lastSuccessDate)
+              : errorMessageKey(refreshed.lastError);
+            this.$root.$emit('alert-message', this.$t(warning), 'warning');
           } else {
             this.$root.$emit('alert-message', this.$t('agenda.calendarSubscription.refreshed', {0: subscription.name}), 'success');
           }
