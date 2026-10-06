@@ -1,12 +1,13 @@
 <template>
   <div v-if="showButton" class="d-flex align-center">
     <v-btn
-      v-if="!connectedConnector && showConnectAction && !caldavManaged"
+      v-if="!connectedConnector && connectOffered"
       :title="$t('agenda.connectYourPersonalAgenda')"
+      :loading="!!(caldavManaged && managedConnector && managedConnector.loading)"
       icon
       :max-width="width"
       :max-height="height" 
-      @click="openPersonalCalendarDrawer">
+      @click="connectPersonalCalendar">
       <v-icon :size="size" class="text-light-color">
         fas fa-plug
       </v-icon>
@@ -95,14 +96,27 @@ export default {
       if (this.connectedConnector) {
         return this.showToggleAction || (this.showManageAction && !this.caldavManaged);
       }
-      return this.showConnectAction && !this.caldavManaged;
+      return this.connectOffered;
+    },
+    /**
+     * Whether connecting is offered: the connectors drawer, or, to a user
+     * managed mode governs, the designated server in one click (EXO-90836) -
+     * and nothing when no descriptor says which server it is.
+     *
+     * @returns {Boolean} true when the plug connects something
+     */
+    connectOffered() {
+      return this.showConnectAction && (!this.caldavManaged || !!this.managedConnector);
+    },
+    managedConnector() {
+      return this.$remoteEventConnector.managedCaldavConnector(this.connectors);
     },
     /**
      * Whether the instance chose this user's CalDAV server for them.
      *
-     * Both actions this button offers when it is not toggling — connecting an
-     * account, and managing the one connected — open the CalDAV-filtered
-     * connectors drawer, so both are exactly the act managed mode takes away.
+     * Managing the connected account opens the CalDAV-filtered connectors
+     * drawer, which managed mode takes away; connecting connects the designated
+     * server in one click instead of opening it.
      * The show/hide-remote-events toggle is not: it is a view preference over
      * events that are already there, and a managed user keeps it. Suppressing
      * the whole button would have removed it too, from the one place that
@@ -134,6 +148,19 @@ export default {
     openPersonalCalendarDrawer() {
       const caldavKnown = this.connectors && this.connectors.some(connector => connector.isCaldav === true);
       this.$root.$emit('agenda-connectors-drawer-open', caldavKnown && {filter: 'caldav'} || null);
+    },
+    /**
+     * Connects the user's own calendars: the designated server in one click when
+     * managed mode governs them, the connectors drawer otherwise.
+     *
+     * @returns {void}
+     */
+    connectPersonalCalendar() {
+      if (this.caldavManaged) {
+        this.$root.$emit('agenda-connector-connect', this.managedConnector);
+      } else {
+        this.openPersonalCalendarDrawer();
+      }
     },
     showRemoteEvents() {
       this.$root.$emit('agenda-show-remote-change',!this.showDefaultRemoteEvents);
