@@ -12,6 +12,25 @@
         fas fa-plug
       </v-icon>
     </v-btn>
+    <!--
+      Managing the connection opens the connectors drawer, which managed mode
+      takes away (EXO-90836): a managed user gets, in the same place, the one
+      thing the drawer still had for them, synchronising now (EXO-91030).
+    -->
+    <v-btn
+      v-else-if="connectedConnector && showManageAction && caldavManaged && syncableConnector"
+      :title="$t('agenda.connectors.syncNow')"
+      :aria-label="$t('agenda.connectors.syncNow')"
+      :loading="syncing"
+      :disabled="syncing"
+      icon
+      :max-width="width"
+      :max-height="height"
+      @click="syncNow">
+      <v-icon :size="size" class="text-light-color">
+        fas fa-sync-alt
+      </v-icon>
+    </v-btn>
     <v-btn
       v-else-if="connectedConnector && showManageAction && !caldavManaged"
       :title="$t('agenda.manageYourPersonalAgenda')"
@@ -79,6 +98,9 @@ export default {
   },
 
 
+  data: () => ({
+    syncing: false,
+  }),
   computed: {
     /**
      * The two actions this button carries are distinct — connecting an account,
@@ -94,7 +116,7 @@ export default {
         return false;
       }
       if (this.connectedConnector) {
-        return this.showToggleAction || (this.showManageAction && !this.caldavManaged);
+        return this.showToggleAction || (this.showManageAction && (!this.caldavManaged || !!this.syncableConnector));
       }
       return this.connectOffered;
     },
@@ -115,8 +137,9 @@ export default {
      * Whether the instance chose this user's CalDAV server for them.
      *
      * Managing the connected account opens the CalDAV-filtered connectors
-     * drawer, which managed mode takes away; connecting connects the designated
-     * server in one click instead of opening it.
+     * drawer, which managed mode takes away, and a sync button takes its place;
+     * connecting connects the designated server in one click instead of
+     * opening it.
      * The show/hide-remote-events toggle is not: it is a view preference over
      * events that are already there, and a managed user keeps it. Suppressing
      * the whole button would have removed it too, from the one place that
@@ -129,6 +152,18 @@ export default {
     },
     connectedConnector() {
       return this.connectors && this.connectors.find(connector => connector.connected);
+    },
+    /**
+     * The connected CalDAV account a managed user synchronises from here, when
+     * its connector can be asked to synchronise on demand.
+     *
+     * @returns {Object} the connector, null when there is none
+     */
+    syncableConnector() {
+      return (this.connectors || []).find(connector => connector
+        && connector.isCaldav === true
+        && connector.connected
+        && typeof connector.sync === 'function') || null;
     },
   },
 
@@ -161,6 +196,23 @@ export default {
       } else {
         this.openPersonalCalendarDrawer();
       }
+    },
+    /**
+     * Synchronises the managed user's CalDAV account now, as the connectors
+     * drawer and the settings do, then refreshes the agenda.
+     *
+     * @returns {Promise} resolves once the synchronisation has run
+     */
+    syncNow() {
+      const connector = this.syncableConnector;
+      this.syncing = true;
+      return Promise.resolve(connector.sync())
+        .then(() => this.$root.$emit('agenda-refresh'))
+        .catch(error => {
+          console.error('cannot synchronise the connected account', error);
+          this.$root.$emit('alert-message', this.$t('agenda.connectors.syncError'), 'error');
+        })
+        .finally(() => this.syncing = false);
     },
     showRemoteEvents() {
       this.$root.$emit('agenda-show-remote-change',!this.showDefaultRemoteEvents);
