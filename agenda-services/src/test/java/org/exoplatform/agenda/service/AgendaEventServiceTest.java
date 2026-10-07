@@ -5219,8 +5219,8 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
   private void checkAllDayExceptionalOccurrencesKeepTheirDates(ZoneId seriesZone) throws Exception { // NOSONAR
     LocalDate firstDate = LocalDate.now().plusDays(3);
-    LocalDate tenth = firstDate;
-    LocalDate eleventh = firstDate.plusDays(1);
+    LocalDate earlierDate = firstDate;
+    LocalDate laterDate = firstDate.plusDays(1);
     ZonedDateTime start = firstDate.atStartOfDay(seriesZone);
     ZonedDateTime end = start.plusDays(1).minusSeconds(1);
     long userIdentityId = Long.parseLong(testuser1Identity.getId());
@@ -5252,19 +5252,22 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                                              start.plusDays(7),
                                                                              seriesZone,
                                                                              0);
-    ZonedDateTime tenthId = findOccurrenceId(occurrences, tenth);
-    ZonedDateTime eleventhId = findOccurrenceId(occurrences, eleventh);
+    ZonedDateTime earlierId = findOccurrenceId(occurrences, earlierDate);
+    ZonedDateTime laterId = findOccurrenceId(occurrences, laterDate);
 
-    Event firstCall = agendaEventService.saveEventExceptionalOccurrence(seriesId, eleventhId);
-    Event secondCall = agendaEventService.saveEventExceptionalOccurrence(seriesId, tenthId);
-    Event thirdCall = agendaEventService.saveEventExceptionalOccurrence(seriesId, eleventhId);
+    Event firstCall = agendaEventService.saveEventExceptionalOccurrence(seriesId, laterId);
+    Event secondCall = agendaEventService.saveEventExceptionalOccurrence(seriesId, earlierId);
+    Event thirdCall = agendaEventService.saveEventExceptionalOccurrence(seriesId, laterId);
 
-    assertEquals(eleventh, firstCall.getStart().withZoneSameInstant(ZoneOffset.UTC).toLocalDate());
-    assertEquals(eleventh, firstCall.getOccurrence().getId().toLocalDate());
-    assertEquals(tenth, secondCall.getStart().withZoneSameInstant(ZoneOffset.UTC).toLocalDate());
-    assertEquals(tenth, secondCall.getOccurrence().getId().toLocalDate());
+    assertEquals(laterDate, firstCall.getStart().withZoneSameInstant(ZoneOffset.UTC).toLocalDate());
+    assertEquals(laterDate, firstCall.getOccurrence().getId().toLocalDate());
+    assertEquals(earlierDate, secondCall.getStart().withZoneSameInstant(ZoneOffset.UTC).toLocalDate());
+    assertEquals(earlierDate, secondCall.getOccurrence().getId().toLocalDate());
     assertNotEquals(firstCall.getId(), secondCall.getId());
     assertEquals(firstCall.getId(), thirdCall.getId());
+    Event seriesZoneMidnightCall = agendaEventService.saveEventExceptionalOccurrence(seriesId,
+                                                                                      laterDate.atStartOfDay(seriesZone));
+    assertEquals(firstCall.getId(), seriesZoneMidnightCall.getId());
 
     List<Event> exceptionalOccurrences = agendaEventService.getExceptionalOccurrenceEvents(seriesId, seriesZone, userIdentityId);
     assertEquals(2, exceptionalOccurrences.size());
@@ -5272,7 +5275,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     for (Event exceptionalOccurrence : exceptionalOccurrences) {
       dates.add(exceptionalOccurrence.getStart().withZoneSameInstant(seriesZone).toLocalDate());
     }
-    assertEquals(new HashSet<>(Arrays.asList(tenth, eleventh)), dates);
+    assertEquals(new HashSet<>(Arrays.asList(earlierDate, laterDate)), dates);
   }
 
   private ZonedDateTime findOccurrenceId(List<Event> occurrences, LocalDate date) {

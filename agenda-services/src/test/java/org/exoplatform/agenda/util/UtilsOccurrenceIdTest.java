@@ -19,6 +19,7 @@ package org.exoplatform.agenda.util;
 import static org.junit.Assert.assertEquals;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -62,10 +63,10 @@ public class UtilsOccurrenceIdTest {
   @Test
   public void testTimedOccurrenceIdIsTheSameInstantInUtc() {
     ZoneId seriesZone = ZoneId.of("America/New_York");
-    ZonedDateTime start = ZonedDateTime.of(DATE, java.time.LocalTime.of(9, 30), seriesZone);
+    ZonedDateTime start = ZonedDateTime.of(DATE, LocalTime.of(9, 30), seriesZone);
     ZonedDateTime id = Utils.getOccurrenceId(false, start, seriesZone);
     assertEquals(start.toInstant(), id.toInstant());
     assertEquals(ZoneOffset.UTC, id.getOffset());
-    assertEquals(ZonedDateTime.of(DATE, java.time.LocalTime.of(13, 30), ZoneOffset.UTC), id);
+    assertEquals(ZonedDateTime.of(DATE, LocalTime.of(13, 30), ZoneOffset.UTC), id);
   }
 }

@@ -591,6 +591,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    */
   @Override
   public Event saveEventExceptionalOccurrence(long eventId, ZonedDateTime occurrenceId) throws AgendaException {
+    Event parentEvent = agendaEventStorage.getEventById(eventId);
+    if (parentEvent != null && parentEvent.getRecurrence() != null && occurrenceId != null) {
+      occurrenceId = Utils.getOccurrenceId(parentEvent.isAllDay(), occurrenceId, parentEvent.getTimeZoneId());
+    }
     Event exceptionalOccurrenceEvent = getExceptionalOccurrenceEvent(eventId, occurrenceId);
     if (exceptionalOccurrenceEvent != null) {
       return exceptionalOccurrenceEvent;
