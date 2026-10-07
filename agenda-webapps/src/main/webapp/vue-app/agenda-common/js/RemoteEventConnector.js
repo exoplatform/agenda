@@ -200,7 +200,9 @@ function modifyEventOnConnector(connector, event, allRecurrentEvent, deleteEvent
     })
     .then(event => {
       if (allRecurrentEvent && event.recurrence) {
-        return getEventExceptionalOccurrences(event.id)
+        // the expand is what makes the endpoint fill the conferences; without
+        // it the occurrences are pushed with no visio link
+        return getEventExceptionalOccurrences(event.id, 'conferences')
           .then(exceptionalOcuurences => {
             if (exceptionalOcuurences && exceptionalOcuurences.length) {
               const promises = [];
