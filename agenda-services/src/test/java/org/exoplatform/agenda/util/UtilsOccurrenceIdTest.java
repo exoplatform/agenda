@@ -30,6 +30,8 @@ public class UtilsOccurrenceIdTest {
 
   private static final LocalDate DATE = LocalDate.of(2026, 10, 11);
 
+  private static final ZonedDateTime EXPECTED = DATE.atStartOfDay(ZoneOffset.UTC);
+
   private static final String[]  ZONES = { "America/New_York", "Europe/Paris", "UTC" };
 
   @Test
@@ -70,8 +72,6 @@ public class UtilsOccurrenceIdTest {
     assertEquals(ZonedDateTime.of(DATE, LocalTime.of(13, 30), ZoneOffset.UTC), id);
   }
 
-  private static final ZonedDateTime EXPECTED = DATE.atStartOfDay(ZoneOffset.UTC);
-
   private void assertAllDay(String zone, String input) {
     ZoneId seriesZone = ZoneId.of(zone);
     ZonedDateTime id = Utils.getOccurrenceId(true, ZonedDateTime.parse(input), seriesZone);
@@ -109,9 +109,9 @@ public class UtilsOccurrenceIdTest {
   }
 
   @Test
-  public void testAllDayOccurrenceIdNewYorkSeriesZoneMidnight() {
-    ZoneId newYork = ZoneId.of("America/New_York");
-    ZonedDateTime id = Utils.getOccurrenceId(true, DATE.atStartOfDay(newYork), newYork);
+  public void testAllDayOccurrenceIdTokyoSeriesZoneMidnight() {
+    ZoneId tokyo = ZoneId.of("Asia/Tokyo");
+    ZonedDateTime id = Utils.getOccurrenceId(true, DATE.atStartOfDay(tokyo), tokyo);
     assertEquals(EXPECTED, id);
   }
 }
