@@ -5206,4 +5206,83 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     event.setOccurrence(new EventOccurrence(occurrence.getOccurrence().getId()));
     return event;
   }
+
+  @Test
+  public void testSaveAllDayExceptionalOccurrenceKeepsItsDateWestOfUtc() throws Exception { // NOSONAR
+    checkAllDayExceptionalOccurrencesKeepTheirDates(ZoneId.of("America/New_York"));
+  }
+
+  @Test
+  public void testSaveAllDayExceptionalOccurrenceKeepsItsDateEastOfUtc() throws Exception { // NOSONAR
+    checkAllDayExceptionalOccurrencesKeepTheirDates(ZoneId.of("Europe/Paris"));
+  }
+
+  private void checkAllDayExceptionalOccurrencesKeepTheirDates(ZoneId seriesZone) throws Exception { // NOSONAR
+    LocalDate firstDate = LocalDate.now().plusDays(3);
+    LocalDate tenth = firstDate;
+    LocalDate eleventh = firstDate.plusDays(1);
+    ZonedDateTime start = firstDate.atStartOfDay(seriesZone);
+    ZonedDateTime end = start.plusDays(1).minusSeconds(1);
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+
+    Event series = newEventInstance(start, end, true);
+    series.setTimeZoneId(seriesZone);
+    series.setRecurrence(new EventRecurrence(0,
+                                             firstDate.plusDays(6),
+                                             0,
+                                             EventRecurrenceType.DAILY,
+                                             EventRecurrenceFrequency.DAILY,
+                                             1,
+                                             null,
+                                             null,
+                                             null,
+                                             null,
+                                             null,
+                                             null,
+                                             null,
+                                             null,
+                                             null,
+                                             null,
+                                             null));
+    series = createEvent(series, userIdentityId, testuser1Identity);
+    long seriesId = series.getId();
+
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                             start.minusDays(1),
+                                                                             start.plusDays(7),
+                                                                             seriesZone,
+                                                                             0);
+    ZonedDateTime tenthId = findOccurrenceId(occurrences, tenth);
+    ZonedDateTime eleventhId = findOccurrenceId(occurrences, eleventh);
+
+    Event firstCall = agendaEventService.saveEventExceptionalOccurrence(seriesId, eleventhId);
+    Event secondCall = agendaEventService.saveEventExceptionalOccurrence(seriesId, tenthId);
+    Event thirdCall = agendaEventService.saveEventExceptionalOccurrence(seriesId, eleventhId);
+
+    assertEquals(eleventh, firstCall.getStart().withZoneSameInstant(ZoneOffset.UTC).toLocalDate());
+    assertEquals(eleventh, firstCall.getOccurrence().getId().toLocalDate());
+    assertEquals(tenth, secondCall.getStart().withZoneSameInstant(ZoneOffset.UTC).toLocalDate());
+    assertEquals(tenth, secondCall.getOccurrence().getId().toLocalDate());
+    assertNotEquals(firstCall.getId(), secondCall.getId());
+    assertEquals(firstCall.getId(), thirdCall.getId());
+
+    List<Event> exceptionalOccurrences = agendaEventService.getExceptionalOccurrenceEvents(seriesId, seriesZone, userIdentityId);
+    assertEquals(2, exceptionalOccurrences.size());
+    Set<LocalDate> dates = new HashSet<>();
+    for (Event exceptionalOccurrence : exceptionalOccurrences) {
+      dates.add(exceptionalOccurrence.getStart().withZoneSameInstant(seriesZone).toLocalDate());
+    }
+    assertEquals(new HashSet<>(Arrays.asList(tenth, eleventh)), dates);
+  }
+
+  private ZonedDateTime findOccurrenceId(List<Event> occurrences, LocalDate date) {
+    for (Event occurrence : occurrences) {
+      ZonedDateTime id = occurrence.getOccurrence().getId();
+      if (id.toLocalDate().equals(date)) {
+        return id;
+      }
+    }
+    fail("No occurrence for " + date);
+    return null;
+  }
 }

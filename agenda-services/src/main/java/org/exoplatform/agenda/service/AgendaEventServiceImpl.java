@@ -657,7 +657,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     ZonedDateTime occurrenceStart = null;
     if (allDay) {
-      ZonedDateTime occurrenceStartTime = occurrenceId.withZoneSameInstant(parentEvent.getTimeZoneId());
+      ZonedDateTime occurrenceStartTime = occurrenceId.withZoneSameLocal(parentEvent.getTimeZoneId());
       occurrenceStart = start.withYear(occurrenceStartTime.getYear())
                              .withMonth(occurrenceStartTime.getMonthValue())
                              .withDayOfMonth(occurrenceStartTime.getDayOfMonth());

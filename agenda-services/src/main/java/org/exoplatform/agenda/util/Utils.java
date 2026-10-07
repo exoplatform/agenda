@@ -274,8 +274,7 @@ public class Utils {
 
   public static ZonedDateTime getOccurrenceId(boolean allDay, ZonedDateTime eventStartDate, ZoneId eventStartDateTimeZone) {
     if (allDay) {
-      return eventStartDate.withZoneSameInstant(eventStartDateTimeZone)
-                           .withZoneSameLocal(ZoneOffset.UTC);
+      return eventStartDate.toLocalDate().atStartOfDay(ZoneOffset.UTC);
     } else {
       return eventStartDate.withZoneSameInstant(eventStartDateTimeZone)
                            .withZoneSameInstant(ZoneOffset.UTC);
