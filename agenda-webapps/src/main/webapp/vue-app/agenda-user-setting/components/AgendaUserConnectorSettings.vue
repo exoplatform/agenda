@@ -99,6 +99,20 @@
       </v-list-item-action>
     </v-list-item>
     <!--
+      A managed user whose account the designated server refused (EXO-91017):
+      no connect button, which would be refused again, but why.
+    -->
+    <v-list-item v-else-if="managedRefused">
+      <v-list-item-content>
+        <v-list-item-title class="text-color">
+          {{ $t('agenda.settings.myCalendars') }}
+        </v-list-item-title>
+        <v-list-item-subtitle class="text-wrap">
+          {{ $t('agenda.settings.myCalendarsManagedRefused') }}
+        </v-list-item-subtitle>
+      </v-list-item-content>
+    </v-list-item>
+    <!--
       The rows the CalDAV add-on contributes about the calendars backing
       My Calendars — calendar states, hidden calendars — rendered inside this
       section: they describe what the account above materialises, so they
@@ -219,13 +233,26 @@ export default {
      * <p>
      * In managed mode the instance chose the account: what is offered is
      * connecting that one, in one click, never the connectors drawer
-     * (EXO-90836) - and nothing when no descriptor says which server it is.
+     * (EXO-90836) - and nothing when no descriptor says which server it is,
+     * or when that server refused the user's own account (EXO-91017).
      *
      * @returns {Boolean} true when connecting is this user's to do and they
      *          have not done it yet
      */
     connectOffered() {
-      return this.caldavKnown && !this.connected && (!this.caldavManaged || !!this.managedConnector);
+      return this.caldavKnown && !this.connected
+        && (!this.caldavManaged || (!!this.managedConnector && !this.managedConnector.managedRefused));
+    },
+    /**
+     * Whether the designated server refused the account managed mode connected
+     * for this user (EXO-91017): the section then says so in place of the
+     * connect offer.
+     *
+     * @returns {Boolean} true when the refusal is what this section has to say
+     */
+    managedRefused() {
+      return this.caldavKnown && !this.connected && this.caldavManaged
+        && !!this.managedConnector && !!this.managedConnector.managedRefused;
     },
     /**
      * The CalDAV descriptor of the server managed mode keeps this user on.
@@ -250,13 +277,14 @@ export default {
      *
      * <p>
      * A managed user with no account yet is offered the designated server in
-     * one click, as `connectOffered` says.
+     * one click, as `connectOffered` says, or told why not, as `managedRefused`
+     * says.
      *
      * @returns {Boolean} true when the section has either an account to
      *          describe or a connection to offer
      */
     displayed() {
-      return this.connected || this.connectOffered;
+      return this.connected || this.connectOffered || this.managedRefused;
     },
     /**
      * Whether this section's OWN header line is shown: the account address,

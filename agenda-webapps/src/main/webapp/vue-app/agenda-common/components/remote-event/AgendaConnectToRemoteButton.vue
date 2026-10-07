@@ -123,12 +123,15 @@ export default {
     /**
      * Whether connecting is offered: the connectors drawer, or, to a user
      * managed mode governs, the designated server in one click (EXO-90836) -
-     * and nothing when no descriptor says which server it is.
+     * and nothing when no descriptor says which server it is, or when that
+     * server refused the user's own account (EXO-91017): "My calendars" says
+     * why.
      *
      * @returns {Boolean} true when the plug connects something
      */
     connectOffered() {
-      return this.showConnectAction && (!this.caldavManaged || !!this.managedConnector);
+      return this.showConnectAction
+        && (!this.caldavManaged || (!!this.managedConnector && !this.managedConnector.managedRefused));
     },
     managedConnector() {
       return this.$remoteEventConnector.managedCaldavConnector(this.connectors);
