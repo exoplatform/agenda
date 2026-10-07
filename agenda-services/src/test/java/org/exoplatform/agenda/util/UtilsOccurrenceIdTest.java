@@ -69,4 +69,49 @@ public class UtilsOccurrenceIdTest {
     assertEquals(ZoneOffset.UTC, id.getOffset());
     assertEquals(ZonedDateTime.of(DATE, LocalTime.of(13, 30), ZoneOffset.UTC), id);
   }
+
+  private static final ZonedDateTime EXPECTED = DATE.atStartOfDay(ZoneOffset.UTC);
+
+  private void assertAllDay(String zone, String input) {
+    ZoneId seriesZone = ZoneId.of(zone);
+    ZonedDateTime id = Utils.getOccurrenceId(true, ZonedDateTime.parse(input), seriesZone);
+    assertEquals(input, EXPECTED, id);
+    assertEquals(input, id, Utils.getOccurrenceId(true, id, seriesZone));
+    ZonedDateTime parsedAsUtc = ZonedDateTime.parse(input).withZoneSameInstant(ZoneOffset.UTC);
+    assertEquals(input, EXPECTED, Utils.getOccurrenceId(true, parsedAsUtc, seriesZone));
+  }
+
+  @Test
+  public void testAllDayOccurrenceIdParisOffsetMidnight() {
+    assertAllDay("Europe/Paris", "2026-10-11T00:00:00+02:00");
+  }
+
+  @Test
+  public void testAllDayOccurrenceIdTokyoOffsetMidnight() {
+    assertAllDay("Asia/Tokyo", "2026-10-11T00:00:00+09:00");
+  }
+
+  @Test
+  public void testAllDayOccurrenceIdNewYorkOffsetMidnight() {
+    assertAllDay("America/New_York", "2026-10-11T00:00:00-04:00");
+  }
+
+  @Test
+  public void testAllDayOccurrenceIdNewYorkUserFormattedUtcMidnight() {
+    assertAllDay("America/New_York", "2026-10-10T20:00:00-04:00");
+  }
+
+  @Test
+  public void testAllDayOccurrenceIdUtcMidnightForAnyZone() {
+    for (String zone : new String[] { "Europe/Paris", "Asia/Tokyo", "America/New_York", "UTC" }) {
+      assertAllDay(zone, "2026-10-11T00:00:00Z");
+    }
+  }
+
+  @Test
+  public void testAllDayOccurrenceIdNewYorkSeriesZoneMidnight() {
+    ZoneId newYork = ZoneId.of("America/New_York");
+    ZonedDateTime id = Utils.getOccurrenceId(true, DATE.atStartOfDay(newYork), newYork);
+    assertEquals(EXPECTED, id);
+  }
 }

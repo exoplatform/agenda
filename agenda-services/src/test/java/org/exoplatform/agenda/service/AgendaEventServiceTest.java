@@ -5278,6 +5278,66 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals(new HashSet<>(Arrays.asList(earlierDate, laterDate)), dates);
   }
 
+  @Test
+  public void testSaveAllDayExceptionalOccurrenceFromParisOffsetIdReusesRow() throws Exception { // NOSONAR
+    ZoneId seriesZone = ZoneId.of("Europe/Paris");
+    LocalDate date = LocalDate.now().plusDays(4);
+    ZonedDateTime utcMidnight = date.atStartOfDay(ZoneOffset.UTC);
+    ZoneOffset offset = seriesZone.getRules().getOffset(date.atStartOfDay(seriesZone).toInstant());
+    ZonedDateTime mcpId = AgendaDateUtils.parseRFC3339ToZonedDateTime(date + "T00:00:00" + offset.getId(), ZoneOffset.UTC);
+    checkAllDayExceptionalOccurrenceSavedTwice(seriesZone, date, utcMidnight, mcpId);
+  }
+
+  @Test
+  public void testSaveAllDayExceptionalOccurrenceFromNewYorkUserIdReusesRow() throws Exception { // NOSONAR
+    ZoneId seriesZone = ZoneId.of("America/New_York");
+    LocalDate date = LocalDate.now().plusDays(4);
+    ZonedDateTime utcMidnight = date.atStartOfDay(ZoneOffset.UTC);
+    String formatted = AgendaDateUtils.toRFC3339Date(utcMidnight.withZoneSameInstant(seriesZone));
+    ZonedDateTime mcpId = AgendaDateUtils.parseRFC3339ToZonedDateTime(formatted, ZoneOffset.UTC);
+    checkAllDayExceptionalOccurrenceSavedTwice(seriesZone, date, utcMidnight, mcpId);
+  }
+
+  private void checkAllDayExceptionalOccurrenceSavedTwice(ZoneId seriesZone,
+                                                          LocalDate date,
+                                                          ZonedDateTime utcMidnight,
+                                                          ZonedDateTime otherId) throws Exception { // NOSONAR
+    ZonedDateTime start = date.atStartOfDay(seriesZone);
+    ZonedDateTime end = start.plusDays(1).minusSeconds(1);
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+
+    Event series = newEventInstance(start, end, true);
+    series.setTimeZoneId(seriesZone);
+    series.setRecurrence(new EventRecurrence(0,
+                                             date.plusDays(6),
+                                             0,
+                                             EventRecurrenceType.DAILY,
+                                             EventRecurrenceFrequency.DAILY,
+                                             1,
+                                             null,
+                                             null,
+                                             null,
+                                             null,
+                                             null,
+                                             null,
+                                             null,
+                                             null,
+                                             null,
+                                             null,
+                                             null));
+    series = createEvent(series, userIdentityId, testuser1Identity);
+    long seriesId = series.getId();
+
+    Event first = agendaEventService.saveEventExceptionalOccurrence(seriesId, utcMidnight);
+    Event second = agendaEventService.saveEventExceptionalOccurrence(seriesId, otherId);
+
+    assertEquals(first.getId(), second.getId());
+    assertEquals(date, first.getOccurrence().getId().toLocalDate());
+    assertEquals(date, second.getOccurrence().getId().toLocalDate());
+    assertEquals(date, second.getStart().withZoneSameInstant(ZoneOffset.UTC).toLocalDate());
+    assertEquals(1, agendaEventService.getExceptionalOccurrenceEvents(seriesId, seriesZone, userIdentityId).size());
+  }
+
   private ZonedDateTime findOccurrenceId(List<Event> occurrences, LocalDate date) {
     for (Event occurrence : occurrences) {
       ZonedDateTime id = occurrence.getOccurrence().getId();
