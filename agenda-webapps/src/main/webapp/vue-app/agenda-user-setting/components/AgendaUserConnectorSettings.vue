@@ -57,8 +57,8 @@
           :disabled="syncing"
           :aria-label="$t('agenda.connectors.syncNow')"
           :title="$t('agenda.connectors.syncNow')"
+          :class="{'me-2': !caldavManaged}"
           icon
-          class="me-2"
           @click="syncNow">
           <v-icon size="20" class="icon-default-color">fa-sync-alt</v-icon>
         </v-btn>
