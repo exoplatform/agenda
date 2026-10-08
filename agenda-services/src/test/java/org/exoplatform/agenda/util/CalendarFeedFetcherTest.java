@@ -46,6 +46,7 @@ import org.junit.jupiter.api.Test;
 
 import io.meeds.commons.http.SafeFetchPolicy;
 import io.meeds.commons.http.SafeFetchPolicyBuilder;
+import io.meeds.commons.http.SafeFetchTestPolicies;
 
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
@@ -154,11 +155,21 @@ class CalendarFeedFetcherTest {
    * @return the builder, for a scenario to tighten
    */
   private SafeFetchPolicyBuilder policy(boolean allowInternal) {
+    return SafeFetchTestPolicies.exemptAddresses(unexemptedPolicy(allowInternal), Set.of(stub));
+  }
+
+  /**
+   * The calendar policy over the table of names, at the stub's port, with no
+   * address exempted and a 2 s connect timeout.
+   *
+   * @param allowInternal the deployment's opt-out
+   * @return the builder, for a scenario to tighten
+   */
+  private SafeFetchPolicyBuilder unexemptedPolicy(boolean allowInternal) {
     return SafeFetchPolicy.builder()
                           .internalAddressesAllowed(allowInternal)
                           .allowedPorts(Set.of(port))
                           .resolver(this::resolve)
-                          .exemptAddresses(Set.of(stub))
                           .connectTimeout(Duration.ofSeconds(2));
   }
 
@@ -291,6 +302,39 @@ class CalendarFeedFetcherTest {
     assertNull(response.etag());
     assertNull(response.lastModified());
     assertArrayEquals(CALENDAR.getBytes(StandardCharsets.UTF_8), response.body());
+  }
+
+  /**
+   * A validator carrying a control character is not kept: sent back on the
+   * next read, it would be refused as a header value, and every refresh of the
+   * link would fail.
+   *
+   * @throws Exception when the read fails
+   */
+  @Test
+  void aValidatorCarryingAControlCharacterIsNotKept() throws Exception {
+    handler = exchange -> {
+      exchange.getResponseHeaders().add("ETag", "\"v\t1\"");
+      exchange.getResponseHeaders().add("Last-Modified", "Mon, 14 Sep 2026\t10:00:00 GMT");
+      answer(exchange, 200, CALENDAR);
+    };
+
+    CalendarFeedFetcher.FeedResponse response = fetcher.fetch(url("public.test", "/cal.ics"), null, null);
+
+    assertNull(response.etag());
+    assertNull(response.lastModified());
+    assertArrayEquals(CALENDAR.getBytes(StandardCharsets.UTF_8), response.body());
+  }
+
+  /**
+   * A 304 answering a read that sent no validator says nothing about a copy
+   * the server cannot know of: it is an HTTP error, not a "not modified".
+   */
+  @Test
+  void aNotModifiedToAnUnconditionalReadIsAnHttpError() {
+    handler = exchange -> answer(exchange, 304, "");
+
+    assertEquals(CalendarFeedException.HTTP_ERROR, failure(fetcher, url("public.test", "/cal.ics")));
   }
 
   /**
@@ -466,8 +510,8 @@ class CalendarFeedFetcherTest {
   void internalAddressesAreReadWhenTheDeploymentAllowsThem() throws Exception {
     dns.put("loopback.test", new InetAddress[] { InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }) });
     handler = exchange -> answer(exchange, 200, CALENDAR);
-    CalendarFeedFetcher closed = new CalendarFeedFetcher(policy(false).exemptAddresses(Set.of()).maxBytes(1024).build());
-    CalendarFeedFetcher open = new CalendarFeedFetcher(policy(true).exemptAddresses(Set.of()).maxBytes(1024).build());
+    CalendarFeedFetcher closed = new CalendarFeedFetcher(unexemptedPolicy(false).maxBytes(1024).build());
+    CalendarFeedFetcher open = new CalendarFeedFetcher(unexemptedPolicy(true).maxBytes(1024).build());
     try {
       assertEquals(CalendarFeedException.REFUSED_ADDRESS, failure(closed, url("loopback.test", "/cal.ics")));
       assertTrue(hits.isEmpty());

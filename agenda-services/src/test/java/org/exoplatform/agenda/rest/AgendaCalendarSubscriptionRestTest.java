@@ -170,6 +170,12 @@ class AgendaCalendarSubscriptionRestTest {
 
     when(service.updateSubscription(eq(4L), any(), any(), any(), eq("john"))).thenThrow(new IllegalArgumentException("agenda.calendarSubscription.alreadySubscribed"));
     assertRefusal(resource.updateSubscription(request, 4, null), HttpStatus.BAD_REQUEST, "agenda.calendarSubscription.alreadySubscribed");
+
+    // a link naming an internal address: the code the drawer has a sentence for
+    when(service.checkUrl(eq("http://169.254.169.254/"), eq("john"))).thenThrow(new IllegalArgumentException("agenda.calendarSubscription.refusedAddress"));
+    assertRefusal(resource.checkUrl(request, new CalendarSubscriptionRequestEntity("http://169.254.169.254/", null, null)),
+                  HttpStatus.BAD_REQUEST,
+                  "agenda.calendarSubscription.refusedAddress");
   }
 
   /**

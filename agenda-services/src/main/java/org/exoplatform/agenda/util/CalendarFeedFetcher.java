@@ -174,9 +174,11 @@ public class CalendarFeedFetcher {
   }
 
   /**
-   * The value of a validator header, null when absent, blank, or longer than the
-   * column that stores it: a validator cut short would never match again, and a
-   * value over the column would make recording the refresh fail.
+   * The value of a validator header, null when absent, blank, longer than the
+   * column that stores it, or carrying a control character: a validator cut
+   * short would never match again, a value over the column would make recording
+   * the refresh fail, and a control character would make the next read refuse
+   * it as a header value, so that every refresh of the link would fail.
    *
    * @param response the answer
    * @param name the header name
@@ -185,7 +187,7 @@ public class CalendarFeedFetcher {
    */
   private static String header(SafeFetchResponse response, String name, int maxLength) {
     String value = response.header(name);
-    if (StringUtils.isBlank(value) || value.length() > maxLength) {
+    if (StringUtils.isBlank(value) || value.length() > maxLength || value.chars().anyMatch(Character::isISOControl)) {
       return null;
     }
     return value;

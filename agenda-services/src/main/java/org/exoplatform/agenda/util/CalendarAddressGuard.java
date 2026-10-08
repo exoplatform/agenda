@@ -17,7 +17,10 @@
 package org.exoplatform.agenda.util;
 
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Locale;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -84,6 +87,22 @@ public class CalendarAddressGuard {
    * @throws CalendarFeedException with the reason it is refused
    */
   public URI normalize(String url) throws CalendarFeedException {
+    return normalize(url, uri -> false);
+  }
+
+  /**
+   * Reads a URL as the user typed it, as {@link #normalize(String)} does, but
+   * keeps a URL whose only fault is an internal address literal when it is read
+   * in the process, never over the network: a link of this eXo, whose public
+   * domain may well be an internal address. Every other rule still applies,
+   * since the platform's guard judges the literal last.
+   *
+   * @param url the URL as typed
+   * @param readInProcess whether a URL is read without any connection
+   * @return the URL to read
+   * @throws CalendarFeedException with the reason it is refused
+   */
+  public URI normalize(String url, Predicate<URI> readInProcess) throws CalendarFeedException {
     String trimmed = StringUtils.trim(url);
     if (StringUtils.startsWithIgnoreCase(trimmed, WEBCALS_PREFIX)) {
       trimmed = "https://" + trimmed.substring(WEBCALS_PREFIX.length());
@@ -93,6 +112,12 @@ public class CalendarAddressGuard {
     try {
       return delegate.normalize(trimmed);
     } catch (SafeFetchException e) {
+      if (e.getFailure() == SafeFetchFailure.REFUSED_ADDRESS) {
+        URI inProcess = withoutFragment(trimmed);
+        if (inProcess != null && readInProcess.test(inProcess)) {
+          return inProcess;
+        }
+      }
       throw new CalendarFeedException(reason(e.getFailure()));
     }
   }
@@ -110,6 +135,27 @@ public class CalendarAddressGuard {
       return delegate.checkTarget(uri);
     } catch (SafeFetchException e) {
       throw new CalendarFeedException(reason(e.getFailure()));
+    }
+  }
+
+  /**
+   * A URL the platform's guard already found well formed, its fragment dropped
+   * and its scheme lower-cased, as the guard returns the URLs it accepts.
+   *
+   * @param url the URL, trimmed
+   * @return the URL, or null when it does not parse
+   */
+  private static URI withoutFragment(String url) {
+    int fragment = url.indexOf('#');
+    String target = fragment >= 0 ? url.substring(0, fragment) : url;
+    int colon = target.indexOf(':');
+    if (colon > 0) {
+      target = target.substring(0, colon).toLowerCase(Locale.ROOT) + target.substring(colon);
+    }
+    try {
+      return new URI(target);
+    } catch (URISyntaxException e) {
+      return null;
     }
   }
 
