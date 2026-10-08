@@ -99,6 +99,9 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.web.security.codec.AbstractCodec;
 import org.exoplatform.web.security.codec.CodecInitializer;
 
+import io.meeds.commons.http.SafeAddressGuard;
+import io.meeds.commons.http.SafeFetchPolicy;
+
 /**
  * Pins the rules of calendar subscriptions (EXO-90278): a link is read before
  * anything is stored and refused with a stable code, the URL is stored
@@ -184,7 +187,7 @@ class AgendaCalendarSubscriptionServiceTest {
       }
       return value.substring(4);
     });
-    when(fetcher.getGuard()).thenReturn(new CalendarAddressGuard(false, Set.of(80, 443, 8080, 8443)));
+    when(fetcher.getGuard()).thenReturn(new CalendarAddressGuard(new SafeAddressGuard(SafeFetchPolicy.builder().internalAddressesAllowed(false).allowedPorts(Set.of(80, 443, 8080, 8443)).build())));
     user(JOHN, "john", true);
     user(MARY, "mary", true);
 
@@ -541,6 +544,37 @@ class AgendaCalendarSubscriptionServiceTest {
                                 () -> service.checkUrl("http://192.168.1.10:8443/agenda/rest/ical/TOKEN.ics", "john")).getMessage());
     }
     verify(linkService, times(2)).getCalendarFeed("TOKEN");
+    verify(fetcher, never()).fetch(any(), any(), any());
+  }
+
+  /**
+   * A stored link of this eXo on an internal-literal domain keeps being read in
+   * the process at each refresh, and can be set on a subscription: the
+   * exemption holds on every path that reads a link, not only on the first.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void aLinkOfThisExoOnAnInternalAddressIsRefreshedAndSetInTheProcess() throws Exception {
+    String own = "http://192.168.1.10:8080/agenda/rest/ical/TOKEN.ics";
+    when(calendarService.getCalendarById(5)).thenReturn(calendarOf(5, MARY));
+    when(linkService.getFeedCalendarId("TOKEN")).thenReturn(5L);
+    when(linkService.getCalendarFeed("TOKEN")).thenReturn(ics("X-WR-CALNAME:Mary", vevent("m@test", "20261001T090000Z", "M", null)));
+    when(storage.getDueIds(any(), any(), anyInt())).thenReturn(List.of(SUBSCRIPTION));
+    user(JOHN, "john", true);
+
+    try (MockedStatic<CommonsUtils> commons = mockStatic(CommonsUtils.class)) {
+      commons.when(CommonsUtils::getCurrentDomain).thenReturn("http://192.168.1.10:8080");
+      subscriptionRow("enc:" + own, null, 0);
+      service.refreshDueSubscriptions(10);
+      verify(linkService).getCalendarFeed("TOKEN");
+      verify(storage, never()).recordFailure(anyLong(), anyString(), any(), anyString(), any());
+
+      subscriptionRow("enc:" + URL, "digest", 0);
+      service.updateSubscription(SUBSCRIPTION, own, null, null, "john");
+      verify(linkService, times(2)).getCalendarFeed("TOKEN");
+      verify(storage).updateUrl(eq(SUBSCRIPTION), eq("enc:" + own), anyString(), any());
+    }
     verify(fetcher, never()).fetch(any(), any(), any());
   }
 

@@ -19,7 +19,6 @@ package org.exoplatform.agenda.util;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Locale;
-import java.util.Set;
 import java.util.function.Predicate;
 
 import org.apache.commons.lang3.StringUtils;
@@ -27,7 +26,6 @@ import org.apache.commons.lang3.StringUtils;
 import io.meeds.commons.http.SafeAddressGuard;
 import io.meeds.commons.http.SafeFetchException;
 import io.meeds.commons.http.SafeFetchFailure;
-import io.meeds.commons.http.SafeFetchPolicy;
 
 /**
  * Decides which calendar links the platform may be made to read (EXO-90278):
@@ -52,20 +50,6 @@ public class CalendarAddressGuard {
   private static final String    WEBCALS_PREFIX = "webcals://";
 
   private final SafeAddressGuard delegate;
-
-  /**
-   * The guard of a deployment, over the platform's rules.
-   *
-   * @param allowInternalAddresses whether internal addresses may be read at all
-   * @param allowedPorts the ports a link may reach, implicit default ports
-   *          included
-   */
-  public CalendarAddressGuard(boolean allowInternalAddresses, Set<Integer> allowedPorts) {
-    this(new SafeAddressGuard(SafeFetchPolicy.builder()
-                                             .internalAddressesAllowed(allowInternalAddresses)
-                                             .allowedPorts(allowedPorts)
-                                             .build()));
-  }
 
   /**
    * The guard over a shared guard: the fetcher's, so that the rules applied
