@@ -29,7 +29,7 @@
       :max-width="width"
       :max-height="height"
       @click="showRemoteEvents">
-      <v-icon :size="size" :color="showDefaultRemoteEvents && 'primary'">
+      <v-icon :size="size" :color="showDefaultRemoteEvents ? 'primary' : null">
         fas fa-calendar-check
       </v-icon>
     </v-btn>
