@@ -42,9 +42,6 @@ import io.meeds.commons.http.SafeFetchFailure;
  */
 public class CalendarAddressGuard {
 
-  /** Longest URL accepted. */
-  public static final int        MAX_URL_LENGTH = SafeAddressGuard.MAX_URL_LENGTH;
-
   private static final String    WEBCAL_PREFIX  = "webcal://";
 
   private static final String    WEBCALS_PREFIX = "webcals://";
@@ -64,7 +61,9 @@ public class CalendarAddressGuard {
   /**
    * Reads a URL as the user typed it: trimmed, {@code webcal://} and
    * {@code webcals://} read as {@code https://}, then normalized and checked by
-   * the platform's guard. Nothing is resolved here.
+   * the platform's guard. Nothing is resolved here. The form for a URL that
+   * is only ever read over the network; the subscription service, which reads
+   * links of this eXo in the process, uses {@link #normalize(String, Predicate)}.
    *
    * @param url the URL as typed
    * @return the URL to read
@@ -107,22 +106,6 @@ public class CalendarAddressGuard {
   }
 
   /**
-   * Checks the shape of a URL about to be read — the one typed, or the target
-   * of a redirect.
-   *
-   * @param uri the URL
-   * @return the URL with its scheme lower-cased
-   * @throws CalendarFeedException with the reason it is refused
-   */
-  public URI checkTarget(URI uri) throws CalendarFeedException {
-    try {
-      return delegate.checkTarget(uri);
-    } catch (SafeFetchException e) {
-      throw new CalendarFeedException(reason(e.getFailure()));
-    }
-  }
-
-  /**
    * A URL the platform's guard already found well formed, its fragment dropped
    * and its scheme lower-cased, as the guard returns the URLs it accepts.
    *
@@ -141,13 +124,6 @@ public class CalendarAddressGuard {
     } catch (URISyntaxException e) {
       return null;
     }
-  }
-
-  /**
-   * @return the platform's guard this one applies
-   */
-  public SafeAddressGuard getDelegate() {
-    return delegate;
   }
 
   /**

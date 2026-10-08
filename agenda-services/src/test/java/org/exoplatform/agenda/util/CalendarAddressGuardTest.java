@@ -20,12 +20,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import java.net.URI;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
-import io.meeds.commons.http.RefusedAddressException;
 import io.meeds.commons.http.SafeAddressGuard;
 import io.meeds.commons.http.SafeFetchFailure;
 import io.meeds.commons.http.SafeFetchPolicy;
@@ -87,9 +85,9 @@ class CalendarAddressGuardTest {
     assertEquals(CalendarFeedException.INVALID_URL, refusal(null));
     assertEquals(CalendarFeedException.INVALID_URL, refusal("not a url"));
     assertEquals(CalendarFeedException.INVALID_URL, refusal("https://example.org/a\nb"));
-    assertEquals(CalendarFeedException.INVALID_URL, refusal("https://example.org/" + "a".repeat(CalendarAddressGuard.MAX_URL_LENGTH)));
+    assertEquals(CalendarFeedException.INVALID_URL, refusal("https://example.org/" + "a".repeat(SafeAddressGuard.MAX_URL_LENGTH)));
     assertEquals(CalendarFeedException.PORT_NOT_ALLOWED,
-                 assertThrows(CalendarFeedException.class, () -> guard().checkTarget(URI.create("http://example.org:6379/"))).getReason());
+                 refusal("http://example.org:6379/"));
     CalendarAddressGuard narrow = new CalendarAddressGuard(new SafeAddressGuard(SafeFetchPolicy.builder().internalAddressesAllowed(false).allowedPorts(Set.of(8443)).build()));
     assertEquals(CalendarFeedException.PORT_NOT_ALLOWED,
                  assertThrows(CalendarFeedException.class, () -> narrow.normalize("https://example.org/cal.ics")).getReason());
@@ -127,10 +125,11 @@ class CalendarAddressGuardTest {
    */
   @Test
   void addressesAreJudgedByThePlatformsGuardWithTheDeploymentsOptOut() throws Exception {
-    assertThrows(RefusedAddressException.class, () -> guard().getDelegate().resolveAllowed("127.0.0.1"));
-    assertThrows(RefusedAddressException.class, () -> guard().getDelegate().resolveAllowed("169.254.169.254"));
-    assertThrows(RefusedAddressException.class, () -> guard().getDelegate().resolveAllowed("[::1]"));
-    new CalendarAddressGuard(new SafeAddressGuard(SafeFetchPolicy.builder().internalAddressesAllowed(true).allowedPorts(PORTS).build())).getDelegate().resolveAllowed("127.0.0.1");
+    assertEquals(CalendarFeedException.REFUSED_ADDRESS, refusal("http://127.0.0.1/cal.ics"));
+    assertEquals(CalendarFeedException.REFUSED_ADDRESS, refusal("http://169.254.169.254/latest/meta-data"));
+    assertEquals(CalendarFeedException.REFUSED_ADDRESS, refusal("https://[::1]/cal.ics"));
+    CalendarAddressGuard open = new CalendarAddressGuard(new SafeAddressGuard(SafeFetchPolicy.builder().internalAddressesAllowed(true).allowedPorts(PORTS).build()));
+    assertEquals("http://127.0.0.1/cal.ics", open.normalize("http://127.0.0.1/cal.ics").toString());
   }
 
 }
