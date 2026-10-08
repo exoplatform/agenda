@@ -327,6 +327,27 @@ class CalendarFeedFetcherTest {
   }
 
   /**
+   * A validator stored with a control character, as an earlier version kept
+   * them, is not sent: the read is unconditional and succeeds, rather than
+   * refused before any request at every refresh of the link.
+   *
+   * @throws Exception when the read fails
+   */
+  @Test
+  void aStoredValidatorCarryingAControlCharacterIsNotSent() throws Exception {
+    handler = exchange -> answer(exchange, 200, CALENDAR);
+
+    CalendarFeedFetcher.FeedResponse response = fetcher.fetch(url("public.test", "/cal.ics"),
+                                                              "\"v\t1\"",
+                                                              "Mon, 14 Sep 2026\t10:00:00 GMT");
+
+    assertArrayEquals(CALENDAR.getBytes(StandardCharsets.UTF_8), response.body());
+    assertEquals(1, requests.size());
+    assertNull(requests.get(0).getFirst("If-None-Match"));
+    assertNull(requests.get(0).getFirst("If-Modified-Since"));
+  }
+
+  /**
    * A 304 answering a read that sent no validator says nothing about a copy
    * the server cannot know of: it is an HTTP error, not a "not modified".
    */

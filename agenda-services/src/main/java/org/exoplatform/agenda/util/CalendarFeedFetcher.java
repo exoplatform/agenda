@@ -139,7 +139,9 @@ public class CalendarFeedFetcher {
   }
 
   /**
-   * Reads a link, conditionally when validators are given.
+   * Reads a link, conditionally when validators are given; a stored validator
+   * carrying a control character, which an earlier version kept, is not sent,
+   * and the read is then unconditional rather than refused.
    *
    * @param uri the URL, already normalized by the guard
    * @param etag the entity tag of the previous read, or null
@@ -150,7 +152,7 @@ public class CalendarFeedFetcher {
   public FeedResponse fetch(URI uri, String etag, String lastModified) throws CalendarFeedException {
     SafeFetchResponse response;
     try {
-      response = fetcher.fetch(SafeFetchRequest.get(uri).withAccept(ACCEPT).withValidators(etag, lastModified));
+      response = fetcher.fetch(SafeFetchRequest.get(uri).withAccept(ACCEPT).withValidators(validator(etag), validator(lastModified)));
     } catch (SafeFetchException e) {
       throw new CalendarFeedException(CalendarAddressGuard.reason(e.getFailure()), e);
     }
@@ -186,11 +188,22 @@ public class CalendarFeedFetcher {
    * @return the value
    */
   private static String header(SafeFetchResponse response, String name, int maxLength) {
-    String value = response.header(name);
-    if (StringUtils.isBlank(value) || value.length() > maxLength || value.chars().anyMatch(Character::isISOControl)) {
+    String value = validator(response.header(name));
+    if (StringUtils.isBlank(value) || value.length() > maxLength) {
       return null;
     }
     return value;
+  }
+
+  /**
+   * A validator as it may go in a header: null when it carries a control
+   * character, which the platform's fetcher refuses in a header value.
+   *
+   * @param value the validator, or null
+   * @return the value, or null
+   */
+  private static String validator(String value) {
+    return value != null && value.chars().anyMatch(Character::isISOControl) ? null : value;
   }
 
 }
