@@ -61,10 +61,9 @@ import jakarta.servlet.http.HttpServletRequest;
  * never from a parameter. Responses carry URLs, which may embed a secret, and
  * are never cached.
  * <p>
- * <b>A refusal writes its own body</b>, {@code {"message": "<code>"}}: it is not
- * left to Spring's error page, whose message the platform does not include
- * ({@code server.error.include-message} is no longer bound by Spring Boot 4), so
- * the drawer would only ever see a generic error.
+ * <b>A refusal writes its own body</b>, {@code {"message": "<code>"}}, never
+ * cached like every response here: the code the drawer shows and the cache header
+ * do not depend on how the platform configures Spring's error page.
  */
 @RestController
 @Tag(name = "calendar-subscription", description = "Subscriptions to calendar links (iCal / webcal)")
