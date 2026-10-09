@@ -78,7 +78,8 @@ public class AgendaInvitationLandingServiceTest extends BaseAgendaEventTest {
                                                           agendaEventConferenceService,
                                                           agendaRemoteEventService,
                                                           agendaUserSettingsService,
-                                                          container.getComponentInstanceOfType(MetadataService.class));
+                                                          container.getComponentInstanceOfType(MetadataService.class),
+                                                          agendaEventStorage);
     }
     return landingService;
   }
