@@ -1349,6 +1349,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // the clone, and may then be changed on this date alone (US06). It stays in
     // step with its series through applySeriesChangeToExceptionalOccurrences
     // until somebody changes it here.
+    // The capacity is inherited the same way: the new row becomes its date's
+    // own pool. Whether that pool has reached it is a fact about this date,
+    // never the series' marker, which another date may have set.
+    exceptionalEvent.setCapacityReachedDate(null);
     anchorOccurrenceDatesOnSeries(parentEvent, exceptionalEvent, occurrenceId);
     exceptionalEvent = agendaEventStorage.createEvent(exceptionalEvent);
     long exceptionalEventId = exceptionalEvent.getId();
@@ -1540,6 +1544,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // the form is what decides which rows are written, not this method.
     boolean open = event.getOpen() == null ? Boolean.TRUE.equals(storedEvent.getOpen()) : event.getOpen();
     eventToUpdate.setOpen(open && canBeOpen(eventToUpdate, calendar));
+    // Neither is part of the positional constructor above: without these, a
+    // save of any other field would write no limit and forget the reached
+    // marker
+    eventToUpdate.setCapacity(storedEvent.getCapacity());
+    eventToUpdate.setCapacityReachedDate(storedEvent.getCapacityReachedDate());
 
     AgendaEventModification eventModifications = new AgendaEventModification(eventId, event.getCalendarId(), userIdentityId);
     eventModifications.addModificationType(AgendaEventModificationType.UPDATED);
