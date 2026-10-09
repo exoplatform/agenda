@@ -603,6 +603,84 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                  agendaEventAttendeeService.getEventResponse(event.getId(), null, otherIdentityId));
   }
 
+  /**
+   * A place on a waiting list is what a Yes becomes on a date with no seat
+   * left, never an answer a caller picks: answering WAITING is refused, on a
+   * date and on a series' upcoming dates, and leaves the stored answer alone;
+   * a saver who adds themself as WAITING is stored as not answered.
+   * <p>
+   * The saver's case goes through an update that changes no date: on a
+   * creation or a date change, {@code AgendaReplyOnSaveListener} answers
+   * ACCEPTED for a listed saver right after the save, which would hide it.
+   * <p>
+   * Mutation note: with either {@code checkNotWaiting} call removed, the
+   * matching answer is stored and its refusal assertion fails; with the
+   * saver's case removed from {@code processAttendeesToCreate}, the saver's
+   * row is stored WAITING.
+   *
+   * @throws Exception when a write fails unexpectedly
+   */
+  @Test
+  public void testWaitingIsNeverAnAnswerACallerGives() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+    long creatorIdentityId = Long.parseLong(testuser1Identity.getId());
+    long attendeeIdentityId = Long.parseLong(testuser2Identity.getId());
+
+    Event event = createEvent(newEventInstance(start, start, false), creatorIdentityId, testuser2Identity);
+    long eventId = event.getId();
+
+    List<EventAttendee> attendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees();
+    attendees.add(new EventAttendee(0, eventId, creatorIdentityId, EventAttendeeResponse.WAITING));
+    Event toSave = agendaEventService.getEventById(eventId, null, creatorIdentityId);
+    toSave.setSummary("Renamed");
+    agendaEventService.updateEvent(toSave, attendees, null, null, null, null, false, creatorIdentityId);
+
+    assertEquals("the save is applied", "Renamed", agendaEventService.getEventById(eventId).getSummary());
+    assertEquals("a saver cannot put themself on a waiting list",
+                 EventAttendeeResponse.NEEDS_ACTION,
+                 agendaEventAttendeeService.getEventResponse(eventId, null, creatorIdentityId));
+
+    assertThrows(IllegalArgumentException.class,
+                 () -> agendaEventAttendeeService.sendEventResponse(eventId, attendeeIdentityId, EventAttendeeResponse.WAITING));
+    assertThrows(IllegalArgumentException.class,
+                 () -> agendaEventAttendeeService.sendUpcomingEventResponse(eventId,
+                                                                            start,
+                                                                            attendeeIdentityId,
+                                                                            EventAttendeeResponse.WAITING));
+    assertEquals("a refused answer leaves the stored one",
+                 EventAttendeeResponse.NEEDS_ACTION,
+                 agendaEventAttendeeService.getEventResponse(eventId, null, attendeeIdentityId));
+  }
+
+  /**
+   * The rows a date copies from its series keep the answer they had, a
+   * waiting one included: the refusal applies to what a caller asks, not to
+   * what the server copies (creatorUserId 0).
+   * <p>
+   * Mutation note: with the saver condition dropped from
+   * {@code isAskedWaiting}, the copied row is reset and the assertion fails.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void testADateCopiesAWaitingAnswerFromItsSeries() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+    long creatorIdentityId = Long.parseLong(testuser1Identity.getId());
+    long attendeeIdentityId = Long.parseLong(testuser2Identity.getId());
+    Event series = createEvent(newEventInstance(start, start, false), creatorIdentityId, testuser2Identity);
+
+    List<EventAttendee> copied = new ArrayList<>();
+    copied.add(new EventAttendee(0, 0, attendeeIdentityId, EventAttendeeResponse.WAITING));
+    Event occurrence = agendaEventService.createEventExceptionalOccurrence(series.getId(),
+                                                                           copied,
+                                                                           null,
+                                                                           null,
+                                                                           start.plusDays(1));
+
+    assertEquals(EventAttendeeResponse.WAITING,
+                 agendaEventAttendeeService.getEventResponse(occurrence.getId(), null, attendeeIdentityId));
+  }
+
   @Test
   public void testSaveEventAttendeesWithResponseOfOtherAttendees() throws Exception { // NOSONAR
     ZonedDateTime start = ZonedDateTime.now().withNano(0);

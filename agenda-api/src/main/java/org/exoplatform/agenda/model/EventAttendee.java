@@ -39,6 +39,14 @@ public class EventAttendee implements Cloneable {
 
   private EventAttendeeResponse response;
 
+  /**
+   * Instant of the last stored change of {@link #response}: it orders the
+   * waiting list of an event with a capacity limit, earliest first. Null on a
+   * row whose answer has not changed since the column was added. Written by
+   * the server only, never taken from a client.
+   */
+  private ZonedDateTime         responseDate;
+
   public EventAttendee(long id, long identityId, EventAttendeeResponse response) {
     this.id = id;
     this.identityId = identityId;
@@ -52,6 +60,27 @@ public class EventAttendee implements Cloneable {
     this.response = response;
   }
 
+  /**
+   * Builds an attendee row with no response date, the signature every caller
+   * used before {@link #responseDate} existed, kept so that they still compile
+   * and build the same row.
+   *
+   * @param id technical identifier
+   * @param eventId event identifier
+   * @param identityId attendee identity identifier
+   * @param fromOccurrenceId first occurrence the row covers
+   * @param untilOccurrenceId last occurrence the row covers
+   * @param response the attendee's answer
+   */
+  public EventAttendee(long id,
+                       long eventId,
+                       long identityId,
+                       ZonedDateTime fromOccurrenceId,
+                       ZonedDateTime untilOccurrenceId,
+                       EventAttendeeResponse response) {
+    this(id, eventId, identityId, fromOccurrenceId, untilOccurrenceId, response, null);
+  }
+
   @Override
   public EventAttendee clone() { // NOSONAR
     return new EventAttendee(id,
@@ -59,6 +88,7 @@ public class EventAttendee implements Cloneable {
                              identityId,
                              fromOccurrenceId,
                              untilOccurrenceId,
-                             response);
+                             response,
+                             responseDate);
   }
 }
