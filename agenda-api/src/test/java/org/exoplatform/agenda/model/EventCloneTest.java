@@ -89,6 +89,8 @@ class EventCloneTest {
     event.setOccurrence(new EventOccurrence(ZonedDateTime.of(2026, 9, 21, 9, 0, 0, 0, ZoneOffset.UTC)));
     event.setAcl(new EventPermission(true, false, true));
     event.setParameters(new HashMap<>(Map.of("key", "value")));
+    event.setCapacity(12);
+    event.setCapacityReachedDate(ZonedDateTime.of(2026, 9, 20, 18, 0, 0, 0, ZoneOffset.UTC));
 
     Event copy = event.clone();
 
@@ -134,6 +136,24 @@ class EventCloneTest {
 
     assertEquals(EventAvailability.FREE, copy.getAvailability(), "an occurrence keeps its series' availability");
     assertEquals(EventVisibility.PRIVATE, copy.getVisibility(), "and its visibility");
+  }
+
+  /**
+   * A date materialised from its series is a clone of it: the clone carries
+   * the capacity limit, which becomes that date's own pool, and the reached
+   * marker, which the materialisation then decides for the date.
+   */
+  @Test
+  void aCloneCarriesTheCapacityAndItsReachedDate() {
+    Event event = new Event();
+    ZonedDateTime reached = ZonedDateTime.of(2026, 9, 20, 18, 0, 0, 0, ZoneOffset.UTC);
+    event.setCapacity(12);
+    event.setCapacityReachedDate(reached);
+
+    Event copy = event.clone();
+
+    assertEquals(Integer.valueOf(12), copy.getCapacity(), "an occurrence keeps its series' capacity");
+    assertEquals(reached, copy.getCapacityReachedDate(), "and the marker, for the caller to decide");
   }
 
 }
