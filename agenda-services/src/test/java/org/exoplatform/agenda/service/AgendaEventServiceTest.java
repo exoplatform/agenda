@@ -3304,6 +3304,83 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals("a stated availability is stored", EventAvailability.BUSY, stored.getAvailability());
   }
 
+  /**
+   * An event is created without a capacity limit, and a save that states
+   * neither the capacity nor its reached marker keeps the stored ones:
+   * {@code updateEvent} rebuilds the row it writes positionally, and neither
+   * field is part of that constructor, so without its explicit copy any edit
+   * of the title would remove the limit and forget the marker. The caller
+   * shape is caldav-integration's inbound sync, which builds a fresh Event.
+   * <p>
+   * The limit and the marker are seeded through the storage: no Service path
+   * writes them yet.
+   * <p>
+   * Mutation note: with either copy line removed from {@code updateEvent}, the
+   * matching assertion after the save fails.
+   *
+   * @throws Exception when the save fails
+   */
+  @Test
+  public void testUpdateEventWithoutCapacityKeepsTheStoredOneAndItsReachedMarker() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorIdentityId = Long.parseLong(testuser1Identity.getId());
+    Event createdEvent = createEvent(newEventInstance(start, start, false), creatorIdentityId, testuser2Identity);
+    long eventId = createdEvent.getId();
+
+    Event created = agendaEventService.getEventById(eventId);
+    assertEquals("an event is created without a limit", Integer.valueOf(0), created.getCapacity());
+    assertNull("and without a reached marker", created.getCapacityReachedDate());
+
+    ZonedDateTime reached = ZonedDateTime.now(ZoneOffset.UTC).withNano(0);
+    Event seeded = agendaEventStorage.getEventById(eventId);
+    seeded.setCapacity(12);
+    seeded.setCapacityReachedDate(reached);
+    agendaEventStorage.updateEvent(seeded);
+
+    Event event = agendaEventService.getEventById(eventId, null, creatorIdentityId);
+    event.setSummary("Renamed");
+    event.setCapacity(null);
+    event.setCapacityReachedDate(null);
+    agendaEventService.updateEvent(event, null, null, null, null, null, false, creatorIdentityId);
+
+    Event stored = agendaEventService.getEventById(eventId);
+    assertEquals("the save is applied", "Renamed", stored.getSummary());
+    assertEquals("a save that states no capacity keeps the stored limit", Integer.valueOf(12), stored.getCapacity());
+    assertNotNull("and the reached marker", stored.getCapacityReachedDate());
+    assertEquals(reached.toInstant(), stored.getCapacityReachedDate().toInstant());
+  }
+
+  /**
+   * A date materialised from its series is cloned from it: it carries the
+   * series' limit, as its own pool from then on, but not the series' reached
+   * marker, which another date of the series may have set.
+   * <p>
+   * Mutation note: with the marker reset removed from
+   * {@code createEventExceptionalOccurrence}, the new row carries the series'
+   * marker and the last assertion fails.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void testExceptionalOccurrenceCarriesTheSeriesCapacityButNotItsReachedMarker() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorIdentityId = Long.parseLong(testuser1Identity.getId());
+    Event series = newEventInstance(start, start, false);
+    series.setCalendarId(spaceCalendar.getId());
+    long seriesId = createEvent(series, creatorIdentityId, testuser2Identity).getId();
+
+    Event seeded = agendaEventStorage.getEventById(seriesId);
+    seeded.setCapacity(12);
+    seeded.setCapacityReachedDate(ZonedDateTime.now(ZoneOffset.UTC).withNano(0));
+    agendaEventStorage.updateEvent(seeded);
+
+    Event occurrence = agendaEventService.createEventExceptionalOccurrence(seriesId, null, null, null, start.plusDays(1));
+
+    Event stored = agendaEventService.getEventById(occurrence.getId());
+    assertEquals("the date carries its series' limit", Integer.valueOf(12), stored.getCapacity());
+    assertNull("but not its series' reached marker", stored.getCapacityReachedDate());
+  }
+
   @Test
   public void testUpdateEvent_InSpace_AsMember() throws Exception { // NOSONAR
     ZonedDateTime start = getDate().withNano(0);
