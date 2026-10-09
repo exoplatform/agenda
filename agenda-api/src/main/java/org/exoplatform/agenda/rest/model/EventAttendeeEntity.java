@@ -36,8 +36,18 @@ public class EventAttendeeEntity implements Serializable, Cloneable {
 
   private EventAttendeeResponse response;
 
+  /**
+   * Instant of the last stored change of the answer, in RFC 3339, which orders
+   * a waiting list. Read only: the server never takes it from a client.
+   */
+  private String                responseDate;
+
+  public EventAttendeeEntity(long id, IdentityEntity identity, EventAttendeeResponse response) {
+    this(id, identity, response, null);
+  }
+
   @Override
   public EventAttendeeEntity clone() {// NOSONAR
-    return new EventAttendeeEntity(id, identity, response);
+    return new EventAttendeeEntity(id, identity, response, responseDate);
   }
 }

@@ -85,7 +85,13 @@ public class EventSearchResultEntity extends EventEntity {
           parameters,
           sendInvitation,
           false,
-          open);
+          open,
+          // A search hit is built from the index, which carries no capacity:
+          // null means "unknown", like open there
+          null,
+          0,
+          0,
+          null);
     this.excerpts = excerpts;
   }
 
