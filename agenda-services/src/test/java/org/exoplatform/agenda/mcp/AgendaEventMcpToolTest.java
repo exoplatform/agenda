@@ -1141,6 +1141,32 @@ class AgendaEventMcpToolTest {
     assertThrows(IllegalArgumentException.class, () -> tool.respondToAgendaEvent(EVENT_ID, "needs_action", null));
   }
 
+  /**
+   * A place on a waiting list is what a Yes becomes on a full date, never an
+   * answer the tool may send: an explicit WAITING is refused like NEEDS_ACTION,
+   * with the same sentence, and nothing reaches the Service.
+   * <p>
+   * The event is stubbed as for a successful answer, so that a tool which let
+   * WAITING through would answer and return normally rather than fail on a
+   * missing event.
+   * <p>
+   * Mutation note: with WAITING removed from the refused values, the answer
+   * is sent and nothing is thrown.
+   */
+  @Test
+  void respondToAgendaEventRejectsWaiting() throws Exception {
+    when(userAcl.hasAccessPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
+    stubSpaceCalendarChain(SPACE_ID, SPACE_PRETTY_NAME, OWNER_IDENTITY_ID, CALENDAR_ID);
+    Event fetched = buildEvent(EVENT_ID, CALENDAR_ID, START, END, EventStatus.CONFIRMED);
+    when(agendaEventService.getEventById(eq(EVENT_ID), eq(ZoneOffset.UTC), eq(USER_IDENTITY_ID))).thenReturn(fetched);
+
+    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class,
+                                                    () -> tool.respondToAgendaEvent(EVENT_ID, "waiting", null));
+
+    assertEquals("Response WAITING isn't allowed, use ACCEPTED, DECLINED or TENTATIVE", refusal.getMessage());
+    verify(agendaEventAttendeeService, never()).sendEventResponse(anyLong(), anyLong(), any());
+  }
+
   @Test
   void respondToAgendaEventSucceeds() throws Exception {
     when(userAcl.hasAccessPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
