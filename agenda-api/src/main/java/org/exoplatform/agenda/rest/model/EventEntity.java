@@ -189,6 +189,32 @@ public class EventEntity implements Serializable, Cloneable {
    */
   private Boolean                     open;
 
+  /**
+   * How many attendees may answer Yes on the date read; 0 means no limit. On
+   * read: the displayed date's pool, never null — except on a search result
+   * ({@link EventSearchResultEntity}), where it is not indexed and stays null,
+   * meaning "unknown". On write: optional — null means "not specified", i.e.
+   * kept as stored on update, so that a client omitting the field cannot
+   * remove a limit by an update, and no limit on creation.
+   */
+  private Integer                     capacity;
+
+  /**
+   * How many attendees hold a seat (ACCEPTED) on the date read. Read only.
+   */
+  private int                         acceptedCount;
+
+  /**
+   * How many attendees wait for a seat (WAITING) on the date read. Read only.
+   */
+  private int                         waitingCount;
+
+  /**
+   * The reader's 1-based position in the waiting list of the date read, null
+   * unless the reader's own answer on that date is WAITING. Read only.
+   */
+  private Integer                     waitingListPosition;
+
   @Override
   public EventEntity clone() {// NOSONAR
     return new EventEntity(id,
@@ -224,6 +250,10 @@ public class EventEntity implements Serializable, Cloneable {
                            parameters,
                            sendInvitation,
                            masked,
-                           open);
+                           open,
+                           capacity,
+                           acceptedCount,
+                           waitingCount,
+                           waitingListPosition);
   }
 }
