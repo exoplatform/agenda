@@ -764,4 +764,50 @@
     </addColumn>
   </changeSet>
 
+  <!--
+    Event capacity limitation (eXIP 7.3.0.21). CAPACITY is the number of seats
+    of each date of a row's pool, 0 meaning no limit: the default keeps every
+    existing event unlimited. CAPACITY_REACHED_DATE marks when a date of the
+    pool first reached it. RESPONSE_DATE is when an attendee's answer last
+    changed, which orders a waiting list; existing rows keep NULL.
+    The rollback is written out: the update has no automatic rollback, and a
+    waiting answer (RESPONSE 4, EventAttendeeResponse.WAITING by ordinal) means
+    nothing to a version without the waiting list, so it goes back to
+    NEEDS_ACTION (0) before the columns are dropped.
+  -->
+  <changeSet author="agenda" id="1.0.0-exip-7.3.0.21-01">
+    <addColumn tableName="EXO_AGENDA_EVENT">
+      <column name="CAPACITY" type="INT" defaultValueNumeric="0">
+        <constraints nullable="false" />
+      </column>
+      <column name="CAPACITY_REACHED_DATE" type="TIMESTAMP" />
+    </addColumn>
+    <addColumn tableName="EXO_AGENDA_ATTENDEE">
+      <column name="RESPONSE_DATE" type="TIMESTAMP" />
+    </addColumn>
+    <rollback>
+      <update tableName="EXO_AGENDA_ATTENDEE">
+        <column name="RESPONSE" valueNumeric="0" />
+        <where>RESPONSE = 4</where>
+      </update>
+      <dropColumn tableName="EXO_AGENDA_ATTENDEE" columnName="RESPONSE_DATE" />
+      <dropColumn tableName="EXO_AGENDA_EVENT" columnName="CAPACITY_REACHED_DATE" />
+      <dropColumn tableName="EXO_AGENDA_EVENT" columnName="CAPACITY" />
+    </rollback>
+  </changeSet>
+
+  <!--
+    The index in a changeset of its own, as every index of this file: the
+    attendee rows of the dates still to come are read by FROM_OCCURRENCE_ID,
+    which UK_EXO_AGENDA_ATTENDEE holds only third.
+  -->
+  <changeSet author="agenda" id="1.0.0-exip-7.3.0.21-02">
+    <createIndex tableName="EXO_AGENDA_ATTENDEE" indexName="IDX_AGENDA_ATTENDEE_FROM">
+      <column name="FROM_OCCURRENCE_ID" />
+    </createIndex>
+    <rollback>
+      <dropIndex tableName="EXO_AGENDA_ATTENDEE" indexName="IDX_AGENDA_ATTENDEE_FROM" />
+    </rollback>
+  </changeSet>
+
 </databaseChangeLog>
