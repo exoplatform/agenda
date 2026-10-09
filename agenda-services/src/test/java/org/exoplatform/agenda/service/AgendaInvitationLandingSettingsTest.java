@@ -33,6 +33,7 @@ import org.mockito.quality.Strictness;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.MailInvitation;
+import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
@@ -75,6 +76,9 @@ class AgendaInvitationLandingSettingsTest {
   @Mock
   private MetadataService                metadataService;
 
+  @Mock
+  private AgendaEventStorage             agendaEventStorage;
+
   private AgendaInvitationLandingService service;
 
   /**
@@ -90,7 +94,8 @@ class AgendaInvitationLandingSettingsTest {
                                                  agendaEventConferenceService,
                                                  agendaRemoteEventService,
                                                  agendaUserSettingsService,
-                                                 metadataService);
+                                                 metadataService,
+                                                 agendaEventStorage);
     Identity identity = new Identity(OrganizationIdentityProvider.NAME, "john");
     identity.setId("7");
     when(identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "john")).thenReturn(identity);
