@@ -844,8 +844,10 @@ public class AgendaEventMcpTool implements McpToolPlugin {
       throw new IllegalArgumentException("Parameter 'response' is mandatory (ACCEPTED, DECLINED or TENTATIVE)");
     }
     EventAttendeeResponse attendeeResponse = EventAttendeeResponse.valueOf(response.trim().toUpperCase());
-    if (attendeeResponse == EventAttendeeResponse.NEEDS_ACTION) {
-      throw new IllegalArgumentException("Response NEEDS_ACTION isn't allowed, use ACCEPTED, DECLINED or TENTATIVE");
+    // WAITING is what a Yes becomes on a full date, never an answer to give
+    if (attendeeResponse == EventAttendeeResponse.NEEDS_ACTION || attendeeResponse == EventAttendeeResponse.WAITING) {
+      throw new IllegalArgumentException("Response " + attendeeResponse.name()
+          + " isn't allowed, use ACCEPTED, DECLINED or TENTATIVE");
     }
     if (!userAcl.hasAccessPermission(AgendaEventAclPlugin.OBJECT_TYPE, String.valueOf(eventId), getCurrentUserAclIdentity())) {
       throw new IllegalAccessException(MSG_USER_NOT_ALLOWED_TO_ACCESS_EVENT.formatted(eventId));

@@ -138,6 +138,22 @@ public class Event implements Cloneable {
    */
   private Boolean           open;
 
+  /**
+   * How many attendees may answer Yes on each date of the event; 0 means no
+   * limit. Each stored row carries its own, like {@link #open}: the series row
+   * is the pool of every date it still computes, an exceptional occurrence the
+   * pool of its own date. On a write, {@code null} means "not specified": the
+   * stored value is kept on update and the event is created without a limit.
+   * Never {@code null} once read from storage.
+   */
+  private Integer           capacity;
+
+  /**
+   * When a date of this row's pool first reached {@link #capacity}, null while
+   * none has since the capacity was last set. Written by the server only.
+   */
+  private ZonedDateTime     capacityReachedDate;
+
   public Event(long id,
                long parentId,
                long calendarId,
@@ -266,6 +282,8 @@ public class Event implements Cloneable {
          parameters,
          false,
          null,
+         null,
+         null,
          null);
   }
 
@@ -297,6 +315,8 @@ public class Event implements Cloneable {
                      parameters == null ? null : new HashMap<>(parameters),
                      masked,
                      access,
-                     open);
+                     open,
+                     capacity,
+                     capacityReachedDate);
   }
 }
