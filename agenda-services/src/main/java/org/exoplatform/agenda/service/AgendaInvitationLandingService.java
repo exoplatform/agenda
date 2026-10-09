@@ -49,6 +49,7 @@ import org.exoplatform.agenda.model.LandedMailInvitation;
 import org.exoplatform.agenda.model.MailInvitation;
 import org.exoplatform.agenda.model.MailInvitationEvent;
 import org.exoplatform.agenda.model.RemoteProvider;
+import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.CalendarFeedParser;
 import org.exoplatform.agenda.util.EventIcsBuilder;
 import org.exoplatform.agenda.util.MailInvitationReader;
@@ -177,6 +178,8 @@ public class AgendaInvitationLandingService {
 
   private final MetadataService              metadataService;
 
+  private final AgendaEventStorage           agendaEventStorage;
+
   /**
    * Builds the service over agenda's own services and the metadata the event
    * properties are kept in.
@@ -190,6 +193,8 @@ public class AgendaInvitationLandingService {
    * @param agendaRemoteEventService the remote mapping an update keeps
    * @param agendaUserSettingsService the user's default reminders
    * @param metadataService the event properties the invitation is found by
+   * @param agendaEventStorage the exceptional occurrences a newer revision
+   *          drops
    */
   @Autowired
   public AgendaInvitationLandingService(IdentityManager identityManager,
@@ -200,7 +205,8 @@ public class AgendaInvitationLandingService {
                                         AgendaEventConferenceService agendaEventConferenceService,
                                         AgendaRemoteEventService agendaRemoteEventService,
                                         AgendaUserSettingsService agendaUserSettingsService,
-                                        MetadataService metadataService) {
+                                        MetadataService metadataService,
+                                        AgendaEventStorage agendaEventStorage) {
     this.identityManager = identityManager;
     this.agendaCalendarService = agendaCalendarService;
     this.agendaEventService = agendaEventService;
@@ -210,6 +216,7 @@ public class AgendaInvitationLandingService {
     this.agendaRemoteEventService = agendaRemoteEventService;
     this.agendaUserSettingsService = agendaUserSettingsService;
     this.metadataService = metadataService;
+    this.agendaEventStorage = agendaEventStorage;
   }
 
   /**
@@ -302,6 +309,9 @@ public class AgendaInvitationLandingService {
     EventAttendeeResponse heldResponse = responseOf(held.getId(), userIdentityId);
     if (newer) {
       update(held, read, userIdentityId);
+      // The organiser's revision states all the series' exceptions, while
+      // agenda's own update of a series keeps the dates customised in it
+      agendaEventStorage.deleteExceptionalOccurences(held.getId());
       applyOccurrences(held.getId(), read, userIdentityId);
     }
     // The update may have reset the user's answer (agenda accepts on the
