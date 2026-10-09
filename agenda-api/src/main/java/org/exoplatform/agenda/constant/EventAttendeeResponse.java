@@ -21,7 +21,14 @@ public enum EventAttendeeResponse {
   NEEDS_ACTION(EventAttendeeResponse.NEEDS_ACTION_VALUE),
   ACCEPTED(EventAttendeeResponse.ACCEPTED_VALUE),
   DECLINED(EventAttendeeResponse.DECLINED_VALUE),
-  TENTATIVE(EventAttendeeResponse.TENTATIVE_VALUE);
+  TENTATIVE(EventAttendeeResponse.TENTATIVE_VALUE),
+  /**
+   * A Yes given while no seat was left on a date of an event with a capacity
+   * limit: the attendee waits for a seat, in the order of the row's response
+   * date. Stored by ordinal like every value here, so it stays last: a value
+   * inserted before it would change the meaning of every stored row.
+   */
+  WAITING(EventAttendeeResponse.WAITING_VALUE);
 
   private static final String NEEDS_ACTION_VALUE = "NEEDS-ACTION";
 
@@ -30,6 +37,8 @@ public enum EventAttendeeResponse {
   private static final String DECLINED_VALUE     = "DECLINED";
 
   private static final String TENTATIVE_VALUE    = "TENTATIVE";
+
+  private static final String WAITING_VALUE      = "WAITING";
 
   private String              value;
 
@@ -51,6 +60,8 @@ public enum EventAttendeeResponse {
         return DECLINED;
       case TENTATIVE_VALUE:
         return TENTATIVE;
+      case WAITING_VALUE:
+        return WAITING;
       default:
         return null;
     }
