@@ -1517,7 +1517,9 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       return Response.status(Status.BAD_REQUEST).entity("Event response is mandatory").build();
     }
     EventAttendeeResponse response = EventAttendeeResponse.fromValue(responseString);
-    if (response == null || response == EventAttendeeResponse.NEEDS_ACTION) {
+    // WAITING is never an answer a caller gives: refused here, before the
+    // occurrence branch below writes anything
+    if (response == null || response == EventAttendeeResponse.NEEDS_ACTION || response == EventAttendeeResponse.WAITING) {
       return Response.status(Status.BAD_REQUEST).entity("Event response is not recognized").build();
     }
     if (upcoming && StringUtils.isBlank(occurrenceId)) {

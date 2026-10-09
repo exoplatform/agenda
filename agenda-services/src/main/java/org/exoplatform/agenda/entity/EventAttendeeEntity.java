@@ -82,6 +82,14 @@ public class EventAttendeeEntity implements Serializable {
   @Column(name = "RESPONSE", nullable = false)
   private EventAttendeeResponse response;
 
+  /**
+   * Instant of the last stored change of {@link #response}, which orders a
+   * waiting list; null on a row whose answer has not changed since the column
+   * was added.
+   */
+  @Column(name = "RESPONSE_DATE")
+  private Date                  responseDate;
+
   public Long getId() {
     return id;
   }
@@ -128,5 +136,13 @@ public class EventAttendeeEntity implements Serializable {
 
   public void setUntilOccurrenceId(Date untilOccurrenceId) {
     this.untilOccurrenceId = untilOccurrenceId;
+  }
+
+  public Date getResponseDate() {
+    return responseDate;
+  }
+
+  public void setResponseDate(Date responseDate) {
+    this.responseDate = responseDate;
   }
 }
