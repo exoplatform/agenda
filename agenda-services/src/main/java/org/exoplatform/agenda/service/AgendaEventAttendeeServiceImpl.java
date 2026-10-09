@@ -201,6 +201,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (response == null) {
       throw new IllegalArgumentException("Attendee response is mandatory");
     }
+    checkNotWaiting(response);
     if (occurrenceId == null) {
       throw new IllegalArgumentException("occurrenceId is mandatory");
     }
@@ -250,6 +251,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (response == null) {
       throw new IllegalArgumentException("Attendee response is mandatory");
     }
+    checkNotWaiting(response);
     if (eventId <= 0) {
       throw new IllegalArgumentException("eventId is mandatory");
     }
@@ -731,7 +733,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     // Create new attendees
     for (EventAttendee eventAttendee : attendeesToCreate) {
       if (resetResponses || eventAttendee.getResponse() == null || eventStatus == EventStatus.TENTATIVE
-          || isOtherAttendeeResponse(eventAttendee, creatorUserId)) {
+          || isOtherAttendeeResponse(eventAttendee, creatorUserId)
+          || isAskedWaiting(eventAttendee, creatorUserId)) {
         eventAttendee.setResponse(EventAttendeeResponse.NEEDS_ACTION);
       }
       attendeeStorage.saveEventAttendee(eventAttendee, eventId);
@@ -755,6 +758,35 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    */
   private boolean isOtherAttendeeResponse(EventAttendee eventAttendee, long creatorUserId) {
     return creatorUserId > 0 && eventAttendee.getIdentityId() != creatorUserId;
+  }
+
+  /**
+   * Whether the user saving the event asks for {@link EventAttendeeResponse#WAITING}
+   * as their own answer. A place on a waiting list is never chosen: it is what
+   * a Yes becomes on a date with no seat left. Rows copied from a series
+   * (creatorUserId 0) keep the answer they had.
+   *
+   * @param eventAttendee {@link EventAttendee} to create
+   * @param creatorUserId {@link Identity} technical identifier of the user
+   *          creating or updating the event, 0 when the attendee isn't saved on
+   *          behalf of a user
+   * @return true when a saver asks for WAITING
+   */
+  private boolean isAskedWaiting(EventAttendee eventAttendee, long creatorUserId) {
+    return creatorUserId > 0 && eventAttendee.getResponse() == EventAttendeeResponse.WAITING;
+  }
+
+  /**
+   * Refuses {@link EventAttendeeResponse#WAITING} as an answer a caller sends:
+   * a place on a waiting list is what a Yes becomes on a date with no seat
+   * left, never an answer of its own.
+   *
+   * @param response the answer the caller sends
+   */
+  private static void checkNotWaiting(EventAttendeeResponse response) {
+    if (response == EventAttendeeResponse.WAITING) {
+      throw new IllegalArgumentException("agenda.response.waitingNotAnAnswer");
+    }
   }
 
   private void processAttendeesToDelete(List<EventAttendee> oldAttendees,

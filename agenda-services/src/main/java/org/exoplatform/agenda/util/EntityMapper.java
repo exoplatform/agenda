@@ -176,6 +176,8 @@ public class EntityMapper {
                      eventEntity.isAllowAttendeeToInvite());
     // Not part of the positional constructor: set explicitly or it is lost
     event.setOpen(eventEntity.isOpen());
+    event.setCapacity(eventEntity.getCapacity());
+    event.setCapacityReachedDate(AgendaDateUtils.fromDate(eventEntity.getCapacityReachedDate()));
     return event;
   }
 
@@ -211,6 +213,10 @@ public class EntityMapper {
     eventEntity.setAllowAttendeeToInvite(event.isAllowAttendeeToInvite());
     eventEntity.setAllowAttendeeToUpdate(event.isAllowAttendeeToUpdate());
     eventEntity.setOpen(Boolean.TRUE.equals(event.getOpen()));
+    // A capacity not specified is no limit: the Service resolves it from the
+    // stored row before an update reaches this point
+    eventEntity.setCapacity(event.getCapacity() == null ? 0 : event.getCapacity());
+    eventEntity.setCapacityReachedDate(AgendaDateUtils.toDate(event.getCapacityReachedDate()));
     eventEntity.setTimeZoneId(eventZoneId.getId());
 
     ZonedDateTime start = event.getStart();
@@ -477,7 +483,8 @@ public class EntityMapper {
                              eventAttendeeEntity.getIdentityId(),
                              AgendaDateUtils.fromDate(eventAttendeeEntity.getFromOccurrenceId()),
                              AgendaDateUtils.fromDate(eventAttendeeEntity.getUntilOccurrenceId()),
-                             eventAttendeeEntity.getResponse());
+                             eventAttendeeEntity.getResponse(),
+                             AgendaDateUtils.fromDate(eventAttendeeEntity.getResponseDate()));
   }
 
   public static EventAttendeeEntity toEntity(EventAttendee eventAttendee) {
@@ -487,6 +494,7 @@ public class EntityMapper {
     eventAttendeeEntity.setResponse(eventAttendee.getResponse());
     eventAttendeeEntity.setFromOccurrenceId(AgendaDateUtils.toDate(eventAttendee.getFromOccurrenceId()));
     eventAttendeeEntity.setUntilOccurrenceId(AgendaDateUtils.toDate(eventAttendee.getUntilOccurrenceId()));
+    eventAttendeeEntity.setResponseDate(AgendaDateUtils.toDate(eventAttendee.getResponseDate()));
     return eventAttendeeEntity;
   }
 

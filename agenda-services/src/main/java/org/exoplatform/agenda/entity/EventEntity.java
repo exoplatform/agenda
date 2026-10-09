@@ -352,6 +352,20 @@ public class EventEntity implements Serializable {
   @Column(name = "IS_OPEN", nullable = false)
   private boolean                   open;
 
+  /**
+   * How many attendees may answer Yes on each date of this row's pool; 0
+   * means no limit. Each stored row carries its own, like {@link #open}.
+   */
+  @Column(name = "CAPACITY", nullable = false)
+  private int                       capacity;
+
+  /**
+   * When a date of this row's pool first reached {@link #capacity}, null
+   * while none has since the capacity was last set.
+   */
+  @Column(name = "CAPACITY_REACHED_DATE")
+  private Date                      capacityReachedDate;
+
   public Long getId() {
     return id;
   }
@@ -555,6 +569,22 @@ public class EventEntity implements Serializable {
 
   public void setOpen(boolean open) {
     this.open = open;
+  }
+
+  public int getCapacity() {
+    return capacity;
+  }
+
+  public void setCapacity(int capacity) {
+    this.capacity = capacity;
+  }
+
+  public Date getCapacityReachedDate() {
+    return capacityReachedDate;
+  }
+
+  public void setCapacityReachedDate(Date capacityReachedDate) {
+    this.capacityReachedDate = capacityReachedDate;
   }
 
 }
