@@ -31,6 +31,7 @@ import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
+import org.exoplatform.agenda.util.DecideContext;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.api.notification.NotificationContext;
 import org.exoplatform.commons.api.notification.command.NotificationCommand;
@@ -79,6 +80,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
 
   private AgendaCalendarService      calendarService;
 
+  private DecideSteps                decideSteps;
+
   public AgendaEventAttendeeServiceImpl(AgendaEventAttendeeStorage attendeeStorage,
                                         AgendaEventStorage eventStorage,
                                         AgendaCalendarService calendarService,
@@ -93,6 +96,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     this.identityManager = identityManager;
     this.spaceService = spaceService;
     this.listenerService = listenerService;
+    this.decideSteps = new DecideSteps(eventStorage);
   }
 
   /**
@@ -105,6 +109,26 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
                                                              boolean sendInvitations,
                                                              boolean resetResponses,
                                                              AgendaEventModification eventModifications) {
+    // The caller hands the event: what is resolved again, when a date moved to
+    // another series meanwhile, is only the series to lock
+    return decideSteps.resolvingAgainOnce(() -> {
+      Event storedEvent = eventStorage.getEventById(event.getId());
+      return decideSteps.decide(DecideSteps.targetOf(storedEvent == null ? event : storedEvent),
+                                () -> writeEventAttendees(event,
+                                                          attendees,
+                                                          creatorUserId,
+                                                          sendInvitations,
+                                                          resetResponses,
+                                                          eventModifications));
+    });
+  }
+
+  private Set<AgendaEventModificationType> writeEventAttendees(Event event,
+                                                               List<EventAttendee> attendees,
+                                                               long creatorUserId,
+                                                               boolean sendInvitations,
+                                                               boolean resetResponses,
+                                                               AgendaEventModification eventModifications) {
     long eventId = event.getId();
     EventStatus eventStatus = event.getStatus();
 
@@ -211,24 +235,30 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (identityId <= 0) {
       throw new IllegalArgumentException("identityId is mandatory");
     }
-    Event event = eventStorage.getEventById(eventId);
-    if (event == null) {
+    try {
+      decideSteps.<Void, ObjectNotFoundException, IllegalAccessException> resolvingAgainOnce(() -> {
+        Event event = eventStorage.getEventById(eventId);
+        if (event == null) {
+          throw new ObjectNotFoundException("Parent event with id " + eventId + " wasn't found");
+        }
+        if (event.getRecurrence() == null) {
+          throw new IllegalStateException("Event with id " + eventId + " isn't recurrent");
+        }
+        checkCanRespond(event, identityId);
+        return decideSteps.decide(DecideSteps.targetOf(event), () -> {
+          writeUpcomingEventResponse(eventId, occurrenceId, identityId, response);
+          return null;
+        });
+      });
+    } catch (ResolveAgainException e) {
       throw new ObjectNotFoundException("Parent event with id " + eventId + " wasn't found");
     }
-    if (event.getRecurrence() == null) {
-      throw new IllegalStateException("Event with id " + eventId + " isn't recurrent");
-    }
-    Identity userIdentity = identityManager.getIdentity(String.valueOf(identityId));
-    if (userIdentity == null) {
-      throw new ObjectNotFoundException("Identity with id " + identityId + " wasn't found");
-    }
+  }
 
-    checkNotSubscribedByAnotherOwner(event, identityId);
-    if (!canRespondToEvent(event, identityId)) {
-      throw new IllegalAccessException("User with identity id " + identityId + " may not answer event with id " + eventId
-          + ": not an attendee, and the event isn't open to them");
-    }
-
+  private void writeUpcomingEventResponse(long eventId,
+                                          ZonedDateTime occurrenceId,
+                                          long identityId,
+                                          EventAttendeeResponse response) {
     saveEventAttendee(eventId, occurrenceId, identityId, response, true);
 
     // Apply modification on exceptional occurrences as well
@@ -255,26 +285,37 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (eventId <= 0) {
       throw new IllegalArgumentException("eventId is mandatory");
     }
-    Event event = eventStorage.getEventById(eventId);
-    if (event == null) {
+    try {
+      decideSteps.<Void, ObjectNotFoundException, IllegalAccessException> resolvingAgainOnce(() -> {
+        Event event = eventStorage.getEventById(eventId);
+        if (event == null) {
+          throw new ObjectNotFoundException("Parent event with id " + eventId + " wasn't found");
+        }
+        checkCanRespond(event, identityId);
+        return decideSteps.decide(DecideSteps.targetOf(event), () -> {
+          writeEventResponse(eventId, identityId, response, broadcast);
+          return null;
+        });
+      });
+    } catch (ResolveAgainException e) {
       throw new ObjectNotFoundException("Parent event with id " + eventId + " wasn't found");
     }
+  }
+
+  private void checkCanRespond(Event event, long identityId) throws ObjectNotFoundException, IllegalAccessException {
     Identity userIdentity = identityManager.getIdentity(String.valueOf(identityId));
     if (userIdentity == null) {
       throw new ObjectNotFoundException("Identity with id " + identityId + " wasn't found");
     }
-
     checkNotSubscribedByAnotherOwner(event, identityId);
     if (!canRespondToEvent(event, identityId)) {
-      throw new IllegalAccessException("User with identity id " + identityId + " may not answer event with id " + eventId
+      throw new IllegalAccessException("User with identity id " + identityId + " may not answer event with id " + event.getId()
           + ": not an attendee, and the event isn't open to them");
     }
+  }
 
+  private void writeEventResponse(long eventId, long identityId, EventAttendeeResponse response, boolean broadcast) {
     boolean isRecurrentEvent = eventStorage.isRecurrentEvent(eventId);
-    if (isRecurrentEvent) {
-
-    }
-
     saveEventAttendee(eventId, identityId, response, broadcast);
 
     // Apply modification on exceptional occurrences as well
@@ -673,10 +714,15 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       }
     }
 
+    if (commands.isEmpty() || DecideContext.queue(() -> execute(ctx, commands))) {
+      return;
+    }
+    execute(ctx, commands);
+  }
+
+  private void execute(NotificationContext ctx, List<NotificationCommand> commands) {
     try {
-      if (!commands.isEmpty()) {
-        ctx.getNotificationExecutor().with(commands).execute(ctx);
-      }
+      ctx.getNotificationExecutor().with(commands).execute(ctx);
     } catch (Exception e) {
       LOG.warn("Error sending invitation notifications", e);
     }
