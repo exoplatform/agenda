@@ -262,6 +262,31 @@ class AgendaScheduleConflictServiceImplTest {
                                          eq(USER));
   }
 
+  /**
+   * A calendar somebody shared with the user holds nobody's commitment of the
+   * user's (EXO-91169). The event service reads every shared calendar when the
+   * filter names no calendar (null), and none when it names an empty list: a
+   * long event of a shared calendar would otherwise overlap the user's own,
+   * separate events and chain them into one clash.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void aCalendarSharedWithTheUserNeverEntersAClash() throws Exception {
+    Event shared = event(at(8), at(18));
+    Event first = event(at(9), at(10));
+    Event second = event(at(12), at(13));
+    when(agendaEventService.getEvents(any(), any(), anyLong())).thenAnswer(invocation -> {
+      EventFilter filter = invocation.getArgument(0);
+      return filter.getCalendarIds() == null ? List.of(shared, first, second) : List.of(first, second);
+    });
+
+    assertTrue(conflicts().isEmpty());
+    verify(agendaEventService).getEvents(argThat(filter -> filter.getCalendarIds() != null && filter.getCalendarIds().isEmpty()),
+                                         eq(ZoneOffset.UTC),
+                                         eq(USER));
+  }
+
   // --- what is deliberately not a conflict ------------------------------------
 
   @Test
