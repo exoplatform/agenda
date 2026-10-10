@@ -22,6 +22,12 @@ import static org.mockito.Mockito.*;
 
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -33,6 +39,7 @@ import org.exoplatform.agenda.entity.CalendarEntity;
 import org.exoplatform.agenda.entity.EventEntity;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.storage.cached.CachedAgendaEventStorage;
+import org.exoplatform.agenda.util.DecideContext;
 import org.exoplatform.services.cache.CacheService;
 import org.exoplatform.services.cache.concurrent.ConcurrentFIFOExoCache;
 
@@ -108,6 +115,111 @@ public class CachedAgendaEventStorageTest {
     // The event of the untouched calendar must still be served from the cache
     agendaEventStorage.getEventById(otherEventId);
     verify(eventDAO, times(1)).find(otherEventId);
+  }
+
+  /**
+   * While a decide step runs on the thread, an event is read from the
+   * database on every read, the cache is neither read nor filled, and the
+   * event is recorded for its eviction once the step's transaction ends.
+   */
+  @Test
+  public void testAnEventReadDuringADecideStepBypassesTheCache() {
+    long eventId = 10L;
+    when(eventDAO.find(eventId)).thenReturn(newEventEntity(eventId, 1L));
+    agendaEventStorage.getEventById(eventId);
+    verify(eventDAO, times(1)).find(eventId);
+
+    DecideContext context = DecideContext.open();
+    try {
+      when(eventDAO.find(eventId)).thenReturn(newEventEntity(eventId, 2L));
+      assertEquals("a read inside a decide step was served from the cache",
+                   2L,
+                   agendaEventStorage.getEventById(eventId).getCalendarId());
+      agendaEventStorage.getEventById(eventId);
+      verify(eventDAO, times(3)).find(eventId);
+      assertTrue(context.getEventIds().contains(eventId));
+    } finally {
+      context.close();
+    }
+
+    assertEquals("a read inside a decide step replaced the cached entry",
+                 1L,
+                 agendaEventStorage.getEventById(eventId).getCalendarId());
+    verify(eventDAO, times(3)).find(eventId);
+  }
+
+  /**
+   * An event written while a decide step runs is recorded, for its eviction
+   * again once the step's transaction has ended: another thread may have put
+   * back the committed row the write replaces meanwhile.
+   */
+  @Test
+  public void testAnEventWrittenDuringADecideStepIsRecordedForEviction() {
+    long eventId = 10L;
+    EventEntity eventEntity = newEventEntity(eventId, 1L);
+    when(eventDAO.find(eventId)).thenReturn(eventEntity);
+    when(eventDAO.update(any())).thenReturn(eventEntity);
+    Event event = agendaEventStorage.getEventById(eventId);
+
+    DecideContext context = DecideContext.open();
+    try {
+      agendaEventStorage.updateEvent(event);
+      assertTrue(context.getEventIds().contains(eventId));
+    } finally {
+      context.close();
+    }
+  }
+
+  /**
+   * The eviction a decide step publishes once its transaction has ended
+   * removes the cached entry, so that the next read loads the committed row.
+   */
+  @Test
+  public void testTheEvictionsOfADecideStepRemoveTheCachedEntries() {
+    long eventId = 10L;
+    when(eventDAO.find(eventId)).thenReturn(newEventEntity(eventId, 1L));
+    agendaEventStorage.getEventById(eventId);
+
+    when(eventDAO.find(eventId)).thenReturn(newEventEntity(eventId, 2L));
+    agendaEventStorage.evictEvents(Set.of(eventId));
+
+    assertEquals(2L, agendaEventStorage.getEventById(eventId).getCalendarId());
+    verify(eventDAO, times(2)).find(eventId);
+  }
+
+  /**
+   * The eviction a decide step publishes also stops a load of the event in
+   * flight when it runs from putting its result in the cache: that load read
+   * the row before the step committed, and the next read loads the committed
+   * row.
+   *
+   * @throws Exception when the loading thread fails
+   */
+  @Test
+  public void testTheEvictionsOfADecideStepStopALoadInFlightFromCachingItsResult() throws Exception {
+    long eventId = 10L;
+    CountDownLatch loading = new CountDownLatch(1);
+    CountDownLatch evicted = new CountDownLatch(1);
+    when(eventDAO.find(eventId)).thenAnswer(invocation -> {
+      loading.countDown();
+      assertTrue("the eviction did not run", evicted.await(10, TimeUnit.SECONDS));
+      return newEventEntity(eventId, 1L);
+    }).thenReturn(newEventEntity(eventId, 2L));
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      Future<Event> loadInFlight = executor.submit(() -> agendaEventStorage.getEventById(eventId));
+      assertTrue("the load did not start", loading.await(10, TimeUnit.SECONDS));
+      agendaEventStorage.evictEvents(Set.of(eventId));
+      evicted.countDown();
+      assertEquals(1L, loadInFlight.get(10, TimeUnit.SECONDS).getCalendarId());
+    } finally {
+      executor.shutdownNow();
+    }
+
+    assertEquals("a load in flight during the eviction cached the row it read before the step committed",
+                 2L,
+                 agendaEventStorage.getEventById(eventId).getCalendarId());
+    verify(eventDAO, times(2)).find(eventId);
   }
 
   /**

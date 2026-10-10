@@ -594,6 +594,52 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
+  /**
+   * Reads the exceptional occurrences of a recurrent event in one statement,
+   * ordered by start date, with their recurrence fetched.
+   *
+   * @param parentRecurrentEventId a parent recurrent event technical
+   *          identifier
+   * @return {@link List} of its exceptional occurrence rows
+   */
+  public List<EventEntity> getExceptionalOccurences(long parentRecurrentEventId) {
+    TypedQuery<EventEntity> query = getEntityManager().createNamedQuery("AgendaEvent.getExceptionalOccurences",
+                                                                        EventEntity.class);
+    query.setParameter("parentEventId", parentRecurrentEventId);
+    List<EventEntity> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
+  }
+
+  /**
+   * Locks an event row with a pessimistic write lock ({@code SELECT … FOR
+   * UPDATE}), held until the current transaction ends. It requires an active
+   * transaction, and every lock of the transaction must come before its first
+   * plain read: on MySQL and MariaDB, a plain read fixes the snapshot the
+   * following reads see. So it reads the row's identifier only, and loads no
+   * entity whose eager associations would be read right after it.
+   *
+   * @param eventId event technical identifier
+   * @return whether the row exists, and so is locked
+   */
+  public boolean lockEvent(long eventId) {
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.lockEvent", Long.class);
+    query.setParameter("eventId", eventId);
+    query.setLockMode(LockModeType.PESSIMISTIC_WRITE);
+    List<Long> resultList = query.getResultList();
+    return resultList != null && !resultList.isEmpty();
+  }
+
+  /**
+   * Writes the pending changes of the thread's persistence context, then
+   * detaches every entity it holds, so that the next read loads its rows
+   * afresh.
+   */
+  public void flushAndClear() {
+    EntityManager entityManager = getEntityManager();
+    entityManager.flush();
+    entityManager.clear();
+  }
+
   public void deleteExceptionalOccurences(long parentRecurrentEventId) {
     List<Long> result = getExceptionalOccurenceIds(parentRecurrentEventId);
     for (Long id : result) {

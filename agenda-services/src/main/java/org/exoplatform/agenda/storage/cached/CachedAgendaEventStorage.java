@@ -16,11 +16,13 @@
 */
 package org.exoplatform.agenda.storage.cached;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.exoplatform.agenda.dao.*;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
+import org.exoplatform.agenda.util.DecideContext;
 import org.exoplatform.commons.cache.future.FutureExoCache;
 import org.exoplatform.commons.cache.future.Loader;
 import org.exoplatform.services.cache.*;
@@ -54,16 +56,43 @@ public class CachedAgendaEventStorage extends AgendaEventStorage {
     }, eventCache);
   }
 
+  /**
+   * {@inheritDoc} While a decide step runs on the thread, the event is read
+   * from the database, after the step's lock, and the cache is neither read
+   * nor filled: the loader would store at once, for every thread of the node,
+   * a row the step's transaction has not committed yet, and an entry another
+   * thread put back after the step's own eviction would be stale. The event is
+   * recorded instead, and evicted once the step's transaction ends.
+   */
   @Override
   public Event getEventById(long eventId) {
+    if (DecideContext.current() != null) {
+      DecideContext.recordEvent(eventId);
+      return super.getEventById(eventId);
+    }
     Event event = this.eventFutureCache.get(null, eventId);
     return event == null ? null : event.clone();
+  }
+
+  @Override
+  public List<Event> getExceptionalOccurrences(long parentRecurrentEventId) {
+    List<Event> exceptionalOccurrences = super.getExceptionalOccurrences(parentRecurrentEventId);
+    exceptionalOccurrences.forEach(exceptionalOccurrence -> DecideContext.recordEvent(exceptionalOccurrence.getId()));
+    return exceptionalOccurrences;
+  }
+
+  @Override
+  public Event createEvent(Event event) {
+    Event createdEvent = super.createEvent(event);
+    DecideContext.recordEvent(createdEvent.getId());
+    return createdEvent;
   }
 
   @Override
   public Event updateEvent(Event event) {
     Event updatedEvent = super.updateEvent(event);
     this.eventFutureCache.remove(event.getId());
+    DecideContext.recordEvent(event.getId());
     return updatedEvent;
   }
 
@@ -71,12 +100,26 @@ public class CachedAgendaEventStorage extends AgendaEventStorage {
   public void deleteEventById(long eventId) {
     super.deleteEventById(eventId);
     this.eventFutureCache.remove(eventId);
+    DecideContext.recordEvent(eventId);
   }
 
   @Override
   public void deleteEventAfterRead(long eventId) {
     super.deleteEventAfterRead(eventId);
     this.eventFutureCache.remove(eventId);
+    DecideContext.recordEvent(eventId);
+  }
+
+  /**
+   * {@inheritDoc} A load in flight, started before the transaction ended, is
+   * forgotten as well, so that it cannot put back the state it read then.
+   */
+  @Override
+  public void evictEvents(Collection<Long> eventIds) {
+    for (Long eventId : eventIds) {
+      this.eventFutureCache.removeFuture(eventId);
+      this.eventFutureCache.remove(eventId);
+    }
   }
 
   @Override
@@ -129,6 +172,7 @@ public class CachedAgendaEventStorage extends AgendaEventStorage {
     if (exceptionalEventIds != null) {
       for (Long exceptionalEventId : exceptionalEventIds) {
         this.eventFutureCache.remove(exceptionalEventId);
+        DecideContext.recordEvent(exceptionalEventId);
       }
     }
     return exceptionalEventIds;
