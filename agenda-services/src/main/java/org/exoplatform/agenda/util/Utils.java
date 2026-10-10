@@ -566,7 +566,20 @@ public class Utils {
     return canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId);
   }
 
+  /**
+   * Broadcasts an event, or, while a decide step runs on the thread, queues it
+   * for after that step's transaction has committed: a listener that reads the
+   * state back must see it committed.
+   *
+   * @param listenerService the listener service
+   * @param eventName the event name
+   * @param source the event source
+   * @param data the event data
+   */
   public static void broadcastEvent(ListenerService listenerService, String eventName, Object source, Object data) {
+    if (DecideContext.queue(() -> broadcastEvent(listenerService, eventName, source, data))) {
+      return;
+    }
     try {
       listenerService.broadcast(eventName, source, data);
     } catch (Exception e) {
