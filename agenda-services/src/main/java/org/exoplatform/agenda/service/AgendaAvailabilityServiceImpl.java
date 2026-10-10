@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -468,6 +469,11 @@ public class AgendaAvailabilityServiceImpl implements AgendaAvailabilityService 
     // target's own accepted meetings out of the window and have this service
     // report booked hours as free.
     filter.setSubscribedCalendarsExcluded(true);
+    // Nor are the calendars other people shared with the target (EXO-91169): null
+    // would add every one of them to the read, and an event of a shared
+    // calendar is not the target's commitment. An empty list reads the target's own
+    // events only: organised or accepted, in any calendar.
+    filter.setCalendarIds(Collections.emptyList());
     List<Event> events = agendaEventService.getEvents(filter, TIMEZONE, targetIdentityId);
     List<TimeBlock> blocks = new ArrayList<>();
     for (Event event : events) {

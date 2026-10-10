@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
@@ -116,6 +117,11 @@ public class AgendaScheduleConflictServiceImpl implements AgendaScheduleConflict
     // and occupiesTime() drops it - but only after CONFLICT_QUERY_LIMIT has
     // been spent on it, which would cost a real clash its place in the answer.
     filter.setSubscribedCalendarsExcluded(true);
+    // Nor are the calendars other people shared with the user (EXO-91169): null
+    // would add every one of them to the read, and an event of a shared
+    // calendar is not the user's commitment. An empty list reads the user's own
+    // events only: organised or accepted, in any calendar.
+    filter.setCalendarIds(Collections.emptyList());
     List<Event> events = agendaEventService.getEvents(filter, TIMEZONE, userIdentityId);
     if (events == null) {
       return new ScheduleConflicts(List.of(), false);
