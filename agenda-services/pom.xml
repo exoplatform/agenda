@@ -145,6 +145,7 @@
             <java.naming.factory.initial>org.exoplatform.services.naming.SimpleContextFactory</java.naming.factory.initial>
             <java.util.logging.config.class>org.exoplatform.services.log.impl.SimpleExoLogConfigurator</java.util.logging.config.class>
             <exo.profiles>hsqldb</exo.profiles>
+            <hibernate.session_factory.statement_inspector>org.exoplatform.agenda.service.RecordingStatementInspector</hibernate.session_factory.statement_inspector>
             <com.arjuna.ats.arjuna.objectstore.objectStoreDir>${project.build.directory}</com.arjuna.ats.arjuna.objectstore.objectStoreDir>
             <ObjectStoreEnvironmentBean.objectStoreDir>${project.build.directory}</ObjectStoreEnvironmentBean.objectStoreDir>
             <gatein.test.tmp.dir>${project.build.directory}</gatein.test.tmp.dir>

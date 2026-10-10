@@ -28,6 +28,23 @@ import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;
 
 public class EventAttendeeDAO extends GenericDAOJPAImpl<EventAttendeeEntity, Long> {
 
+  /**
+   * Deletes an attendee row and sends the delete at once. A decide step that
+   * replaces an answer deletes a row and inserts one with the same key in its
+   * one transaction: without the flush, the insert would reach the database
+   * first. On an identity column (MySQL) Hibernate sends the insert when the
+   * row is persisted, and on a sequence it sends a flush's inserts before its
+   * deletes.
+   *
+   * @param entity the attendee row to delete
+   */
+  @Override
+  @ExoTransactional
+  public void delete(EventAttendeeEntity entity) {
+    super.delete(entity);
+    getEntityManager().flush();
+  }
+
   @ExoTransactional
   public void deleteCalendarAttendees(long calendarId) {
     Query deleteEventsQuery = getEntityManager().createNamedQuery("AgendaEventAttendee.deleteCalendarAttendees");
