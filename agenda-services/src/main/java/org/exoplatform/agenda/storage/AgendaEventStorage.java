@@ -18,6 +18,8 @@ package org.exoplatform.agenda.storage;
 
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -230,6 +232,55 @@ public class AgendaEventStorage {
   public List<Long> getExceptionalOccurenceIds(long parentRecurrentEventId, ZonedDateTime occurrenceId) {
     return eventDAO.getExceptionalOccurenceIdsByStart(parentRecurrentEventId,
                                                       AgendaDateUtils.toDate(occurrenceId));
+  }
+
+  /**
+   * Reads the exceptional occurrences of a recurrent event in one statement,
+   * ordered by start date.
+   *
+   * @param parentRecurrentEventId a parent recurrent {@link Event} technical
+   *          identifier
+   * @return {@link List} of its exceptional occurrence events
+   */
+  public List<Event> getExceptionalOccurrences(long parentRecurrentEventId) {
+    return eventDAO.getExceptionalOccurences(parentRecurrentEventId)
+                   .stream()
+                   .map(EntityMapper::fromEntity)
+                   .collect(Collectors.toList());
+  }
+
+  /**
+   * Locks event rows until the current transaction ends, as its first reads:
+   * every row is locked before any of them is read. The persistence context
+   * is flushed then cleared first, so that no entity loaded before the lock
+   * is served after it with the state it had then. The rows are locked in
+   * ascending identifier order, so that two transactions locking the same
+   * rows cannot deadlock.
+   *
+   * @param eventIds the technical identifiers of the events to lock
+   * @return whether every row exists, and so is locked; false as soon as one
+   *         does not
+   */
+  public boolean lockEvents(long... eventIds) {
+    eventDAO.flushAndClear();
+    long[] sortedEventIds = eventIds.clone();
+    Arrays.sort(sortedEventIds);
+    for (long eventId : sortedEventIds) {
+      if (!eventDAO.lockEvent(eventId)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Evicts events from the cache this storage reads through, once the
+   * transaction that read or wrote them has ended. This storage has no cache.
+   *
+   * @param eventIds the technical identifiers of the events to evict
+   */
+  public void evictEvents(Collection<Long> eventIds) {
+    // No cache to evict from
   }
 
   public Event createEvent(Event event) {
