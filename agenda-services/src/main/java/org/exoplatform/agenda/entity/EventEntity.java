@@ -70,8 +70,15 @@ import jakarta.persistence.Table;
 @NamedQuery(
     name = "AgendaEvent.getExceptionalOccurences",
     query = "SELECT ev FROM AgendaEvent ev"
+        + " LEFT JOIN FETCH ev.recurrence"
         + " WHERE ev.parent.id = :parentEventId"
         + " AND ev.occurrenceId IS NOT NULL"
+        + " ORDER BY ev.startDate ASC"
+)
+@NamedQuery(
+    name = "AgendaEvent.lockEvent",
+    query = "SELECT ev.id FROM AgendaEvent ev"
+        + " WHERE ev.id = :eventId"
 )
 @NamedQuery(
     name = "AgendaEvent.getChildEvents",
