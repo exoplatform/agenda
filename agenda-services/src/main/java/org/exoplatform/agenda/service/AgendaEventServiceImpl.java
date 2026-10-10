@@ -35,6 +35,7 @@ import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.search.AgendaSearchConnector;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.AgendaDateUtils;
+import org.exoplatform.agenda.util.DecideContext;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.services.listener.ListenerService;
@@ -83,6 +84,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   private CalendarSubscriptionAccess   calendarSubscriptionAccess = new CalendarSubscriptionAccess();
 
+  private DecideSteps                  decideSteps;
+
   public AgendaEventServiceImpl(AgendaCalendarService agendaCalendarService,
                                 AgendaEventAttendeeService attendeeService,
                                 AgendaEventConferenceService conferenceService,
@@ -107,6 +110,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     this.spaceService = spaceService;
     this.listenerService = listenerService;
     this.metadataService = metadataService;
+    this.decideSteps = new DecideSteps(agendaEventStorage);
   }
 
   /**
@@ -684,8 +688,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                          List<EventConference> previousSeriesConferences,
                                                          long modifierIdentityId) {
     long seriesId = updatedSeries.getId();
-    List<Long> occurrenceEventIds = agendaEventStorage.getExceptionalOccurenceIds(seriesId);
-    if (CollectionUtils.isEmpty(occurrenceEventIds)) {
+    List<Event> occurrences = readExceptionalOccurrences(seriesId);
+    if (occurrences.isEmpty()) {
       return;
     }
     // The series as the rows were cloned from it: a row equal to it carries
@@ -724,9 +728,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // Read once: every occurrence lives in the calendar of its series, and the
     // open invariant is evaluated against it for each of them below
     Calendar seriesCalendar = agendaCalendarService.getCalendarById(updatedSeries.getCalendarId());
-    for (Long occurrenceEventId : occurrenceEventIds) {
-      Event occurrence = agendaEventStorage.getEventById(occurrenceEventId);
-      if (occurrence == null || occurrence.getOccurrence() == null || occurrence.getOccurrence().getId() == null) {
+    for (Event occurrence : occurrences) {
+      long occurrenceEventId = occurrence.getId();
+      if (occurrence.getOccurrence() == null || occurrence.getOccurrence().getId() == null) {
         continue;
       }
       Event occurrenceBeforeMerge = occurrence.clone();
@@ -1165,20 +1169,33 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new IllegalAccessException("User " + userIdentityId + " is not allowed to move the exceptional occurrences of event "
           + fromEventId + " under event " + toEventId);
     }
-    if (fromEventId == toEventId || fromSeries.getRecurrence() == null || toSeries.getRecurrence() == null
-        || fromSeries.getParentId() > 0 || toSeries.getParentId() > 0
-        || fromSeries.getCalendarId() != toSeries.getCalendarId()) {
-      throw new IllegalArgumentException("agenda.seriesSplit.notAllowed");
+    checkSeriesSplit(fromSeries, toSeries);
+    // Both series are locked, in ascending identifier order, so that two moves
+    // between them cannot deadlock
+    try {
+      return decideSteps.decide(DecideSteps.targetOfSeries(fromEventId, toEventId),
+                                () -> writeMovedExceptionalOccurrences(fromEventId, toEventId, fromDate, userIdentityId));
+    } catch (ResolveAgainException e) {
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
     }
+  }
+
+  private List<Long> writeMovedExceptionalOccurrences(long fromEventId,
+                                                      long toEventId,
+                                                      ZonedDateTime fromDate,
+                                                      long userIdentityId) {
+    Event fromSeries = agendaEventStorage.getEventById(fromEventId);
+    Event toSeries = agendaEventStorage.getEventById(toEventId);
+    checkSeriesSplit(fromSeries, toSeries);
     // The occurrence tolerance rather than the UTC day: on the night daylight
     // saving starts, two daily dates 23 hours apart can share a UTC day, and
     // the one before the split, which the first series keeps producing, would
     // move and be dropped by a continuation that does not produce it
     ZonedDateTime firstOccurrence = fromDate.minusHours(12);
     List<Long> movedIds = new ArrayList<>();
-    for (Long rowId : agendaEventStorage.getExceptionalOccurenceIds(fromEventId)) {
-      Event row = agendaEventStorage.getEventById(rowId);
-      if (row == null || row.getOccurrence() == null || row.getOccurrence().getId() == null
+    for (Event row : readExceptionalOccurrences(fromEventId)) {
+      long rowId = row.getId();
+      if (row.getOccurrence() == null || row.getOccurrence().getId() == null
           || row.getOccurrence().getId().isBefore(firstOccurrence)) {
         continue;
       }
@@ -1217,6 +1234,40 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   /**
+   * Refuses a move of dates between two events that are not two distinct
+   * series of one calendar.
+   *
+   * @param fromSeries the series the dates move away from
+   * @param toSeries the series receiving them
+   */
+  private static void checkSeriesSplit(Event fromSeries, Event toSeries) {
+    if (fromSeries.getId() == toSeries.getId() || fromSeries.getRecurrence() == null || toSeries.getRecurrence() == null
+        || fromSeries.getParentId() > 0 || toSeries.getParentId() > 0
+        || fromSeries.getCalendarId() != toSeries.getCalendarId()) {
+      throw new IllegalArgumentException("agenda.seriesSplit.notAllowed");
+    }
+  }
+
+  /**
+   * Reads the exceptional occurrences of a series, ordered by start date.
+   * While a decide step runs, they are read after its lock in one query, the
+   * event cache being bypassed anyway; otherwise each through the cache.
+   *
+   * @param seriesId the series technical identifier
+   * @return its exceptional occurrences
+   */
+  private List<Event> readExceptionalOccurrences(long seriesId) {
+    if (DecideContext.current() != null) {
+      return agendaEventStorage.getExceptionalOccurrences(seriesId);
+    }
+    return agendaEventStorage.getExceptionalOccurenceIds(seriesId)
+                             .stream()
+                             .map(agendaEventStorage::getEventById)
+                             .filter(Objects::nonNull)
+                             .toList();
+  }
+
+  /**
    * After a split, one row per date under the continuing series. The series
    * may already hold its own row for a date a kept row moved to: its creation
    * broadcasts {@code exo.agenda.event.created}, and the reminder computing
@@ -1234,12 +1285,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     List<Event> keptRows = keptIds.stream().map(agendaEventStorage::getEventById).filter(Objects::nonNull).toList();
     OccurrenceLists seriesLists = null;
-    for (Long otherId : agendaEventStorage.getExceptionalOccurenceIds(toSeries.getId())) {
-      if (keptIds.contains(otherId)) {
-        continue;
-      }
-      Event other = agendaEventStorage.getEventById(otherId);
-      if (other == null || other.getOccurrence() == null || other.getOccurrence().getId() == null) {
+    for (Event other : readExceptionalOccurrences(toSeries.getId())) {
+      long otherId = other.getId();
+      if (keptIds.contains(otherId) || other.getOccurrence() == null || other.getOccurrence().getId() == null) {
         continue;
       }
       ZonedDateTime otherOccurrenceId = other.getOccurrence().getId();
@@ -1281,6 +1329,17 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    */
   @Override
   public Event saveEventExceptionalOccurrence(long eventId, ZonedDateTime occurrenceId) throws AgendaException {
+    // The date's row is found or created under the series' lock, so that two
+    // first writes on one date end on the same row
+    try {
+      return decideSteps.decide(DecideSteps.targetOfSeries(eventId),
+                                () -> findOrCreateEventExceptionalOccurrence(eventId, occurrenceId));
+    } catch (ResolveAgainException e) {
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+    }
+  }
+
+  private Event findOrCreateEventExceptionalOccurrence(long eventId, ZonedDateTime occurrenceId) throws AgendaException {
     Event parentEvent = agendaEventStorage.getEventById(eventId);
     if (parentEvent != null && parentEvent.getRecurrence() != null && occurrenceId != null) {
       occurrenceId = Utils.getOccurrenceId(parentEvent.isAllDay(), occurrenceId, parentEvent.getTimeZoneId());
@@ -1309,6 +1368,19 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    */
   @Override
   public Event createEventExceptionalOccurrence(long eventId,
+                                                List<EventAttendee> attendees,
+                                                List<EventConference> conferences,
+                                                List<EventReminder> reminders,
+                                                ZonedDateTime occurrenceId) throws AgendaException {
+    try {
+      return decideSteps.decide(DecideSteps.targetOfSeries(eventId),
+                                () -> writeEventExceptionalOccurrence(eventId, attendees, conferences, reminders, occurrenceId));
+    } catch (ResolveAgainException e) {
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+    }
+  }
+
+  private Event writeEventExceptionalOccurrence(long eventId,
                                                 List<EventAttendee> attendees,
                                                 List<EventConference> conferences,
                                                 List<EventReminder> reminders,
@@ -2400,6 +2472,25 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (dateOption.getEventId() != eventId) {
       throw new IllegalStateException("Event Date Option with id " + dateOptionId + " has different event id than " + eventId);
     }
+    try {
+      decideSteps.<Void, ObjectNotFoundException, IllegalAccessException> decide(DecideSteps.targetOf(event), () -> {
+        writeSelectedEventDateOption(eventId, dateOption, userIdentityId);
+        return null;
+      });
+    } catch (ResolveAgainException e) {
+      throw new ObjectNotFoundException("Event with id " + eventId + " not found");
+    }
+  }
+
+  private void writeSelectedEventDateOption(long eventId,
+                                            EventDateOption dateOption,
+                                            long userIdentityId) throws ObjectNotFoundException, IllegalAccessException {
+    Event event = agendaEventStorage.getEventById(eventId);
+    if (event.getStatus() != EventStatus.TENTATIVE) {
+      throw new IllegalStateException("Event with id " + eventId + " has a different event status than 'TENTATIVE': "
+          + event.getStatus());
+    }
+    long dateOptionId = dateOption.getId();
     event.setStart(dateOption.getStart());
     event.setEnd(dateOption.getEnd());
     event.setAllDay(dateOption.isAllDay());
