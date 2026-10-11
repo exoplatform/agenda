@@ -1,5 +1,6 @@
 package org.exoplatform.agenda.storage;
 
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -12,6 +13,7 @@ import org.exoplatform.agenda.entity.EventAttendeeEntity;
 import org.exoplatform.agenda.entity.EventEntity;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.model.EventAttendeeList;
+import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.agenda.util.EntityMapper;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.services.listener.ListenerService;
@@ -73,6 +75,30 @@ public class AgendaEventAttendeeStorage {
     return fromAttendeeEntities(eventId, eventAttendeeEntities);
   }
 
+  /**
+   * Reads the rows of an event that have one of the given answers, for a seat
+   * decision: fresh models built from scalar values, never entities of the
+   * persistence context.
+   *
+   * @param eventId event identifier
+   * @param responses the answers to read
+   * @return the rows, in no particular order
+   */
+  public List<EventAttendee> getSeatRows(long eventId, EventAttendeeResponse... responses) {
+    return fromSeatRows(eventId, eventAttendeeDAO.getSeatRows(eventId, responses));
+  }
+
+  /**
+   * Reads the waiting rows of an event in promotion order: earliest answer
+   * date first, then lowest id.
+   *
+   * @param eventId event identifier
+   * @return the waiting rows, in that order
+   */
+  public List<EventAttendee> getWaitingAttendees(long eventId) {
+    return fromSeatRows(eventId, eventAttendeeDAO.getWaitingAttendees(eventId));
+  }
+
   public void removeEventAttendee(long eventAttendeeId) {
     EventAttendeeEntity eventAttendeeEntity = eventAttendeeDAO.find(eventAttendeeId);
     if (eventAttendeeEntity != null) {
@@ -83,6 +109,18 @@ public class AgendaEventAttendeeStorage {
                            eventAttendeeEntity.getEvent().getId(),
                            eventAttendeeId);
     }
+  }
+
+  private List<EventAttendee> fromSeatRows(long eventId, List<Object[]> rows) {
+    return rows.stream()
+               .map(row -> new EventAttendee((Long) row[0],
+                                             eventId,
+                                             (Long) row[1],
+                                             AgendaDateUtils.fromDate((Date) row[2]),
+                                             AgendaDateUtils.fromDate((Date) row[3]),
+                                             (EventAttendeeResponse) row[4],
+                                             AgendaDateUtils.fromDate((Date) row[5])))
+               .collect(Collectors.toList());
   }
 
   private EventAttendeeList fromAttendeeEntities(long eventId, List<EventAttendeeEntity> eventAttendeeEntities) {
