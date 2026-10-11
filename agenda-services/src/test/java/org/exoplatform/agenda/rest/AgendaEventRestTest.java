@@ -23,6 +23,8 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.List;
 
@@ -188,35 +190,31 @@ class AgendaEventRestTest {
     assertEquals("Not allowed to answer this event", response.getEntity());
     Mockito.verify(agendaEventService, Mockito.never()).saveEventExceptionalOccurrence(anyLong(), any());
     Mockito.verify(attendeeService, Mockito.never()).sendEventResponse(anyLong(), anyLong(), any());
+    Mockito.verify(attendeeService, Mockito.never()).sendEventResponse(anyLong(), any(), anyLong(), any(), anyBoolean());
   }
 
   /**
-   * WAITING is never an answer a caller gives: the link is refused with a 400
-   * before anything is read or written, so the "this event only" branch leaves
-   * no exceptional-occurrence row behind.
-   * <p>
-   * The occurrence row is stubbed as written, so that an endpoint which let
-   * WAITING through would reach the Service rather than fail on a missing
-   * row.
-   * <p>
-   * Mutation note: with WAITING removed from the gate, the occurrence row is
-   * written and the Service is called; the status and both
-   * {@code never()} checks fail.
+   * An answer to one date of a series goes to the Service with the date, a
+   * place on the waiting list included, which asks for a seat as a Yes does:
+   * the Service finds or creates the date's row under the lock of the
+   * series, and the endpoint writes no row itself.
    */
   @Test
-  void aWaitingAnswerIsRefusedBeforeAnythingIsWritten() throws Exception {
+  void anAnswerToOneDateIsSentWithItsDateAndWritesNoRowHere() throws Exception {
     Event event = new Event();
     when(agendaEventService.getEventById(EVENT_ID)).thenReturn(event);
     when(attendeeService.canRespondToEvent(event, USER_IDENTITY_ID)).thenReturn(true);
-    Event occurrence = new Event();
-    occurrence.setId(EVENT_ID + 1);
-    when(agendaEventService.saveEventExceptionalOccurrence(anyLong(), any())).thenReturn(occurrence);
 
     Response response = eventRest.sendEventResponse(null, EVENT_ID, "2026-09-18T08:00:00.000Z", "WAITING", false, null, false);
 
-    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    assertEquals(Response.Status.NO_CONTENT.getStatusCode(), response.getStatus());
+    Mockito.verify(attendeeService)
+           .sendEventResponse(EVENT_ID,
+                              ZonedDateTime.of(2026, 9, 18, 8, 0, 0, 0, ZoneOffset.UTC),
+                              USER_IDENTITY_ID,
+                              EventAttendeeResponse.WAITING,
+                              true);
     Mockito.verify(agendaEventService, Mockito.never()).saveEventExceptionalOccurrence(anyLong(), any());
-    Mockito.verify(attendeeService, Mockito.never()).sendEventResponse(anyLong(), anyLong(), any());
   }
 
   @Test

@@ -3307,16 +3307,16 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   /**
    * An event is created without a capacity limit, and a save that states
    * neither the capacity nor its reached marker keeps the stored ones:
-   * {@code updateEvent} rebuilds the row it writes positionally, and neither
-   * field is part of that constructor, so without its explicit copy any edit
-   * of the title would remove the limit and forget the marker. The caller
-   * shape is caldav-integration's inbound sync, which builds a fresh Event.
+   * {@code updateEvent} rebuilds the row it writes positionally, and the
+   * capacity is not part of that constructor, so without its explicit copy
+   * any edit of the title would remove the limit; the marker is not written
+   * by a save of the row at all. The caller shape is caldav-integration's
+   * inbound sync, which builds a fresh Event.
    * <p>
-   * The limit and the marker are seeded through the storage: no Service path
-   * writes them yet.
+   * The limit is seeded through the storage: no Service path writes it yet.
    * <p>
-   * Mutation note: with either copy line removed from {@code updateEvent}, the
-   * matching assertion after the save fails.
+   * Mutation note: with the capacity copy line removed from
+   * {@code updateEvent}, the limit assertion after the save fails.
    *
    * @throws Exception when the save fails
    */
@@ -3334,8 +3334,8 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     ZonedDateTime reached = ZonedDateTime.now(ZoneOffset.UTC).withNano(0);
     Event seeded = agendaEventStorage.getEventById(eventId);
     seeded.setCapacity(12);
-    seeded.setCapacityReachedDate(reached);
     agendaEventStorage.updateEvent(seeded);
+    saveCapacityReachedDate(eventId, reached);
 
     Event event = agendaEventService.getEventById(eventId, null, creatorIdentityId);
     event.setSummary("Renamed");
@@ -3371,8 +3371,9 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
     Event seeded = agendaEventStorage.getEventById(seriesId);
     seeded.setCapacity(12);
-    seeded.setCapacityReachedDate(ZonedDateTime.now(ZoneOffset.UTC).withNano(0));
     agendaEventStorage.updateEvent(seeded);
+    saveCapacityReachedDate(seriesId, ZonedDateTime.now(ZoneOffset.UTC).withNano(0));
+    assertNotNull("the series is marked", agendaEventService.getEventById(seriesId).getCapacityReachedDate());
 
     Event occurrence = agendaEventService.createEventExceptionalOccurrence(seriesId, null, null, null, start.plusDays(1));
 
@@ -6106,15 +6107,15 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
    * An identifier on a date the series has, at another time of day, is still
    * an amendment of that date.
    * <p>
-   * The date check matches on the UTC date, not on the instant, and this is
-   * the half of it that a match on the instant alone would refuse. It is not a
+   * The date check matches on the date, not on the instant, and this is the
+   * half of it that a match on the instant alone would refuse. It is not a
    * looseness: it is the granularity the rest of the machinery already works
-   * at — {@code getExceptionalOccurrenceEvent} queries the identifier's UTC
-   * day, and {@code filterExceptionalEvents} matches on the UTC date before
-   * anything else — which is why such a row still replaces the computed
+   * at — {@code getExceptionalOccurrenceEvent} finds a date's row by the date
+   * it designates, and {@code filterExceptionalEvents} matches on the UTC date
+   * before anything else — which is why such a row still replaces the computed
    * occurrence rather than being added beside it, asserted here through the
-   * organiser's own listing. {@code filterExceptionalEvents} names the case in
-   * its own comment: an identifier computed by the previous algorithm.
+   * organiser's own listing. {@code isSameOccurrenceDate} names the case: an
+   * identifier computed by the previous algorithm.
    *
    * @throws Exception when a service call fails unexpectedly
    */

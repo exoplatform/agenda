@@ -81,6 +81,16 @@ import jakarta.persistence.Table;
         + " WHERE ev.id = :eventId"
 )
 @NamedQuery(
+    name = "AgendaEvent.getCapacityReachedDate",
+    query = "SELECT ev.capacityReachedDate FROM AgendaEvent ev"
+        + " WHERE ev.id = :eventId"
+)
+@NamedQuery(
+    name = "AgendaEvent.saveCapacityReachedDate",
+    query = "UPDATE AgendaEvent ev SET ev.capacityReachedDate = :capacityReachedDate"
+        + " WHERE ev.id = :eventId"
+)
+@NamedQuery(
     name = "AgendaEvent.getChildEvents",
     query = "SELECT ev.id FROM AgendaEvent ev"
         + " WHERE ev.parent.id = :parentEventId"
@@ -367,10 +377,13 @@ public class EventEntity implements Serializable {
   private int                       capacity;
 
   /**
-   * When a date of this row's pool first reached {@link #capacity}, null
-   * while none has since the capacity was last set.
+   * When this row's pool was marked as having reached {@link #capacity}, null
+   * while it is not marked. Only written when the row is created and by the
+   * targeted update {@code AgendaEvent.saveCapacityReachedDate}: a save of the
+   * whole row, which reads it without the event's lock, would write back a
+   * mark set or cleared meanwhile under that lock.
    */
-  @Column(name = "CAPACITY_REACHED_DATE")
+  @Column(name = "CAPACITY_REACHED_DATE", updatable = false)
   private Date                      capacityReachedDate;
 
   public Long getId() {
