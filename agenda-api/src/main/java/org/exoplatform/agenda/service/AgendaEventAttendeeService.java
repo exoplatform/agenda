@@ -241,6 +241,55 @@ public interface AgendaEventAttendeeService {
                                 boolean broadcast) throws ObjectNotFoundException, IllegalAccessException;
 
   /**
+   * Sends an event response for one date of a series, or for the whole event
+   * when no date is given. The date's own row is found, or created as a copy
+   * of the series when the date has none, under the lock of the series, then
+   * answered: a caller never creates the row itself before answering.
+   * <p>
+   * On an event with a capacity limit, a Yes, or
+   * {@link EventAttendeeResponse#WAITING} which asks for the same, is stored
+   * as a Yes when a seat is free at the date or the attendee already holds
+   * one, and as {@link EventAttendeeResponse#WAITING} otherwise.
+   *
+   * @param eventId Technical identifier of the series, or of the event when
+   *          no date is given
+   * @param occurrenceId occurrence id of the date answered, null to answer
+   *          every date of the event
+   * @param identityId {@link Identity} technical identifier of user
+   * @param response User response of type {@link EventAttendeeResponse} to the
+   *          event. The value {@link EventAttendeeResponse#NEEDS_ACTION} isn't
+   *          allowed.
+   * @param broadcast whether the answer is reported as sent by the user
+   * @return the answer stored, and the first date it left waiting
+   * @throws ObjectNotFoundException when event with provided identifier doesn't
+   *           exists
+   * @throws IllegalAccessException when the user may not answer the event: not
+   *           an attendee, and the event isn't open to them (see
+   *           {@link #canRespondToEvent(Event, long)})
+   */
+  EventResponseOutcome sendEventResponse(long eventId,
+                                         ZonedDateTime occurrenceId,
+                                         long identityId,
+                                         EventAttendeeResponse response,
+                                         boolean broadcast) throws ObjectNotFoundException, IllegalAccessException;
+
+  /**
+   * Starts every answer of an event over, as a change of its dates does: each
+   * attendee's answer becomes {@link EventAttendeeResponse#NEEDS_ACTION}, a
+   * place on the waiting list included, on the event and, for a series, on
+   * the rows of its dates. A reset frees no seat: nobody is promoted, and no
+   * answer is reported as sent by its attendee. The pools forget that they
+   * reached their capacity.
+   *
+   * @param eventId Technical identifier of {@link Event}
+   * @param keptIdentityIds identities whose answer is kept, typically the
+   *          user who made the change
+   * @throws ObjectNotFoundException when event with provided identifier doesn't
+   *           exists
+   */
+  void resetEventResponses(long eventId, Set<Long> keptIdentityIds) throws ObjectNotFoundException;
+
+  /**
    * Checks whether the user is an attendee of the event or not
    * 
    * @param eventId Technical identifier of {@link Event}

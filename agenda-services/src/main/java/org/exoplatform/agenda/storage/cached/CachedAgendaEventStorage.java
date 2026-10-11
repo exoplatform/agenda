@@ -16,6 +16,7 @@
 */
 package org.exoplatform.agenda.storage.cached;
 
+import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -94,6 +95,13 @@ public class CachedAgendaEventStorage extends AgendaEventStorage {
     this.eventFutureCache.remove(event.getId());
     DecideContext.recordEvent(event.getId());
     return updatedEvent;
+  }
+
+  @Override
+  public void saveCapacityReachedDate(long eventId, ZonedDateTime capacityReachedDate) {
+    super.saveCapacityReachedDate(eventId, capacityReachedDate);
+    this.eventFutureCache.remove(eventId);
+    DecideContext.recordEvent(eventId);
   }
 
   @Override
