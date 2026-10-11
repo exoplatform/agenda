@@ -139,6 +139,14 @@ public class CalendarFeedFetcher {
   }
 
   /**
+   * @return the policy the links are read under, for the tests to pin the
+   *         deployment's one
+   */
+  SafeFetchPolicy policy() {
+    return fetcher.getPolicy();
+  }
+
+  /**
    * Reads a link, conditionally when validators are given; a stored validator
    * carrying a control character, which an earlier version kept, is not sent,
    * and the read is then unconditional rather than refused.

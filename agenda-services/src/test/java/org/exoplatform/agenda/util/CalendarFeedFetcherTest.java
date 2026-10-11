@@ -645,6 +645,46 @@ class CalendarFeedFetcherTest {
   }
 
   /**
+   * The deployment's fetcher reads public addresses only, nothing exempted, on the
+   * ports the deployment names, within the bounds the calendar feeds always had:
+   * pinned on its policy, since a refused internal address and a name the real DNS
+   * cannot resolve both end in a failed read. A port list naming no usable port
+   * falls back to the default ports, and the opt-out opens internal addresses.
+   */
+  @Test
+  void theDeploymentFetcherReadsUnderTheCalendarPolicy() {
+    CalendarFeedFetcher production = new CalendarFeedFetcher(false, "80, 9443,x");
+    try {
+      SafeFetchPolicy policy = production.policy();
+      assertEquals(Set.of(80, 9443), policy.getAllowedPorts());
+      assertFalse(policy.isAnyPortAllowed());
+      assertFalse(policy.isInternalAddressesAllowed());
+      assertTrue(policy.getExemptHosts().isEmpty());
+      assertTrue(policy.getExemptAddresses().isEmpty());
+      assertEquals(CalendarFeedFetcher.DEFAULT_MAX_BYTES, policy.getMaxBytes());
+      assertEquals(CalendarFeedFetcher.DEFAULT_MAX_REDIRECTS, policy.getMaxRedirects());
+      assertEquals(CalendarFeedFetcher.DEFAULT_CONNECT, policy.getConnectTimeout());
+      assertEquals(CalendarFeedFetcher.DEFAULT_READ, policy.getReadTimeout());
+      assertEquals(CalendarFeedFetcher.DEFAULT_TOTAL, policy.getTotalTimeout());
+      assertEquals("eXo-Agenda-Calendar-Subscription/1.0", policy.getUserAgent());
+    } finally {
+      production.close();
+    }
+    CalendarFeedFetcher noPort = new CalendarFeedFetcher(false, "none");
+    try {
+      assertEquals(SafeFetchPolicy.DEFAULT_PORTS, noPort.policy().getAllowedPorts());
+    } finally {
+      noPort.close();
+    }
+    CalendarFeedFetcher optedOut = new CalendarFeedFetcher(true, CalendarFeedFetcher.DEFAULT_PORTS);
+    try {
+      assertTrue(optedOut.policy().isInternalAddressesAllowed());
+    } finally {
+      optedOut.close();
+    }
+  }
+
+  /**
    * Sleeps, interrupted or not.
    *
    * @param millis how long
