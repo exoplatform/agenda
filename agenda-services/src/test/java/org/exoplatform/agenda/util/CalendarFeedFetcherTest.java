@@ -44,14 +44,20 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.meeds.commons.http.SafeFetchPolicy;
+import io.meeds.commons.http.SafeFetchPolicyBuilder;
+import io.meeds.commons.http.SafeFetchTestPolicies;
+
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 /**
- * Runs the calendar link fetcher against a stub HTTP server in the test JVM
- * (EXO-90278) — nothing leaves the machine.
+ * Runs the calendar link fetcher — the platform's guarded fetcher under the
+ * calendar policy — against a stub HTTP server in the test JVM (EXO-90278):
+ * nothing leaves the machine. What is pinned here is the call site: every
+ * refusal and failure reported as its calendar link reason.
  * <p>
  * <b>How a loopback server stands in for a public one.</b> The server listens
  * on 127.0.0.1. Host names are resolved from a table, and the guard exempts
@@ -134,8 +140,37 @@ class CalendarFeedFetcherTest {
    * @return the fetcher
    */
   private CalendarFeedFetcher fetcher(boolean allowInternal, long maxBytes, Duration readTimeout, Duration totalTimeout, int maxRedirects) {
-    CalendarAddressGuard guard = new CalendarAddressGuard(allowInternal, Set.of(port), this::resolve, Set.of(stub));
-    return new CalendarFeedFetcher(guard, maxBytes, Duration.ofSeconds(2), readTimeout, totalTimeout, maxRedirects);
+    return new CalendarFeedFetcher(policy(allowInternal).maxBytes(maxBytes)
+                                                        .readTimeout(readTimeout)
+                                                        .totalTimeout(totalTimeout)
+                                                        .maxRedirects(maxRedirects)
+                                                        .build());
+  }
+
+  /**
+   * The calendar policy over the table of names, at the stub's port, exempting
+   * the stub's address, with a 2 s connect timeout.
+   *
+   * @param allowInternal the deployment's opt-out
+   * @return the builder, for a scenario to tighten
+   */
+  private SafeFetchPolicyBuilder policy(boolean allowInternal) {
+    return SafeFetchTestPolicies.exemptAddresses(unexemptedPolicy(allowInternal), Set.of(stub));
+  }
+
+  /**
+   * The calendar policy over the table of names, at the stub's port, with no
+   * address exempted and a 2 s connect timeout.
+   *
+   * @param allowInternal the deployment's opt-out
+   * @return the builder, for a scenario to tighten
+   */
+  private SafeFetchPolicyBuilder unexemptedPolicy(boolean allowInternal) {
+    return SafeFetchPolicy.builder()
+                          .internalAddressesAllowed(allowInternal)
+                          .allowedPorts(Set.of(port))
+                          .resolver(this::resolve)
+                          .connectTimeout(Duration.ofSeconds(2));
   }
 
   /**
@@ -270,6 +305,60 @@ class CalendarFeedFetcherTest {
   }
 
   /**
+   * A validator carrying a control character is not kept: sent back on the
+   * next read, it would be refused as a header value, and every refresh of the
+   * link would fail.
+   *
+   * @throws Exception when the read fails
+   */
+  @Test
+  void aValidatorCarryingAControlCharacterIsNotKept() throws Exception {
+    handler = exchange -> {
+      exchange.getResponseHeaders().add("ETag", "\"v\t1\"");
+      exchange.getResponseHeaders().add("Last-Modified", "Mon, 14 Sep 2026\t10:00:00 GMT");
+      answer(exchange, 200, CALENDAR);
+    };
+
+    CalendarFeedFetcher.FeedResponse response = fetcher.fetch(url("public.test", "/cal.ics"), null, null);
+
+    assertNull(response.etag());
+    assertNull(response.lastModified());
+    assertArrayEquals(CALENDAR.getBytes(StandardCharsets.UTF_8), response.body());
+  }
+
+  /**
+   * A validator stored with a control character, as an earlier version kept
+   * them, is not sent: the read is unconditional and succeeds, rather than
+   * refused before any request at every refresh of the link.
+   *
+   * @throws Exception when the read fails
+   */
+  @Test
+  void aStoredValidatorCarryingAControlCharacterIsNotSent() throws Exception {
+    handler = exchange -> answer(exchange, 200, CALENDAR);
+
+    CalendarFeedFetcher.FeedResponse response = fetcher.fetch(url("public.test", "/cal.ics"),
+                                                              "\"v\t1\"",
+                                                              "Mon, 14 Sep 2026\t10:00:00 GMT");
+
+    assertArrayEquals(CALENDAR.getBytes(StandardCharsets.UTF_8), response.body());
+    assertEquals(1, requests.size());
+    assertNull(requests.get(0).getFirst("If-None-Match"));
+    assertNull(requests.get(0).getFirst("If-Modified-Since"));
+  }
+
+  /**
+   * A 304 answering a read that sent no validator says nothing about a copy
+   * the server cannot know of: it is an HTTP error, not a "not modified".
+   */
+  @Test
+  void aNotModifiedToAnUnconditionalReadIsAnHttpError() {
+    handler = exchange -> answer(exchange, 304, "");
+
+    assertEquals(CalendarFeedException.HTTP_ERROR, failure(fetcher, url("public.test", "/cal.ics")));
+  }
+
+  /**
    * The validators of the previous read are sent, and a 304 is read as nothing
    * changed.
    *
@@ -387,29 +476,36 @@ class CalendarFeedFetcherTest {
   }
 
   /**
-   * A name that resolved to an allowed address when it was checked and to an
-   * internal one when the connection is opened — DNS rebinding — is refused at
-   * the connection: the address the client dials is the one judged.
+   * A name that resolved to an allowed address for one connection and to an
+   * internal one for the next — DNS rebinding — is refused at that next
+   * connection: the address the client dials is the one judged, and the first
+   * answer is never trusted for the second. The stub closes each connection so
+   * that the second read must dial again.
+   *
+   * @throws Exception when the first read fails
    */
   @Test
   void aNameRebindingToAnInternalAddressIsRefusedAtConnection() throws Exception {
     InetAddress internal = InetAddress.getByAddress(new byte[] { 127, 0, 0, 2 });
     AtomicInteger lookups = new AtomicInteger();
-    CalendarAddressGuard guard = new CalendarAddressGuard(false, Set.of(port), host -> {
+    CalendarFeedFetcher rebinding = new CalendarFeedFetcher(policy(false).resolver(host -> {
       if (!"rebind.test".equals(host)) {
         throw new UnknownHostException(host);
       }
       return lookups.incrementAndGet() == 1 ? new InetAddress[] { stub } : new InetAddress[] { internal };
-    }, Set.of(stub));
-    CalendarFeedFetcher rebinding = new CalendarFeedFetcher(guard, 1024, Duration.ofSeconds(2), Duration.ofSeconds(2), Duration.ofSeconds(5), 3);
-    handler = exchange -> answer(exchange, 200, CALENDAR);
+    }).maxBytes(1024).readTimeout(Duration.ofSeconds(2)).totalTimeout(Duration.ofSeconds(5)).maxRedirects(3).build());
+    handler = exchange -> {
+      exchange.getResponseHeaders().add("Connection", "close");
+      answer(exchange, 200, CALENDAR);
+    };
     try {
+      assertArrayEquals(CALENDAR.getBytes(StandardCharsets.UTF_8), rebinding.fetch(url("rebind.test", "/cal.ics"), null, null).body());
       assertEquals(CalendarFeedException.REFUSED_ADDRESS, failure(rebinding, url("rebind.test", "/cal.ics")));
     } finally {
       rebinding.close();
     }
-    assertTrue(lookups.get() >= 2, "the connection must resolve the name again rather than trust the first answer");
-    assertTrue(hits.isEmpty(), "no request may reach the stub through a name judged internal");
+    assertEquals(2, lookups.get(), "the second connection must resolve the name again rather than trust the first answer");
+    assertEquals(List.of("/cal.ics"), hits, "no request may reach the stub through a name judged internal");
   }
 
   /**
@@ -435,10 +531,8 @@ class CalendarFeedFetcherTest {
   void internalAddressesAreReadWhenTheDeploymentAllowsThem() throws Exception {
     dns.put("loopback.test", new InetAddress[] { InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }) });
     handler = exchange -> answer(exchange, 200, CALENDAR);
-    CalendarAddressGuard refusing = new CalendarAddressGuard(false, Set.of(port), this::resolve, Set.of());
-    CalendarFeedFetcher closed = new CalendarFeedFetcher(refusing, 1024, Duration.ofSeconds(2), Duration.ofSeconds(2), Duration.ofSeconds(5), 3);
-    CalendarAddressGuard allowing = new CalendarAddressGuard(true, Set.of(port), this::resolve, Set.of());
-    CalendarFeedFetcher open = new CalendarFeedFetcher(allowing, 1024, Duration.ofSeconds(2), Duration.ofSeconds(2), Duration.ofSeconds(5), 3);
+    CalendarFeedFetcher closed = new CalendarFeedFetcher(unexemptedPolicy(false).maxBytes(1024).build());
+    CalendarFeedFetcher open = new CalendarFeedFetcher(unexemptedPolicy(true).maxBytes(1024).build());
     try {
       assertEquals(CalendarFeedException.REFUSED_ADDRESS, failure(closed, url("loopback.test", "/cal.ics")));
       assertTrue(hits.isEmpty());
@@ -548,6 +642,46 @@ class CalendarFeedFetcherTest {
     assertEquals(CalendarFeedException.HTTP_ERROR, failure(fetcher, url("public.test", "/error")));
     handler = exchange -> answer(exchange, 404, "");
     assertEquals(CalendarFeedException.HTTP_ERROR, failure(fetcher, url("public.test", "/missing")));
+  }
+
+  /**
+   * The deployment's fetcher reads public addresses only, nothing exempted, on the
+   * ports the deployment names, within the bounds the calendar feeds always had:
+   * pinned on its policy, since a refused internal address and a name the real DNS
+   * cannot resolve both end in a failed read. A port list naming no usable port
+   * falls back to the default ports, and the opt-out opens internal addresses.
+   */
+  @Test
+  void theDeploymentFetcherReadsUnderTheCalendarPolicy() {
+    CalendarFeedFetcher production = new CalendarFeedFetcher(false, "80, 9443,x");
+    try {
+      SafeFetchPolicy policy = production.policy();
+      assertEquals(Set.of(80, 9443), policy.getAllowedPorts());
+      assertFalse(policy.isAnyPortAllowed());
+      assertFalse(policy.isInternalAddressesAllowed());
+      assertTrue(policy.getExemptHosts().isEmpty());
+      assertTrue(policy.getExemptAddresses().isEmpty());
+      assertEquals(CalendarFeedFetcher.DEFAULT_MAX_BYTES, policy.getMaxBytes());
+      assertEquals(CalendarFeedFetcher.DEFAULT_MAX_REDIRECTS, policy.getMaxRedirects());
+      assertEquals(CalendarFeedFetcher.DEFAULT_CONNECT, policy.getConnectTimeout());
+      assertEquals(CalendarFeedFetcher.DEFAULT_READ, policy.getReadTimeout());
+      assertEquals(CalendarFeedFetcher.DEFAULT_TOTAL, policy.getTotalTimeout());
+      assertEquals("eXo-Agenda-Calendar-Subscription/1.0", policy.getUserAgent());
+    } finally {
+      production.close();
+    }
+    CalendarFeedFetcher noPort = new CalendarFeedFetcher(false, "none");
+    try {
+      assertEquals(SafeFetchPolicy.DEFAULT_PORTS, noPort.policy().getAllowedPorts());
+    } finally {
+      noPort.close();
+    }
+    CalendarFeedFetcher optedOut = new CalendarFeedFetcher(true, CalendarFeedFetcher.DEFAULT_PORTS);
+    try {
+      assertTrue(optedOut.policy().isInternalAddressesAllowed());
+    } finally {
+      optedOut.close();
+    }
   }
 
   /**
