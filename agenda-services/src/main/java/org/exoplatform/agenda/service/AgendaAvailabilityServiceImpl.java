@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -460,6 +461,12 @@ public class AgendaAvailabilityServiceImpl implements AgendaAvailabilityService 
                                          start,
                                          end,
                                          BUSY_QUERY_LIMIT);
+    // The calendars other people shared with the target are not read: a null
+    // list would add every one of them, and an event of a shared calendar is not
+    // the target's commitment. With an empty list the read is the events the
+    // target, or one of their spaces, attends with an accepted response, in any
+    // calendar.
+    filter.setCalendarIds(Collections.emptyList());
     List<Event> events = agendaEventService.getEvents(filter, TIMEZONE, targetIdentityId);
     List<TimeBlock> blocks = new ArrayList<>();
     for (Event event : events) {
