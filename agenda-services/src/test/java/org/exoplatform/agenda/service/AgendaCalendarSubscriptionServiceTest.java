@@ -99,6 +99,9 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.web.security.codec.AbstractCodec;
 import org.exoplatform.web.security.codec.CodecInitializer;
 
+import io.meeds.commons.http.SafeAddressGuard;
+import io.meeds.commons.http.SafeFetchPolicy;
+
 /**
  * Pins the rules of calendar subscriptions (EXO-90278): a link is read before
  * anything is stored and refused with a stable code, the URL is stored
@@ -184,7 +187,7 @@ class AgendaCalendarSubscriptionServiceTest {
       }
       return value.substring(4);
     });
-    when(fetcher.getGuard()).thenReturn(new CalendarAddressGuard(false, Set.of(80, 443, 8080, 8443)));
+    when(fetcher.getGuard()).thenReturn(new CalendarAddressGuard(new SafeAddressGuard(SafeFetchPolicy.builder().internalAddressesAllowed(false).allowedPorts(Set.of(80, 443, 8080, 8443)).build())));
     user(JOHN, "john", true);
     user(MARY, "mary", true);
 
@@ -471,6 +474,126 @@ class AgendaCalendarSubscriptionServiceTest {
                    assertThrows(IllegalArgumentException.class,
                                 () -> service.checkUrl("http://localhost:8080/agenda/rest/ical/DEAD.ics", "john")).getMessage());
     }
+  }
+
+  /**
+   * A link naming an internal address literal is refused with its own reason
+   * when it is checked, subscribed or set on a subscription, before any read:
+   * the user is told the link points to an internal address.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void anInternalAddressLiteralIsRefusedWhenALinkIsSaved() throws Exception {
+    subscriptionRow("enc:" + URL, "digest", 0);
+    try (MockedStatic<CommonsUtils> commons = mockStatic(CommonsUtils.class)) {
+      commons.when(CommonsUtils::getCurrentDomain).thenReturn("http://localhost:8080");
+      for (String literal : List.of("http://169.254.169.254/latest/meta-data",
+                                    "webcal://10.0.0.5/cal.ics",
+                                    "https://[::1]/cal.ics",
+                                    "http://127.0.0.1:8080/agenda/rest/ical/TOKEN.ics")) {
+        assertEquals("agenda.calendarSubscription.refusedAddress",
+                     assertThrows(IllegalArgumentException.class, () -> service.checkUrl(literal, "john")).getMessage(),
+                     literal);
+        assertEquals("agenda.calendarSubscription.refusedAddress",
+                     assertThrows(IllegalArgumentException.class, () -> service.createSubscription(literal, null, null, "john")).getMessage(),
+                     literal);
+        assertEquals("agenda.calendarSubscription.refusedAddress",
+                     assertThrows(IllegalArgumentException.class,
+                                  () -> service.updateSubscription(SUBSCRIPTION, literal, null, null, "john")).getMessage(),
+                     literal);
+      }
+    }
+    verify(fetcher, never()).fetch(any(), any(), any());
+    verify(linkService, never()).getCalendarFeed(anyString());
+    verify(storage, never()).create(any());
+    verify(storage, never()).updateUrl(anyLong(), anyString(), anyString(), any());
+  }
+
+  /**
+   * A link of this eXo is read in the process even when the platform's public
+   * domain is an internal address literal: nothing is read over the network,
+   * so the literal is not refused; another path on the same literal is.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void aLinkOfThisExoOnAnInternalAddressIsReadInTheProcess() throws Exception {
+    when(calendarService.getCalendarById(5)).thenReturn(calendarOf(5, MARY));
+    when(linkService.getFeedCalendarId("TOKEN")).thenReturn(5L);
+    when(linkService.getCalendarFeed("TOKEN")).thenReturn(ics("X-WR-CALNAME:Mary", vevent("m@test", "20261001T090000Z", "M", null)));
+
+    try (MockedStatic<CommonsUtils> commons = mockStatic(CommonsUtils.class)) {
+      commons.when(CommonsUtils::getCurrentDomain).thenReturn("http://192.168.1.10:8080");
+      assertEquals("Mary", service.checkUrl("HTTP://192.168.1.10:8080/agenda/rest/ical/TOKEN.ics#x", "john"));
+      service.createSubscription("HTTP://192.168.1.10:8080/agenda/rest/ical/TOKEN.ics#x", null, null, "john");
+      ArgumentCaptor<CalendarSubscription> stored = ArgumentCaptor.forClass(CalendarSubscription.class);
+      verify(storage).create(stored.capture());
+      assertEquals("enc:http://192.168.1.10:8080/agenda/rest/ical/TOKEN.ics",
+                   stored.getValue().getUrlEncrypted(),
+                   "stored as the guard returns an accepted URL: scheme lower-cased, no fragment");
+      assertEquals("agenda.calendarSubscription.credentialsInUrl",
+                   assertThrows(IllegalArgumentException.class,
+                                () -> service.checkUrl("http://u:p@192.168.1.10:8080/agenda/rest/ical/TOKEN.ics", "john")).getMessage(),
+                   "only the internal address is overlooked for a link of this eXo, never another rule");
+      assertEquals("agenda.calendarSubscription.refusedAddress",
+                   assertThrows(IllegalArgumentException.class,
+                                () -> service.checkUrl("http://192.168.1.10:8080/other/cal.ics", "john")).getMessage());
+      assertEquals("agenda.calendarSubscription.refusedAddress",
+                   assertThrows(IllegalArgumentException.class,
+                                () -> service.checkUrl("http://192.168.1.10:8443/agenda/rest/ical/TOKEN.ics", "john")).getMessage());
+    }
+    verify(linkService, times(2)).getCalendarFeed("TOKEN");
+    verify(fetcher, never()).fetch(any(), any(), any());
+  }
+
+  /**
+   * A stored link of this eXo on an internal-literal domain keeps being read in
+   * the process at each refresh, and can be set on a subscription: the
+   * exemption holds on every path that reads a link, not only on the first.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void aLinkOfThisExoOnAnInternalAddressIsRefreshedAndSetInTheProcess() throws Exception {
+    String own = "http://192.168.1.10:8080/agenda/rest/ical/TOKEN.ics";
+    when(calendarService.getCalendarById(5)).thenReturn(calendarOf(5, MARY));
+    when(linkService.getFeedCalendarId("TOKEN")).thenReturn(5L);
+    when(linkService.getCalendarFeed("TOKEN")).thenReturn(ics("X-WR-CALNAME:Mary", vevent("m@test", "20261001T090000Z", "M", null)));
+    when(storage.getDueIds(any(), any(), anyInt())).thenReturn(List.of(SUBSCRIPTION));
+    user(JOHN, "john", true);
+
+    try (MockedStatic<CommonsUtils> commons = mockStatic(CommonsUtils.class)) {
+      commons.when(CommonsUtils::getCurrentDomain).thenReturn("http://192.168.1.10:8080");
+      subscriptionRow("enc:" + own, null, 0);
+      service.refreshDueSubscriptions(10);
+      verify(linkService).getCalendarFeed("TOKEN");
+      verify(storage, never()).recordFailure(anyLong(), anyString(), any(), anyString(), any());
+
+      subscriptionRow("enc:" + URL, "digest", 0);
+      service.updateSubscription(SUBSCRIPTION, own, null, null, "john");
+      verify(linkService, times(2)).getCalendarFeed("TOKEN");
+      verify(storage).updateUrl(eq(SUBSCRIPTION), eq("enc:" + own), anyString(), any());
+    }
+    verify(fetcher, never()).fetch(any(), any(), any());
+  }
+
+  /**
+   * A stored link the deployment's current rules refuse is not read, and the
+   * refresh records the guard's own reason, not an unreadable link.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void aStoredInternalAddressLiteralIsRefusedWithItsReason() throws Exception {
+    when(storage.getDueIds(any(), any(), anyInt())).thenReturn(List.of(SUBSCRIPTION));
+    subscriptionRow("enc:http://10.0.0.5/cal.ics", null, 0);
+    user(JOHN, "john", true);
+
+    service.refreshDueSubscriptions(10);
+
+    verify(storage).recordFailure(eq(SUBSCRIPTION), anyString(), any(), eq("agenda.calendarSubscription.refusedAddress"), any());
+    verify(fetcher, never()).fetch(any(), any(), any());
   }
 
   /**
