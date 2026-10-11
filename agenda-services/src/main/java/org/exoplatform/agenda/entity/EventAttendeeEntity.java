@@ -57,6 +57,21 @@ import jakarta.persistence.Table;
         + "  WHERE a.event.id = :eventId"
         + "  AND a.response in (:responses)"
 )
+@NamedQuery(
+    name = "AgendaEventAttendee.getSeatRows",
+    query = "SELECT a.id, a.identityId, a.fromOccurrenceId, a.untilOccurrenceId, a.response, a.responseDate"
+        + "  FROM AgendaEventAttendee a"
+        + "  WHERE a.event.id = :eventId"
+        + "  AND a.response in (:responses)"
+)
+@NamedQuery(
+    name = "AgendaEventAttendee.getWaitingAttendees",
+    query = "SELECT a.id, a.identityId, a.fromOccurrenceId, a.untilOccurrenceId, a.response, a.responseDate"
+        + "  FROM AgendaEventAttendee a"
+        + "  WHERE a.event.id = :eventId"
+        + "  AND a.response = :response"
+        + "  ORDER BY a.responseDate ASC, a.id ASC"
+)
 public class EventAttendeeEntity implements Serializable {
 
   private static final long     serialVersionUID = 8633143729031653190L;
@@ -85,7 +100,9 @@ public class EventAttendeeEntity implements Serializable {
   /**
    * Instant of the last stored change of {@link #response}, which orders a
    * waiting list; null on a row whose answer has not changed since the column
-   * was added.
+   * was added. An answer to every date that merges several rows of the
+   * attendee, all holding it already, keeps the earliest of their instants,
+   * a null one first.
    */
   @Column(name = "RESPONSE_DATE")
   private Date                  responseDate;
