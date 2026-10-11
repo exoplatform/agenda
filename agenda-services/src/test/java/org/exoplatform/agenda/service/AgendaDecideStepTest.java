@@ -158,6 +158,29 @@ public class AgendaDecideStepTest extends BaseAgendaEventTest {
   }
 
   /**
+   * An answer to one date of a series, whose row it finds or creates, locks
+   * the series as the first statement of its transaction, the series being
+   * served from a warm cache.
+   *
+   * @throws Exception when the answer fails
+   */
+  @Test
+  public void anAnswerToOneDateLocksTheSeriesAsTheFirstReadOfItsTransaction() throws Exception {
+    Event series = futureSeries(testuser1Identity, testuser2Identity);
+    agendaEventStorage.getEventById(series.getId());
+
+    List<RecordedStatement> statements =
+                                       record(() -> agendaEventAttendeeService.sendEventResponse(series.getId(),
+                                                                                                 series.getStart()
+                                                                                                       .plusDays(1),
+                                                                                                 id(testuser2Identity),
+                                                                                                 EventAttendeeResponse.ACCEPTED,
+                                                                                                 true));
+
+    assertTheLockIsTheFirstReadOfTheTransaction(statements);
+  }
+
+  /**
    * An attendee list saved on its own locks the event as the first statement
    * of its transaction.
    *

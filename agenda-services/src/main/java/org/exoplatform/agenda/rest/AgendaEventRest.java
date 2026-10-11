@@ -1486,7 +1486,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                     )
                                     String occurrenceId,
                                     @Parameter(
-                                        description = "Response to event invitation. Possible values: ACCEPTED, DECLINED or TENTATIVE.",
+                                        description = "Response to event invitation. Possible values: ACCEPTED, DECLINED, TENTATIVE or WAITING, which asks for a seat as ACCEPTED does.",
                                         required = true
                                     )
                                     @QueryParam("response")
@@ -1517,9 +1517,9 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       return Response.status(Status.BAD_REQUEST).entity("Event response is mandatory").build();
     }
     EventAttendeeResponse response = EventAttendeeResponse.fromValue(responseString);
-    // WAITING is never an answer a caller gives: refused here, before the
-    // occurrence branch below writes anything
-    if (response == null || response == EventAttendeeResponse.NEEDS_ACTION || response == EventAttendeeResponse.WAITING) {
+    // WAITING is accepted: it asks for a seat as a Yes does, which the Service
+    // stores as a Yes when a seat is free
+    if (response == null || response == EventAttendeeResponse.NEEDS_ACTION) {
       return Response.status(Status.BAD_REQUEST).entity("Event response is not recognized").build();
     }
     if (upcoming && StringUtils.isBlank(occurrenceId)) {
@@ -1553,10 +1553,10 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       }
       currentUser = identity.getRemoteId();
       long identityId = Long.parseLong(identity.getId());
-      // Checked here, on the series, before anything is written: the
-      // occurrence branch below materialises an exceptional occurrence before
-      // it answers on it, and a refused caller must not leave one behind. The
-      // Service applies the same rule again on the event it writes.
+      // Checked here, on the series, before anything is written: answering
+      // one date may create the date's row, and a refused caller must not
+      // leave one behind. The Service applies the same rule again on the
+      // event it writes.
       Event event = agendaEventService.getEventById(eventId);
       if (event == null) {
         throw new ObjectNotFoundException("Event with id " + eventId + " wasn't found");
@@ -1576,12 +1576,9 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                                identityId,
                                                                response);
         } else {
-          Event occurrenceEvent = agendaEventService.getExceptionalOccurrenceEvent(eventId, occurrenceIdDateTime);
-          if (occurrenceEvent == null) { // Exceptional occurrence not yet
-                                         // created
-            occurrenceEvent = agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceIdDateTime);
-          }
-          agendaEventAttendeeService.sendEventResponse(occurrenceEvent.getId(), identityId, response);
+          // The Service finds or creates the date's row under the lock of
+          // the series, then answers on it
+          agendaEventAttendeeService.sendEventResponse(eventId, occurrenceIdDateTime, identityId, response, true);
         }
       }
       if (redirect) {
