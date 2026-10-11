@@ -78,6 +78,42 @@ public class EventAttendeeDAO extends GenericDAOJPAImpl<EventAttendeeEntity, Lon
     return resultList == null ? Collections.emptyList() : resultList;
   }
 
+  /**
+   * Reads the rows of an event that have one of the given answers, as scalar
+   * values: no entity is loaded, so the rows a seat decision counts do not
+   * enter the persistence context it writes through.
+   *
+   * @param eventId event identifier
+   * @param responses the answers to read
+   * @return per row: id, identity id, from occurrence id, until occurrence id,
+   *         answer and answer date, in that order
+   */
+  public List<Object[]> getSeatRows(long eventId, EventAttendeeResponse... responses) {
+    TypedQuery<Object[]> query = getEntityManager().createNamedQuery("AgendaEventAttendee.getSeatRows", Object[].class);
+    query.setParameter("eventId", eventId);
+    query.setParameter("responses", Arrays.asList(responses));
+    List<Object[]> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
+  }
+
+  /**
+   * Reads the waiting rows of an event in the order they are promoted: the
+   * earliest answer date first, then the lowest id. Every waiting row is
+   * written with its answer date, so none sorts on a null.
+   *
+   * @param eventId event identifier
+   * @return the rows as {@link #getSeatRows(long, EventAttendeeResponse...)}
+   *         returns them
+   */
+  public List<Object[]> getWaitingAttendees(long eventId) {
+    TypedQuery<Object[]> query = getEntityManager().createNamedQuery("AgendaEventAttendee.getWaitingAttendees",
+                                                                     Object[].class);
+    query.setParameter("eventId", eventId);
+    query.setParameter("response", EventAttendeeResponse.WAITING);
+    List<Object[]> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
+  }
+
   public List<EventAttendeeEntity> getEventAttendees(long eventId, long identityId) {
     TypedQuery<EventAttendeeEntity> query = getEntityManager().createNamedQuery("AgendaEventAttendee.getEventAttendee",
                                                                                 EventAttendeeEntity.class);
