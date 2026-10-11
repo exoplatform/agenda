@@ -50,8 +50,8 @@ public class AgendaReplyOnSaveListener extends Listener<AgendaEventModification,
               || eventModification.hasModification(AgendaEventModificationType.SWITCHED_DATE_POLL_TO_EVENT)
               || eventModification.hasModification(AgendaEventModificationType.ADDED)) {
             // Automatically change creator response to accepted
-            // and for others to NEEDS_ACTION
-            Set<Long> identityIds = new HashSet<>();
+            // and for others to NEEDS_ACTION, in one step that promotes
+            // nobody: the waiting list starts over with the other answers
             boolean updateModifierResponse = eventModification.hasModification(AgendaEventModificationType.ADDED);
             boolean isModifierAttendee = false;
             for (EventAttendee eventAttendee : eventAttendees) {
@@ -60,17 +60,9 @@ public class AgendaReplyOnSaveListener extends Listener<AgendaEventModification,
                 if (eventAttendee.getResponse() != EventAttendeeResponse.ACCEPTED) {
                   updateModifierResponse = true;
                 }
-              } else if (modifierId != eventAttendee.getIdentityId()
-                  && eventAttendee.getResponse() != EventAttendeeResponse.NEEDS_ACTION) {
-                identityIds.add(eventAttendee.getIdentityId());
               }
             }
-            for (Long identityId : identityIds) {
-              getAgendaEventAttendeeService().sendEventResponse(eventId,
-                                                                identityId,
-                                                                EventAttendeeResponse.NEEDS_ACTION,
-                                                                false);
-            }
+            getAgendaEventAttendeeService().resetEventResponses(eventId, Collections.singleton(modifierId));
             if (isModifierAttendee && updateModifierResponse) {
               getAgendaEventAttendeeService().sendEventResponse(eventId,
                                                                 modifierId,
@@ -102,19 +94,7 @@ public class AgendaReplyOnSaveListener extends Listener<AgendaEventModification,
               getAgendaEventDatePollService().saveEventVotes(eventId, acceptedDatePollIds, modifierId);
             }
             if (!eventModification.hasModification(AgendaEventModificationType.ADDED)) {
-              Set<Long> identityIds = new HashSet<>();
-              for (EventAttendee eventAttendee : eventAttendees) {
-                if (modifierId != eventAttendee.getIdentityId()
-                    && eventAttendee.getResponse() != EventAttendeeResponse.NEEDS_ACTION) {
-                  identityIds.add(eventAttendee.getIdentityId());
-                }
-              }
-              for (Long identityId : identityIds) {
-                getAgendaEventAttendeeService().sendEventResponse(eventId,
-                                                                  identityId,
-                                                                  EventAttendeeResponse.NEEDS_ACTION,
-                                                                  false);
-              }
+              getAgendaEventAttendeeService().resetEventResponses(eventId, Collections.singleton(modifierId));
             }
           }
           break;
