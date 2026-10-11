@@ -630,6 +630,42 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
   }
 
   /**
+   * Reads when an event row's pool was marked as having reached its capacity,
+   * as the database holds it, not as an entity of the persistence context
+   * holds it. The changes of the persistence context are written first: on
+   * MySQL and MariaDB, whose plain reads see the snapshot of the
+   * transaction's first read, a row this transaction has updated is read
+   * with the mark last committed.
+   *
+   * @param eventId event technical identifier
+   * @return the instant, or null when the row is not marked or does not exist
+   */
+  public Date getCapacityReachedDate(long eventId) {
+    TypedQuery<Date> query = getEntityManager().createNamedQuery("AgendaEvent.getCapacityReachedDate", Date.class);
+    query.setParameter("eventId", eventId);
+    query.setFlushMode(FlushModeType.AUTO);
+    List<Date> resultList = query.getResultList();
+    return resultList.isEmpty() ? null : resultList.get(0);
+  }
+
+  /**
+   * Writes when an event row's pool was marked as having reached its
+   * capacity, and nothing else of the row: the one update of a column a save
+   * of the whole row leaves as it is. It requires an active transaction: the
+   * mark is written under the event lock a decide step holds, never in a
+   * transaction of its own.
+   *
+   * @param eventId event technical identifier
+   * @param capacityReachedDate the instant, or null to clear the mark
+   */
+  public void saveCapacityReachedDate(long eventId, Date capacityReachedDate) {
+    Query query = getEntityManager().createNamedQuery("AgendaEvent.saveCapacityReachedDate");
+    query.setParameter("eventId", eventId);
+    query.setParameter("capacityReachedDate", capacityReachedDate);
+    query.executeUpdate();
+  }
+
+  /**
    * Writes the pending changes of the thread's persistence context, then
    * detaches every entity it holds, so that the next read loads its rows
    * afresh.

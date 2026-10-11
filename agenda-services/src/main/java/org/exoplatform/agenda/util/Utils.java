@@ -39,6 +39,7 @@ import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.constant.EventAccess;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventAvailability;
+import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.model.*;
@@ -130,6 +131,22 @@ public class Utils {
   public static final String            POST_EVENT_RESPONSE_SENT       = "exo.agenda.event.responseSent";
 
   public static final String            POST_EVENT_RESPONSE_SAVED      = "exo.agenda.event.responseSaved";
+
+  /**
+   * A waiting attendee got a seat: source, the attendee row before; data, the
+   * row after. Never a {@link #POST_EVENT_RESPONSE_SENT}: nobody answered.
+   */
+  public static final String            POST_EVENT_ATTENDEE_PROMOTED   = "exo.agenda.event.attendee.promoted";
+
+  /**
+   * An answer stored as a Yes left a pool of one date full while it was not
+   * marked as having reached its capacity: the answer filling its last seat,
+   * or, after a reset that cleared the mark while the answers it kept still
+   * fill the pool, a Yes given again by an attendee holding one of those
+   * seats. Source, the identifier of the pool's event row; data, the
+   * occurrence id of the date filled, null on an event of no series.
+   */
+  public static final String            POST_EVENT_CAPACITY_REACHED    = "exo.agenda.event.capacity.reached";
 
   public static final String            POST_CREATE_AGENDA_EVENT_POLL  = "exo.agenda.event.poll.created";
 
@@ -275,17 +292,81 @@ public class Utils {
 
   public static ZonedDateTime getOccurrenceId(boolean allDay, ZonedDateTime eventStartDate, ZoneId eventStartDateTimeZone) {
     if (allDay) {
-      ZonedDateTime utc = eventStartDate.withZoneSameInstant(ZoneOffset.UTC);
-      if (utc.toLocalTime().equals(LocalTime.MIDNIGHT)) {
-        return utc;
-      }
-      return eventStartDate.withZoneSameInstant(eventStartDateTimeZone)
-                           .toLocalDate()
-                           .atStartOfDay(ZoneOffset.UTC);
+      // An all-day id names a date in one of three forms: a UTC midnight; the
+      // local start of the date the recurrence computes, carried as UTC, which
+      // is past midnight once a change of offset skipped one; or, before
+      // TASK-39591, the instant of that local start. West of UTC the date of
+      // the first two is their UTC date, the instant read in the zone falling
+      // on the day before; east of it the date of the last one is its date in
+      // the zone, its UTC date being the day before. The later of both dates is
+      // the date in every case
+      LocalDate utcDate = eventStartDate.withZoneSameInstant(ZoneOffset.UTC).toLocalDate();
+      LocalDate zoneDate = eventStartDate.withZoneSameInstant(eventStartDateTimeZone).toLocalDate();
+      return (zoneDate.isAfter(utcDate) ? zoneDate : utcDate).atStartOfDay(ZoneOffset.UTC);
     } else {
       return eventStartDate.withZoneSameInstant(eventStartDateTimeZone)
                            .withZoneSameInstant(ZoneOffset.UTC);
     }
+  }
+
+  /**
+   * The date of a series an occurrence id designates. An all-day id is read as
+   * {@link #getOccurrenceId(boolean, ZonedDateTime, ZoneId)} normalises it, the
+   * later of its UTC date and its date in the series' zone: a UTC midnight, the
+   * local start of a date carried as UTC, also past midnight once a change of
+   * offset skipped one, and the instant of that local start, as all-day ids
+   * were before TASK-39591, each name their date. A timed id is read in the
+   * series' zone.
+   *
+   * @param series the series
+   * @param occurrenceId an occurrence id of the series, normalised or not
+   * @return the date of the series it designates
+   */
+  public static LocalDate getSeriesDate(Event series, ZonedDateTime occurrenceId) {
+    ZoneId zone = series.getTimeZoneId() == null ? ZoneOffset.UTC : series.getTimeZoneId();
+    if (series.isAllDay()) {
+      return getOccurrenceId(true, occurrenceId, zone).toLocalDate();
+    }
+    return occurrenceId.withZoneSameInstant(zone).toLocalDate();
+  }
+
+  /**
+   * Whether two occurrence ids designate the same date of a series: the same
+   * {@link #getSeriesDate}, or, on a series with several dates a day, an
+   * hourly or finer rule or one listing several hours, minutes or seconds, the
+   * same instant.
+   *
+   * @param series the series
+   * @param occurrenceId an occurrence id of the series
+   * @param otherOccurrenceId another occurrence id of the series
+   * @return whether both designate the same date
+   */
+  public static boolean isSameSeriesDate(Event series, ZonedDateTime occurrenceId, ZonedDateTime otherOccurrenceId) {
+    if (hasSeveralDatesADay(series.getRecurrence())) {
+      return occurrenceId.toEpochSecond() == otherOccurrenceId.toEpochSecond();
+    }
+    return getSeriesDate(series, occurrenceId).isEqual(getSeriesDate(series, otherOccurrenceId));
+  }
+
+  /**
+   * Whether a recurrence puts several dates on one day: an hourly or finer
+   * rule, or one listing several hours, minutes or seconds.
+   *
+   * @param recurrence the recurrence, or null
+   * @return whether its dates share a day
+   */
+  public static boolean hasSeveralDatesADay(EventRecurrence recurrence) {
+    if (recurrence == null) {
+      return false;
+    }
+    EventRecurrenceFrequency frequency = recurrence.getFrequency();
+    return frequency == EventRecurrenceFrequency.HOURLY || frequency == EventRecurrenceFrequency.MINUTELY
+        || frequency == EventRecurrenceFrequency.SECONDLY || hasSeveralValues(recurrence.getByHour())
+        || hasSeveralValues(recurrence.getByMinute()) || hasSeveralValues(recurrence.getBySecond());
+  }
+
+  private static boolean hasSeveralValues(List<String> values) {
+    return values != null && values.size() > 1;
   }
 
   public static Recur getICalendarRecur(EventRecurrence recurrence, ZoneId zoneId) {
