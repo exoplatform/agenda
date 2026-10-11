@@ -9,12 +9,15 @@ import org.apache.commons.lang3.RandomUtils;
 import org.junit.After;
 import org.junit.Before;
 
+import jakarta.persistence.EntityTransaction;
+
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.commons.persistence.impl.EntityManagerService;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
@@ -348,6 +351,28 @@ public abstract class BaseAgendaEventTest {
 
   protected void end() {
     RequestLifeCycle.end();
+  }
+
+  /**
+   * Marks an event row's pool as having reached its capacity, or clears the
+   * mark, as a decide step does: through the storage, in a transaction.
+   *
+   * @param eventId event technical identifier
+   * @param capacityReachedDate the instant, or null to clear the mark
+   */
+  protected void saveCapacityReachedDate(long eventId, ZonedDateTime capacityReachedDate) {
+    EntityTransaction transaction = container.getComponentInstanceOfType(EntityManagerService.class)
+                                             .getEntityManager()
+                                             .getTransaction();
+    transaction.begin();
+    try {
+      agendaEventStorage.saveCapacityReachedDate(eventId, capacityReachedDate);
+      transaction.commit();
+    } finally {
+      if (transaction.isActive()) {
+        transaction.rollback();
+      }
+    }
   }
 
   protected void restartTransaction() {

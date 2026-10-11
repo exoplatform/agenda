@@ -160,7 +160,12 @@ public interface AgendaEventService {
                                         long userIdentityId) throws IllegalAccessException, AgendaException;
 
   /**
-   * Retrieves an event identified by its technical identifier.
+   * Retrieves the exceptional occurrence a recurrent event holds for one of
+   * its dates: the row whose occurrence id designates the same date of the
+   * series — a timed id read in the series' zone, an all-day id as the later
+   * of its UTC date and its date in that zone — or, on a series with several
+   * dates a day, the row stored at that instant; the first created when the
+   * date has several.
    *
    * @param eventId technical identifier of parent recurrent event
    * @param occurrenceId technical occurrence event identifier
@@ -169,14 +174,18 @@ public interface AgendaEventService {
   Event getExceptionalOccurrenceEvent(long eventId, ZonedDateTime occurrenceId);
 
   /**
-   * Create a new exceptional occurrence for a parent recurrent event
-   * 
+   * Creates the exceptional occurrence of one date of a parent recurrent
+   * event, under the lock of the series. A date has one row: when it already
+   * has one, as {@link #getExceptionalOccurrenceEvent} finds it, that row is
+   * returned as it is, and the attendees, conferences and reminders given are
+   * not applied to it.
+   *
    * @param eventId technical identifier of parent recurrent event
-   * @param attendees {@link List} of attendees
-   * @param conferences {@link List} of conferences
-   * @param reminders {@link List} of reminders
+   * @param attendees {@link List} of attendees of a row created
+   * @param conferences {@link List} of conferences of a row created
+   * @param reminders {@link List} of reminders of a row created
    * @param occurrenceId event occurent identifier
-   * @return newly created {@link Event}
+   * @return the {@link Event} created, or the date's existing row
    * @throws AgendaException when the event attributes aren't valid
    */
   Event createEventExceptionalOccurrence(long eventId,
@@ -186,11 +195,14 @@ public interface AgendaEventService {
                                          ZonedDateTime occurrenceId) throws AgendaException;
 
   /**
-   * Creates an exceptional occurrence for a recurrent event and occurrence ID
-   * 
+   * Finds the exceptional occurrence of one date of a recurrent event, as
+   * {@link #getExceptionalOccurrenceEvent} does, or creates it as a copy of
+   * the series, with the series' attendees valid at that date, its
+   * conferences and its reminders, under the lock of the series.
+   *
    * @param eventId parent recurrent event identifier
    * @param occurrenceId Occurrence identifier
-   * @return created {@link Event}
+   * @return the date's existing row, or the {@link Event} created
    * @throws AgendaException when an error occurs hile creating event
    */
   Event saveEventExceptionalOccurrence(long eventId, ZonedDateTime occurrenceId) throws AgendaException;
