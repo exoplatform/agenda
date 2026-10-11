@@ -149,8 +149,8 @@ public class Event implements Cloneable {
   private Integer           capacity;
 
   /**
-   * When a date of this row's pool first reached {@link #capacity}, null while
-   * none has since the capacity was last set. Written by the server only.
+   * When this row's pool was marked as having reached {@link #capacity}, null
+   * while it is not marked. Written by the server only.
    */
   private ZonedDateTime     capacityReachedDate;
 

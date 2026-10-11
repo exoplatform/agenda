@@ -42,8 +42,11 @@ public class EventAttendee implements Cloneable {
   /**
    * Instant of the last stored change of {@link #response}: it orders the
    * waiting list of an event with a capacity limit, earliest first. Null on a
-   * row whose answer has not changed since the column was added. Written by
-   * the server only, never taken from a client.
+   * row whose answer has not changed since the column was added. An answer
+   * to every date that merges several rows of the attendee, all of them
+   * already holding the answer stored, keeps the earliest of their instants,
+   * a null one first, so that the attendee keeps the earliest place they
+   * held. Written by the server only, never taken from a client.
    */
   private ZonedDateTime         responseDate;
 
