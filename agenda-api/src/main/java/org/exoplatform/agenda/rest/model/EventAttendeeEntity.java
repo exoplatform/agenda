@@ -38,7 +38,10 @@ public class EventAttendeeEntity implements Serializable, Cloneable {
 
   /**
    * Instant of the last stored change of the answer, in RFC 3339, which orders
-   * a waiting list. Read only: the server never takes it from a client.
+   * a waiting list; an answer to every date that merges several rows of the
+   * attendee, all holding it already, keeps the earliest of their instants (see
+   * {@code EventAttendee#responseDate}). Read only: the server never takes it
+   * from a client.
    */
   private String                responseDate;
 
