@@ -461,10 +461,11 @@ public class AgendaAvailabilityServiceImpl implements AgendaAvailabilityService 
                                          start,
                                          end,
                                          BUSY_QUERY_LIMIT);
-    // The calendars other people shared with the target are not read: null
-    // would add every one of them to the read, and an event of a shared
-    // calendar is not the target's commitment. An empty list reads the target's own
-    // events only: organised or accepted, in any calendar.
+    // The calendars other people shared with the target are not read: a null
+    // list would add every one of them, and an event of a shared calendar is not
+    // the target's commitment. With an empty list the read is the events the
+    // target, or one of their spaces, attends with an accepted response, in any
+    // calendar.
     filter.setCalendarIds(Collections.emptyList());
     List<Event> events = agendaEventService.getEvents(filter, TIMEZONE, targetIdentityId);
     List<TimeBlock> blocks = new ArrayList<>();

@@ -112,10 +112,11 @@ public class AgendaScheduleConflictServiceImpl implements AgendaScheduleConflict
                                          start,
                                          end,
                                          CONFLICT_QUERY_LIMIT);
-    // The calendars other people shared with the user are not read: null
-    // would add every one of them to the read, and an event of a shared
-    // calendar is not the user's commitment. An empty list reads the user's own
-    // events only: organised or accepted, in any calendar.
+    // The calendars other people shared with the user are not read: a null
+    // list would add every one of them, and an event of a shared calendar is not
+    // the user's commitment. With an empty list the read is the events the user,
+    // or one of their spaces, attends with one of the responses above, in any
+    // calendar.
     filter.setCalendarIds(Collections.emptyList());
     List<Event> events = agendaEventService.getEvents(filter, TIMEZONE, userIdentityId);
     if (events == null) {
