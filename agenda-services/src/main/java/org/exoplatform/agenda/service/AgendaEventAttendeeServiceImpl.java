@@ -18,6 +18,7 @@ package org.exoplatform.agenda.service;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -25,6 +26,8 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.*;
+import org.exoplatform.agenda.exception.AgendaException;
+import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.exception.EventInvitationExpiredException;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.*;
@@ -82,6 +85,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
 
   private DecideSteps                decideSteps;
 
+  private AgendaEventService         agendaEventService;
+
   public AgendaEventAttendeeServiceImpl(AgendaEventAttendeeStorage attendeeStorage,
                                         AgendaEventStorage eventStorage,
                                         AgendaCalendarService calendarService,
@@ -131,21 +136,36 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
                                                                AgendaEventModification eventModifications) {
     long eventId = event.getId();
     EventStatus eventStatus = event.getStatus();
+    // The pool's capacity is the stored one, read under the lock, never the
+    // caller's copy of the event
+    Event storedEvent = eventStorage.getEventById(eventId);
+    Event pool = storedEvent == null ? event : storedEvent;
 
     List<EventAttendee> oldAttendees = getEventAttendees(event.getId()).getEventAttendees();
     List<EventAttendee> newAttendees = attendees == null ? Collections.emptyList() : attendees;
 
     Set<AgendaEventModificationType> eventModificationTypes = new HashSet<>();
 
-    processAttendeesToDelete(oldAttendees, newAttendees, eventModificationTypes);
-    processAttendeesToCreate(eventId,
-                             eventStatus,
-                             oldAttendees,
-                             newAttendees,
-                             creatorUserId,
-                             resetResponses,
-                             eventModificationTypes);
-    processAttendeesToUpdate(eventId, oldAttendees, newAttendees, resetResponses);
+    boolean seatFreed = processAttendeesToDelete(oldAttendees, newAttendees, eventModificationTypes);
+    List<Long> seatRequesters = processAttendeesToCreate(pool,
+                                                         eventStatus,
+                                                         oldAttendees,
+                                                         newAttendees,
+                                                         creatorUserId,
+                                                         resetResponses,
+                                                         eventModificationTypes);
+    if (resetResponses) {
+      resetResponses(eventId, Collections.emptySet());
+    } else {
+      // A seat the list frees goes to the waiting list first: the attendees
+      // the list adds with a Yes asked after them
+      if (seatFreed) {
+        promoteWaitingAttendees(eventId);
+      }
+      for (long seatRequester : seatRequesters) {
+        saveEventAttendee(pool, null, seatRequester, EventAttendeeResponse.ACCEPTED, false);
+      }
+    }
     processSendingInvitation(event, attendees, sendInvitations, eventModifications);
 
     Utils.broadcastEvent(listenerService, "exo.agenda.event.attendees.saved", eventId, 0);
@@ -225,7 +245,6 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (response == null) {
       throw new IllegalArgumentException("Attendee response is mandatory");
     }
-    checkNotWaiting(response);
     if (occurrenceId == null) {
       throw new IllegalArgumentException("occurrenceId is mandatory");
     }
@@ -255,19 +274,28 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     }
   }
 
-  private void writeUpcomingEventResponse(long eventId,
-                                          ZonedDateTime occurrenceId,
-                                          long identityId,
-                                          EventAttendeeResponse response) {
-    saveEventAttendee(eventId, occurrenceId, identityId, response, true);
+  private EventResponseOutcome writeUpcomingEventResponse(long eventId,
+                                                          ZonedDateTime occurrenceId,
+                                                          long identityId,
+                                                          EventAttendeeResponse response) {
+    Event series = eventStorage.getEventById(eventId);
+    // The answer starts from the date as the date's row stores it: the
+    // identifier the occurrence list gives an all-day date the clocks start
+    // past midnight is past the UTC midnight that row carries
+    ZonedDateTime fromDate = Utils.getOccurrenceId(series.isAllDay(), occurrenceId, series.getTimeZoneId());
+    EventAttendee stored = saveEventAttendee(series, fromDate, identityId, response, true);
 
     // Apply modification on exceptional occurrences as well
-    List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceIds(eventId, occurrenceId);
+    ZonedDateTime firstWaitingOccurrenceId = null;
+    List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceIds(eventId, fromDate);
     for (long exceptionalOccurenceEventId : exceptionalOccurenceEventIds) {
       if (isEventAttendee(exceptionalOccurenceEventId, identityId)) {
-        saveEventAttendee(exceptionalOccurenceEventId, identityId, response, false);
+        Event occurrence = eventStorage.getEventById(exceptionalOccurenceEventId);
+        EventAttendee propagated = saveEventAttendee(occurrence, null, identityId, response, false);
+        firstWaitingOccurrenceId = earliestWaiting(firstWaitingOccurrenceId, occurrence, propagated);
       }
     }
+    return new EventResponseOutcome(stored.getResponse(), firstWaitingOccurrenceId);
   }
 
   /**
@@ -278,27 +306,104 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
                                 long identityId,
                                 EventAttendeeResponse response,
                                 boolean broadcast) throws ObjectNotFoundException, IllegalAccessException {
+    answerEvent(eventId, identityId, response, broadcast);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public EventResponseOutcome sendEventResponse(long eventId,
+                                                ZonedDateTime occurrenceId,
+                                                long identityId,
+                                                EventAttendeeResponse response,
+                                                boolean broadcast) throws ObjectNotFoundException,
+                                                                   IllegalAccessException {
+    if (occurrenceId == null) {
+      return answerEvent(eventId, identityId, response, broadcast);
+    } else {
+      return answerDate(eventId, occurrenceId, identityId, response, broadcast);
+    }
+  }
+
+  private EventResponseOutcome answerEvent(long eventId,
+                                           long identityId,
+                                           EventAttendeeResponse response,
+                                           boolean broadcast) throws ObjectNotFoundException, IllegalAccessException {
     if (response == null) {
       throw new IllegalArgumentException("Attendee response is mandatory");
     }
-    checkNotWaiting(response);
     if (eventId <= 0) {
       throw new IllegalArgumentException("eventId is mandatory");
     }
     try {
-      decideSteps.<Void, ObjectNotFoundException, IllegalAccessException> resolvingAgainOnce(() -> {
+      return decideSteps.<EventResponseOutcome, ObjectNotFoundException, IllegalAccessException> resolvingAgainOnce(() -> {
         Event event = eventStorage.getEventById(eventId);
         if (event == null) {
           throw new ObjectNotFoundException("Parent event with id " + eventId + " wasn't found");
         }
         checkCanRespond(event, identityId);
-        return decideSteps.decide(DecideSteps.targetOf(event), () -> {
-          writeEventResponse(eventId, identityId, response, broadcast);
-          return null;
-        });
+        return decideSteps.decide(DecideSteps.targetOf(event),
+                                  () -> writeEventResponse(eventId, identityId, response, broadcast));
       });
     } catch (ResolveAgainException e) {
       throw new ObjectNotFoundException("Parent event with id " + eventId + " wasn't found");
+    }
+  }
+
+  /**
+   * Answers one date of a series: under the lock of the series, the date's
+   * own row is found, or created as a copy of the series when it has none,
+   * and the answer is decided on that row. Two first answers on one date so
+   * end on the same row, and a caller never creates the row before it
+   * answers.
+   */
+  private EventResponseOutcome answerDate(long seriesId,
+                                          ZonedDateTime occurrenceId,
+                                          long identityId,
+                                          EventAttendeeResponse response,
+                                          boolean broadcast) throws ObjectNotFoundException, IllegalAccessException {
+    if (response == null) {
+      throw new IllegalArgumentException("Attendee response is mandatory");
+    }
+    if (seriesId <= 0) {
+      throw new IllegalArgumentException("eventId is mandatory");
+    }
+    try {
+      return decideSteps.<EventResponseOutcome, ObjectNotFoundException, IllegalAccessException> resolvingAgainOnce(() -> {
+        Event series = eventStorage.getEventById(seriesId);
+        if (series == null) {
+          throw new ObjectNotFoundException("Parent event with id " + seriesId + " wasn't found");
+        }
+        if (series.getRecurrence() == null) {
+          throw new IllegalStateException("Event with id " + seriesId + " isn't recurrent");
+        }
+        // Checked before the step, so that a refused caller is told so without
+        // a row being written; checked again under the lock on the row answered
+        Event knownOccurrence = eventStorage.findExceptionalOccurrence(series,
+                                                                       Utils.getOccurrenceId(series.isAllDay(),
+                                                                                             occurrenceId,
+                                                                                             series.getTimeZoneId()));
+        checkCanRespond(knownOccurrence == null ? series : knownOccurrence, identityId);
+        return decideSteps.<EventResponseOutcome, ObjectNotFoundException, IllegalAccessException> decide(DecideSteps.targetOf(series), () -> {
+          Event occurrence = findOrCreateOccurrence(seriesId, occurrenceId);
+          checkCanRespond(occurrence, identityId);
+          return writeEventResponse(occurrence.getId(), identityId, response, broadcast);
+        });
+      });
+    } catch (ResolveAgainException e) {
+      throw new ObjectNotFoundException("Parent event with id " + seriesId + " wasn't found");
+    }
+  }
+
+  private Event findOrCreateOccurrence(long seriesId, ZonedDateTime occurrenceId) throws ObjectNotFoundException {
+    try {
+      return getAgendaEventService().saveEventExceptionalOccurrence(seriesId, occurrenceId);
+    } catch (AgendaException e) {
+      if (e.getAgendaExceptionType() == AgendaExceptionType.EVENT_NOT_FOUND) {
+        throw new ObjectNotFoundException("Parent event with id " + seriesId + " wasn't found");
+      }
+      throw new IllegalStateException("The date " + occurrenceId + " of event " + seriesId + " can't be answered", e);
     }
   }
 
@@ -314,18 +419,163 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     }
   }
 
-  private void writeEventResponse(long eventId, long identityId, EventAttendeeResponse response, boolean broadcast) {
-    boolean isRecurrentEvent = eventStorage.isRecurrentEvent(eventId);
-    saveEventAttendee(eventId, identityId, response, broadcast);
+  private EventResponseOutcome writeEventResponse(long eventId,
+                                                  long identityId,
+                                                  EventAttendeeResponse response,
+                                                  boolean broadcast) {
+    Event event = eventStorage.getEventById(eventId);
+    EventAttendee stored = saveEventAttendee(event, null, identityId, response, broadcast);
+    ZonedDateTime firstWaitingOccurrenceId = earliestWaiting(null, event, stored);
 
     // Apply modification on exceptional occurrences as well
-    if (isRecurrentEvent) {
+    if (event.getRecurrence() != null) {
       List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceIds(eventId);
       for (long exceptionalOccurenceEventId : exceptionalOccurenceEventIds) {
         if (isEventAttendee(exceptionalOccurenceEventId, identityId)) {
-          saveEventAttendee(exceptionalOccurenceEventId, identityId, response, false);
+          Event occurrence = eventStorage.getEventById(exceptionalOccurenceEventId);
+          EventAttendee propagated = saveEventAttendee(occurrence, null, identityId, response, false);
+          firstWaitingOccurrenceId = earliestWaiting(firstWaitingOccurrenceId, occurrence, propagated);
         }
       }
+    }
+    return new EventResponseOutcome(stored.getResponse(), firstWaitingOccurrenceId);
+  }
+
+  /**
+   * @param current the earliest waiting date found so far, or null
+   * @param pool a row an answer was stored on
+   * @param stored the attendee row stored on it
+   * @return the earlier of the current one and the pool's date, when the pool
+   *         is a date of a series, not cancelled, that the answer left waiting
+   */
+  private static ZonedDateTime earliestWaiting(ZonedDateTime current, Event pool, EventAttendee stored) {
+    ZonedDateTime date = occurrenceDateOf(pool);
+    if (date == null || stored.getResponse() != EventAttendeeResponse.WAITING || pool.getStatus() == EventStatus.CANCELLED) {
+      return current;
+    }
+    return current == null || date.isBefore(current) ? date : current;
+  }
+
+  /**
+   * @param pool a stored event row
+   * @return the occurrence id of the date it is, when it is a date of a
+   *         series, else null
+   */
+  private static ZonedDateTime occurrenceDateOf(Event pool) {
+    return pool.getParentId() > 0 && pool.getOccurrence() != null ? pool.getOccurrence().getId() : null;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void resetEventResponses(long eventId, Set<Long> keptIdentityIds) throws ObjectNotFoundException {
+    if (eventId <= 0) {
+      throw new IllegalArgumentException("eventId is mandatory");
+    }
+    Set<Long> kept = keptIdentityIds == null ? Collections.emptySet() : keptIdentityIds;
+    try {
+      decideSteps.<Void, ObjectNotFoundException, RuntimeException> resolvingAgainOnce(() -> {
+        Event event = eventStorage.getEventById(eventId);
+        if (event == null) {
+          throw new ObjectNotFoundException("Event with id " + eventId + " wasn't found");
+        }
+        // With nothing to start over, the event is neither locked nor evicted
+        // from the cache
+        if (!hasResponsesToReset(event, kept)) {
+          return null;
+        }
+        return decideSteps.decide(DecideSteps.targetOf(event), () -> {
+          resetResponses(eventId, kept);
+          return null;
+        });
+      });
+    } catch (ResolveAgainException e) {
+      throw new ObjectNotFoundException("Event with id " + eventId + " wasn't found");
+    }
+  }
+
+  /**
+   * Starts every answer of an event over, on its row and on the rows of its
+   * dates when it is a series, the waiting list included. A reset frees no
+   * seat: nobody is promoted, and no answer is reported as sent.
+   */
+  private void resetResponses(long eventId, Set<Long> keptIdentityIds) {
+    Event event = eventStorage.getEventById(eventId);
+    resetPoolResponses(event, keptIdentityIds);
+    if (event.getRecurrence() != null) {
+      for (long exceptionalOccurenceEventId : eventStorage.getExceptionalOccurenceIds(eventId)) {
+        Event occurrence = eventStorage.getEventById(exceptionalOccurenceEventId);
+        if (occurrence != null) {
+          resetPoolResponses(occurrence, keptIdentityIds);
+        }
+      }
+    }
+  }
+
+  /**
+   * Whether a reset would change anything, on the event or, for a series, on
+   * the row of one of its dates, where the answers to single dates are.
+   */
+  private boolean hasResponsesToReset(Event event, Set<Long> keptIdentityIds) {
+    if (poolHasResponsesToReset(event, keptIdentityIds)) {
+      return true;
+    }
+    if (event.getRecurrence() == null) {
+      return false;
+    }
+    for (long exceptionalOccurenceEventId : eventStorage.getExceptionalOccurenceIds(event.getId())) {
+      Event occurrence = eventStorage.getEventById(exceptionalOccurenceEventId);
+      if (occurrence != null && poolHasResponsesToReset(occurrence, keptIdentityIds)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Whether an attendee not kept holds an answer on a pool, or the pool is
+   * marked as having reached its capacity: what
+   * {@link #resetPoolResponses(Event, Set)} starts over.
+   */
+  private boolean poolHasResponsesToReset(Event pool, Set<Long> keptIdentityIds) {
+    return pool.getCapacityReachedDate() != null
+        || attendeeStorage.getEventAttendees(pool.getId())
+                          .getEventAttendees()
+                          .stream()
+                          .anyMatch(row -> !keptIdentityIds.contains(row.getIdentityId())
+                              && row.getResponse() != EventAttendeeResponse.NEEDS_ACTION);
+  }
+
+  private void resetPoolResponses(Event pool, Set<Long> keptIdentityIds) {
+    long eventId = pool.getId();
+    Map<Long, List<EventAttendee>> rowsByIdentity = attendeeStorage.getEventAttendees(eventId)
+                                                                   .getEventAttendees()
+                                                                   .stream()
+                                                                   .collect(Collectors.groupingBy(EventAttendee::getIdentityId,
+                                                                                                  LinkedHashMap::new,
+                                                                                                  Collectors.toList()));
+    rowsByIdentity.forEach((identityId, rows) -> {
+      if (keptIdentityIds.contains(identityId)
+          || rows.stream().allMatch(row -> row.getResponse() == EventAttendeeResponse.NEEDS_ACTION)) {
+        return;
+      }
+      EventAttendee oldAttendee = rows.get(0).clone();
+      EventAttendee attendee;
+      if (rows.size() > 1) {
+        // One answer again, to every date, as an answer to all dates writes it
+        rows.forEach(row -> attendeeStorage.removeEventAttendee(row.getId()));
+        attendee = new EventAttendee(0, eventId, identityId, EventAttendeeResponse.NEEDS_ACTION);
+      } else {
+        attendee = rows.get(0);
+        attendee.setResponse(EventAttendeeResponse.NEEDS_ACTION);
+      }
+      attendee.setResponseDate(ZonedDateTime.now(ZoneOffset.UTC));
+      attendeeStorage.saveEventAttendee(attendee, eventId);
+      Utils.broadcastEvent(listenerService, Utils.POST_EVENT_RESPONSE_SAVED, oldAttendee, attendee);
+    });
+    if (pool.getCapacityReachedDate() != null) {
+      eventStorage.saveCapacityReachedDate(eventId, null);
     }
   }
 
@@ -652,21 +902,51 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     }
   }
 
-  private void saveEventAttendee(long eventId,
-                                 long identityId,
-                                 EventAttendeeResponse response,
-                                 boolean userResponseSent) {
-    saveEventAttendee(eventId, null, identityId, response, userResponseSent);
-  }
-
-  private void saveEventAttendee(long eventId,
-                                 ZonedDateTime occurrenceId,
-                                 long identityId,
-                                 EventAttendeeResponse response,
-                                 boolean userResponseSent) {
+  /**
+   * Stores an answer of an attendee on one row of an event, the pool: the row
+   * of an event of no series, of a date of a series, or the series itself.
+   * A Yes takes a seat when one is free or the attendee already holds one,
+   * and waits otherwise. When the answer leaves the attendee fewer seats than
+   * the rows it replaces held (a seat given up, seated rows merged), the
+   * waiting list is promoted in the same transaction while seats are free.
+   * An answer stored as a Yes that leaves the pool full while it is not
+   * marked marks it (see {@link #markCapacityReached(Event)}).
+   *
+   * @param pool the stored row answered, as read under the lock
+   * @param occurrenceId the date the answer starts from on a series, null for
+   *          an answer to every date of the row
+   * @param identityId the attendee's identity identifier
+   * @param requested the answer given
+   * @param userResponseSent whether the attendee sent it, reported as such
+   * @return the attendee row stored
+   */
+  private EventAttendee saveEventAttendee(Event pool,
+                                          ZonedDateTime occurrenceId,
+                                          long identityId,
+                                          EventAttendeeResponse requested,
+                                          boolean userResponseSent) {
+    long eventId = pool.getId();
     EventAttendeeList eventAttendees = attendeeStorage.getEventAttendees(eventId, identityId);
     EventAttendee attendee = eventAttendees.getEventAttendee(identityId, occurrenceId);
     EventAttendee oldAttendee = attendee == null ? null : attendee.clone();
+    // An answer to every date of the row replaces every row of the attendee:
+    // the seats they hold and their place on the waiting list are read from
+    // all of those rows, not only from the first one
+    List<EventAttendee> replacedRows = occurrenceId == null ? eventAttendees.getEventAttendees(identityId)
+                                                            : oldAttendee == null ? List.of() : List.of(oldAttendee);
+    long seatsHeld = replacedRows.stream().filter(row -> row.getResponse() == EventAttendeeResponse.ACCEPTED).count();
+    EventAttendeeResponse response = decideSeat(pool, identityId, requested, seatsHeld > 0);
+    // The date changes only with the answer stored: when every replaced row
+    // already holds it, the earliest of their dates is kept, a null one
+    // included; now otherwise, a Yes again after a No on some dates included
+    boolean answerUnchanged = !replacedRows.isEmpty()
+        && replacedRows.stream().allMatch(row -> row.getResponse() == response);
+    ZonedDateTime responseDate = answerUnchanged ? replacedRows.stream()
+                                                               .min(Comparator.comparing(EventAttendee::getResponseDate,
+                                                                                         Comparator.nullsFirst(Comparator.naturalOrder())))
+                                                               .orElseThrow()
+                                                               .getResponseDate()
+                                                 : ZonedDateTime.now(ZoneOffset.UTC);
     if (occurrenceId == null) {
       List<EventAttendee> userEventAttendees = eventAttendees.getEventAttendees(identityId);
       if (userEventAttendees.size() > 1) {
@@ -679,6 +959,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       } else {
         attendee.setResponse(response);
       }
+      attendee.setResponseDate(responseDate);
       attendeeStorage.saveEventAttendee(attendee, eventId);
     } else {
       List<EventAttendee> userAttendees = eventAttendees.getEventAttendees();
@@ -692,7 +973,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
           attendeeStorage.saveEventAttendee(eventAttendee, eventId);
         }
       }
-      attendee = new EventAttendee(0, eventId, identityId, occurrenceId, null, response);
+      attendee = new EventAttendee(0, eventId, identityId, occurrenceId, null, response, responseDate);
       attendeeStorage.saveEventAttendee(attendee, eventId);
     }
 
@@ -703,6 +984,114 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (userResponseSent) {
       Utils.broadcastEvent(listenerService, Utils.POST_EVENT_RESPONSE_SENT, oldAttendee, attendee);
     }
+
+    // Fewer seats held than before: a seat given up, or rows merged into one
+    if (seatsHeld > (response == EventAttendeeResponse.ACCEPTED ? 1 : 0)) {
+      promoteWaitingAttendees(eventId);
+    }
+    if (response == EventAttendeeResponse.ACCEPTED) {
+      markCapacityReached(pool);
+    }
+    return attendee;
+  }
+
+  /**
+   * Decides the answer stored for a requested one on a pool. Every Yes on a
+   * pool of one date counts, its range ignored: a date's row gets the series'
+   * rows valid at that date, and an answer on the pool keeps the row it
+   * finds, so a row out of range is left from an older shape of the data —
+   * a copy made before that filter, or a ranged answer kept when a series
+   * became an event of no series — and counting it takes a seat away rather
+   * than giving one more than the capacity.
+   *
+   * @param pool the stored row answered
+   * @param identityId the attendee's identity identifier
+   * @param requested the answer given
+   * @param seatHeld whether one of the attendee's rows the answer replaces
+   *          holds a seat
+   * @return the answer to store
+   */
+  private EventAttendeeResponse decideSeat(Event pool,
+                                           long identityId,
+                                           EventAttendeeResponse requested,
+                                           boolean seatHeld) {
+    int capacity = SeatRule.capacityOf(pool);
+    if (!SeatRule.asksForSeat(requested) || capacity <= 0) {
+      return SeatRule.decide(requested, null, 0, 0);
+    }
+    if (pool.getRecurrence() != null) {
+      throw new IllegalStateException("Event " + pool.getId() + " is a series with a capacity limit, whose answers are decided date by date");
+    }
+    int acceptedByOthers = SeatRule.acceptedAt(attendeeStorage.getSeatRows(pool.getId(), EventAttendeeResponse.ACCEPTED),
+                                               null,
+                                               identityId);
+    return SeatRule.decide(requested, seatHeld ? EventAttendeeResponse.ACCEPTED : null, capacity, acceptedByOthers);
+  }
+
+  /**
+   * Marks a pool of one date as having reached its capacity when an answer
+   * stored as a Yes leaves it full while it is not marked, and queues the
+   * event that reports it: the answer filling its last seat, or, after a
+   * reset that cleared the mark while the answers it kept still fill the
+   * pool, a Yes given again by an attendee holding one of those seats. A
+   * promotion does not mark the pool it fills.
+   *
+   * @param pool the stored row answered
+   */
+  private void markCapacityReached(Event pool) {
+    int capacity = SeatRule.capacityOf(pool);
+    if (capacity <= 0 || pool.getCapacityReachedDate() != null || pool.getRecurrence() != null) {
+      return;
+    }
+    int accepted = SeatRule.acceptedAt(attendeeStorage.getSeatRows(pool.getId(), EventAttendeeResponse.ACCEPTED), null, 0);
+    if (accepted < capacity) {
+      return;
+    }
+    ZonedDateTime capacityReachedDate = ZonedDateTime.now(ZoneOffset.UTC);
+    eventStorage.saveCapacityReachedDate(pool.getId(), capacityReachedDate);
+    pool.setCapacityReachedDate(capacityReachedDate);
+    Utils.broadcastEvent(listenerService, Utils.POST_EVENT_CAPACITY_REACHED, pool.getId(), occurrenceDateOf(pool));
+  }
+
+  /**
+   * Gives the free seats of a pool of one date to its waiting attendees, in
+   * the order they asked: earliest answer date first, then lowest row id.
+   * Runs inside the decide step that freed the seat. A promotion is stored as
+   * a Yes of now, and reported as saved and as promoted, never as an answer
+   * the attendee sent.
+   *
+   * @param eventId the identifier of the pool's event row
+   */
+  void promoteWaitingAttendees(long eventId) {
+    List<EventAttendee> waitingAttendees = attendeeStorage.getWaitingAttendees(eventId);
+    if (waitingAttendees.isEmpty()) {
+      return;
+    }
+    Event pool = eventStorage.getEventById(eventId);
+    if (pool.getRecurrence() != null) {
+      throw new IllegalStateException("Event " + eventId + " is a series with a waiting list, whose attendees are promoted date by date");
+    }
+    int capacity = SeatRule.capacityOf(pool);
+    int accepted = SeatRule.acceptedAt(attendeeStorage.getSeatRows(eventId, EventAttendeeResponse.ACCEPTED), null, 0);
+    for (EventAttendee waitingAttendee : waitingAttendees) {
+      if (!SeatRule.hasFreeSeat(capacity, accepted)) {
+        return;
+      }
+      EventAttendee oldAttendee = waitingAttendee.clone();
+      waitingAttendee.setResponse(EventAttendeeResponse.ACCEPTED);
+      waitingAttendee.setResponseDate(ZonedDateTime.now(ZoneOffset.UTC));
+      attendeeStorage.saveEventAttendee(waitingAttendee, eventId);
+      accepted++;
+      Utils.broadcastEvent(listenerService, Utils.POST_EVENT_RESPONSE_SAVED, oldAttendee, waitingAttendee);
+      Utils.broadcastEvent(listenerService, Utils.POST_EVENT_ATTENDEE_PROMOTED, oldAttendee, waitingAttendee);
+    }
+  }
+
+  private AgendaEventService getAgendaEventService() {
+    if (agendaEventService == null) {
+      agendaEventService = ExoContainerContext.getService(AgendaEventService.class);
+    }
+    return agendaEventService;
   }
 
   private void dispatch(NotificationContext ctx, String... pluginId) {
@@ -740,54 +1129,54 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     }
   }
 
-  private void processAttendeesToUpdate(long eventId,
-                                        List<EventAttendee> oldAttendees,
-                                        List<EventAttendee> newAttendees,
-                                        boolean resetResponses) {
-    if (resetResponses) {
-      List<EventAttendee> attendeesToUpdate =
-                                            oldAttendees.stream()
-                                                        .filter(attendee -> newAttendees.stream()
-                                                                                        .anyMatch(newAttendee -> newAttendee.getIdentityId() == attendee.getIdentityId()))
-                                                        .collect(Collectors.toList());
-      for (EventAttendee eventAttendee : attendeesToUpdate) {
-        try {
-          sendEventResponse(eventId, eventAttendee.getIdentityId(), EventAttendeeResponse.NEEDS_ACTION);
-        } catch (Exception e) {
-          LOG.warn("Error initializing default reminders of event {} for user with id {}",
-                   eventId,
-                   eventAttendee.getIdentityId(),
-                   e);
-        }
-      }
-    }
-  }
-
-  private void processAttendeesToCreate(long eventId,
-                                        EventStatus eventStatus,
-                                        List<EventAttendee> oldAttendees,
-                                        List<EventAttendee> newAttendees,
-                                        long creatorUserId,
-                                        boolean resetResponses,
-                                        Set<AgendaEventModificationType> eventModificationTypes) {
+  /**
+   * Creates the rows of the attendees the saved list adds. Another attendee's
+   * answer carried by the list starts over; the saver's own Yes, or place on
+   * the waiting list, takes a seat like any answer: stored as a Yes on a pool
+   * with no limit, and returned to be decided once the list is stored on a
+   * pool with one. Rows copied from a series (creatorUserId 0) keep the
+   * answer and the answer date they had.
+   *
+   * @return the identity of the saver when their answer is to be decided
+   */
+  private List<Long> processAttendeesToCreate(Event pool,
+                                              EventStatus eventStatus,
+                                              List<EventAttendee> oldAttendees,
+                                              List<EventAttendee> newAttendees,
+                                              long creatorUserId,
+                                              boolean resetResponses,
+                                              Set<AgendaEventModificationType> eventModificationTypes) {
+    long eventId = pool.getId();
     List<EventAttendee> attendeesToCreate =
                                           newAttendees.stream()
                                                       .filter(attendee -> oldAttendees.stream()
                                                                                       .noneMatch(newAttendee -> newAttendee.getIdentityId() == attendee.getIdentityId()))
                                                       .collect(Collectors.toList());
 
+    List<Long> seatRequesters = new ArrayList<>();
     // Create new attendees
     for (EventAttendee eventAttendee : attendeesToCreate) {
       if (resetResponses || eventAttendee.getResponse() == null || eventStatus == EventStatus.TENTATIVE
-          || isOtherAttendeeResponse(eventAttendee, creatorUserId)
-          || isAskedWaiting(eventAttendee, creatorUserId)) {
+          || isOtherAttendeeResponse(eventAttendee, creatorUserId)) {
         eventAttendee.setResponse(EventAttendeeResponse.NEEDS_ACTION);
+      } else if (creatorUserId > 0 && SeatRule.asksForSeat(eventAttendee.getResponse())) {
+        if (SeatRule.capacityOf(pool) > 0) {
+          eventAttendee.setResponse(EventAttendeeResponse.NEEDS_ACTION);
+          seatRequesters.add(eventAttendee.getIdentityId());
+        } else {
+          eventAttendee.setResponse(EventAttendeeResponse.ACCEPTED);
+        }
+      }
+      if (creatorUserId > 0) {
+        eventAttendee.setResponseDate(eventAttendee.getResponse() == EventAttendeeResponse.NEEDS_ACTION ? null
+                                                                                                        : ZonedDateTime.now(ZoneOffset.UTC));
       }
       attendeeStorage.saveEventAttendee(eventAttendee, eventId);
     }
     if (!attendeesToCreate.isEmpty()) {
       eventModificationTypes.add(AgendaEventModificationType.ATTENDEE_ADDED);
     }
+    return seatRequesters;
   }
 
   /**
@@ -807,37 +1196,13 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   }
 
   /**
-   * Whether the user saving the event asks for {@link EventAttendeeResponse#WAITING}
-   * as their own answer. A place on a waiting list is never chosen: it is what
-   * a Yes becomes on a date with no seat left. Rows copied from a series
-   * (creatorUserId 0) keep the answer they had.
+   * Removes the rows of the attendees the saved list drops.
    *
-   * @param eventAttendee {@link EventAttendee} to create
-   * @param creatorUserId {@link Identity} technical identifier of the user
-   *          creating or updating the event, 0 when the attendee isn't saved on
-   *          behalf of a user
-   * @return true when a saver asks for WAITING
+   * @return whether a removed row held a seat, which frees it
    */
-  private boolean isAskedWaiting(EventAttendee eventAttendee, long creatorUserId) {
-    return creatorUserId > 0 && eventAttendee.getResponse() == EventAttendeeResponse.WAITING;
-  }
-
-  /**
-   * Refuses {@link EventAttendeeResponse#WAITING} as an answer a caller sends:
-   * a place on a waiting list is what a Yes becomes on a date with no seat
-   * left, never an answer of its own.
-   *
-   * @param response the answer the caller sends
-   */
-  private static void checkNotWaiting(EventAttendeeResponse response) {
-    if (response == EventAttendeeResponse.WAITING) {
-      throw new IllegalArgumentException("agenda.response.waitingNotAnAnswer");
-    }
-  }
-
-  private void processAttendeesToDelete(List<EventAttendee> oldAttendees,
-                                        List<EventAttendee> newAttendees,
-                                        Set<AgendaEventModificationType> eventModificationTypes) {
+  private boolean processAttendeesToDelete(List<EventAttendee> oldAttendees,
+                                           List<EventAttendee> newAttendees,
+                                           Set<AgendaEventModificationType> eventModificationTypes) {
     List<EventAttendee> attendeesToDelete =
                                           oldAttendees.stream()
                                                       .filter(attendee -> newAttendees.stream()
@@ -851,5 +1216,6 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (!attendeesToDelete.isEmpty()) {
       eventModificationTypes.add(AgendaEventModificationType.ATTENDEE_DELETED);
     }
+    return attendeesToDelete.stream().anyMatch(attendee -> attendee.getResponse() == EventAttendeeResponse.ACCEPTED);
   }
 }

@@ -202,6 +202,9 @@ class AgendaCalendarSharingAclTest {
     eventStorage = mock(AgendaEventStorage.class);
     when(eventStorage.getEventById(EVENT)).thenAnswer(invocation -> event());
     when(eventStorage.getEventById(SERIES)).thenAnswer(invocation -> series());
+    // A date of a series is created under the lock of the series, which the
+    // storage takes when its row exists
+    when(eventStorage.lockEvents(any())).thenReturn(true);
     attendeeService = mock(AgendaEventAttendeeService.class);
     searchConnector = mock(AgendaSearchConnector.class);
     SpaceService spaceService = mock(SpaceService.class);

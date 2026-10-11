@@ -165,7 +165,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (recurrentEvent == null) {
       return null;
     }
-    Event exceptionalOccurrenceEvent = agendaEventStorage.getExceptionalOccurrenceEvent(parentEventId, occurrenceId);
+    Event exceptionalOccurrenceEvent = agendaEventStorage.findExceptionalOccurrence(recurrentEvent, occurrenceId);
     // Access is read on the event actually served, before anything else is
     // computed: a stored exceptional occurrence through its own row (its own
     // attendee list), a computed occurrence through the parent it inherits
@@ -256,7 +256,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    */
   @Override
   public Event getExceptionalOccurrenceEvent(long eventId, ZonedDateTime occurrenceId) {
-    return agendaEventStorage.getExceptionalOccurrenceEvent(eventId, occurrenceId);
+    Event series = agendaEventStorage.getEventById(eventId);
+    return series == null ? null : agendaEventStorage.findExceptionalOccurrence(series, occurrenceId);
   }
 
   /**
@@ -344,6 +345,88 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       event.setRecurrence(null);
     }
 
+    if (parentEvent != null && occurrence != null && occurrence.getId() != null) {
+      // "This occurrence only" saved on a date that had no row of its own when
+      // the form was opened: decided under the lock of the series, so that a
+      // row the date got meanwhile, from the reminder job or an answer, is
+      // updated instead of doubled
+      long seriesId = parentEvent.getId();
+      List<EventDateOption> eventDateOptions = dateOptions;
+      try {
+        return decideSteps.<Event, IllegalAccessException, AgendaException> decide(DecideSteps.targetOfSeries(seriesId),
+                                                                                   () -> writeDateOfSeries(seriesId,
+                                                                                                           event,
+                                                                                                           attendees,
+                                                                                                           conferences,
+                                                                                                           reminders,
+                                                                                                           eventDateOptions,
+                                                                                                           remoteEvent,
+                                                                                                           sendInvitation,
+                                                                                                           userIdentityId,
+                                                                                                           calendar));
+      } catch (ResolveAgainException e) {
+        throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+      }
+    }
+    return writeNewEvent(event,
+                         attendees,
+                         conferences,
+                         reminders,
+                         dateOptions,
+                         remoteEvent,
+                         sendInvitation,
+                         userIdentityId,
+                         calendar,
+                         parentEvent);
+  }
+
+  private Event writeDateOfSeries(long seriesId,
+                                  Event event,
+                                  List<EventAttendee> attendees,
+                                  List<EventConference> conferences,
+                                  List<EventReminder> reminders,
+                                  List<EventDateOption> dateOptions,
+                                  RemoteEvent remoteEvent,
+                                  boolean sendInvitation,
+                                  long userIdentityId,
+                                  Calendar calendar) throws IllegalAccessException, AgendaException {
+    // The date is matched with the series as locked: its zone and its all-day
+    // flag decide which row is the date's
+    Event lockedSeries = agendaEventStorage.getEventById(seriesId);
+    if (lockedSeries == null) {
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+    }
+    ZonedDateTime occurrenceId = Utils.getOccurrenceId(lockedSeries.isAllDay(),
+                                                       event.getOccurrence().getId(),
+                                                       lockedSeries.getTimeZoneId());
+    Event existingOccurrence = agendaEventStorage.findExceptionalOccurrence(lockedSeries, occurrenceId);
+    if (existingOccurrence == null) {
+      return writeNewEvent(event,
+                           attendees,
+                           conferences,
+                           reminders,
+                           dateOptions,
+                           remoteEvent,
+                           sendInvitation,
+                           userIdentityId,
+                           calendar,
+                           lockedSeries);
+    }
+    event.setId(existingOccurrence.getId());
+    return updateEvent(event, attendees, conferences, reminders, dateOptions, remoteEvent, sendInvitation, userIdentityId);
+  }
+
+  private Event writeNewEvent(Event event,
+                              List<EventAttendee> attendees,
+                              List<EventConference> conferences,
+                              List<EventReminder> reminders,
+                              List<EventDateOption> dateOptions,
+                              RemoteEvent remoteEvent,
+                              boolean sendInvitation,
+                              long userIdentityId,
+                              Calendar calendar,
+                              Event parentEvent) throws IllegalAccessException, AgendaException {
+    long calendarId = event.getCalendarId();
     adjustEventDatesForWrite(event);
 
     Event eventToCreate = new Event(0,
@@ -590,7 +673,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (seriesAttendees == null) {
       return;
     }
-    List<EventAttendee> inherited = cleanupAttendeeIds(seriesAttendees.getEventAttendees(eventOccurrence.getId()));
+    List<EventAttendee> inherited = cleanupAttendeeIds(attendeesOfDate(seriesAttendees, eventOccurrence.getId()));
     if (inherited.isEmpty()) {
       return;
     }
@@ -944,7 +1027,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         || Boolean.TRUE.equals(row.getOpen()) != Boolean.TRUE.equals(storedSeries.getOpen())) {
       return true;
     }
-    List<EventAttendee> seriesAttendeesOnThatDate = new EventAttendeeList(seriesLists.attendees()).getEventAttendees(occurrenceId);
+    // Compared with the series' attendee rows valid at that date, the ones the
+    // row was built with
+    List<EventAttendee> seriesAttendeesOnThatDate = attendeesOfDate(new EventAttendeeList(seriesLists.attendees()), occurrenceId);
     // Reminders are compared with the series' reminders that apply to that
     // date, the ones the row was built with: one turned off on the date alone
     // is intent, and so is one set there, even when the series carries the
@@ -1344,12 +1429,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (parentEvent != null && parentEvent.getRecurrence() != null && occurrenceId != null) {
       occurrenceId = Utils.getOccurrenceId(parentEvent.isAllDay(), occurrenceId, parentEvent.getTimeZoneId());
     }
-    Event exceptionalOccurrenceEvent = getExceptionalOccurrenceEvent(eventId, occurrenceId);
+    Event exceptionalOccurrenceEvent = occurrenceId == null || parentEvent == null ? null
+                                                                                 : agendaEventStorage.findExceptionalOccurrence(parentEvent,
+                                                                                                                                occurrenceId);
     if (exceptionalOccurrenceEvent != null) {
       return exceptionalOccurrenceEvent;
     }
 
-    List<EventAttendee> attendees = attendeeService.getEventAttendees(eventId).getEventAttendees(occurrenceId);
+    List<EventAttendee> attendees = attendeesOfDate(attendeeService.getEventAttendees(eventId), occurrenceId);
     cleanupAttendeeIds(attendees);
     List<EventConference> conferences = conferenceService.getEventConferences(eventId);
     cleanupConferenceIds(conferences);
@@ -1411,6 +1498,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (overAllEndDate != null && overAllEndDate.isBefore(occurrenceDateUTC)) {
       throw new IllegalStateException("Event with id " + eventId + " doesn't have an occurrence with id " + occurrenceId);
     }
+    // A date keeps one row: asked for a date that already has its own, under
+    // the lock of the series, the creation returns it
+    Event existingOccurrence = agendaEventStorage.findExceptionalOccurrence(parentEvent, occurrenceId);
+    if (existingOccurrence != null) {
+      return existingOccurrence;
+    }
 
     Event exceptionalEvent = parentEvent.clone();
     exceptionalEvent.setId(0);
@@ -1423,8 +1516,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // until somebody changes it here.
     // The capacity is inherited the same way: the new row becomes its date's
     // own pool. Whether that pool has reached it is a fact about this date,
-    // never the series' marker, which another date may have set.
-    exceptionalEvent.setCapacityReachedDate(null);
+    // never the series' marker, which another date may have set: computed
+    // from the answers copied, and reported to nobody, since no answer
+    // filled it.
+    int capacity = SeatRule.capacityOf(exceptionalEvent);
+    boolean full = capacity > 0 && exceptionalEvent.getStatus() == EventStatus.CONFIRMED && attendees != null
+        && SeatRule.acceptedAt(attendees, null, 0) >= capacity;
+    exceptionalEvent.setCapacityReachedDate(full ? ZonedDateTime.now(ZoneOffset.UTC) : null);
     anchorOccurrenceDatesOnSeries(parentEvent, exceptionalEvent, occurrenceId);
     exceptionalEvent = agendaEventStorage.createEvent(exceptionalEvent);
     long exceptionalEventId = exceptionalEvent.getId();
@@ -1616,11 +1714,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // the form is what decides which rows are written, not this method.
     boolean open = event.getOpen() == null ? Boolean.TRUE.equals(storedEvent.getOpen()) : event.getOpen();
     eventToUpdate.setOpen(open && canBeOpen(eventToUpdate, calendar));
-    // Neither is part of the positional constructor above: without these, a
-    // save of any other field would write no limit and forget the reached
-    // marker
+    // The limit is not part of the positional constructor above: without
+    // this, a save of any other field would write no limit. The reached mark
+    // is not written by a save of the row at all
     eventToUpdate.setCapacity(storedEvent.getCapacity());
-    eventToUpdate.setCapacityReachedDate(storedEvent.getCapacityReachedDate());
 
     AgendaEventModification eventModifications = new AgendaEventModification(eventId, event.getCalendarId(), userIdentityId);
     eventModifications.addModificationType(AgendaEventModificationType.UPDATED);
@@ -2502,14 +2599,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     List<EventReminder> allReminders = reminderService.getEventReminders(eventId);
     reminderService.saveEventReminders(updatedEvent, allReminders);
 
-    EventAttendeeList eventAttendeeList = attendeeService.getEventAttendees(eventId);
-    List<EventAttendee> eventAttendees = eventAttendeeList.getEventAttendees();
-    for (EventAttendee eventAttendee : eventAttendees) {
-      if (eventAttendee.getIdentityId() != userIdentityId) {
-        attendeeService.sendEventResponse(eventId, eventAttendee.getIdentityId(), EventAttendeeResponse.NEEDS_ACTION);
-      }
-    }
+    attendeeService.resetEventResponses(eventId, Collections.singleton(userIdentityId));
     attendeeService.sendEventResponse(eventId, userIdentityId, EventAttendeeResponse.ACCEPTED);
+    List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(eventId).getEventAttendees();
     datePollService.selectEventDateOption(dateOptionId);
 
     Set<AgendaEventModificationType> modificationTypes = new HashSet<>();
@@ -3116,30 +3208,35 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   /**
    * Whether a series really has an occurrence on the date an identifier names.
    * <p>
-   * The series is expanded around that date and the identifier is matched
-   * against what comes out <b>on the UTC date</b>, which is the granularity the
-   * rest of the exceptional-occurrence machinery already works at:
-   * {@code AgendaEventStorage.getExceptionalOccurrenceEvent} queries the
-   * identifier's UTC day, and {@code filterExceptionalEvents} matches on
-   * {@code withZoneSameInstant(UTC).toLocalDate()}. Matching the instant alone
-   * would be stricter than either, and would refuse the case
-   * {@code filterExceptionalEvents} names in its own comment — an identifier
-   * computed by the previous algorithm, on the right date at another
-   * time of day. Because the row still replaces the computed occurrence at
-   * that granularity, an identifier this admits costs the series its date in
-   * exchange rather than adding to it. The window is the day before to the day
-   * after, with a limit of three, the same window and limit
-   * {@link #getEventOccurrence} expands for a reader — enough for every
-   * frequency the recurrence editor offers, since none of them yields more than
-   * three occurrences over three days.
+   * The series is expanded around that date. An identifier it computes is one
+   * of its dates. Any other one — computed by the previous algorithm, on the
+   * right date at another time of day, the case {@link #isSameOccurrenceDate}
+   * names, which matching the instant alone would refuse —
+   * must be matched by the occurrence list ({@code isSameOccurrenceDate}, how
+   * {@code filterExceptionalEvents} takes computed occurrences out of the
+   * series for a row) to computed occurrences of one date only: the date it
+   * designates in the series' zone ({@code Utils#isSameSeriesDate}, how
+   * {@link #hasExceptionalOccurrence} counts the one row a date may get).
+   * Matched to none, the row would add a date the list still shows; matched to
+   * a computed occurrence of another date as well, it would take two dates out
+   * of the list while counting as the row of one. A computed identifier is
+   * spared that second test: across a change of offset two dates of a daily
+   * series can share a UTC day, and the list then matches each to both, a fault
+   * of its rule the identifier the client sends does not make. The window is
+   * the day before to the day after the date it designates, with the limit of
+   * three {@link #getEventOccurrence} also expands with for a reader — enough
+   * for every frequency the recurrence editor offers, since none of them
+   * yields more than three occurrences over three days.
    * <p>
    * The range test {@code createEventExceptionalOccurrence} makes
    * ({@code overallStart - 1 day <= date <= overallEnd}) is deliberately not
    * reused: it admits any date inside the span — every Wednesday of a Monday
    * series, and every future date of a series with no end at all.
    * <p>
-   * It <b>fails closed</b>: a frequency this window cannot resolve — an hourly
-   * or finer rule — is asked for the creation right rather than let through.
+   * It <b>fails closed</b>: a rule this window cannot resolve — an hourly or
+   * finer one, or one listing several hours, minutes or seconds, whose dates
+   * share a day ({@code Utils#hasSeveralDatesADay}) — is asked for the
+   * creation right rather than let through.
    * Such a rule is <b>not</b> only an import artefact, which is worth saying
    * because the shorter sentence invites the next reader to decide the case
    * cannot happen: {@code EventRecurrenceFrequency} carries {@code HOURLY},
@@ -3147,8 +3244,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * them, but a plain REST payload reaches them through
    * {@code RestEntityBuilder}, and {@code create_agenda_event} advertises them
    * to the model in {@code ai-tool-definitions.json}.
-   * {@link #getEventOccurrence} expands the same window with the same limit, so
-   * <i>reading</i> one of those occurrences is already broken the same way; and
+   * {@link #getEventOccurrence} expands with the same limit, so <i>reading</i>
+   * one of those occurrences is already broken the same way; and
    * {@link #inheritSeriesAttendees} asks a different question, so such a row
    * still gets its attendees and is not left an orphan.
    *
@@ -3158,14 +3255,19 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * @return true when the series has an occurrence on that date
    */
   private boolean seriesHasOccurrence(Event parentEvent, ZonedDateTime occurrenceId) {
-    LocalDate occurrenceDateUTC = occurrenceId.withZoneSameInstant(ZoneOffset.UTC).toLocalDate();
-    List<Event> occurrences = Utils.getOccurrences(parentEvent,
-                                                   occurrenceDateUTC.minusDays(1),
-                                                   occurrenceDateUTC.plusDays(1),
-                                                   3);
-    return occurrences.stream()
-                      .map(occurrence -> occurrence.getOccurrence().getId().withZoneSameInstant(ZoneOffset.UTC))
-                      .anyMatch(id -> id.toLocalDate().equals(occurrenceDateUTC));
+    if (Utils.hasSeveralDatesADay(parentEvent.getRecurrence())) {
+      return false;
+    }
+    LocalDate occurrenceDate = Utils.getSeriesDate(parentEvent, occurrenceId);
+    List<ZonedDateTime> computedIds = Utils.getOccurrences(parentEvent, occurrenceDate.minusDays(1), occurrenceDate.plusDays(1), 3)
+                                           .stream()
+                                           .map(occurrence -> occurrence.getOccurrence().getId())
+                                           .toList();
+    if (computedIds.stream().anyMatch(id -> id.toEpochSecond() == occurrenceId.toEpochSecond())) {
+      return true;
+    }
+    List<ZonedDateTime> listedWith = computedIds.stream().filter(id -> isSameOccurrenceDate(id, occurrenceId)).toList();
+    return !listedWith.isEmpty() && listedWith.stream().allMatch(id -> Utils.isSameSeriesDate(parentEvent, id, occurrenceId));
   }
 
   /**
@@ -3189,7 +3291,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * @return true when an exceptional occurrence already exists for that date
    */
   private boolean hasExceptionalOccurrence(Event parentEvent, ZonedDateTime occurrenceId) {
-    return agendaEventStorage.getExceptionalOccurrenceEvent(parentEvent.getId(), occurrenceId) != null;
+    return agendaEventStorage.findExceptionalOccurrence(parentEvent, occurrenceId) != null;
   }
 
   /**
@@ -3451,6 +3553,23 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
     }
     return 0;
+  }
+
+  /**
+   * The attendee rows of a series valid at one of its dates, filtered by
+   * their range here: {@link EventAttendeeList#getEventAttendees(ZonedDateTime)}
+   * returns a list of one row unfiltered, which would copy onto a date the
+   * answer of an attendee whose only row starts later.
+   *
+   * @param seriesAttendees the series' rows
+   * @param occurrenceId the date's occurrence id
+   * @return the rows valid at the date
+   */
+  private List<EventAttendee> attendeesOfDate(EventAttendeeList seriesAttendees, ZonedDateTime occurrenceId) {
+    return seriesAttendees.getEventAttendees()
+                          .stream()
+                          .filter(attendee -> SeatRule.coversDate(attendee, occurrenceId))
+                          .collect(Collectors.toList());
   }
 
   private List<EventAttendee> cleanupAttendeeIds(List<EventAttendee> attendees) {
