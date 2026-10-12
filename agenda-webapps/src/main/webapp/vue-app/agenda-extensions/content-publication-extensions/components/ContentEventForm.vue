@@ -484,7 +484,7 @@ export default {
     },
     formatDate(date) {
       const options = {year: 'numeric', month: 'long', day: 'numeric'};
-      return date && new Intl.DateTimeFormat(this.locale, options).format(new Date(date));
+      return date && new Intl.DateTimeFormat(this.locale, options).format(this.$agendaUtils.toDate(date));
     },
     formatTime(date) {
       const hours = String(date.getHours()).padStart(2, '0');
