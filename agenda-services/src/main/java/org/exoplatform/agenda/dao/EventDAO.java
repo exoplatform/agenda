@@ -578,14 +578,6 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     return resultList == null ? Collections.emptyList() : resultList;
   }
 
-  public List<Long> getExceptionalOccurenceIdsByStart(long parentRecurrentEventId, Date startDate) {
-    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.getExceptionalOccurenceIdsByStart", Long.class);
-    query.setParameter("parentEventId", parentRecurrentEventId);
-    query.setParameter("start", startDate);
-    List<Long> resultList = query.getResultList();
-    return resultList == null ? Collections.emptyList() : resultList;
-  }
-
   public List<Long> getExceptionalOccurenceIds(long parentRecurrentEventId) {
     TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getExceptionalOccurenceIds", Tuple.class);
     query.setParameter("parentEventId", parentRecurrentEventId);
