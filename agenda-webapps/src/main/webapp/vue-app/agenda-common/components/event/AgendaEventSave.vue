@@ -15,12 +15,24 @@ export default {
     };
   },
   created() {
+    // The participants of an event as the form opened it, by the event object
+    // the form edits in place: a wider scope applies the form's change to the
+    // series' own list, not the date's list
+    this.attendeesAsOpened = new WeakMap();
+    this.$root.$on('agenda-event-form-opened', this.rememberAttendees);
     this.$root.$on('agenda-event-save', this.saveEvent);
   },
   methods: {
+    rememberAttendees(event) {
+      if (event) {
+        this.attendeesAsOpened.set(event, JSON.parse(JSON.stringify(event.attendees || [])));
+      }
+    },
     saveEvent(event, ignoreRecurrentPopin, changeDatesOnly) {
       if (event.occurrence && !ignoreRecurrentPopin) {
-        this.$refs.recurrentEventConfirm.open(event, changeDatesOnly);
+        const attendeesAsOpened = this.attendeesAsOpened.get(event);
+        const attendeesDelta = attendeesAsOpened ? this.$agendaUtils.attendeesDelta(attendeesAsOpened, event.attendees) : null;
+        this.$refs.recurrentEventConfirm.open(event, changeDatesOnly, attendeesDelta);
       } else {
         this.save(event, changeDatesOnly);
       }
