@@ -309,19 +309,11 @@ public class AgendaCalendarLinkRest {
   }
 
   /**
-   * Answers a link's status with {@code Cache-Control: no-store}, so that a URL
-   * it carries stays out of browser and intermediary caches.
-   *
-   * @param entity the status
-   * @return the response
-   */
-  /**
    * A refusal with its code written in the body, {@code {"message": code}},
    * and never cached — the way {@link AgendaCalendarSubscriptionRest} refuses.
-   * Not a {@code ResponseStatusException}: its reason reaches a client only
-   * through Spring's error page, whose {@code message} attribute the platform
-   * does not include ({@code server.error.include-message} binds to nothing
-   * on Spring Boot 4), so the drawer could only ever show a generic error.
+   * Not a {@code ResponseStatusException}: written here, the code the drawer
+   * shows and the {@code no-store} header do not depend on how the platform
+   * configures Spring's error page.
    *
    * @param status the status
    * @param code the message code
@@ -343,6 +335,13 @@ public class AgendaCalendarLinkRest {
     return refusal(HttpStatus.BAD_REQUEST, code);
   }
 
+  /**
+   * Answers a link's status with {@code Cache-Control: no-store}, so that a URL
+   * it carries stays out of browser and intermediary caches.
+   *
+   * @param entity the status
+   * @return the response
+   */
   private ResponseEntity<CalendarLinkStatusEntity> uncached(CalendarLinkStatusEntity entity) {
     return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(entity);
   }

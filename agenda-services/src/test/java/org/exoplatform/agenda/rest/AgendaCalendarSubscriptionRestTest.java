@@ -64,10 +64,10 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 
 /**
  * Pins the REST contract of calendar subscriptions (EXO-90278): the statuses
- * the service's refusals map to, the refusal code written in the body of each —
- * never left to Spring's error page, which the platform answers without its
- * message — and nothing else, responses never cached, and every handler closed
- * to an anonymous request behind real method security.
+ * the service's refusals map to, the refusal code written in the body of each
+ * by the resource itself — never left to Spring's error page — and nothing
+ * else, responses never cached, and every handler closed to an anonymous
+ * request behind real method security.
  */
 class AgendaCalendarSubscriptionRestTest {
 

@@ -228,7 +228,8 @@ class AgendaCalendarLinkRestTest {
     when(service.getCalendarLink(999, "member")).thenThrow(new ObjectNotFoundException("missing"));
     when(service.saveCalendarLink(0, "member")).thenThrow(new IllegalArgumentException("agenda.calendarLink.invalidCalendar"));
 
-    // Each refusal carries its code in the body: the drawer translates it, and Spring's error page would not carry it.
+    // Each refusal carries its code in the body: the drawer translates it, and the resource writes it itself,
+    // whatever Spring's error page carries.
     mockMvc.perform(as("member", get("/calendars/20/link"))).andExpect(status().isForbidden())
            .andExpect(jsonPath("$.message").value("agenda.calendarLink.forbidden"))
            .andExpect(header().string("Cache-Control", "no-store"));
