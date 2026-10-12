@@ -56,6 +56,7 @@ import org.exoplatform.agenda.model.EventDateOption;
 import org.exoplatform.agenda.model.EventOccurrence;
 import org.exoplatform.agenda.model.EventRecurrence;
 import org.exoplatform.agenda.model.EventResponseOutcome;
+import org.exoplatform.agenda.model.EventSeatCounts;
 import org.exoplatform.agenda.service.RecordingStatementInspector.RecordedStatement;
 import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
 import org.exoplatform.agenda.util.Utils;
@@ -604,6 +605,49 @@ public class AgendaSeatRuleTest extends BaseAgendaEventTest {
       assertEquals(zone + ": the date has one row: " + rows, 1, rows.size());
       ZonedDateTime rowDate = agendaEventStorage.getEventById(rows.get(0)).getOccurrence().getId();
       assertEquals(zone + ": the row is the date answered", expectedDay, rowDate.toLocalDate());
+    }
+  }
+
+  /**
+   * The seats of an all-day date with its own row are counted on that row,
+   * west of UTC and east of it, whether the date is read by the id the
+   * occurrence list gives, twice, or by its local midnight in the series'
+   * zone, as written and converted to UTC; the next date, with no row, is
+   * counted on the series.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void theSeatsOfAnAllDayDateAreCountedOnItsOwnRowOnBothSidesOfUtc() throws Exception {
+    for (ZoneId zone : List.of(ZoneId.of("America/New_York"), ZoneId.of("Asia/Tokyo"))) {
+      Event series = allDaySeries(zone, testuser2Identity, testuser3Identity);
+      List<ZonedDateTime> dates = occurrenceIds(series);
+      answerDate(series.getId(), dates.get(1), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+      answerDate(series.getId(), dates.get(1), testuser3Identity, EventAttendeeResponse.ACCEPTED);
+      assertEquals(zone + ": the date has its own row", 1, agendaEventStorage.getExceptionalOccurenceIds(series.getId()).size());
+
+      for (ZonedDateTime read : List.of(dates.get(1),
+                                        dates.get(1),
+                                        dates.get(1).toLocalDate().atStartOfDay(zone),
+                                        localMidnight(dates.get(1), zone))) {
+        assertEquals(zone + ", read at " + read,
+                     new EventSeatCounts(2, 0, null),
+                     agendaEventAttendeeService.getSeatCounts(series.getId(), read, 0));
+      }
+      assertEquals(zone + ": the next date",
+                   new EventSeatCounts(0, 0, null),
+                   agendaEventAttendeeService.getSeatCounts(series.getId(), dates.get(2), 0));
+
+      // A Yes from the next date is counted there, read at its local midnight too
+      agendaEventAttendeeService.sendUpcomingEventResponse(series.getId(),
+                                                           dates.get(2),
+                                                           id(testuser2Identity),
+                                                           EventAttendeeResponse.ACCEPTED);
+      for (ZonedDateTime read : List.of(dates.get(2), localMidnight(dates.get(2), zone))) {
+        assertEquals(zone + ": the next date, read at " + read,
+                     new EventSeatCounts(1, 0, null),
+                     agendaEventAttendeeService.getSeatCounts(series.getId(), read, 0));
+      }
     }
   }
 
