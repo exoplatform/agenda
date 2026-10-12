@@ -9,7 +9,6 @@
         class="my-auto" />
     </div>
     <v-btn
-      color="grey"
       icon
       dark
       @click="$emit('deleteFile', attachment)">
