@@ -21,6 +21,7 @@ import static org.exoplatform.agenda.util.NotificationUtils.*;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -216,6 +217,9 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       throw new IllegalAccessException("User " + identityId + " may not answer event " + eventId
           + ": not an attendee, and the event isn't open to them");
     }
+    if (occurrenceId == null && event.getRecurrence() != null) {
+      return getSeriesResponse(eventId, identityId);
+    }
     EventAttendeeList eventAttendeeList = attendeeStorage.getEventAttendees(eventId, identityId);
     if (eventAttendeeList.isEmpty()) {
       return EventAttendeeResponse.NEEDS_ACTION;
@@ -229,24 +233,134 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    */
   @Override
   public EventAttendeeResponse getSeriesResponse(long seriesId, long identityId) throws ObjectNotFoundException {
-    Event series = eventStorage.getEventById(seriesId);
-    if (series == null) {
-      throw new ObjectNotFoundException("Event with id " + seriesId + " wasn't found");
-    }
+    EventAttendee attendee = getSeriesAttendee(seriesId, identityId);
+    return attendee == null ? EventAttendeeResponse.NEEDS_ACTION : attendee.getResponse();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public EventAttendee getSeriesAttendee(long seriesId, long identityId) throws ObjectNotFoundException {
+    Event series = getExistingEvent(seriesId);
     List<EventAttendee> rows = attendeeStorage.getEventAttendees(seriesId, identityId).getEventAttendees(identityId);
+    return rowReadAsAWhole(series, rows, () -> seriesReadDate(series));
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<EventAttendee> getSeriesAttendees(long seriesId) throws ObjectNotFoundException {
+    Event series = getExistingEvent(seriesId);
+    List<EventAttendee> rows = attendeeStorage.getEventAttendees(seriesId).getEventAttendees();
+    if (series.getRecurrence() == null) {
+      return rows;
+    }
+    Map<Long, List<EventAttendee>> rowsByAttendee = rows.stream()
+                                                        .collect(Collectors.groupingBy(EventAttendee::getIdentityId,
+                                                                                       LinkedHashMap::new,
+                                                                                       Collectors.toList()));
+    // The date is read once, and only when an attendee's rows need it
+    ZonedDateTime[] readDate = new ZonedDateTime[1];
+    Supplier<ZonedDateTime> readDateReader = () -> {
+      if (readDate[0] == null) {
+        readDate[0] = seriesReadDate(series);
+      }
+      return readDate[0];
+    };
+    List<EventAttendee> attendees = new ArrayList<>();
+    for (List<EventAttendee> attendeeRows : rowsByAttendee.values()) {
+      attendees.add(rowReadAsAWhole(series, attendeeRows, readDateReader));
+    }
+    return attendees;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public EventSeatCounts getSeatCounts(long eventId, ZonedDateTime occurrenceId, long identityId) throws ObjectNotFoundException {
+    Event event = getExistingEvent(eventId);
+    long poolId = eventId;
+    ZonedDateTime date = null;
+    if (event.getRecurrence() != null) {
+      ZonedDateTime dateRead = occurrenceId == null ? seriesReadDate(event)
+                                                    : Utils.getOccurrenceId(event.isAllDay(), occurrenceId, event.getTimeZoneId());
+      Event dateRow = dateRead == null ? null : eventStorage.findExceptionalOccurrence(event, dateRead);
+      if (dateRow == null) {
+        date = dateRead;
+      } else {
+        // A date with its own row is a pool of its own
+        poolId = dateRow.getId();
+      }
+    }
+    ZonedDateTime countedDate = date;
+    int acceptedCount = SeatRule.acceptedAt(attendeeStorage.getSeatRows(poolId, EventAttendeeResponse.ACCEPTED),
+                                            countedDate,
+                                            0);
+    List<EventAttendee> waitingRows = attendeeStorage.getWaitingAttendees(poolId)
+                                                     .stream()
+                                                     .filter(row -> SeatRule.coversDate(row, countedDate))
+                                                     .toList();
+    Integer waitingListPosition = null;
+    for (int i = 0; identityId > 0 && i < waitingRows.size(); i++) {
+      if (waitingRows.get(i).getIdentityId() == identityId) {
+        waitingListPosition = i + 1;
+        break;
+      }
+    }
+    return new EventSeatCounts(acceptedCount, waitingRows.size(), waitingListPosition);
+  }
+
+  /**
+   * @param series a series, or an event of no series
+   * @param rows one attendee's rows on it
+   * @param readDate the date the series' answers are read at
+   * @return the row read as the attendee's answer to the event as a whole: on
+   *         a series, the row valid at that date, else a copy of the
+   *         attendee's first row answering
+   *         {@link EventAttendeeResponse#NEEDS_ACTION}; null when the attendee
+   *         holds no row
+   */
+  private static EventAttendee rowReadAsAWhole(Event series, List<EventAttendee> rows, Supplier<ZonedDateTime> readDate) {
     if (rows.isEmpty()) {
-      return EventAttendeeResponse.NEEDS_ACTION;
+      return null;
     }
     EventAttendee first = rows.get(0);
     if (series.getRecurrence() == null
         || (rows.size() == 1 && first.getFromOccurrenceId() == null && first.getUntilOccurrenceId() == null)) {
       // One answer to every date: no date to read it at
-      return first.getResponse();
+      return first;
     }
-    ZonedDateTime readDate = new SeriesDates(series,
-                                             () -> eventStorage.getExceptionalOccurrences(seriesId),
-                                             ZonedDateTime.now(ZoneOffset.UTC)).readDate();
-    return validAt(rows, readDate).map(EventAttendee::getResponse).orElse(EventAttendeeResponse.NEEDS_ACTION);
+    // An attendee whose rows all start after that date stays listed: a series
+    // saved back from the list read would otherwise remove their rows
+    return validAt(rows, readDate.get()).orElseGet(() -> withNoAnswer(first));
+  }
+
+  private static EventAttendee withNoAnswer(EventAttendee row) {
+    EventAttendee attendee = row.clone();
+    attendee.setResponse(EventAttendeeResponse.NEEDS_ACTION);
+    attendee.setResponseDate(null);
+    return attendee;
+  }
+
+  /**
+   * @return the date the answers to a series as a whole are read at: its next
+   *         date, else its last one (see {@link SeriesDates#readDate()})
+   */
+  private ZonedDateTime seriesReadDate(Event series) {
+    return new SeriesDates(series,
+                           () -> eventStorage.getExceptionalOccurrences(series.getId()),
+                           ZonedDateTime.now(ZoneOffset.UTC)).readDate();
+  }
+
+  private Event getExistingEvent(long eventId) throws ObjectNotFoundException {
+    Event event = eventStorage.getEventById(eventId);
+    if (event == null) {
+      throw new ObjectNotFoundException("Event with id " + eventId + " wasn't found");
+    }
+    return event;
   }
 
   /**
