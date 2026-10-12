@@ -312,14 +312,7 @@ export default {
      *          since the drawer was opened
      */
     attendeesDelta() {
-      const before = this.attendeesBackup || [];
-      const after = this.event && this.event.attendees || [];
-      const beforeKeys = before.map(a => this.$agendaUtils.participantKey(a));
-      const afterKeys = after.map(a => this.$agendaUtils.participantKey(a));
-      return {
-        added: after.filter(a => !beforeKeys.includes(this.$agendaUtils.participantKey(a))),
-        removedParticipantKeys: beforeKeys.filter(key => !afterKeys.includes(key)),
-      };
+      return this.$agendaUtils.attendeesDelta(this.attendeesBackup, this.event && this.event.attendees);
     },
     saveDrawerChangesIfEditable() {
       if (!this.canEdit || !this.event) {
