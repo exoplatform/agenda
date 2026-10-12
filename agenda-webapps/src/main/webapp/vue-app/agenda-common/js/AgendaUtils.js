@@ -357,6 +357,18 @@ export function getSameTime(dateToChange, dateWithTime) {
   return returnDate && dateToChange || toRFC3339(dateToChange);
 }
 
+/**
+ * @param {Date} firstDate a date
+ * @param {Date} secondDate another date
+ * @returns {Number} the number of days from the day of the first date to the
+ *          day of the second, both read in the browser's zone
+ */
+export function daysBetween(firstDate, secondDate) {
+  const firstDay = Date.UTC(firstDate.getFullYear(), firstDate.getMonth(), firstDate.getDate());
+  const secondDay = Date.UTC(secondDate.getFullYear(), secondDate.getMonth(), secondDate.getDate());
+  return Math.round((secondDay - firstDay) / 86400000);
+}
+
 export function areDatesOnSameDay(firstDate, secondDate) {
   if (firstDate === secondDate) {
     return true;
@@ -804,6 +816,47 @@ export function participantKey(attendee) {
     return `${identity.providerId}:${identity.remoteId}`;
   }
   return identity.id && String(identity.id) || '';
+}
+
+/**
+ * What a host did to a participant list, as a delta rather than the list
+ * itself: a wider scope applies it to a list the host did not edit, the
+ * series' own, which may hold people the edited list does not.
+ *
+ * @param {Array} before the list as the host opened it
+ * @param {Array} after the list as the host leaves it
+ * @returns {Object} the attendees added and the participant keys removed
+ */
+export function attendeesDelta(before, after) {
+  const beforeKeys = (before || []).map(attendee => participantKey(attendee));
+  const afterKeys = (after || []).map(attendee => participantKey(attendee));
+  return {
+    added: (after || []).filter(attendee => !beforeKeys.includes(participantKey(attendee))),
+    removedParticipantKeys: beforeKeys.filter(key => !afterKeys.includes(key)),
+  };
+}
+
+/**
+ * Applies a host's participant change to another list, adding whoever was
+ * added and removing whoever was removed, and leaving everyone else where they
+ * are.
+ *
+ * @param {Array} attendees the list the change applies to
+ * @param {Object} delta what the host did to its own list, see attendeesDelta
+ * @returns {Array} the list changed
+ */
+export function withAttendeesDelta(attendees, delta) {
+  const removedKeys = delta && delta.removedParticipantKeys || [];
+  const kept = (attendees || []).filter(attendee => !removedKeys.includes(participantKey(attendee)));
+  const presentKeys = kept.map(attendee => participantKey(attendee));
+  (delta && delta.added || []).forEach(attendee => {
+    const key = participantKey(attendee);
+    if (!presentKeys.includes(key)) {
+      kept.push(attendee);
+      presentKeys.push(key);
+    }
+  });
+  return kept;
 }
 
 /**
