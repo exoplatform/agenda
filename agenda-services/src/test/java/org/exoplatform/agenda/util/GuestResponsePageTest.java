@@ -2,12 +2,23 @@ package org.exoplatform.agenda.util;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 
+import java.util.ListResourceBundle;
 import java.util.Locale;
+import java.util.Map;
+import java.util.ResourceBundle;
 
 import org.junit.Test;
+import org.mockito.MockedStatic;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.container.ExoContainerContext;
+import org.exoplatform.services.resources.ResourceBundleService;
 
 /**
  * Pins the escaping of the page a guest lands on after answering an invitation
@@ -42,6 +53,44 @@ public class GuestResponsePageTest {
                  Utils.escapeHtmlText("<script>alert(1)</script> & more"));
 
     assertEquals("a null value renders as nothing rather than as \"null\"", "", Utils.escapeHtmlText(null));
+  }
+
+  /**
+   * A place on the waiting list is named as such on the page, not as a Maybe:
+   * rendered with the labels a bundle holds, as in production.
+   */
+  @Test
+  public void aPlaceOnTheWaitingListIsNamedOnThePage() {
+    ResourceBundleService bundles = bundleService(Map.of("agenda.guestResponse.recorded",
+                                                         "Your answer has been recorded: {0}",
+                                                         "agenda.waiting",
+                                                         "Waiting list",
+                                                         "agenda.tentative",
+                                                         "Maybe"));
+    try (MockedStatic<ExoContainerContext> container = mockStatic(ExoContainerContext.class)) {
+      container.when(() -> ExoContainerContext.getService(ResourceBundleService.class)).thenReturn(bundles);
+
+      String page = Utils.buildGuestResponseConfirmationPage(EventAttendeeResponse.WAITING, Locale.ENGLISH);
+
+      assertTrue(page, page.contains("Your answer has been recorded: Waiting list"));
+    }
+  }
+
+  /**
+   * A bundle service answering one set of labels, standing in for the portal
+   * container the page reads them through.
+   */
+  static ResourceBundleService bundleService(Map<String, String> labels) {
+    ResourceBundle bundle = new ListResourceBundle() {
+      @Override
+      protected Object[][] getContents() {
+        return labels.entrySet().stream().map(entry -> new Object[] { entry.getKey(), entry.getValue() }).toArray(Object[][]::new);
+      }
+    };
+    ResourceBundleService service = mock(ResourceBundleService.class);
+    when(service.getSharedResourceBundleNames()).thenReturn(new String[0]);
+    when(service.getResourceBundle(any(String[].class), any(Locale.class))).thenReturn(bundle);
+    return service;
   }
 
   /**

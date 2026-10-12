@@ -167,10 +167,12 @@ public interface AgendaEventAttendeeService {
   /**
    * Retrieves the event response of a user. If the user didn't responded to the
    * event, the default value {@link EventAttendeeResponse#NEEDS_ACTION} will be
-   * retrieved.
-   * 
+   * retrieved. Read with no occurrence id on a series, it is the user's answer
+   * to the series as a whole, as {@link #getSeriesResponse(long, long)} reads
+   * it.
+   *
    * @param eventId Technical identifier of {@link Event}
-   * @param occurrenceId event occurrence id
+   * @param occurrenceId event occurrence id, or null
    * @param identityId {@link Identity} technical identifier of user
    * @return {@link EventAttendeeResponse}, no null value is returned
    * @throws ObjectNotFoundException when event with provided identifier doesn't
@@ -273,6 +275,53 @@ public interface AgendaEventAttendeeService {
    *           exists
    */
   EventAttendeeResponse getSeriesResponse(long seriesId, long identityId) throws ObjectNotFoundException;
+
+  /**
+   * Reads the user's row {@link #getSeriesResponse(long, long)} reads the
+   * answer of: on a series, the row valid at the date its answer is read at,
+   * else, when the user's rows all lie elsewhere, a copy of their first row
+   * answering {@link EventAttendeeResponse#NEEDS_ACTION} with no answer date;
+   * on an event of no series, the user's row. It checks no right.
+   *
+   * @param seriesId Technical identifier of the series, or of the event
+   * @param identityId {@link Identity} technical identifier of user
+   * @return the row, null when the user holds none on the event
+   * @throws ObjectNotFoundException when event with provided identifier doesn't
+   *           exists
+   */
+  EventAttendee getSeriesAttendee(long seriesId, long identityId) throws ObjectNotFoundException;
+
+  /**
+   * Reads the attendees of an event as a whole, each once: on a series, every
+   * attendee's row as {@link #getSeriesAttendee(long, long)} reads it, an
+   * attendee with no row valid at the date its answers are read at being
+   * listed as answering {@link EventAttendeeResponse#NEEDS_ACTION}; on an
+   * event of no series, its rows. It checks no right.
+   *
+   * @param seriesId Technical identifier of the series, or of the event
+   * @return the rows, in the order the attendees' rows are stored
+   * @throws ObjectNotFoundException when event with provided identifier doesn't
+   *           exists
+   */
+  List<EventAttendee> getSeriesAttendees(long seriesId) throws ObjectNotFoundException;
+
+  /**
+   * Counts the seats of one date of an event: on a date with its own row, or
+   * on an event of no series, every row of it; on a date of a series with no
+   * row of its own, the series' rows valid at that date. With no date on a
+   * series, the date its answers are read at (see
+   * {@link #getSeriesResponse(long, long)}). It checks no right.
+   *
+   * @param eventId Technical identifier of the event, of a series, or of the
+   *          row of one of its dates
+   * @param occurrenceId the occurrence id of a date of the series, or null
+   * @param identityId {@link Identity} technical identifier of the user whose
+   *          rank on the waiting list is read, 0 for none
+   * @return the counts at the date, with the user's rank when they wait there
+   * @throws ObjectNotFoundException when event with provided identifier doesn't
+   *           exists
+   */
+  EventSeatCounts getSeatCounts(long eventId, ZonedDateTime occurrenceId, long identityId) throws ObjectNotFoundException;
 
   /**
    * @param eventId Technical identifier of {@link Event}

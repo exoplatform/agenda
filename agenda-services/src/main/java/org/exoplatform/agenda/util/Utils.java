@@ -1046,6 +1046,8 @@ public class Utils {
       return "agenda.accepted";
     } else if (response == EventAttendeeResponse.DECLINED) {
       return "agenda.declined";
+    } else if (response == EventAttendeeResponse.WAITING) {
+      return "agenda.waiting";
     } else {
       return "agenda.tentative";
     }
