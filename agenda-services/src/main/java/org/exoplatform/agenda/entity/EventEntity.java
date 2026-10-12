@@ -55,12 +55,6 @@ import jakarta.persistence.Table;
         + " AND ev.occurrenceId >= :start"
 )
 @NamedQuery(
-    name = "AgendaEvent.getExceptionalOccurenceIdsByStart",
-    query = "SELECT ev.id FROM AgendaEvent ev"
-        + " WHERE ev.parent.id = :parentEventId"
-        + " AND ev.occurrenceId >= :start"
-)
-@NamedQuery(
     name = "AgendaEvent.getExceptionalOccurenceIds",
     query = "SELECT ev.id, ev.startDate FROM AgendaEvent ev"
         + " WHERE ev.parent.id = :parentEventId"

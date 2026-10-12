@@ -231,11 +231,6 @@ public class AgendaEventStorage {
                                                        AgendaDateUtils.toDate(end));
   }
 
-  public List<Long> getExceptionalOccurenceIds(long parentRecurrentEventId, ZonedDateTime occurrenceId) {
-    return eventDAO.getExceptionalOccurenceIdsByStart(parentRecurrentEventId,
-                                                      AgendaDateUtils.toDate(occurrenceId));
-  }
-
   /**
    * Reads the exceptional occurrences of a recurrent event in one statement,
    * ordered by start date.

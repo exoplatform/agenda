@@ -163,7 +163,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
         promoteWaitingAttendees(eventId);
       }
       for (long seatRequester : seatRequesters) {
-        saveEventAttendee(pool, null, seatRequester, EventAttendeeResponse.ACCEPTED, false);
+        answerPool(pool, null, seatRequester, EventAttendeeResponse.ACCEPTED, false);
       }
     }
     processSendingInvitation(event, attendees, sendInvitations, eventModifications);
@@ -228,6 +228,31 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
+  public EventAttendeeResponse getSeriesResponse(long seriesId, long identityId) throws ObjectNotFoundException {
+    Event series = eventStorage.getEventById(seriesId);
+    if (series == null) {
+      throw new ObjectNotFoundException("Event with id " + seriesId + " wasn't found");
+    }
+    List<EventAttendee> rows = attendeeStorage.getEventAttendees(seriesId, identityId).getEventAttendees(identityId);
+    if (rows.isEmpty()) {
+      return EventAttendeeResponse.NEEDS_ACTION;
+    }
+    EventAttendee first = rows.get(0);
+    if (series.getRecurrence() == null
+        || (rows.size() == 1 && first.getFromOccurrenceId() == null && first.getUntilOccurrenceId() == null)) {
+      // One answer to every date: no date to read it at
+      return first.getResponse();
+    }
+    ZonedDateTime readDate = new SeriesDates(series,
+                                             () -> eventStorage.getExceptionalOccurrences(seriesId),
+                                             ZonedDateTime.now(ZoneOffset.UTC)).readDate();
+    return validAt(rows, readDate).map(EventAttendee::getResponse).orElse(EventAttendeeResponse.NEEDS_ACTION);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public void sendEventResponse(long eventId,
                                 long identityId,
                                 EventAttendeeResponse response) throws ObjectNotFoundException, IllegalAccessException {
@@ -242,6 +267,19 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
                                         ZonedDateTime occurrenceId,
                                         long identityId,
                                         EventAttendeeResponse response) throws ObjectNotFoundException, IllegalAccessException {
+    sendUpcomingEventResponse(eventId, occurrenceId, identityId, response, true);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public EventResponseOutcome sendUpcomingEventResponse(long eventId,
+                                                        ZonedDateTime occurrenceId,
+                                                        long identityId,
+                                                        EventAttendeeResponse response,
+                                                        boolean broadcast) throws ObjectNotFoundException,
+                                                                           IllegalAccessException {
     if (response == null) {
       throw new IllegalArgumentException("Attendee response is mandatory");
     }
@@ -255,7 +293,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       throw new IllegalArgumentException("identityId is mandatory");
     }
     try {
-      decideSteps.<Void, ObjectNotFoundException, IllegalAccessException> resolvingAgainOnce(() -> {
+      return decideSteps.<EventResponseOutcome, ObjectNotFoundException, IllegalAccessException> resolvingAgainOnce(() -> {
         Event event = eventStorage.getEventById(eventId);
         if (event == null) {
           throw new ObjectNotFoundException("Parent event with id " + eventId + " wasn't found");
@@ -264,10 +302,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
           throw new IllegalStateException("Event with id " + eventId + " isn't recurrent");
         }
         checkCanRespond(event, identityId);
-        return decideSteps.decide(DecideSteps.targetOf(event), () -> {
-          writeUpcomingEventResponse(eventId, occurrenceId, identityId, response);
-          return null;
-        });
+        return decideSteps.decide(DecideSteps.targetOf(event),
+                                  () -> writeUpcomingEventResponse(eventId, occurrenceId, identityId, response, broadcast));
       });
     } catch (ResolveAgainException e) {
       throw new ObjectNotFoundException("Parent event with id " + eventId + " wasn't found");
@@ -277,25 +313,55 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   private EventResponseOutcome writeUpcomingEventResponse(long eventId,
                                                           ZonedDateTime occurrenceId,
                                                           long identityId,
-                                                          EventAttendeeResponse response) {
+                                                          EventAttendeeResponse response,
+                                                          boolean broadcast) {
     Event series = eventStorage.getEventById(eventId);
     // The answer starts from the date as the date's row stores it: the
     // identifier the occurrence list gives an all-day date the clocks start
     // past midnight is past the UTC midnight that row carries
     ZonedDateTime fromDate = Utils.getOccurrenceId(series.isAllDay(), occurrenceId, series.getTimeZoneId());
-    EventAttendee stored = saveEventAttendee(series, fromDate, identityId, response, true);
+    EventResponseOutcome outcome = answerSeries(series, fromDate, identityId, response, broadcast);
 
-    // Apply modification on exceptional occurrences as well
-    ZonedDateTime firstWaitingOccurrenceId = null;
-    List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceIds(eventId, fromDate);
-    for (long exceptionalOccurenceEventId : exceptionalOccurenceEventIds) {
-      if (isEventAttendee(exceptionalOccurenceEventId, identityId)) {
-        Event occurrence = eventStorage.getEventById(exceptionalOccurenceEventId);
-        EventAttendee propagated = saveEventAttendee(occurrence, null, identityId, response, false);
+    // Apply modification on the rows of the dates answered as well: those
+    // designating the date answered from, or a later one, read at once
+    Event ownRow = null;
+    EventAttendeeResponse responseOnOwnRow = null;
+    ZonedDateTime firstWaitingOccurrenceId = outcome.firstWaitingOccurrenceId();
+    for (Event occurrence : eventStorage.getExceptionalOccurrences(eventId)) {
+      if (isOnOrAfterSeriesDate(series, occurrenceDateOf(occurrence), fromDate)
+          && isEventAttendee(occurrence.getId(), identityId)) {
+        EventAttendee propagated = saveEventAttendee(occurrence, identityId, response, false);
         firstWaitingOccurrenceId = earliestWaiting(firstWaitingOccurrenceId, occurrence, propagated);
+        // The date answered from has a row of its own, a pool deciding alone:
+        // the answer stored at that date is the one its row stores, the first
+        // created among several
+        if (Utils.isSameSeriesDate(series, occurrenceDateOf(occurrence), fromDate)
+            && (ownRow == null || occurrence.getId() < ownRow.getId())) {
+          ownRow = occurrence;
+          responseOnOwnRow = propagated.getResponse();
+        }
       }
     }
-    return new EventResponseOutcome(stored.getResponse(), firstWaitingOccurrenceId);
+    return new EventResponseOutcome(ownRow == null ? outcome.response() : responseOnOwnRow, firstWaitingOccurrenceId);
+  }
+
+  /**
+   * @param series a series
+   * @param occurrenceId the occurrence id of one of its dates, or null
+   * @param fromDate the occurrence id of a date answered from
+   * @return whether the first designates the date answered from or a later
+   *         one, by the date of the series each designates
+   *         ({@link Utils#isSameSeriesDate}): a row stored on the UTC day
+   *         before its date is the row of that date
+   */
+  private static boolean isOnOrAfterSeriesDate(Event series, ZonedDateTime occurrenceId, ZonedDateTime fromDate) {
+    if (occurrenceId == null) {
+      return false;
+    }
+    if (Utils.hasSeveralDatesADay(series.getRecurrence())) {
+      return occurrenceId.toEpochSecond() >= fromDate.toEpochSecond();
+    }
+    return !Utils.getSeriesDate(series, occurrenceId).isBefore(Utils.getSeriesDate(series, fromDate));
   }
 
   /**
@@ -424,8 +490,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
                                                   EventAttendeeResponse response,
                                                   boolean broadcast) {
     Event event = eventStorage.getEventById(eventId);
-    EventAttendee stored = saveEventAttendee(event, null, identityId, response, broadcast);
-    ZonedDateTime firstWaitingOccurrenceId = earliestWaiting(null, event, stored);
+    EventResponseOutcome outcome = answerPool(event, null, identityId, response, broadcast);
+    ZonedDateTime firstWaitingOccurrenceId = outcome.firstWaitingOccurrenceId();
 
     // Apply modification on exceptional occurrences as well
     if (event.getRecurrence() != null) {
@@ -433,12 +499,12 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       for (long exceptionalOccurenceEventId : exceptionalOccurenceEventIds) {
         if (isEventAttendee(exceptionalOccurenceEventId, identityId)) {
           Event occurrence = eventStorage.getEventById(exceptionalOccurenceEventId);
-          EventAttendee propagated = saveEventAttendee(occurrence, null, identityId, response, false);
+          EventAttendee propagated = saveEventAttendee(occurrence, identityId, response, false);
           firstWaitingOccurrenceId = earliestWaiting(firstWaitingOccurrenceId, occurrence, propagated);
         }
       }
     }
-    return new EventResponseOutcome(stored.getResponse(), firstWaitingOccurrenceId);
+    return new EventResponseOutcome(outcome.response(), firstWaitingOccurrenceId);
   }
 
   /**
@@ -903,37 +969,261 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   }
 
   /**
-   * Stores an answer of an attendee on one row of an event, the pool: the row
-   * of an event of no series, of a date of a series, or the series itself.
-   * A Yes takes a seat when one is free or the attendee already holds one,
-   * and waits otherwise. When the answer leaves the attendee fewer seats than
-   * the rows it replaces held (a seat given up, seated rows merged), the
-   * waiting list is promoted in the same transaction while seats are free.
-   * An answer stored as a Yes that leaves the pool full while it is not
-   * marked marks it (see {@link #markCapacityReached(Event)}).
+   * Stores an answer of an attendee on a pool: on the row of a series, date by
+   * date (see {@link #answerSeries}); on the row of an event of no series or
+   * of a date of a series, as {@link #saveEventAttendee} does.
    *
    * @param pool the stored row answered, as read under the lock
-   * @param occurrenceId the date the answer starts from on a series, null for
-   *          an answer to every date of the row
+   * @param fromDate the date a series answer starts from, null for an answer
+   *          to every date of the row
+   * @param identityId the attendee's identity identifier
+   * @param requested the answer given
+   * @param userResponseSent whether the attendee sent it, reported as such
+   * @return the answer stored at the date answered, and the first date of a
+   *         series it left waiting
+   */
+  private EventResponseOutcome answerPool(Event pool,
+                                          ZonedDateTime fromDate,
+                                          long identityId,
+                                          EventAttendeeResponse requested,
+                                          boolean userResponseSent) {
+    if (pool.getRecurrence() != null) {
+      return answerSeries(pool, fromDate, identityId, requested, userResponseSent);
+    }
+    EventAttendee stored = saveEventAttendee(pool, identityId, requested, userResponseSent);
+    return new EventResponseOutcome(stored.getResponse(), earliestWaiting(null, pool, stored));
+  }
+
+  /**
+   * Stores an answer of an attendee on the row of a series, for every date of
+   * it or from one date on, decided date by date (D17). The range answered is
+   * cut into stretches at the bounds of the rows answering Yes, over which the
+   * seats taken stay the same; each stretch is decided at its first counted
+   * date (see {@link SeriesDates}), a stretch with none keeping the seat the
+   * attendee held over it, else taking the decision of its counted
+   * neighbour, and the runs with the same outcome are stored as
+   * pieces, one row each, in ascending order. An answer from one date on
+   * removes the attendee's rows starting from it and caps the one covering
+   * it, which keeps its answer date; an answer to every date replaces all of
+   * the attendee's rows, a lone row losing its range. A piece keeps an answer
+   * date only where the stored answer does not change (see
+   * {@link SeatRule#pieceResponseDate}).
+   * <p>
+   * A seat the answer gives up promotes the waiting list in the same
+   * transaction. The first counted date it fills while the series is not
+   * marked marks it. The answer is reported once, as saved and, when the
+   * attendee sent it, as sent: the piece valid at the date answered from, or,
+   * for every date, at the date the answer to the series is read at.
+   *
+   * @param series the row of the series, as read under the lock
+   * @param fromDate the date the answer starts from, normalised, or null for
+   *          every date
+   * @param identityId the attendee's identity identifier
+   * @param requested the answer given
+   * @param userResponseSent whether the attendee sent it, reported as such
+   * @return the answer stored at the date read, and the first counted date a
+   *         piece left waiting
+   */
+  private EventResponseOutcome answerSeries(Event series,
+                                            ZonedDateTime fromDate,
+                                            long identityId,
+                                            EventAttendeeResponse requested,
+                                            boolean userResponseSent) {
+    long seriesId = series.getId();
+    ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
+    SeriesDates seriesDates = new SeriesDates(series, () -> eventStorage.getExceptionalOccurrences(seriesId), now);
+    List<EventAttendee> priorRows = attendeeStorage.getEventAttendees(seriesId, identityId)
+                                                   .getEventAttendees(identityId)
+                                                   .stream()
+                                                   .map(EventAttendee::clone)
+                                                   .toList();
+    int capacity = SeatRule.capacityOf(series);
+    ZonedDateTime[] filledDate = new ZonedDateTime[1];
+    List<SeatPiece> pieces;
+    if (capacity > 0 && SeatRule.asksForSeat(requested)) {
+      List<EventAttendee> acceptedRows = attendeeStorage.getSeatRows(seriesId, EventAttendeeResponse.ACCEPTED);
+      pieces = SeatRule.pieces(SeatRule.stretches(acceptedRows, fromDate, null),
+                               stretch -> seriesDates.firstCountedDate(stretch.from(), stretch.until()),
+                               date -> {
+                                 int acceptedByOthers = SeatRule.acceptedAt(acceptedRows, date, identityId);
+                                 EventAttendeeResponse decided = SeatRule.decide(requested,
+                                                                                 heldAt(priorRows, date),
+                                                                                 capacity,
+                                                                                 acceptedByOthers);
+                                 if (filledDate[0] == null && decided == EventAttendeeResponse.ACCEPTED
+                                     && acceptedByOthers + 1 >= capacity) {
+                                   filledDate[0] = date;
+                                 }
+                                 return decided;
+                               },
+                               stretch -> SeatRule.holdsSeatOver(priorRows, stretch),
+                               EventAttendeeResponse.ACCEPTED);
+    } else {
+      pieces = List.of(new SeatPiece(fromDate, null, SeatRule.decide(requested, null, 0, 0), null));
+    }
+    List<EventAttendee> written = writeSeriesPieces(seriesId, fromDate, identityId, priorRows, pieces, seriesDates, now);
+
+    // One answer reported, at the date it is read at: the pieces are not
+    // reported one by one
+    ZonedDateTime readDate = fromDate;
+    if (readDate == null && (pieces.size() > 1 || priorRows.size() > 1)) {
+      readDate = seriesDates.readDate();
+    }
+    EventAttendee attendee = validAt(written, readDate).orElse(written.get(0));
+    EventAttendee oldAttendee = validAt(priorRows, readDate).orElse(null);
+    Utils.broadcastEvent(listenerService, Utils.POST_EVENT_RESPONSE_SAVED, oldAttendee, attendee);
+    if (userResponseSent) {
+      Utils.broadcastEvent(listenerService, Utils.POST_EVENT_RESPONSE_SENT, oldAttendee, attendee);
+    }
+
+    if (givesUpASeat(priorRows, pieces)) {
+      promoteWaitingAttendees(seriesId);
+    }
+    if (filledDate[0] != null && series.getCapacityReachedDate() == null) {
+      eventStorage.saveCapacityReachedDate(seriesId, now);
+      series.setCapacityReachedDate(now);
+      Utils.broadcastEvent(listenerService, Utils.POST_EVENT_CAPACITY_REACHED, seriesId, filledDate[0]);
+    }
+    ZonedDateTime firstWaitingOccurrenceId = pieces.stream()
+                                                   .filter(piece -> piece.response() == EventAttendeeResponse.WAITING)
+                                                   .map(SeatPiece::firstCountedDate)
+                                                   .filter(Objects::nonNull)
+                                                   .findFirst()
+                                                   .orElse(null);
+    return new EventResponseOutcome(attendee.getResponse(), firstWaitingOccurrenceId);
+  }
+
+  /**
+   * Writes the pieces of an answer to a series, in ascending order, in place
+   * of the attendee's rows they replace.
+   *
+   * @return the rows written, in the order of the pieces
+   */
+  private List<EventAttendee> writeSeriesPieces(long seriesId,
+                                                ZonedDateTime fromDate,
+                                                long identityId,
+                                                List<EventAttendee> priorRows,
+                                                List<SeatPiece> pieces,
+                                                SeriesDates seriesDates,
+                                                ZonedDateTime now) {
+    // Dated against the rows as they were, before any of them is written
+    List<ZonedDateTime> responseDates = pieces.stream()
+                                              .map(piece -> SeatRule.pieceResponseDate(piece,
+                                                                                       priorRows,
+                                                                                       seriesDates::firstDate,
+                                                                                       now))
+                                              .toList();
+    if (fromDate == null) {
+      if (pieces.size() == 1 && priorRows.size() == 1) {
+        // The lone row answers every date: its range goes
+        EventAttendee row = priorRows.get(0).clone();
+        row.setFromOccurrenceId(null);
+        row.setUntilOccurrenceId(null);
+        row.setResponse(pieces.get(0).response());
+        row.setResponseDate(responseDates.get(0));
+        attendeeStorage.saveEventAttendee(row, seriesId);
+        return List.of(row);
+      }
+      priorRows.forEach(row -> attendeeStorage.removeEventAttendee(row.getId()));
+    } else {
+      for (EventAttendee priorRow : priorRows) {
+        ZonedDateTime from = priorRow.getFromOccurrenceId();
+        ZonedDateTime until = priorRow.getUntilOccurrenceId();
+        if (from != null && !from.isBefore(fromDate)) {
+          attendeeStorage.removeEventAttendee(priorRow.getId());
+        } else if (until == null || until.isAfter(fromDate)) {
+          EventAttendee capped = priorRow.clone();
+          capped.setUntilOccurrenceId(fromDate);
+          attendeeStorage.saveEventAttendee(capped, seriesId);
+        }
+      }
+    }
+    List<EventAttendee> written = new ArrayList<>();
+    for (int i = 0; i < pieces.size(); i++) {
+      SeatPiece piece = pieces.get(i);
+      EventAttendee row = new EventAttendee(0,
+                                            seriesId,
+                                            identityId,
+                                            piece.from(),
+                                            piece.until(),
+                                            piece.response(),
+                                            responseDates.get(i));
+      attendeeStorage.saveEventAttendee(row, seriesId);
+      written.add(row);
+    }
+    return written;
+  }
+
+  /**
+   * @return whether one of the attendee's rows held a seat on a date of the
+   *         range answered that a piece no longer gives a seat on
+   */
+  private static boolean givesUpASeat(List<EventAttendee> priorRows, List<SeatPiece> pieces) {
+    return priorRows.stream()
+                    .filter(row -> row.getResponse() == EventAttendeeResponse.ACCEPTED)
+                    .anyMatch(row -> pieces.stream()
+                                           .filter(piece -> piece.response() != EventAttendeeResponse.ACCEPTED)
+                                           .anyMatch(piece -> rangesOverlap(row.getFromOccurrenceId(),
+                                                                            row.getUntilOccurrenceId(),
+                                                                            piece.from(),
+                                                                            piece.until())));
+  }
+
+  /**
+   * @return whether two ranges of occurrence ids, from inclusive and until
+   *         exclusive, null for no bound, share a date
+   */
+  private static boolean rangesOverlap(ZonedDateTime from, ZonedDateTime until, ZonedDateTime otherFrom, ZonedDateTime otherUntil) {
+    return (until == null || otherFrom == null || otherFrom.isBefore(until))
+        && (otherUntil == null || from == null || from.isBefore(otherUntil));
+  }
+
+  /**
+   * @return {@link EventAttendeeResponse#ACCEPTED} when one of the rows holds
+   *         a seat at the date, null otherwise
+   */
+  private static EventAttendeeResponse heldAt(List<EventAttendee> rows, ZonedDateTime date) {
+    return rows.stream()
+               .anyMatch(row -> row.getResponse() == EventAttendeeResponse.ACCEPTED && SeatRule.coversDate(row, date)) ? EventAttendeeResponse.ACCEPTED
+                                                                                                                    : null;
+  }
+
+  /**
+   * @return the first of the rows valid at the date, judged on their range
+   *         alone; the first row when no date is given
+   */
+  private static Optional<EventAttendee> validAt(List<EventAttendee> rows, ZonedDateTime date) {
+    return rows.stream().filter(row -> SeatRule.coversDate(row, date)).findFirst();
+  }
+
+  /**
+   * Stores an answer of an attendee on the row of an event of no series, or
+   * of a date of a series: a pool of one date. A Yes takes a seat when one is
+   * free or the attendee already holds one, and waits otherwise. When the
+   * answer leaves the attendee fewer seats than the rows it replaces held (a
+   * seat given up, seated rows merged), the waiting list is promoted in the
+   * same transaction while seats are free. An answer stored as a Yes that
+   * leaves the pool full while it is not marked marks it (see
+   * {@link #markCapacityReached(Event)}).
+   *
+   * @param pool the stored row answered, as read under the lock
    * @param identityId the attendee's identity identifier
    * @param requested the answer given
    * @param userResponseSent whether the attendee sent it, reported as such
    * @return the attendee row stored
    */
   private EventAttendee saveEventAttendee(Event pool,
-                                          ZonedDateTime occurrenceId,
                                           long identityId,
                                           EventAttendeeResponse requested,
                                           boolean userResponseSent) {
     long eventId = pool.getId();
     EventAttendeeList eventAttendees = attendeeStorage.getEventAttendees(eventId, identityId);
-    EventAttendee attendee = eventAttendees.getEventAttendee(identityId, occurrenceId);
+    EventAttendee attendee = eventAttendees.getEventAttendee(identityId, null);
     EventAttendee oldAttendee = attendee == null ? null : attendee.clone();
-    // An answer to every date of the row replaces every row of the attendee:
-    // the seats they hold and their place on the waiting list are read from
-    // all of those rows, not only from the first one
-    List<EventAttendee> replacedRows = occurrenceId == null ? eventAttendees.getEventAttendees(identityId)
-                                                            : oldAttendee == null ? List.of() : List.of(oldAttendee);
+    // An answer to the row replaces every row of the attendee: the seats they
+    // hold and their place on the waiting list are read from all of those
+    // rows, not only from the first one
+    List<EventAttendee> replacedRows = eventAttendees.getEventAttendees(identityId);
     long seatsHeld = replacedRows.stream().filter(row -> row.getResponse() == EventAttendeeResponse.ACCEPTED).count();
     EventAttendeeResponse response = decideSeat(pool, identityId, requested, seatsHeld > 0);
     // The date changes only with the answer stored: when every replaced row
@@ -947,35 +1237,16 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
                                                                .orElseThrow()
                                                                .getResponseDate()
                                                  : ZonedDateTime.now(ZoneOffset.UTC);
-    if (occurrenceId == null) {
-      List<EventAttendee> userEventAttendees = eventAttendees.getEventAttendees(identityId);
-      if (userEventAttendees.size() > 1) {
-        userEventAttendees.forEach(userEventAttendee -> {
-          attendeeStorage.removeEventAttendee(userEventAttendee.getId());
-        });
-        attendee = new EventAttendee(0, eventId, identityId, response);
-      } else if (attendee == null) {
-        attendee = new EventAttendee(0, eventId, identityId, response);
-      } else {
-        attendee.setResponse(response);
-      }
-      attendee.setResponseDate(responseDate);
-      attendeeStorage.saveEventAttendee(attendee, eventId);
+    if (replacedRows.size() > 1) {
+      replacedRows.forEach(replacedRow -> attendeeStorage.removeEventAttendee(replacedRow.getId()));
+      attendee = new EventAttendee(0, eventId, identityId, response);
+    } else if (attendee == null) {
+      attendee = new EventAttendee(0, eventId, identityId, response);
     } else {
-      List<EventAttendee> userAttendees = eventAttendees.getEventAttendees();
-      for (EventAttendee eventAttendee : userAttendees) {
-        if (eventAttendee.getFromOccurrenceId() != null && (eventAttendee.getFromOccurrenceId().isAfter(occurrenceId)
-            || eventAttendee.getFromOccurrenceId().isEqual(occurrenceId))) {
-          attendeeStorage.removeEventAttendee(eventAttendee.getId());
-        } else if ((eventAttendee.getFromOccurrenceId() == null || eventAttendee.getFromOccurrenceId().isBefore(occurrenceId))
-            && (eventAttendee.getUntilOccurrenceId() == null || eventAttendee.getUntilOccurrenceId().isAfter(occurrenceId))) {
-          eventAttendee.setUntilOccurrenceId(occurrenceId);
-          attendeeStorage.saveEventAttendee(eventAttendee, eventId);
-        }
-      }
-      attendee = new EventAttendee(0, eventId, identityId, occurrenceId, null, response, responseDate);
-      attendeeStorage.saveEventAttendee(attendee, eventId);
+      attendee.setResponse(response);
     }
+    attendee.setResponseDate(responseDate);
+    attendeeStorage.saveEventAttendee(attendee, eventId);
 
     // Broadcast technical event when saving any new response for a user
     Utils.broadcastEvent(listenerService, Utils.POST_EVENT_RESPONSE_SAVED, oldAttendee, attendee);
@@ -1019,9 +1290,6 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (!SeatRule.asksForSeat(requested) || capacity <= 0) {
       return SeatRule.decide(requested, null, 0, 0);
     }
-    if (pool.getRecurrence() != null) {
-      throw new IllegalStateException("Event " + pool.getId() + " is a series with a capacity limit, whose answers are decided date by date");
-    }
     int acceptedByOthers = SeatRule.acceptedAt(attendeeStorage.getSeatRows(pool.getId(), EventAttendeeResponse.ACCEPTED),
                                                null,
                                                identityId);
@@ -1040,7 +1308,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    */
   private void markCapacityReached(Event pool) {
     int capacity = SeatRule.capacityOf(pool);
-    if (capacity <= 0 || pool.getCapacityReachedDate() != null || pool.getRecurrence() != null) {
+    if (capacity <= 0 || pool.getCapacityReachedDate() != null) {
       return;
     }
     int accepted = SeatRule.acceptedAt(attendeeStorage.getSeatRows(pool.getId(), EventAttendeeResponse.ACCEPTED), null, 0);
@@ -1054,11 +1322,12 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   }
 
   /**
-   * Gives the free seats of a pool of one date to its waiting attendees, in
-   * the order they asked: earliest answer date first, then lowest row id.
-   * Runs inside the decide step that freed the seat. A promotion is stored as
-   * a Yes of now, and reported as saved and as promoted, never as an answer
-   * the attendee sent.
+   * Gives the free seats of a pool to its waiting attendees, in the order they
+   * asked: earliest answer date first, then lowest row id. Runs inside the
+   * decide step that freed the seat. A promotion is stored as a Yes of now,
+   * and reported as saved and as promoted, never as an answer the attendee
+   * sent. On a series, the seats are given date by date (see
+   * {@link #promoteSeriesWaitingAttendees(Event, List)}).
    *
    * @param eventId the identifier of the pool's event row
    */
@@ -1069,7 +1338,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     }
     Event pool = eventStorage.getEventById(eventId);
     if (pool.getRecurrence() != null) {
-      throw new IllegalStateException("Event " + eventId + " is a series with a waiting list, whose attendees are promoted date by date");
+      promoteSeriesWaitingAttendees(pool, waitingAttendees);
+      return;
     }
     int capacity = SeatRule.capacityOf(pool);
     int accepted = SeatRule.acceptedAt(attendeeStorage.getSeatRows(eventId, EventAttendeeResponse.ACCEPTED), null, 0);
@@ -1084,6 +1354,71 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       accepted++;
       Utils.broadcastEvent(listenerService, Utils.POST_EVENT_RESPONSE_SAVED, oldAttendee, waitingAttendee);
       Utils.broadcastEvent(listenerService, Utils.POST_EVENT_ATTENDEE_PROMOTED, oldAttendee, waitingAttendee);
+    }
+  }
+
+  /**
+   * Gives the free seats of the pool of a series to its waiting rows, date by
+   * date (D17), in the order they asked, the Yes answers being read again
+   * before each row. A waiting row is cut at the bounds of the stretches it
+   * covers: the part with a seat at each counted date becomes a Yes of now,
+   * the rest keeps waiting with its answer date, so that its place in the
+   * order is kept. A stretch with no counted date takes the decision of its
+   * neighbour; a row with none at all is left waiting, its dates having their
+   * own row or being over. The row keeps its id for its first piece, whose
+   * start does not move. Each row promoted is reported once as saved, its
+   * first piece with a seat as stored, and once as promoted, from the first
+   * date it got a seat for.
+   *
+   * @param series the row of the series, as read under the lock
+   * @param waitingAttendees its waiting rows, in promotion order
+   */
+  private void promoteSeriesWaitingAttendees(Event series, List<EventAttendee> waitingAttendees) {
+    long seriesId = series.getId();
+    int capacity = SeatRule.capacityOf(series);
+    ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
+    SeriesDates seriesDates = new SeriesDates(series, () -> eventStorage.getExceptionalOccurrences(seriesId), now);
+    for (EventAttendee waitingAttendee : waitingAttendees) {
+      List<EventAttendee> acceptedRows = attendeeStorage.getSeatRows(seriesId, EventAttendeeResponse.ACCEPTED);
+      long identityId = waitingAttendee.getIdentityId();
+      List<SeatPiece> pieces = SeatRule.pieces(SeatRule.stretches(acceptedRows,
+                                                                  waitingAttendee.getFromOccurrenceId(),
+                                                                  waitingAttendee.getUntilOccurrenceId()),
+                                               stretch -> seriesDates.firstCountedDate(stretch.from(), stretch.until()),
+                                               date -> SeatRule.hasFreeSeat(capacity,
+                                                                            SeatRule.acceptedAt(acceptedRows,
+                                                                                                date,
+                                                                                                identityId)) ? EventAttendeeResponse.ACCEPTED
+                                                                                                             : EventAttendeeResponse.WAITING,
+                                               stretch -> false,
+                                               EventAttendeeResponse.WAITING);
+      if (pieces.stream().noneMatch(piece -> piece.response() == EventAttendeeResponse.ACCEPTED)) {
+        continue;
+      }
+      EventAttendee oldAttendee = waitingAttendee.clone();
+      EventAttendee promoted = null;
+      ZonedDateTime firstPromotedDate = null;
+      for (int i = 0; i < pieces.size(); i++) {
+        SeatPiece piece = pieces.get(i);
+        EventAttendee row = i == 0 ? waitingAttendee : new EventAttendee(0, seriesId, identityId, piece.from(), null, null, null);
+        row.setUntilOccurrenceId(piece.until());
+        row.setResponse(piece.response());
+        row.setResponseDate(piece.response() == EventAttendeeResponse.ACCEPTED ? now : oldAttendee.getResponseDate());
+        attendeeStorage.saveEventAttendee(row, seriesId);
+        if (promoted == null && piece.response() == EventAttendeeResponse.ACCEPTED) {
+          promoted = row;
+          firstPromotedDate = piece.firstCountedDate();
+        }
+      }
+      Utils.broadcastEvent(listenerService, Utils.POST_EVENT_RESPONSE_SAVED, oldAttendee, promoted);
+      // The promotion is reported from the first date the attendee got a seat
+      // for, which the row promoted does not carry when it starts with the
+      // series, or at a date over or with a row of its own. A piece with a
+      // seat always holds a counted date: a stretch with none takes the
+      // decision of a counted neighbour and joins its run
+      EventAttendee reported = promoted.clone();
+      reported.setFromOccurrenceId(firstPromotedDate);
+      Utils.broadcastEvent(listenerService, Utils.POST_EVENT_ATTENDEE_PROMOTED, oldAttendee, reported);
     }
   }
 
