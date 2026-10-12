@@ -223,6 +223,58 @@ public interface AgendaEventAttendeeService {
                                         EventAttendeeResponse response) throws ObjectNotFoundException, IllegalAccessException;
 
   /**
+   * Sends an event response for a recurrent event starting from a specific
+   * occurrence, and returns what it stored.
+   * <p>
+   * On a series with a capacity limit, a Yes, or
+   * {@link EventAttendeeResponse#WAITING} which asks for the same, is decided
+   * date by date: stored as a Yes over the dates with a seat free or already
+   * held, and as {@link EventAttendeeResponse#WAITING} over the others, one
+   * attendee row per run of dates with the same outcome.
+   *
+   * @param eventId Technical identifier of the series
+   * @param occurrenceId occurrence id of the date the answer starts from
+   * @param identityId {@link Identity} technical identifier of user
+   * @param response User response of type {@link EventAttendeeResponse} to the
+   *          event. The value {@link EventAttendeeResponse#NEEDS_ACTION} isn't
+   *          allowed.
+   * @param broadcast whether the answer is reported as sent by the user
+   * @return the answer stored at the date answered, and the first date it left
+   *         waiting
+   * @throws ObjectNotFoundException when event with provided identifier doesn't
+   *           exists
+   * @throws IllegalAccessException when the user may not answer the event: not
+   *           an attendee, and the event isn't open to them (see
+   *           {@link #canRespondToEvent(Event, long)})
+   */
+  EventResponseOutcome sendUpcomingEventResponse(long eventId,
+                                                 ZonedDateTime occurrenceId,
+                                                 long identityId,
+                                                 EventAttendeeResponse response,
+                                                 boolean broadcast) throws ObjectNotFoundException, IllegalAccessException;
+
+  /**
+   * Reads a user's answer to an event as a whole. On a series, where a user
+   * may hold several rows, each over a range of its dates, it is the answer
+   * valid at the next date the series carries, the first that is neither
+   * cancelled nor over; when none remains, at the last date it carries; when
+   * every date is cancelled, at the last date its rule produces. Validity is
+   * judged on the date's occurrence id. On an event of no series, it is the
+   * user's row.
+   * <p>
+   * It reads the stored answer and checks no right: the caller checks the
+   * right to read the event.
+   *
+   * @param seriesId Technical identifier of the series, or of the event
+   * @param identityId {@link Identity} technical identifier of user
+   * @return the answer, {@link EventAttendeeResponse#NEEDS_ACTION} when the
+   *         user holds none at that date
+   * @throws ObjectNotFoundException when event with provided identifier doesn't
+   *           exists
+   */
+  EventAttendeeResponse getSeriesResponse(long seriesId, long identityId) throws ObjectNotFoundException;
+
+  /**
    * @param eventId Technical identifier of {@link Event}
    * @param identityId {@link Identity} technical identifier of user
    * @param response User response of type {@link EventAttendeeResponse} to the
