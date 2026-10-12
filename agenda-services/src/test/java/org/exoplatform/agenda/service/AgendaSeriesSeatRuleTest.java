@@ -18,6 +18,7 @@ package org.exoplatform.agenda.service;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -49,6 +50,7 @@ import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.model.EventOccurrence;
 import org.exoplatform.agenda.model.EventResponseOutcome;
+import org.exoplatform.agenda.model.EventSeatCounts;
 import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -689,6 +691,271 @@ public class AgendaSeriesSeatRuleTest extends BaseAgendaEventTest {
     }
 
     assertEquals(EventAttendeeResponse.ACCEPTED, agendaEventAttendeeService.getSeriesResponse(series.getId(), id(testuser2Identity)));
+  }
+
+  /**
+   * The seats of a date with no row of its own are counted on the series'
+   * rows valid at that date, with the rank of a waiting reader; a reader not
+   * waiting there has none.
+   *
+   * @throws Exception when a read fails
+   */
+  @Test
+  public void theSeatsOfADateWithNoRowOfItsOwnAreCountedOnTheSeriesAtThatDate() throws Exception {
+    Event series = limitedSeries(0, 4, testuser2Identity, testuser3Identity, testuser4Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    replaceRows(series.getId(), testuser2Identity, row(null, null, EventAttendeeResponse.ACCEPTED));
+    replaceRows(series.getId(),
+                testuser3Identity,
+                row(null, dates.get(2), EventAttendeeResponse.DECLINED),
+                row(dates.get(2), null, EventAttendeeResponse.WAITING));
+    replaceRows(series.getId(),
+                testuser4Identity,
+                row(null, dates.get(2), EventAttendeeResponse.NEEDS_ACTION),
+                row(dates.get(2), null, EventAttendeeResponse.ACCEPTED));
+
+    assertEquals(new EventSeatCounts(1, 0, null),
+                 agendaEventAttendeeService.getSeatCounts(series.getId(), dates.get(0), id(testuser3Identity)));
+    assertEquals(new EventSeatCounts(2, 1, 1),
+                 agendaEventAttendeeService.getSeatCounts(series.getId(), dates.get(2), id(testuser3Identity)));
+    assertEquals(new EventSeatCounts(2, 1, null),
+                 agendaEventAttendeeService.getSeatCounts(series.getId(), dates.get(2), id(testuser2Identity)));
+  }
+
+  /**
+   * A date with its own row is a pool of its own: its seats are counted on its
+   * row, read by the series' date or by the row itself, while the series'
+   * rows count the dates with none.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void theSeatsOfADateWithItsOwnRowAreCountedOnItsRow() throws Exception {
+    Event series = limitedSeries(0, 4, testuser2Identity, testuser3Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answer(series.getId(), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    agendaEventAttendeeService.sendEventResponse(series.getId(),
+                                                 dates.get(1),
+                                                 id(testuser3Identity),
+                                                 EventAttendeeResponse.ACCEPTED,
+                                                 true);
+    Event dateRow = agendaEventStorage.findExceptionalOccurrence(agendaEventStorage.getEventById(series.getId()), dates.get(1));
+    assertNotNull(dateRow);
+
+    assertEquals(new EventSeatCounts(2, 0, null), agendaEventAttendeeService.getSeatCounts(series.getId(), dates.get(1), 0));
+    assertEquals(new EventSeatCounts(2, 0, null), agendaEventAttendeeService.getSeatCounts(dateRow.getId(), null, 0));
+    assertEquals(new EventSeatCounts(1, 0, null), agendaEventAttendeeService.getSeatCounts(series.getId(), dates.get(2), 0));
+  }
+
+  /**
+   * A date is counted on the rows valid there, though the series holds one
+   * row: a list of one row is never read unfiltered.
+   *
+   * @throws Exception when a read fails
+   */
+  @Test
+  public void aSingleRowRangedAwayFromADateCountsNothingThere() throws Exception {
+    Event series = limitedSeries(0, 4, testuser2Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    replaceRows(series.getId(), testuser2Identity, row(dates.get(2), null, EventAttendeeResponse.ACCEPTED));
+
+    assertEquals(new EventSeatCounts(0, 0, null), agendaEventAttendeeService.getSeatCounts(series.getId(), dates.get(0), 0));
+    assertEquals(new EventSeatCounts(1, 0, null), agendaEventAttendeeService.getSeatCounts(series.getId(), dates.get(2), 0));
+  }
+
+  /**
+   * A series read with no date is counted at its next date, not over every
+   * row it holds.
+   *
+   * @throws Exception when a read fails
+   */
+  @Test
+  public void aSeriesReadWithNoDateIsCountedAtItsNextDate() throws Exception {
+    Event series = limitedSeries(0, 4, testuser2Identity, testuser3Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    replaceRows(series.getId(),
+                testuser2Identity,
+                row(null, dates.get(1), EventAttendeeResponse.DECLINED),
+                row(dates.get(1), null, EventAttendeeResponse.ACCEPTED));
+    replaceRows(series.getId(), testuser3Identity, row(null, null, EventAttendeeResponse.WAITING));
+
+    assertEquals(new EventSeatCounts(0, 1, 1), agendaEventAttendeeService.getSeatCounts(series.getId(), null, id(testuser3Identity)));
+  }
+
+  /**
+   * A series read with no date whose next date has a row of its own is
+   * counted on that row, as the date read with its id is, not on the series'
+   * rows at that date.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aSeriesReadWithNoDateWhoseNextDateHasItsOwnRowIsCountedOnThatRow() throws Exception {
+    Event series = limitedSeries(0, 4, testuser2Identity, testuser3Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answer(series.getId(), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    agendaEventAttendeeService.sendEventResponse(series.getId(),
+                                                 dates.get(0),
+                                                 id(testuser3Identity),
+                                                 EventAttendeeResponse.ACCEPTED,
+                                                 true);
+
+    assertEquals(new EventSeatCounts(2, 0, null), agendaEventAttendeeService.getSeatCounts(series.getId(), null, 0));
+    assertEquals(new EventSeatCounts(2, 0, null), agendaEventAttendeeService.getSeatCounts(series.getId(), dates.get(0), 0));
+    assertEquals(new EventSeatCounts(1, 0, null), agendaEventAttendeeService.getSeatCounts(series.getId(), dates.get(1), 0));
+  }
+
+  /**
+   * The rank on a waiting list is the promotion order: the earliest answer
+   * first, the row stored first among answers given at the same instant.
+   *
+   * @throws Exception when a read fails
+   */
+  @Test
+  public void theRankOnAWaitingListIsThePromotionOrder() throws Exception {
+    Event series = limitedSeries(0, 3, testuser2Identity, testuser3Identity, testuser4Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    ZonedDateTime sameInstant = ZonedDateTime.now(ZoneOffset.UTC).minusHours(1).withNano(0);
+    for (Identity identity : List.of(testuser2Identity, testuser3Identity)) {
+      replaceRows(series.getId(), identity, row(null, null, EventAttendeeResponse.WAITING));
+      EventAttendee waiting = rowsOf(series.getId(), identity).get(0);
+      waiting.setResponseDate(sameInstant);
+      attendeeStorage.saveEventAttendee(waiting, series.getId());
+    }
+    replaceRows(series.getId(), testuser4Identity, row(null, null, EventAttendeeResponse.WAITING));
+    backdate(series.getId(), rowsOf(series.getId(), testuser4Identity).get(0), 3);
+
+    assertEquals(Integer.valueOf(1),
+                 agendaEventAttendeeService.getSeatCounts(series.getId(), dates.get(0), id(testuser4Identity))
+                                           .waitingListPosition());
+    assertEquals(Integer.valueOf(2),
+                 agendaEventAttendeeService.getSeatCounts(series.getId(), dates.get(0), id(testuser2Identity))
+                                           .waitingListPosition());
+    assertEquals(Integer.valueOf(3),
+                 agendaEventAttendeeService.getSeatCounts(series.getId(), dates.get(0), id(testuser3Identity))
+                                           .waitingListPosition());
+  }
+
+  /**
+   * An answer to a series read with no date is the row valid at its next
+   * date, not the user's first row; the attendees of the series read with no
+   * date are each one row, the one valid there.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aSeriesAnswerReadWithNoDateIsTheRowAtItsNextDate() throws Exception {
+    ZonedDateTime start = LocalDate.now().minusDays(10).atTime(9, 0).atZone(ZoneOffset.UTC);
+    Event series = limitedSeries(start, 0, 20, testuser2Identity, testuser3Identity);
+    ZonedDateTime pastDate = start.plusDays(5);
+    answer(series.getId(), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answerFrom(series.getId(), pastDate, testuser2Identity, EventAttendeeResponse.DECLINED);
+    assertEquals("the user's first row is the Yes before the past date",
+                 EventAttendeeResponse.ACCEPTED,
+                 rowsOf(series.getId(), testuser2Identity).get(0).getResponse());
+
+    assertEquals(EventAttendeeResponse.DECLINED,
+                 agendaEventAttendeeService.getEventResponse(series.getId(), null, id(testuser2Identity)));
+    EventAttendee read = agendaEventAttendeeService.getSeriesAttendee(series.getId(), id(testuser2Identity));
+    assertEquals(EventAttendeeResponse.DECLINED, read.getResponse());
+    List<EventAttendee> attendees = agendaEventAttendeeService.getSeriesAttendees(series.getId());
+    assertEquals(List.of(id(testuser2Identity), id(testuser3Identity)),
+                 attendees.stream().map(EventAttendee::getIdentityId).sorted().toList());
+    assertEquals(read.getId(),
+                 attendees.stream().filter(attendee -> attendee.getIdentityId() == id(testuser2Identity)).findFirst().orElseThrow().getId());
+  }
+
+  /**
+   * An attendee whose rows all start after the series' next date is read once,
+   * answering nothing there, and their stored row keeps its answer; a user
+   * with no row is not read.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void anAttendeeWhoseRowsStartAfterTheNextDateIsReadWithNoAnswer() throws Exception {
+    Event series = limitedSeries(0, 4, testuser2Identity, testuser3Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    leaveOneRowFrom(series, dates.get(2), testuser3Identity);
+    EventAttendee storedRow = rowsOf(series.getId(), testuser3Identity).get(0);
+
+    EventAttendee read = agendaEventAttendeeService.getSeriesAttendee(series.getId(), id(testuser3Identity));
+    assertEquals(storedRow.getId(), read.getId());
+    assertEquals(EventAttendeeResponse.NEEDS_ACTION, read.getResponse());
+    assertNull(read.getResponseDate());
+    assertEquals(EventAttendeeResponse.NEEDS_ACTION,
+                 agendaEventAttendeeService.getSeriesResponse(series.getId(), id(testuser3Identity)));
+    List<EventAttendee> attendees = agendaEventAttendeeService.getSeriesAttendees(series.getId());
+    assertEquals(List.of(id(testuser2Identity), id(testuser3Identity)),
+                 attendees.stream().map(EventAttendee::getIdentityId).sorted().toList());
+    assertEquals(EventAttendeeResponse.NEEDS_ACTION,
+                 attendees.stream()
+                          .filter(attendee -> attendee.getIdentityId() == id(testuser3Identity))
+                          .findFirst()
+                          .orElseThrow()
+                          .getResponse());
+    assertRows(series.getId(), testuser3Identity, row(dates.get(2), null, EventAttendeeResponse.ACCEPTED));
+    assertNull(agendaEventAttendeeService.getSeriesAttendee(series.getId(), id(testuser4Identity)));
+  }
+
+  /**
+   * A series saved back with the attendees its read with no date lists, as
+   * the dialogs that delete or change its upcoming dates do, keeps the rows of
+   * an attendee whose rows all start after its next date.
+   *
+   * @throws Exception when the save fails
+   */
+  @Test
+  public void aSeriesSavedBackFromItsAttendeeListKeepsAnAttendeeAnsweringFromALaterDate() throws Exception {
+    Event series = limitedSeries(0, 4, testuser2Identity, testuser3Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    leaveOneRowFrom(series, dates.get(2), testuser3Identity);
+    // The dialogs send each attendee's identity back, nothing of their rows
+    List<EventAttendee> savedAttendees = agendaEventAttendeeService.getSeriesAttendees(series.getId())
+                                                                   .stream()
+                                                                   .map(attendee -> new EventAttendee(0,
+                                                                                                      series.getId(),
+                                                                                                      attendee.getIdentityId(),
+                                                                                                      EventAttendeeResponse.NEEDS_ACTION))
+                                                                   .collect(Collectors.toList());
+    Event stored = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, id(testuser1Identity));
+
+    agendaEventService.updateEvent(stored.clone(),
+                                   savedAttendees,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   id(testuser1Identity));
+
+    assertRows(series.getId(), testuser3Identity, row(dates.get(2), null, EventAttendeeResponse.ACCEPTED));
+  }
+
+  /**
+   * The attendees of a date read narrowed by answer are filtered by their
+   * range, though one row matches: an attendee answering Yes from a later
+   * date is not among the Yes of an earlier one, as the reply notification
+   * reads them.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aDateReadNarrowedByAnswerFiltersTheOneRowItMatches() throws Exception {
+    Event series = limitedSeries(0, 4, testuser2Identity, testuser3Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answer(series.getId(), testuser2Identity, EventAttendeeResponse.TENTATIVE);
+    answer(series.getId(), testuser3Identity, EventAttendeeResponse.DECLINED);
+    answerFrom(series.getId(), dates.get(2), testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertEquals("one row answers Yes", 1, agendaEventAttendeeService.getEventAttendees(series.getId(), EventAttendeeResponse.ACCEPTED).size());
+
+    assertEquals(List.of(),
+                 agendaEventAttendeeService.getEventAttendees(series.getId(), dates.get(0), EventAttendeeResponse.ACCEPTED));
+    assertEquals(List.of(id(testuser3Identity)),
+                 agendaEventAttendeeService.getEventAttendees(series.getId(), dates.get(2), EventAttendeeResponse.ACCEPTED)
+                                           .stream()
+                                           .map(EventAttendee::getIdentityId)
+                                           .toList());
   }
 
   /**

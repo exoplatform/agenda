@@ -3556,10 +3556,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   /**
-   * The attendee rows of a series valid at one of its dates, filtered by
-   * their range here: {@link EventAttendeeList#getEventAttendees(ZonedDateTime)}
-   * returns a list of one row unfiltered, which would copy onto a date the
-   * answer of an attendee whose only row starts later.
+   * The attendee rows of a series valid at one of its dates, by the range
+   * {@link SeatRule#coversDate(EventAttendee, ZonedDateTime)} reads: a copy
+   * onto the date never takes the answer of an attendee whose rows start later.
    *
    * @param seriesAttendees the series' rows
    * @param occurrenceId the date's occurrence id
