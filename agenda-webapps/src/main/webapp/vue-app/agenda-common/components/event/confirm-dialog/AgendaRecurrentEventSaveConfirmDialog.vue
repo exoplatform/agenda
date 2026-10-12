@@ -65,7 +65,9 @@ export default {
      * Null — the default, and what the event form passes — keeps the original
      * contract: "this and upcoming" and "all events" promote the displayed
      * date's whole state, which is right for a form, where every one of those
-     * fields is on screen and was just edited.
+     * fields is on screen and was just edited. The participants excepted: the
+     * date's list is not the series', so the form's change to it travels as a
+     * delta too, handed to open.
      *
      * A host that changes one thing from elsewhere — the participants drawer of
      * the event page changes the padlock and the invitee list — passes the list
@@ -104,6 +106,7 @@ export default {
   data: () => ({
     event: null,
     changeDatesOnly: false,
+    formAttendeesDelta: null,
     recurrenceModificationType: 'single',
     loading: false,
     dialog: false,
@@ -175,7 +178,7 @@ export default {
             recurrentEvent.start = this.event.start;
             recurrentEvent.end = this.event.end;
             recurrentEvent.attachments = this.event.attachments;
-            recurrentEvent.attendees = this.event.attendees;
+            recurrentEvent.attendees = this.seriesAttendeesFromForm(recurrentEvent.attendees);
             recurrentEvent.conferences = this.event.conferences;
             recurrentEvent.description = this.event.description;
             recurrentEvent.location = this.event.location;
@@ -276,11 +279,57 @@ export default {
       eventToSave.recurrence = this.event.recurrence || this.event.parent.recurrence;
       eventToSave.occurrence = null;
       eventToSave.parent = null;
-      // Keep same original recurrent event dates, and change only time
-      eventToSave.start = this.$agendaUtils.getSameTime(this.event.parent.start, this.event.start);
-      eventToSave.end = this.$agendaUtils.getSameTime(this.event.parent.end, this.event.end);
+      // The form edits the date it shows on its one date option: its times and
+      // its all-day flag are there, while the event's own may be stale, or
+      // emptied by the dates step. The server would make that option the
+      // event's dates, starting the series on that date and dropping every
+      // date before it, the ones customised included. So the series takes the
+      // option's times and all-day flag on its own days, and the option is not
+      // sent. Read on the form's own object: a copy turns the option's dates
+      // into UTC text. A move of dates carries its dates on the event itself
+      const shownDate = !this.changeDatesOnly && this.event.dateOptions && this.event.dateOptions.length === 1 && this.event.dateOptions[0];
+      const shownStart = this.$agendaUtils.toDate(shownDate ? shownDate.startDate || shownDate.start : this.event.start);
+      const shownEnd = this.$agendaUtils.toDate(shownDate ? shownDate.endDate || shownDate.end : this.event.end);
+      // The series keeps its first day and takes the shown times, ending as
+      // many days later as the shown date does. Its day is read with toDate:
+      // an all-day series' start is a day alone, which new Date reads as
+      // midnight UTC, the day before west of UTC
+      const seriesStart = this.$agendaUtils.toDate(this.event.parent.start);
+      const seriesEnd = new Date(seriesStart);
+      seriesEnd.setDate(seriesEnd.getDate() + this.$agendaUtils.daysBetween(shownStart, shownEnd));
+      eventToSave.start = this.$agendaUtils.getSameTime(seriesStart, shownStart);
+      eventToSave.end = this.$agendaUtils.getSameTime(seriesEnd, shownEnd);
+      if (shownDate) {
+        eventToSave.allDay = !!shownDate.allDay;
+        eventToSave.dateOptions = [];
+      }
 
-      this.$emit('save-event', eventToSave, this.changeDatesOnly);
+      if (this.changeDatesOnly) {
+        // A move of dates saves its dates alone
+        this.$emit('save-event', eventToSave, this.changeDatesOnly);
+        return;
+      }
+      return this.$eventService.getEventById(this.event.parent.id, 'attendees')
+        .then(storedSeries => {
+          eventToSave.attendees = this.seriesAttendeesFromForm(storedSeries.attendees);
+          this.$emit('save-event', eventToSave, this.changeDatesOnly);
+        })
+        .catch(this.saveFailed);
+    },
+    /**
+     * The participants a wider scope saves for the series from the date the
+     * form shows. The date's list is not the series': the series also holds
+     * whoever answers from a later date only, and whoever was removed from
+     * that date alone, and saving the date's list in its place would remove
+     * them from the series. So the series keeps its own list, with the form's
+     * additions and removals; a move of dates, which changes nobody, keeps it
+     * as it is.
+     *
+     * @param {Array} seriesAttendees the series' participants, read back
+     * @returns {Array} the participants to save
+     */
+    seriesAttendeesFromForm(seriesAttendees) {
+      return this.$agendaUtils.withAttendeesDelta(seriesAttendees, this.formAttendeesDelta);
     },
     /**
      * Applies the host's participant change to one event's own list, adding
@@ -294,18 +343,7 @@ export default {
       if (!this.attendeesDelta) {
         return;
       }
-      const removedKeys = this.attendeesDelta.removedParticipantKeys || [];
-      const kept = (target.attendees || [])
-        .filter(attendee => !removedKeys.includes(this.$agendaUtils.participantKey(attendee)));
-      const presentKeys = kept.map(attendee => this.$agendaUtils.participantKey(attendee));
-      (this.attendeesDelta.added || []).forEach(attendee => {
-        const key = this.$agendaUtils.participantKey(attendee);
-        if (!presentKeys.includes(key)) {
-          kept.push(attendee);
-          presentKeys.push(key);
-        }
-      });
-      target.attendees = kept;
+      target.attendees = this.$agendaUtils.withAttendeesDelta(target.attendees, this.attendeesDelta);
     },
     saveOccurrenceEvent(eventObject) {
       if (eventObject) {
@@ -330,10 +368,19 @@ export default {
       }
       this.dialog = false;
     },
-    open(event, changeDatesOnly) {
+    /**
+     * @param {Object} event the date being saved
+     * @param {Boolean} changeDatesOnly whether only its dates are saved
+     * @param {Object} formAttendeesDelta what the event form did to the date's
+     *          participants since it opened it (see AgendaUtils#attendeesDelta),
+     *          null when nobody's participation changed: a move of dates
+     * @returns {void}
+     */
+    open(event, changeDatesOnly, formAttendeesDelta) {
       this.event = event;
       this.recurrenceModificationType = 'single';
       this.changeDatesOnly = changeDatesOnly;
+      this.formAttendeesDelta = formAttendeesDelta || null;
       this.dialog = true;
       this.$nextTick(this.raiseAboveOverlays);
     },
