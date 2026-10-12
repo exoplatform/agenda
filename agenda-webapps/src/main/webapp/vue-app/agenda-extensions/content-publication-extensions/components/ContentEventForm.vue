@@ -378,8 +378,8 @@ export default {
       this.eventTypeEnabled = !!event;
 
       if (event?.start && event?.end) {
-        const start = new Date(event.start);
-        const end = new Date(event.end);
+        const start = this.$agendaUtils.toDate(event.start);
+        const end = this.$agendaUtils.toDate(event.end);
 
         this.isInitializing = true;
 
@@ -484,7 +484,7 @@ export default {
     },
     formatDate(date) {
       const options = {year: 'numeric', month: 'long', day: 'numeric'};
-      return date && new Intl.DateTimeFormat(this.locale, options).format(new Date(date));
+      return date && new Intl.DateTimeFormat(this.locale, options).format(this.$agendaUtils.toDate(date));
     },
     formatTime(date) {
       const hours = String(date.getHours()).padStart(2, '0');

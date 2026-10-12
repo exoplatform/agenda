@@ -323,21 +323,24 @@ export default {
       return this.activeMapProvider.mapsUrl(this.geocodeResult || { location: this.eventLocation });
     },
     eventStart() {
-      return this.event?.start;
+      return this.isAllDayEvent && this.event?.start && this.$agendaUtils.toDate(this.event.start) || this.event?.start;
     },
     eventEnd() {
-      return this.event?.end;
+      return this.isAllDayEvent && this.event?.end && this.$agendaUtils.toDate(this.event.end) || this.event?.end;
     },
     tz() {
       return this.event?.timeZoneId || 'UTC';
     },
     fullDateFormat() {
-      return {
+      const format = {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
-        timeZone: this.tz,
       };
+      if (!this.isAllDayEvent) {
+        format.timeZone = this.tz;
+      }
+      return format;
     },
     timeFormat() {
       return {
