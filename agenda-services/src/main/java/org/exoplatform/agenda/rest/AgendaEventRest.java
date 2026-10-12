@@ -415,6 +415,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       if (eventEntity == null) {
         return Response.status(Status.NOT_FOUND).build();
       } else {
+        RestUtils.fillSeatCounts(agendaEventAttendeeService, eventEntity, RestUtils.getCurrentUserIdentityId(identityManager));
         return Response.ok(eventEntity).build();
       }
     } catch (IllegalAccessException e) {
@@ -493,6 +494,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                occurrenceDate,
                                                userTimeZone,
                                                expandProperties);
+      RestUtils.fillSeatCounts(agendaEventAttendeeService, eventEntity, identityId);
       return Response.ok(eventEntity).build();
     } catch (IllegalAccessException e) {
       // 403 like the other answers of this resource; a refusal is a normal
@@ -1462,8 +1464,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       method = "GET")
   @ApiResponses(
       value = {
-          @ApiResponse(responseCode = "200", description = "Request fulfilled, answer acknowledged by an HTML page shown to an external attendee"),
-          @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "200", description = "Request fulfilled: without redirect, the answer stored at the date answered and the first date of a series it left waiting, in JSON; with a redirect, answer acknowledged by an HTML page shown to an external attendee"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
           @ApiResponse(responseCode = "403", description = "Forbidden operation: not an attendee, and the event isn't open to the caller, or the caller could not be identified from the token"),
           @ApiResponse(responseCode = "404", description = "Event not found"),
@@ -1566,19 +1567,21 @@ public class AgendaEventRest implements ResourceContainer, Startable {
             + ": not an attendee, and the event isn't open to them");
       }
 
+      EventResponseOutcome outcome;
       if (StringUtils.isBlank(occurrenceId)) {
-        agendaEventAttendeeService.sendEventResponse(eventId, identityId, response);
+        outcome = agendaEventAttendeeService.sendEventResponse(eventId, null, identityId, response, true);
       } else {
         ZonedDateTime occurrenceIdDateTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId, ZoneOffset.UTC);
         if (upcoming) {
-          agendaEventAttendeeService.sendUpcomingEventResponse(eventId,
-                                                               occurrenceIdDateTime,
-                                                               identityId,
-                                                               response);
+          outcome = agendaEventAttendeeService.sendUpcomingEventResponse(eventId,
+                                                                         occurrenceIdDateTime,
+                                                                         identityId,
+                                                                         response,
+                                                                         true);
         } else {
           // The Service finds or creates the date's row under the lock of
           // the series, then answers on it
-          agendaEventAttendeeService.sendEventResponse(eventId, occurrenceIdDateTime, identityId, response, true);
+          outcome = agendaEventAttendeeService.sendEventResponse(eventId, occurrenceIdDateTime, identityId, response, true);
         }
       }
       if (redirect) {
@@ -1592,13 +1595,19 @@ public class AgendaEventRest implements ResourceContainer, Startable {
         // a session still gets the event page, which shows their answer in
         // context and is better feedback than any static page.
         if (!authenticatedSession) {
+          // The page tells the answer stored, a place on the waiting list
+          // for a Yes given on a full date
           Locale locale = request == null ? null : request.getLocale();
-          return Response.ok(Utils.buildGuestResponseConfirmationPage(response, locale), MediaType.TEXT_HTML).build();
+          return Response.ok(Utils.buildGuestResponseConfirmationPage(outcome.response(), locale), MediaType.TEXT_HTML)
+                         .build();
         }
         URI location = new URI("/portal/" + this.defaultSite + "/" + AGENDA_APP_URI + "?eventId=" + eventId); // NOSONAR
         return Response.seeOther(location).build();
       } else {
-        return Response.noContent().build();
+        return Response.ok(new EventResponseOutcomeEntity(outcome.response(),
+                                                          AgendaDateUtils.toRFC3339Date(outcome.firstWaitingOccurrenceId())),
+                           MediaType.APPLICATION_JSON)
+                       .build();
       }
     } catch (EventInvitationExpiredException e) {
       // Not an incident and not an attack: somebody followed a link in good
