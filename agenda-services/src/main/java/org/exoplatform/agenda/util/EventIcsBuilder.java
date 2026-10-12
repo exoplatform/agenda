@@ -347,8 +347,9 @@ public final class EventIcsBuilder {
    * Gives the resource bundle key naming one answer.
    *
    * <p>
-   * The same three keys the confirmation page reads, so the word a person
-   * clicks in their calendar is the word the page tells them was recorded.
+   * The labels of the three answers a link can send, which the confirmation
+   * page also reads. The page names the answer stored, which for a Yes given
+   * on a date with no seat left is the waiting list.
    *
    * @param response the answer to label
    * @return the key of its label in the <code>locale.portlet.Agenda</code>
