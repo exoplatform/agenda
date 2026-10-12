@@ -378,8 +378,8 @@ export default {
       this.eventTypeEnabled = !!event;
 
       if (event?.start && event?.end) {
-        const start = new Date(event.start);
-        const end = new Date(event.end);
+        const start = this.$agendaUtils.toDate(event.start);
+        const end = this.$agendaUtils.toDate(event.end);
 
         this.isInitializing = true;
 

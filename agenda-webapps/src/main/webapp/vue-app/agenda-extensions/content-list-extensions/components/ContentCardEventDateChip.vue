@@ -89,13 +89,13 @@ export default {
       if (!this.event) {
         return [];
       }
-      const start = new Date(this.event.start);
-      const end = new Date(this.event.end);
+      const start = this.$agendaUtils.toDate(this.event.start);
+      const end = this.$agendaUtils.toDate(this.event.end);
       const isSameDay = start.toDateString() === end.toDateString();
       const datesToShow = isSameDay ? [this.event.start] : [this.event.start, this.event.end];
       return datesToShow.map(date => ({
-        day: new Date(date).toLocaleString(this.locale, { day: '2-digit' }),
-        month: new Date(date).toLocaleString(this.locale, { month: 'short' }),
+        day: this.$agendaUtils.toDate(date).toLocaleString(this.locale, { day: '2-digit' }),
+        month: this.$agendaUtils.toDate(date).toLocaleString(this.locale, { month: 'short' }),
       }));
     },
   },
