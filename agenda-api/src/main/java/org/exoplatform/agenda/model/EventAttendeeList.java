@@ -22,29 +22,35 @@ public class EventAttendeeList {
     return getEventAttendees(null);
   }
 
+  /**
+   * @param occurrenceId the occurrence id of a date, or null
+   * @return the rows valid at the date, from inclusive to until exclusive,
+   *         whatever their number; every row when no date is given
+   */
   public List<EventAttendee> getEventAttendees(ZonedDateTime occurrenceId) {
     if (isEmpty()) {
       return Collections.emptyList();
-    } else if (occurrenceId == null || attendees.size() == 1) {
+    } else if (occurrenceId == null) {
       return attendees;
     } else {
       return attendees.stream()
-                      .filter(eventAttendee -> {
-                        if (eventAttendee.getFromOccurrenceId() == null && eventAttendee.getUntilOccurrenceId() == null) {
-                          return true;
-                        } else if (eventAttendee.getFromOccurrenceId() == null && eventAttendee.getUntilOccurrenceId() != null) {
-                          return eventAttendee.getUntilOccurrenceId().isAfter(occurrenceId);
-                        } else if (eventAttendee.getFromOccurrenceId() != null && eventAttendee.getUntilOccurrenceId() == null) {
-                          return eventAttendee.getFromOccurrenceId().isBefore(occurrenceId)
-                              || eventAttendee.getFromOccurrenceId().isEqual(occurrenceId);
-                        } else {
-                          return (eventAttendee.getFromOccurrenceId().isBefore(occurrenceId)
-                              || eventAttendee.getFromOccurrenceId().isEqual(occurrenceId))
-                              && eventAttendee.getUntilOccurrenceId().isAfter(occurrenceId);
-                        }
-                      })
+                      .filter(eventAttendee -> isValidAt(eventAttendee, occurrenceId))
                       .collect(Collectors.toList());
+    }
+  }
 
+  private static boolean isValidAt(EventAttendee eventAttendee, ZonedDateTime occurrenceId) {
+    if (eventAttendee.getFromOccurrenceId() == null && eventAttendee.getUntilOccurrenceId() == null) {
+      return true;
+    } else if (eventAttendee.getFromOccurrenceId() == null && eventAttendee.getUntilOccurrenceId() != null) {
+      return eventAttendee.getUntilOccurrenceId().isAfter(occurrenceId);
+    } else if (eventAttendee.getFromOccurrenceId() != null && eventAttendee.getUntilOccurrenceId() == null) {
+      return eventAttendee.getFromOccurrenceId().isBefore(occurrenceId)
+          || eventAttendee.getFromOccurrenceId().isEqual(occurrenceId);
+    } else {
+      return (eventAttendee.getFromOccurrenceId().isBefore(occurrenceId)
+          || eventAttendee.getFromOccurrenceId().isEqual(occurrenceId))
+          && eventAttendee.getUntilOccurrenceId().isAfter(occurrenceId);
     }
   }
 
@@ -64,25 +70,10 @@ public class EventAttendeeList {
                       .orElse(null);
     } else {
       return attendees.stream()
-                      .filter(eventAttendee -> {
-                        if (eventAttendee.getIdentityId() != identityId) {
-                          return false;
-                        } else if (eventAttendee.getFromOccurrenceId() == null && eventAttendee.getUntilOccurrenceId() == null) {
-                          return true;
-                        } else if (eventAttendee.getFromOccurrenceId() == null && eventAttendee.getUntilOccurrenceId() != null) {
-                          return eventAttendee.getUntilOccurrenceId().isAfter(occurrenceId);
-                        } else if (eventAttendee.getFromOccurrenceId() != null && eventAttendee.getUntilOccurrenceId() == null) {
-                          return eventAttendee.getFromOccurrenceId().isBefore(occurrenceId)
-                              || eventAttendee.getFromOccurrenceId().isEqual(occurrenceId);
-                        } else {
-                          return (eventAttendee.getFromOccurrenceId().isBefore(occurrenceId)
-                              || eventAttendee.getFromOccurrenceId().isEqual(occurrenceId))
-                              && eventAttendee.getUntilOccurrenceId().isAfter(occurrenceId);
-                        }
-                      })
+                      .filter(eventAttendee -> eventAttendee.getIdentityId() == identityId
+                          && isValidAt(eventAttendee, occurrenceId))
                       .findFirst()
                       .orElse(null);
-
     }
   }
 
