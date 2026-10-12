@@ -31,6 +31,7 @@ import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.rest.model.*;
 import org.exoplatform.agenda.service.*;
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.security.ConversationState;
@@ -497,23 +498,65 @@ public class RestUtils {
     long eventId = computedOccurrence ? eventEntity.getParent().getId()
                                       : eventEntity.getId();
     EventAttendeeList eventAttendeeList = agendaEventAttendeeService.getEventAttendees(eventId);
-    if (userIdentityId > 0) {
-      EventAttendee eventAttendee = eventAttendeeList.getEventAttendee(userIdentityId, occurrenceId);
-      if (eventAttendee == null) {
-        eventEntity.setAttendees(Collections.emptyList());
+    // A series read with no date shows each attendee once, with the answer
+    // valid at the date its answers are read at, not a row per range
+    boolean seriesAsAWhole = occurrenceId == null && !computedOccurrence && eventEntity.getRecurrence() != null;
+    try {
+      if (userIdentityId > 0) {
+        EventAttendee eventAttendee = seriesAsAWhole ? agendaEventAttendeeService.getSeriesAttendee(eventId, userIdentityId)
+                                                     : eventAttendeeList.getEventAttendee(userIdentityId, occurrenceId);
+        if (eventAttendee == null) {
+          eventEntity.setAttendees(Collections.emptyList());
+        } else {
+          eventEntity.setAttendees(Collections.singletonList(RestEntityBuilder.fromEventAttendee(identityManager,
+                                                                                                 eventAttendee)));
+        }
       } else {
-        eventEntity.setAttendees(Collections.singletonList(RestEntityBuilder.fromEventAttendee(identityManager,
-                                                                                               eventAttendee)));
+        List<EventAttendee> eventAttendees = seriesAsAWhole ? agendaEventAttendeeService.getSeriesAttendees(eventId)
+                                                            : eventAttendeeList.getEventAttendees(occurrenceId);
+        eventEntity.setAttendees(eventAttendees.stream()
+                                               .map(eventAttendee -> RestEntityBuilder.fromEventAttendee(identityManager,
+                                                                                                         eventAttendee))
+                                               .collect(Collectors.toList()));
       }
-    } else {
-      List<EventAttendeeEntity> eventAttendeeEntities = eventAttendeeList.getEventAttendees(occurrenceId)
-                                                                         .stream()
-                                                                         .map(eventAttendee -> RestEntityBuilder.fromEventAttendee(identityManager,
-                                                                                                                                   eventAttendee))
-                                                                         .collect(Collectors.toList());
-      eventEntity.setAttendees(eventAttendeeEntities);
+    } catch (ObjectNotFoundException e) {
+      // The series was deleted since it was read
+      eventEntity.setAttendees(Collections.emptyList());
     }
     return eventAttendeeList;
+  }
+
+  /**
+   * Fills the seats of the date an event entity shows, on a detail read: a
+   * computed date is counted on its series at that date, an event or the row
+   * of a date on its own rows, and a series read with no date at the date its
+   * answers are read at. A masked event shows none.
+   *
+   * @param agendaEventAttendeeService the attendee service
+   * @param eventEntity the entity read
+   * @param userIdentityId the reader, whose rank on the waiting list is filled
+   * @throws ObjectNotFoundException when the event was deleted since it was
+   *           read
+   */
+  public static void fillSeatCounts(AgendaEventAttendeeService agendaEventAttendeeService,
+                                    EventEntity eventEntity,
+                                    long userIdentityId) throws ObjectNotFoundException {
+    if (eventEntity.isMasked()) {
+      return;
+    }
+    EventSeatCounts seatCounts;
+    if (isComputedOccurrence(eventEntity)) {
+      seatCounts = agendaEventAttendeeService.getSeatCounts(eventEntity.getParent().getId(),
+                                                            AgendaDateUtils.parseRFC3339ToZonedDateTime(eventEntity.getOccurrence()
+                                                                                                                   .getId(),
+                                                                                                        ZoneOffset.UTC),
+                                                            userIdentityId);
+    } else {
+      seatCounts = agendaEventAttendeeService.getSeatCounts(eventEntity.getId(), null, userIdentityId);
+    }
+    eventEntity.setAcceptedCount(seatCounts.acceptedCount());
+    eventEntity.setWaitingCount(seatCounts.waitingCount());
+    eventEntity.setWaitingListPosition(seatCounts.waitingListPosition());
   }
 
   public static void fillConferences(AgendaEventConferenceService agendaEventConferenceService,
