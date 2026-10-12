@@ -309,13 +309,6 @@ public class AgendaCalendarLinkRest {
   }
 
   /**
-   * Answers a link's status with {@code Cache-Control: no-store}, so that a URL
-   * it carries stays out of browser and intermediary caches.
-   *
-   * @param entity the status
-   * @return the response
-   */
-  /**
    * A refusal with its code written in the body, {@code {"message": code}},
    * and never cached — the way {@link AgendaCalendarSubscriptionRest} refuses.
    * Not a {@code ResponseStatusException}: written here, the code the drawer
@@ -342,6 +335,13 @@ public class AgendaCalendarLinkRest {
     return refusal(HttpStatus.BAD_REQUEST, code);
   }
 
+  /**
+   * Answers a link's status with {@code Cache-Control: no-store}, so that a URL
+   * it carries stays out of browser and intermediary caches.
+   *
+   * @param entity the status
+   * @return the response
+   */
   private ResponseEntity<CalendarLinkStatusEntity> uncached(CalendarLinkStatusEntity entity) {
     return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(entity);
   }
