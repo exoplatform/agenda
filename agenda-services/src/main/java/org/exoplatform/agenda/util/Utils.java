@@ -134,7 +134,8 @@ public class Utils {
 
   /**
    * A waiting attendee got a seat: source, the attendee row before; data, the
-   * row after. Never a {@link #POST_EVENT_RESPONSE_SENT}: nobody answered.
+   * row after, reported on a series from the first date it got a seat for.
+   * Never a {@link #POST_EVENT_RESPONSE_SENT}: nobody answered.
    */
   public static final String            POST_EVENT_ATTENDEE_PROMOTED   = "exo.agenda.event.attendee.promoted";
 
