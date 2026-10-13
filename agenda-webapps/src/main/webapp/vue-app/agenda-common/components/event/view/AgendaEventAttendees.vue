@@ -50,6 +50,22 @@
           <v-icon size="20" class="error-color">fas fa-times-circle</v-icon>
         </v-btn>
       </v-badge>
+      <v-badge
+        v-if="waitingResponsesCount"
+        :content="waitingResponsesCount"
+        :value="waitingResponsesCount"
+        color="warning-color-background"
+        offset-x="13"
+        offset-y="12"
+        class="me-8">
+        <v-btn
+          icon
+          small
+          :title="$t('agenda.filter.button.title.waiting')"
+          @click="openDrawer('WAITING')">
+          <v-icon size="20" class="info--text">fas fa-info-circle</v-icon>
+        </v-btn>
+      </v-badge>
     </div>
     <agenda-event-attendees-avatars
       v-if="displayedAttendees.length"
@@ -156,6 +172,9 @@ export default {
         .filter(attendee => attendee && attendee.response === 'NEEDS_ACTION')
         .sort(this.sortAttendees);
     },
+    waitingResponses() {
+      return this.participatingUserAttendees.filter(attendee => attendee && attendee.response === 'WAITING');
+    },
     acceptedResponsesCount() {
       return this.acceptedResponses.length + (this.creatorAttendeeResponse === 'ACCEPTED' && 1 || 0);
     },
@@ -167,6 +186,10 @@ export default {
     },
     needsActionResponsesCount() {
       return this.needsActionResponses.length + (this.creatorAttendeeResponse === 'NEEDS_ACTION' && 1 || 0);
+    },
+    // Shown to everyone who sees the event, as the other counts are
+    waitingResponsesCount() {
+      return this.waitingResponses.length + (this.creatorAttendeeResponse === 'WAITING' && 1 || 0);
     },
     displayedAttendees() {
       const others = this.participatingAttendees.slice().sort(this.sortAttendees);
