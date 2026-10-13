@@ -54,7 +54,17 @@ import static org.exoplatform.agenda.util.Utils.EVENT_METADATA_KEY;
 
 public class AgendaEventServiceImpl implements AgendaEventService {
 
-  private static final Log             LOG = ExoLogger.getLogger(AgendaEventServiceImpl.class);
+  private static final Log             LOG                                = ExoLogger.getLogger(AgendaEventServiceImpl.class);
+
+  private static final String          CAPACITY_FIELD                     = "capacity";
+
+  private static final String          CAPACITY_INVALID                   = "agenda.capacity.invalid";
+
+  private static final String          CAPACITY_NOT_ALLOWED               = "agenda.capacity.notAllowed";
+
+  private static final String          CAPACITY_BELOW_ACCEPTED            = "agenda.capacity.belowAccepted";
+
+  private static final String          CAPACITY_CLOSE_NEEDS_CONFIRMATION  = "agenda.capacity.closeNeedsConfirmation";
 
   private AgendaCalendarService        agendaCalendarService;
 
@@ -319,6 +329,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         throw new AgendaException(AgendaExceptionType.EVENT_RECURRENCE_INTERVAL_MANDATORY);
       }
     }
+    checkCapacityValue(event.getCapacity());
 
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
@@ -413,7 +424,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                            lockedSeries);
     }
     event.setId(existingOccurrence.getId());
-    return updateEvent(event, attendees, conferences, reminders, dateOptions, remoteEvent, sendInvitation, userIdentityId);
+    // A creation carries no closing confirmation: a row found here that the
+    // save would close with a waiting list is refused, as an update without
+    // the confirmation is
+    return updateEvent(event, attendees, conferences, reminders, dateOptions, remoteEvent, sendInvitation, false, userIdentityId);
   }
 
   private Event writeNewEvent(Event event,
@@ -465,6 +479,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // the date options.
     eventToCreate.setOpen(Boolean.TRUE.equals(event.getOpen())
         && canBeOpen(eventToCreate, calendar));
+    // The limit follows the flag: not stated, or asked on an event that may
+    // have none, it is no limit. No floor applies: the attendees saved below
+    // hold no Yes yet but the creator's, which takes its seat through the
+    // seat rule. A date of a series that takes the series' attendees takes
+    // their answers too, but the creation broadcast below starts them over,
+    // the creator's aside (AgendaReplyOnSaveListener), so nobody waits there
+    eventToCreate.setCapacity(canHaveCapacity(eventToCreate, calendar) ? SeatRule.capacityOf(event) : 0);
 
     Event createdEvent = agendaEventStorage.createEvent(eventToCreate);
     createOrUpdateEventProperties(event.getParameters(), createdEvent);
@@ -811,6 +832,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // Read once: every occurrence lives in the calendar of its series, and the
     // open invariant is evaluated against it for each of them below
     Calendar seriesCalendar = agendaCalendarService.getCalendarById(updatedSeries.getCalendarId());
+    // A date over keeps its limit and its answers: a change of the series
+    // decides nothing there
+    SeriesDates seriesDates = new SeriesDates(storedSeries, () -> occurrences, ZonedDateTime.now(ZoneOffset.UTC));
     for (Event occurrence : occurrences) {
       long occurrenceEventId = occurrence.getId();
       if (occurrence.getOccurrence() == null || occurrence.getOccurrence().getId() == null) {
@@ -887,16 +911,17 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       occurrence.setAllowAttendeeToInvite(mergeOccurrenceProperty(occurrence.isAllowAttendeeToInvite(),
                                                                   storedSeries.isAllowAttendeeToInvite(),
                                                                   updatedSeries.isAllowAttendeeToInvite()));
-      // 'open' is merged like the rest, then clamped: it is the flag
-      // canRespondToEvent reads, so a value customised on one date must not
-      // survive a change to the series that has to lock it — a series turned
-      // into a date poll, moved to a personal calendar, or whose participants
-      // may now modify it or invite. The status and the two permissions are
-      // the ones merged just above, the calendar the series' own.
-      occurrence.setOpen(Boolean.TRUE.equals(mergeOccurrenceProperty(occurrence.getOpen(),
-                                                                    storedSeries.getOpen(),
-                                                                    updatedSeries.getOpen()))
-          && canBeOpen(occurrence, seriesCalendar));
+      boolean over = seriesDates.isOver(occurrence);
+      mergeOpenAndCapacity(occurrence, storedSeries, updatedSeries, seriesCalendar, over);
+      keepLimitAboveAccepted(occurrenceBeforeMerge, occurrence, attendeesRemovedFromSeries, updatedSeries.getId());
+      if (closes(occurrenceBeforeMerge, occurrence)) {
+        // Said here: a move of dates under another series closes them with no
+        // confirmation asked (K8)
+        LOG.info("Event {}: the exceptional occurrence {} saved for {} is closed by the change, its limit removed",
+                 updatedSeries.getId(),
+                 occurrenceEventId,
+                 occurrenceId);
+      }
       // The dates have the one explicit marker the model carries, so they need
       // no comparison: an occurrence that was moved keeps its own dates, one
       // that was not follows the series' time and duration on its own day
@@ -935,7 +960,76 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                   rowLists.attendees(),
                                   attendeesAddedToSeries,
                                   attendeesRemovedFromSeries,
-                                  modifierIdentityId);
+                                  modifierIdentityId,
+                                  over);
+      if (!over) {
+        applyCapacityChange(occurrenceBeforeMerge, storedOccurrence);
+      }
+    }
+  }
+
+  /**
+   * Merges the open flag and the limit of a date individually modified like
+   * its other properties, then clamps both. The flag is the one
+   * canRespondToEvent reads, so a value customised on one date must not
+   * survive a change to the series that has to lock it — a series turned into
+   * a date poll, moved to a personal calendar, or whose participants may now
+   * modify it or invite — and a date that cannot be open holds no limit: a
+   * series change closing it removes it, its waiting list then confirmed
+   * (D15). A date whose limit is its own keeps it (D16), and so does a date
+   * over. The status and the two permissions read are the ones already
+   * merged, the calendar the series' own.
+   *
+   * @param occurrence the date's row, its other properties merged
+   * @param storedSeries the series before the change
+   * @param updatedSeries the series after the change
+   * @param seriesCalendar the series' calendar
+   * @param over whether the date is over
+   */
+  private void mergeOpenAndCapacity(Event occurrence,
+                                    Event storedSeries,
+                                    Event updatedSeries,
+                                    Calendar seriesCalendar,
+                                    boolean over) {
+    occurrence.setOpen(Boolean.TRUE.equals(mergeOccurrenceProperty(occurrence.getOpen(),
+                                                                  storedSeries.getOpen(),
+                                                                  updatedSeries.getOpen()))
+        && canBeOpen(occurrence, seriesCalendar));
+    int capacity = over ? SeatRule.capacityOf(occurrence)
+                        : mergeOccurrenceProperty(SeatRule.capacityOf(occurrence),
+                                                  SeatRule.capacityOf(storedSeries),
+                                                  SeatRule.capacityOf(updatedSeries));
+    occurrence.setCapacity(canHaveCapacity(occurrence, seriesCalendar) ? capacity : 0);
+  }
+
+  /**
+   * Keeps the limit of a date individually modified when a change of its
+   * series would lower it below the Yes answers the date holds, the attendees
+   * the change removes not counted. A save of the series refuses such a limit
+   * before writing anything, so only the move of dates under another series
+   * reaches it: its dialog chains it between two other writes, where a refusal
+   * would leave two series overlapping. Logged.
+   *
+   * @param before the date's row before the merge
+   * @param merged the date's row, its limit merged
+   * @param removedIdentityIds the attendees the change removes from the series
+   * @param seriesId the series the date is merged into
+   */
+  private void keepLimitAboveAccepted(Event before, Event merged, Set<Long> removedIdentityIds, long seriesId) {
+    int capacityBefore = SeatRule.capacityOf(before);
+    int capacity = SeatRule.capacityOf(merged);
+    if (!tightens(capacityBefore, capacity)) {
+      return;
+    }
+    int accepted = SeatRule.acceptedAt(keptRows(before.getId(), EventAttendeeResponse.ACCEPTED, removedIdentityIds), null, 0);
+    if (accepted > capacity) {
+      merged.setCapacity(capacityBefore);
+      LOG.info("Event {}: the exceptional occurrence {} keeps its own limit ({}, 0 for none), the limit {} being below its {} accepted participants",
+               seriesId,
+               before.getId(),
+               capacityBefore,
+               capacity,
+               accepted);
     }
   }
 
@@ -950,12 +1044,15 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * @param addedToSeries identities the series gained
    * @param removedFromSeries identities the series lost
    * @param modifierIdentityId who is saving
+   * @param over whether the date is over: it keeps its answers, the seat a
+   *          removal frees there going to nobody
    */
   private void applySeriesMembershipChange(Event occurrence,
                                            List<EventAttendee> occurrenceAttendees,
                                            Set<Long> addedToSeries,
                                            Set<Long> removedFromSeries,
-                                           long modifierIdentityId) {
+                                           long modifierIdentityId,
+                                           boolean over) {
     if (addedToSeries.isEmpty() && removedFromSeries.isEmpty()) {
       return;
     }
@@ -972,14 +1069,19 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (attendeeIdentityIds(merged).equals(attendeesBefore)) {
       return;
     }
-    attendeeService.saveEventAttendees(occurrence,
-                                       merged,
-                                       modifierIdentityId,
-                                       false,
-                                       false,
-                                       new AgendaEventModification(occurrence.getId(),
-                                                                   occurrence.getCalendarId(),
-                                                                   modifierIdentityId));
+    if (over) {
+      // Not part of the attendee service's contract, as the promotion
+      ((AgendaEventAttendeeServiceImpl) attendeeService).saveOverDateAttendees(occurrence, merged, modifierIdentityId);
+    } else {
+      attendeeService.saveEventAttendees(occurrence,
+                                         merged,
+                                         modifierIdentityId,
+                                         false,
+                                         false,
+                                         new AgendaEventModification(occurrence.getId(),
+                                                                     occurrence.getCalendarId(),
+                                                                     modifierIdentityId));
+    }
     // Removing the attendee row does not remove the reminders that person set
     // on that date: nothing listens to the attendee-deleted event, and a
     // reminder is sent from its own stored trigger date with no attendance
@@ -1024,7 +1126,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         || row.isAllDay() != storedSeries.isAllDay()
         || row.isAllowAttendeeToUpdate() != storedSeries.isAllowAttendeeToUpdate()
         || row.isAllowAttendeeToInvite() != storedSeries.isAllowAttendeeToInvite()
-        || Boolean.TRUE.equals(row.getOpen()) != Boolean.TRUE.equals(storedSeries.getOpen())) {
+        || Boolean.TRUE.equals(row.getOpen()) != Boolean.TRUE.equals(storedSeries.getOpen())
+        || SeatRule.capacityOf(row) != SeatRule.capacityOf(storedSeries)) {
       return true;
     }
     // Compared with the series' attendee rows valid at that date, the ones the
@@ -1568,6 +1671,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                            List<EventDateOption> dateOptions,
                            RemoteEvent remoteEvent,
                            boolean sendInvitation,
+                           boolean confirmClose,
                            long userIdentityId) throws AgendaException, IllegalAccessException {
     if (userIdentityId <= 0) {
       throw new IllegalArgumentException("userIdentityId is mandatory");
@@ -1615,6 +1719,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         throw new AgendaException(AgendaExceptionType.EVENT_RECURRENCE_INTERVAL_MANDATORY);
       }
     }
+    checkCapacityValue(event.getCapacity());
 
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
@@ -1661,6 +1766,49 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     adjustEventDatesForWrite(event);
 
+    boolean decidesCapacity = reachesCapacity(storedEvent, toEventToUpdate(event, storedEvent, calendar, userIdentityId));
+    EventSave save = new EventSave(attendees,
+                                   conferences,
+                                   reminders,
+                                   dateOptions,
+                                   remoteEvent,
+                                   sendInvitation,
+                                   confirmClose,
+                                   decidesCapacity);
+    if (!decidesCapacity) {
+      return writeUpdatedEvent(event, storedEvent, save, calendar, userIdentityId);
+    }
+    // An event that holds a limit, or whose save gives it one, is saved in one
+    // decide step: the limit, the waiting list a closing confirms and the
+    // promotions are decided on the rows as locked, every refusal before the
+    // first write
+    try {
+      return decideSteps.<Event, AgendaException, IllegalAccessException> resolvingAgainOnce(() -> {
+        Event resolvedEvent = agendaEventStorage.getEventById(eventId);
+        DecideTarget target = DecideSteps.targetOf(resolvedEvent == null ? storedEvent : resolvedEvent);
+        return decideSteps.<Event, AgendaException, IllegalAccessException> decide(target, () -> {
+          Event lockedEvent = agendaEventStorage.getEventById(eventId);
+          if (lockedEvent == null) {
+            throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+          }
+          return writeUpdatedEvent(event, lockedEvent, save, calendar, userIdentityId);
+        });
+      });
+    } catch (ResolveAgainException e) {
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+    }
+  }
+
+  /**
+   * The row an update writes, built from the payload and the event as stored.
+   *
+   * @param event the event as the caller sent it, its dates adjusted
+   * @param storedEvent the event as stored
+   * @param calendar the calendar it is saved into
+   * @param userIdentityId who is saving
+   * @return the row to write, with the open flag and the limit resolved
+   */
+  private Event toEventToUpdate(Event event, Event storedEvent, Calendar calendar, long userIdentityId) {
     // The participant permissions are the creator's to grant: another editor
     // keeps the stored values. One lowering is let through: opening the event
     // clears the invite permission for whoever may open it, since the two
@@ -1714,23 +1862,57 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // the form is what decides which rows are written, not this method.
     boolean open = event.getOpen() == null ? Boolean.TRUE.equals(storedEvent.getOpen()) : event.getOpen();
     eventToUpdate.setOpen(open && canBeOpen(eventToUpdate, calendar));
-    // The limit is not part of the positional constructor above: without
-    // this, a save of any other field would write no limit. The reached mark
-    // is not written by a save of the row at all
-    eventToUpdate.setCapacity(storedEvent.getCapacity());
+    // The limit is not part of the positional constructor above either. Not
+    // stated, it keeps the stored one, like the flag; it holds on an event
+    // that may have one only, so closing the event removes it (D15) and a
+    // reopened event starts with no limit (D6). The reached mark is not
+    // written by a save of the row at all
+    int capacity = event.getCapacity() == null ? SeatRule.capacityOf(storedEvent) : event.getCapacity();
+    eventToUpdate.setCapacity(canHaveCapacity(eventToUpdate, calendar) ? capacity : 0);
+    return eventToUpdate;
+  }
+
+  private Event writeUpdatedEvent(Event event,
+                                  Event storedEvent,
+                                  EventSave save,
+                                  Calendar calendar,
+                                  long userIdentityId) throws AgendaException, IllegalAccessException {
+    long eventId = event.getId();
+    List<EventAttendee> attendees = save.attendees();
+    List<EventConference> conferences = save.conferences();
+    List<EventReminder> reminders = save.reminders();
+    List<EventDateOption> dateOptions = save.dateOptions();
+    RemoteEvent remoteEvent = save.remoteEvent();
+    boolean sendInvitation = save.sendInvitation();
+
+    Event eventToUpdate = toEventToUpdate(event, storedEvent, calendar, userIdentityId);
+    if (save.decidesCapacity()) {
+      // Every refusal comes before the first write
+      checkCapacityChange(storedEvent,
+                          eventToUpdate,
+                          removedIdentityIds(eventId, attendees),
+                          save.confirmClose(),
+                          calendar,
+                          true);
+    }
 
     AgendaEventModification eventModifications = new AgendaEventModification(eventId, event.getCalendarId(), userIdentityId);
     eventModifications.addModificationType(AgendaEventModificationType.UPDATED);
     // The modification is detected on the incoming event, whose 'open' is what
     // the client asked for (null when it did not ask at all); the audit must
     // report what was written instead, or it would announce a toggle on every
-    // partial payload and stay silent when a move actually locked the event
+    // partial payload and stay silent when a move actually locked the event.
+    // The limit likewise
     event.setOpen(eventToUpdate.getOpen());
+    event.setCapacity(eventToUpdate.getCapacity());
     Utils.detectEventModifiedFields(event, storedEvent, eventModifications);
     if (eventToUpdate.getOccurrence() != null && eventModifications.hasModifiedDate()) {
       eventToUpdate.getOccurrence().setDatesModified(true);
     }
     Event updatedEvent = agendaEventStorage.updateEvent(eventToUpdate);
+    // The waiting list this limit gives seats to is promoted when the
+    // attendees are saved below, after the ones the save removes
+    clearCapacityReachedDate(storedEvent, updatedEvent);
 
     createOrUpdateEventProperties(event.getParameters(), updatedEvent);
     // Snapshotted before saving, like the attendees below: a date whose
@@ -1814,6 +1996,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                 Map<String, List<String>> fields,
                                 boolean updateAllOccurrences,
                                 boolean sendInvitations,
+                                boolean confirmClose,
                                 long userIdentityId) throws IllegalAccessException, ObjectNotFoundException, AgendaException {
     if (userIdentityId <= 0) {
       throw new IllegalArgumentException("userIdentityId is mandatory");
@@ -1829,8 +2012,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
     }
 
-    Event originalEvent = event.clone();
-
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
       throw new IllegalAccessException("User '" + userIdentityId + "' doesn't exist");
@@ -1839,6 +2020,40 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (!canUpdateEvent(event, userIdentityId)) {
       throw new IllegalAccessException("User '" + userIdentityId + "' can't update event " + eventId);
     }
+
+    FieldsPatch patch = new FieldsPatch(fields, updateAllOccurrences, sendInvitations, confirmClose);
+    if (!holdsCapacityState(event) && !fields.containsKey(CAPACITY_FIELD)
+        && !(updateAllOccurrences && datesHoldCapacityState(event))) {
+      writeEventFields(event, patch, false, userIdentityId);
+      return;
+    }
+    // Decided like a full save of such an event, on the rows as locked
+    try {
+      decideSteps.<Void, AgendaException, IllegalAccessException> resolvingAgainOnce(() -> {
+        Event resolvedEvent = agendaEventStorage.getEventById(eventId);
+        DecideTarget target = DecideSteps.targetOf(resolvedEvent == null ? event : resolvedEvent);
+        return decideSteps.<Void, AgendaException, IllegalAccessException> decide(target, () -> {
+          Event lockedEvent = agendaEventStorage.getEventById(eventId);
+          if (lockedEvent == null) {
+            throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+          }
+          writeEventFields(lockedEvent, patch, true, userIdentityId);
+          return null;
+        });
+      });
+    } catch (ResolveAgainException e) {
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+    }
+  }
+
+  private void writeEventFields(Event event,
+                                FieldsPatch patch,
+                                boolean decidesCapacity,
+                                long userIdentityId) throws AgendaException, IllegalAccessException {
+    long eventId = event.getId();
+    Map<String, List<String>> fields = patch.fields();
+    boolean updateAllOccurrences = patch.updateAllOccurrences();
+    Event originalEvent = event.clone();
 
     Set<Entry<String, List<String>>> fieldsEntrySet = fields.entrySet();
     for (Entry<String, List<String>> entry : fieldsEntrySet) {
@@ -1897,8 +2112,26 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
       event.setOpen(false);
     }
+    // The limit holds on an event that may have one only: a patch that asks
+    // for one on any other is refused, and one that closes the event removes
+    // it (D15)
+    if (!canHaveCapacity(event, targetCalendar)) {
+      if (fields.containsKey(CAPACITY_FIELD)) {
+        throw new IllegalArgumentException(CAPACITY_NOT_ALLOWED);
+      }
+      event.setCapacity(0);
+    }
+    if (decidesCapacity) {
+      // No attendee list travels on this path: nobody is removed
+      checkCapacityChange(originalEvent,
+                          event,
+                          Collections.emptySet(),
+                          patch.confirmClose(),
+                          targetCalendar,
+                          updateAllOccurrences);
+    }
 
-    event.setModifierId(Long.parseLong(userIdentity.getId()));
+    event.setModifierId(userIdentityId);
     AgendaEventModification eventModifications = new AgendaEventModification(eventId, event.getCalendarId(), userIdentityId);
     eventModifications.addModificationType(AgendaEventModificationType.UPDATED);
     Utils.detectEventModifiedFields(event, originalEvent, eventModifications);
@@ -1906,6 +2139,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       event.getOccurrence().setDatesModified(true);
     }
     event = agendaEventStorage.updateEvent(event);
+    applyCapacityChange(originalEvent, event);
 
     // A patch meant for the whole series reaches the dates individually
     // modified instead of deleting them, and leaves the properties customised
@@ -1922,7 +2156,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       reminderService.saveEventReminders(event, reminders);
     }
 
-    if (sendInvitations) {
+    if (patch.sendInvitations()) {
       List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(eventId).getEventAttendees();
       attendeeService.sendInvitations(event, eventAttendees, eventModifications);
     }
@@ -2451,6 +2685,292 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   private boolean isSpaceCalendar(Calendar calendar) {
     Identity owner = calendar == null ? null : identityManager.getIdentity(String.valueOf(calendar.getOwnerId()));
     return owner != null && owner.isSpace();
+  }
+
+  /**
+   * Whether an event may hold a capacity limit: an open event, the open
+   * invariant holding, a series and a date of it alike (D5).
+   *
+   * @param eventToStore the event as it is about to be stored
+   * @param calendar the calendar it is saved into
+   * @return whether its limit may be stored above 0
+   */
+  private boolean canHaveCapacity(Event eventToStore, Calendar calendar) {
+    return Boolean.TRUE.equals(eventToStore.getOpen()) && canBeOpen(eventToStore, calendar);
+  }
+
+  private static void checkCapacityValue(Integer capacity) {
+    if (capacity != null && capacity < 0) {
+      throw new IllegalArgumentException(CAPACITY_INVALID);
+    }
+  }
+
+  private static int parseCapacity(String value) {
+    int capacity;
+    try {
+      capacity = Integer.parseInt(StringUtils.trim(value));
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException(CAPACITY_INVALID);
+    }
+    checkCapacityValue(capacity);
+    return capacity;
+  }
+
+  /**
+   * @param row a stored row
+   * @return whether it holds anything a limit decides: it is open, or has a
+   *         limit
+   */
+  private static boolean holdsCapacityState(Event row) {
+    return Boolean.TRUE.equals(row.getOpen()) || SeatRule.capacityOf(row) > 0;
+  }
+
+  /**
+   * Whether a save of an event decides anything about a limit: the event, as
+   * stored or as saved, holds one, or, for a series, one of its dates
+   * individually modified does, which the series change is merged into.
+   */
+  private boolean reachesCapacity(Event storedEvent, Event eventToStore) {
+    return holdsCapacityState(storedEvent) || holdsCapacityState(eventToStore)
+        || datesHoldCapacityState(storedEvent);
+  }
+
+  private boolean datesHoldCapacityState(Event storedEvent) {
+    return storedEvent.getParentId() <= 0 && storedEvent.getRecurrence() != null
+        && readExceptionalOccurrences(storedEvent.getId()).stream().anyMatch(AgendaEventServiceImpl::holdsCapacityState);
+  }
+
+  /**
+   * Refuses, before the first write, a change of limit that the answers do
+   * not allow, and a closing that would confirm a waiting list the user did
+   * not confirm (D15, M2). A limit is lowered no further than the Yes answers
+   * it holds (D2); on a series, than the most Yes answers given at one of its
+   * dates still to come, and at each date individually modified whose limit
+   * follows the series' (D16). A switch to a date poll is not a closing: it
+   * confirms nobody (F1).
+   *
+   * @param storedEvent the event as stored, read under the lock
+   * @param eventToStore the event as it is about to be stored
+   * @param removedIdentityIds the attendees the save removes, who hold no seat
+   *          once it is done
+   * @param confirmClose whether the user confirmed the closing
+   * @param calendar the calendar the event is saved into
+   * @param reachesDates whether the change of a series is merged into its
+   *          dates individually modified
+   */
+  private void checkCapacityChange(Event storedEvent,
+                                   Event eventToStore,
+                                   Set<Long> removedIdentityIds,
+                                   boolean confirmClose,
+                                   Calendar calendar,
+                                   boolean reachesDates) {
+    int capacity = SeatRule.capacityOf(eventToStore);
+    boolean series = eventToStore.getParentId() <= 0 && eventToStore.getRecurrence() != null;
+    if (tightens(SeatRule.capacityOf(storedEvent), capacity)) {
+      if (series && storedEvent.getRecurrence() != null) {
+        checkSeriesFloor(storedEvent, capacity, removedIdentityIds);
+      } else {
+        checkPoolFloor(storedEvent.getId(), capacity, removedIdentityIds);
+      }
+    }
+    // A save that changes the dates or the rule of a series, or removes the
+    // rule, confirms its waiting list at dates the stored rule does not give:
+    // every waiting row then counts
+    boolean datesChanged = storedEvent.getParentId() <= 0 && storedEvent.getRecurrence() != null
+        && changesDates(storedEvent, eventToStore);
+    boolean confirmsWaitingList = closes(storedEvent, eventToStore)
+        && hasWaitingAttendees(storedEvent, removedIdentityIds, datesChanged);
+    if (series && reachesDates) {
+      for (DateCapacity date : mergedDateCapacities(storedEvent, eventToStore, calendar)) {
+        int dateCapacity = SeatRule.capacityOf(date.after());
+        if (tightens(SeatRule.capacityOf(date.before()), dateCapacity)) {
+          checkPoolFloor(date.before().getId(), dateCapacity, removedIdentityIds);
+        }
+        // A date's closing confirms its waiting list as its merge does: only
+        // when it removes a limit, a date over, left out above, confirming
+        // nobody
+        confirmsWaitingList = confirmsWaitingList
+            || closes(date.before(), date.after())
+                && gainsSeats(SeatRule.capacityOf(date.before()), SeatRule.capacityOf(date.after()))
+                && hasWaitingAttendees(date.before(), removedIdentityIds, false);
+      }
+    }
+    if (confirmsWaitingList && !confirmClose) {
+      throw new IllegalArgumentException(CAPACITY_CLOSE_NEEDS_CONFIRMATION);
+    }
+  }
+
+  /**
+   * The open flag and the limit each date individually modified of a series,
+   * not over yet, holds once a change of the series is merged into it,
+   * computed as the merge computes them, before any write. A date over keeps
+   * its limit and its answers.
+   */
+  private List<DateCapacity> mergedDateCapacities(Event storedSeries, Event updatedSeries, Calendar seriesCalendar) {
+    List<DateCapacity> dateCapacities = new ArrayList<>();
+    List<Event> rows = readExceptionalOccurrences(storedSeries.getId());
+    SeriesDates seriesDates = new SeriesDates(storedSeries, () -> rows, ZonedDateTime.now(ZoneOffset.UTC));
+    for (Event row : rows) {
+      if (row.getOccurrence() == null || row.getOccurrence().getId() == null || seriesDates.isOver(row)) {
+        continue;
+      }
+      Event merged = row.clone();
+      merged.setStatus(mergeOccurrenceProperty(row.getStatus(), storedSeries.getStatus(), updatedSeries.getStatus()));
+      merged.setAllowAttendeeToUpdate(mergeOccurrenceProperty(row.isAllowAttendeeToUpdate(),
+                                                              storedSeries.isAllowAttendeeToUpdate(),
+                                                              updatedSeries.isAllowAttendeeToUpdate()));
+      merged.setAllowAttendeeToInvite(mergeOccurrenceProperty(row.isAllowAttendeeToInvite(),
+                                                              storedSeries.isAllowAttendeeToInvite(),
+                                                              updatedSeries.isAllowAttendeeToInvite()));
+      mergeOpenAndCapacity(merged, storedSeries, updatedSeries, seriesCalendar, false);
+      dateCapacities.add(new DateCapacity(row, merged));
+    }
+    return dateCapacities;
+  }
+
+  /**
+   * Refuses a limit below the Yes answers of one pool: an event of no series,
+   * or one date's own row.
+   */
+  private void checkPoolFloor(long poolId, int capacity, Set<Long> removedIdentityIds) {
+    int accepted = SeatRule.acceptedAt(keptRows(poolId, EventAttendeeResponse.ACCEPTED, removedIdentityIds), null, 0);
+    if (accepted > capacity) {
+      LOG.debug("Event {}: a limit of {} is below its {} accepted participants", poolId, capacity, accepted);
+      throw new IllegalArgumentException(CAPACITY_BELOW_ACCEPTED);
+    }
+  }
+
+  /**
+   * Refuses a limit of a series below the Yes answers given at one of its
+   * dates still to come that has no row of its own (D16), naming the first
+   * such date in the log.
+   */
+  private void checkSeriesFloor(Event series, int capacity, Set<Long> removedIdentityIds) {
+    long seriesId = series.getId();
+    List<EventAttendee> acceptedRows = keptRows(seriesId, EventAttendeeResponse.ACCEPTED, removedIdentityIds);
+    if (acceptedRows.isEmpty()) {
+      return;
+    }
+    SeriesDates seriesDates = new SeriesDates(series,
+                                              () -> agendaEventStorage.getExceptionalOccurrences(seriesId),
+                                              ZonedDateTime.now(ZoneOffset.UTC));
+    for (SeatStretch stretch : SeatRule.stretches(acceptedRows, null, null)) {
+      ZonedDateTime date = seriesDates.firstCountedDate(stretch.from(), stretch.until());
+      int accepted = date == null ? 0 : SeatRule.acceptedAt(acceptedRows, date, 0);
+      if (accepted > capacity) {
+        LOG.debug("Event {}: a limit of {} is below the {} accepted participants of its date {}",
+                  seriesId,
+                  capacity,
+                  accepted,
+                  date);
+        throw new IllegalArgumentException(CAPACITY_BELOW_ACCEPTED);
+      }
+    }
+  }
+
+  /**
+   * @param pool the pool as stored
+   * @param removedIdentityIds the attendees the save removes
+   * @param datesChanged whether the save changes the dates or the rule of the
+   *          series
+   * @return whether a closing of the pool would confirm someone waiting: on a
+   *         series whose dates the save keeps, a waiting row is confirmed only
+   *         at a date of its range still to come with no row of its own, as
+   *         its promotion reads it
+   */
+  private boolean hasWaitingAttendees(Event pool, Set<Long> removedIdentityIds, boolean datesChanged) {
+    List<EventAttendee> waitingRows = keptRows(pool.getId(), EventAttendeeResponse.WAITING, removedIdentityIds);
+    if (waitingRows.isEmpty() || pool.getParentId() > 0 || pool.getRecurrence() == null || datesChanged) {
+      return !waitingRows.isEmpty();
+    }
+    SeriesDates seriesDates = new SeriesDates(pool,
+                                              () -> agendaEventStorage.getExceptionalOccurrences(pool.getId()),
+                                              ZonedDateTime.now(ZoneOffset.UTC));
+    return waitingRows.stream()
+                      .anyMatch(row -> seriesDates.firstCountedDate(row.getFromOccurrenceId(), row.getUntilOccurrenceId()) != null);
+  }
+
+  /**
+   * @return whether a save of a series changes its dates: its rule, as the
+   *         storage writes it, its times, its zone or its all-day flag
+   */
+  private boolean changesDates(Event storedSeries, Event series) {
+    String storedRule = storedSeries.getRecurrence() == null ? null : storedSeries.getRecurrence().getRrule();
+    String rule = series.getRecurrence() == null ? null
+                                                 : Utils.getICalendarRecur(series.getRecurrence(), series.getTimeZoneId())
+                                                        .toString();
+    return !StringUtils.equals(storedRule, rule) || !isSameInstant(storedSeries.getStart(), series.getStart())
+        || !isSameInstant(storedSeries.getEnd(), series.getEnd())
+        || !Objects.equals(storedSeries.getTimeZoneId(), series.getTimeZoneId())
+        || storedSeries.isAllDay() != series.isAllDay();
+  }
+
+  private List<EventAttendee> keptRows(long poolId, EventAttendeeResponse response, Set<Long> removedIdentityIds) {
+    return attendeeService.getEventAttendees(poolId, response)
+                          .getEventAttendees()
+                          .stream()
+                          .filter(row -> !removedIdentityIds.contains(row.getIdentityId()))
+                          .toList();
+  }
+
+  /**
+   * @return the identities a save of the attendee list given removes from the
+   *         event: everyone when it gives none, as saving it does
+   */
+  private Set<Long> removedIdentityIds(long eventId, List<EventAttendee> attendees) {
+    Set<Long> removedIdentityIds = attendeeIdentityIds(attendeeService.getEventAttendees(eventId).getEventAttendees());
+    removedIdentityIds.removeAll(attendeeIdentityIds(attendees));
+    return removedIdentityIds;
+  }
+
+  /**
+   * After a row's limit changed: its reached mark is cleared, a limit written
+   * never reporting itself reached (D7), and the waiting list takes the seats
+   * a higher limit, no limit or a closing gives (D4, D15), unless the row
+   * became a date poll, which confirms nobody (F1).
+   *
+   * @param before the row before the change
+   * @param after the row as stored
+   */
+  private void applyCapacityChange(Event before, Event after) {
+    clearCapacityReachedDate(before, after);
+    if (gainsSeats(SeatRule.capacityOf(before), SeatRule.capacityOf(after)) && after.getStatus() != EventStatus.TENTATIVE) {
+      promoteWaitingAttendees(after.getId());
+    }
+  }
+
+  private void clearCapacityReachedDate(Event before, Event after) {
+    if (SeatRule.capacityOf(before) != SeatRule.capacityOf(after) && before.getCapacityReachedDate() != null) {
+      agendaEventStorage.saveCapacityReachedDate(after.getId(), null);
+    }
+  }
+
+  private void promoteWaitingAttendees(long eventId) {
+    // Not part of the attendee service's contract: a promotion runs only
+    // inside the decide step that gave the seats
+    ((AgendaEventAttendeeServiceImpl) attendeeService).promoteWaitingAttendees(eventId);
+  }
+
+  /**
+   * @return whether a limit is set, or lowered: no limit holds no floor
+   */
+  private static boolean tightens(int capacityBefore, int capacityAfter) {
+    return capacityAfter > 0 && (capacityBefore == 0 || capacityAfter < capacityBefore);
+  }
+
+  /**
+   * @return whether a limit is raised or removed
+   */
+  private static boolean gainsSeats(int capacityBefore, int capacityAfter) {
+    return capacityBefore > 0 && (capacityAfter == 0 || capacityAfter > capacityBefore);
+  }
+
+  /**
+   * @return whether a save closes an open row, a switch to a date poll aside
+   */
+  private static boolean closes(Event before, Event after) {
+    return Boolean.TRUE.equals(before.getOpen()) && !Boolean.TRUE.equals(after.getOpen())
+        && after.getStatus() != EventStatus.TENTATIVE;
   }
 
   /**
@@ -3406,6 +3926,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         // is applied, so that a patch changing the calendar and the flag at
         // once is evaluated on the calendar it lands in
         event.setOpen(Boolean.parseBoolean(fieldValue));
+        break;
+      case CAPACITY_FIELD:
+        // Checked against the open invariant and the Yes answers once the
+        // whole field set is applied, for the same reason
+        event.setCapacity(parseCapacity(fieldValue));
         break;
       default:
         throw new IllegalArgumentException("agenda.eventFieldNotSupported");
