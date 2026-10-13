@@ -62,7 +62,9 @@
       :event="event"
       :editable="canEdit"
       @toggle-open="toggleOpen"
+      @change-capacity="changeCapacity"
       @closed="saveDrawerChangesIfEditable" />
+    <agenda-capacity-close-confirm-dialog ref="closeConfirm" />
     <!--
       The scope popup of the event form, reused as it stands: a change made from
       the participants drawer of one date of a series asks the same question,
@@ -233,6 +235,25 @@ export default {
       if (!eventId) {
         return;
       }
+      // Locking an open event with a limit removes it and confirms its waiting
+      // list: asked first (D15). A limit the stepper shows before the drawer
+      // closes counts too, since the closing removes it as well
+      if (!open && this.hasLimit()) {
+        this.$refs.closeConfirm.confirm()
+          .then(() => this.patchOpen(eventId, open, true))
+          .catch(() => null);
+        return;
+      }
+      this.patchOpen(eventId, open, false);
+    },
+    /**
+     * @param {Number} eventId the event patched, standalone or a series
+     * @param {Boolean} open the padlock's new state
+     * @param {Boolean} confirmClose whether the organiser confirmed the closing
+     * @returns {void}
+     */
+    patchOpen(eventId, open, confirmClose) {
+      const hadLimit = this.hasLimit();
       this.togglingOpen = true;
       // updateAllOccurrences is true so that a series patched from its own page
       // reaches the dates individually modified as well: since US06 such a
@@ -244,7 +265,8 @@ export default {
       // and off keeps it on — the server accepts the two fields together and
       // would refuse the opening alone
       const fields = open ? {open, allowAttendeeToInvite: false} : {open};
-      this.$eventService.updateEventFields({id: eventId}, fields, true, false)
+      const write = confirmed => this.$eventService.updateEventFields({id: eventId}, fields, true, false, confirmed);
+      this.$refs.closeConfirm.writeConfirmingClose(write, confirmClose)
         .then(() => {
           this.$set(this.event, 'open', open);
           if (open) {
@@ -256,9 +278,30 @@ export default {
           // provider drops transient fields), EventService defaults it to true:
           // an "event modified" notification to every attendee, for one click
           this.openBackup = open;
+          // A closing removed the limit and confirmed the waiting list
+          if (!open && hadLimit) {
+            return this.refreshDisplayedEvent();
+          }
         })
         .catch(this.changeFailed)
         .finally(() => this.togglingOpen = false);
+    },
+    /**
+     * The limit is applied with the rest of the drawer's changes, when it
+     * closes, as the participant list is.
+     *
+     * @param {Number} capacity the limit chosen, 0 for none
+     * @returns {void}
+     */
+    changeCapacity(capacity) {
+      this.$set(this.event, 'capacity', capacity);
+    },
+    /**
+     * @returns {Boolean} whether the event has a limit, as stored or as the
+     *          drawer now shows it
+     */
+    hasLimit() {
+      return this.capacityBackup > 0 || this.event.capacity > 0;
     },
     openDrawer(responseFilter) {
       // The drawer edits the event in place — the list and the padlock alike —
@@ -279,6 +322,14 @@ export default {
       this.attendeesSnapshot = attendees.map(a => a.identity.remoteId).sort().join(',');
       this.attendeesBackup = JSON.parse(JSON.stringify(attendees));
       this.openBackup = !!(this.event && this.event.open);
+      this.capacityBackup = this.event && this.event.capacity || 0;
+    },
+    /**
+     * @returns {Boolean} whether the drawer changed the limit since it was
+     *          opened
+     */
+    capacityChanged() {
+      return (this.event && this.event.capacity || 0) !== this.capacityBackup;
     },
     /**
      * @returns {Boolean} whether the drawer changed the padlock since it was
@@ -327,7 +378,8 @@ export default {
       }
       const listChanged = this.attendeesChanged();
       const padlockChanged = this.openChanged();
-      if (!listChanged && !padlockChanged) {
+      const capacityChanged = this.capacityChanged();
+      if (!listChanged && !padlockChanged && !capacityChanged) {
         return;
       }
       if (this.isOccurrence) {
@@ -341,13 +393,31 @@ export default {
         eventToSave.sendInvitation = listChanged;
         // Opening travels with the invite permission it clears (see toggleOpen)
         const fields = padlockChanged ? (this.event.open ? ['open', 'allowAttendeeToInvite'] : ['open']) : [];
+        if (capacityChanged) {
+          fields.push('capacity');
+        }
         const delta = listChanged ? this.attendeesDelta() : null;
-        this.askScope(eventToSave, fields, delta);
+        // Locking a date with a limit removes it and confirms its waiting
+        // list: asked first (D15), whichever scope comes next
+        if (padlockChanged && !this.event.open && this.capacityBackup > 0) {
+          this.$refs.closeConfirm.confirm()
+            .then(() => this.askScope(eventToSave, fields, delta, true))
+            .catch(() => this.restoreDrawerState());
+          return;
+        }
+        this.askScope(eventToSave, fields, delta, false);
         return;
       }
       // A standalone event, or a series displayed as itself: nothing to ask.
-      // A full save carries the padlock too, so it answers for both
-      this.$eventService.updateEvent(this.event)
+      // A changed list is a full save, which carries the limit too. A limit
+      // changed alone is patched, as the padlock is (see patchOpen): a full
+      // save would tell every attendee the event changed. A new limit may
+      // have given seats, read back
+      const write = listChanged
+        ? confirmed => this.$eventService.updateEvent(this.event, confirmed)
+        : confirmed => this.$eventService.updateEventFields({id: this.event.id}, {capacity: this.event.capacity || 0}, true, false, confirmed);
+      this.$refs.closeConfirm.writeConfirmingClose(write, false)
+        .then(() => capacityChanged && this.refreshDisplayedEvent())
         .catch(error => {
           this.restoreDrawerState();
           this.changeFailed(error);
@@ -363,10 +433,13 @@ export default {
      *          because a wider scope applies it to a list this drawer never saw
      * @param {Object} attendeesDelta what the drawer added to and removed from
      *          the list, or null when it changed nobody
+     * @param {Boolean} confirmClose whether the organiser confirmed that the
+     *          change closes the date with its limit
      * @returns {void}
      */
-    askScope(eventToSave, changedFields, attendeesDelta) {
+    askScope(eventToSave, changedFields, attendeesDelta, confirmClose) {
       this.scopedChangePending = true;
+      this.scopeConfirmClose = !!confirmClose;
       this.scopeFields = changedFields;
       this.scopeAttendeesDelta = attendeesDelta || null;
       this.$refs.scopeDialog.open(eventToSave, false);
@@ -386,10 +459,10 @@ export default {
      * @returns {void}
      */
     applyScopedChange(eventToSave) {
-      const savePromise = eventToSave.id
-        ? this.$eventService.updateEvent(eventToSave)
-        : this.$eventService.createEvent(eventToSave);
-      savePromise
+      const write = confirmed => (eventToSave.id
+        ? this.$eventService.updateEvent(eventToSave, confirmed)
+        : this.$eventService.createEvent(eventToSave));
+      this.$refs.closeConfirm.writeConfirmingClose(write, this.scopeConfirmClose)
         .then(() => {
           // The change landed, so the list the drawer edited is the stored one
           // now and closing the popup must not put the previous one back
@@ -425,6 +498,8 @@ export default {
             return;
           }
           this.$set(this.event, 'open', storedEvent.open);
+          this.$set(this.event, 'capacity', storedEvent.capacity);
+          this.$set(this.event, 'acceptedCount', storedEvent.acceptedCount);
           this.$set(this.event, 'attendees', storedEvent.attendees || []);
           if (this.event.parent && storedEvent.parent) {
             this.$set(this.event.parent, 'open', storedEvent.parent.open);
@@ -455,6 +530,7 @@ export default {
       if (this.event && this.attendeesBackup) {
         this.$set(this.event, 'attendees', JSON.parse(JSON.stringify(this.attendeesBackup)));
         this.$set(this.event, 'open', this.openBackup);
+        this.$set(this.event, 'capacity', this.capacityBackup);
       }
     },
     /**
@@ -476,8 +552,19 @@ export default {
       this.$set(this.event, 'allowAttendeeToInvite', false);
     },
     changeFailed(error) {
-      const code = error && error.code;
-      const message = code && this.$te(code) ? this.$t(code) : this.$t('agenda.openEvent.updateError');
+      if (!error) {
+        // The organiser cancelled a closing: nothing was written
+        return;
+      }
+      const code = error.code;
+      let message = this.$t('agenda.openEvent.updateError');
+      if (code && error.date && this.$te(`${code}OnDate`)) {
+        // A limit of a series below the Yes answers of one of its dates says
+        // which one (D16)
+        message = this.$t(`${code}OnDate`, {0: this.$agendaUtils.formatDay(error.date)});
+      } else if (code && this.$te(code)) {
+        message = this.$t(code);
+      }
       this.$root.$emit('alert-message', message, 'error');
     },
     sortAttendees(attendee1, attendee2) {

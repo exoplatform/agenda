@@ -192,7 +192,9 @@
       </div>
       <agenda-event-form-attendees
         :event="event"
-        class="mt-4" />
+        class="mt-4"
+        :confirm-closing="limitedAsLoaded"
+        @closing-confirmed="closingConfirmed = true" />
     </div>
     <exo-confirm-dialog
       ref="eventFormConfirmDialog"
@@ -246,6 +248,8 @@ export default {
       minEndTime: endTime,
       isEventEditor: false,
       eventToDelete: false,
+      closingConfirmed: false,
+      limitedAsLoaded: false,
       activeMapProvider: null,
     };
   },
@@ -369,12 +373,15 @@ export default {
       this.eventToDelete = !this.eventToDelete;
     },
     async init() {
+      this.limitedAsLoaded = false;
       if (!this.eventId) {
         this.initCalendarOwner();
         return;
       }
       const event = await this.$eventService.getEventById(this.eventId, this.expand);
       this.event = event;
+      // Its closing is confirmed from the limit as stored, as the server asks
+      this.limitedAsLoaded = !!(event?.open && event?.capacity > 0);
       this.eventTypeEnabled = !!event;
 
       if (event?.start && event?.end) {
@@ -398,7 +405,8 @@ export default {
       }
     },
     getContext() {
-      const params = { eventToDelete: this.eventToDelete };
+      // A closing of an open event with a limit confirmed at its padlock
+      const params = { eventToDelete: this.eventToDelete, confirmClose: this.closingConfirmed };
       if (!this.eventTypeEnabled) {
         return {
           data: null,
@@ -416,6 +424,7 @@ export default {
     reset() {
       this.init();
       this.eventToDelete = false;
+      this.closingConfirmed = false;
     },
     loadWebconferencingProviders(spacePrettyName) {
       if (spacePrettyName) {
