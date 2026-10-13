@@ -155,6 +155,17 @@
             </v-list>
           </v-menu>
         </div>
+        <!--
+          The limit of an open event (eXIP 7.3.0.21), for whoever can edit it.
+          Like the padlock, the drawer only renders it and emits: the host
+          decides when the value is saved.
+        -->
+        <agenda-event-capacity-stepper
+          v-if="showCapacity"
+          :value="capacity"
+          :accepted-count="acceptedCount"
+          class="mb-4"
+          @input="$emit('change-capacity', $event)" />
         <div v-if="event && event.attendees" class="mt-2">
           <agenda-event-form-attendee-item
             v-for="attendee in displayedAttendees"
@@ -239,6 +250,15 @@ export default {
     },
     isOpenEvent() {
       return !!(this.event && this.event.open);
+    },
+    showCapacity() {
+      return this.editable && this.showOpenToggle && this.isOpenEvent;
+    },
+    capacity() {
+      return this.event && this.event.capacity || 0;
+    },
+    acceptedCount() {
+      return this.event && this.event.acceptedCount || 0;
     },
     /**
      * An open event excludes "participants can modify the event" and
