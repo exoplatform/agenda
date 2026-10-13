@@ -103,12 +103,15 @@ public class AgendaScheduleConflictServiceImpl implements AgendaScheduleConflict
     // occupies() below. The duplication is deliberate — the query filter is a
     // performance choice that a later change could reasonably revisit, while
     // "a decline is not a clash" is the rule, and the rule must not be one
-    // edit to a filter list away from disappearing.
+    // edit to a filter list away from disappearing. A place on the waiting
+    // list counts like an unanswered invitation: a possible attendance, since
+    // a promotion can give the seat at any time.
     EventFilter filter = new EventFilter(userIdentityId,
                                          null,
                                          List.of(EventAttendeeResponse.ACCEPTED,
                                                  EventAttendeeResponse.TENTATIVE,
-                                                 EventAttendeeResponse.NEEDS_ACTION),
+                                                 EventAttendeeResponse.NEEDS_ACTION,
+                                                 EventAttendeeResponse.WAITING),
                                          start,
                                          end,
                                          CONFLICT_QUERY_LIMIT);
