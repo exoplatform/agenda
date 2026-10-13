@@ -228,6 +228,11 @@ public interface AgendaEventService {
    *           event (a parent) that they aren't allowed to update
    * @throws AgendaException when the event attributes aren't valid, or when the
    *           parent event isn't found
+   * @throws IllegalArgumentException with the message code
+   *           {@code agenda.capacity.invalid} when the capacity asked is
+   *           negative; on a date of a series that got a row meanwhile, which
+   *           is then updated, the codes of
+   *           {@link #updateEvent(Event, List, List, List, List, RemoteEvent, boolean, boolean, long)}
    */
   Event createEvent(Event event,
                     List<EventAttendee> attendees,
@@ -261,6 +266,56 @@ public interface AgendaEventService {
    *           identifier is not found
    * @throws AgendaException when the event attributes aren't valid
    */
+  default Event updateEvent(Event event,
+                            List<EventAttendee> attendees,
+                            List<EventConference> conferences,
+                            List<EventReminder> reminders,
+                            List<EventDateOption> dateOptions,
+                            RemoteEvent remoteEvent,
+                            boolean sendInvitation,
+                            long userIdentityId) throws IllegalAccessException, ObjectNotFoundException, AgendaException {
+    return updateEvent(event,
+                       attendees,
+                       conferences,
+                       reminders,
+                       dateOptions,
+                       remoteEvent,
+                       sendInvitation,
+                       false,
+                       userIdentityId);
+  }
+
+  /**
+   * Updates an existing event, as
+   * {@link #updateEvent(Event, List, List, List, List, RemoteEvent, boolean, long)}
+   * does, once the user has confirmed closing it when the save closes an open
+   * event whose waiting list it would confirm.
+   *
+   * @param event {@link Event} to update
+   * @param attendees event attendees of type {@link EventAttendee}
+   * @param conferences event conferences of type {@link EventConference}
+   * @param reminders {@link List} of preferred user reminders of type
+   *          {@link EventReminder}
+   * @param dateOptions {@link List} of {@link EventDateOption} of corresponding
+   *          event
+   * @param remoteEvent {@link RemoteEvent} of synchronized event by user to
+   *          remote connector
+   * @param sendInvitation whether re-send invitation to attendees or not
+   * @param confirmClose whether the user confirmed that closing the event
+   *          removes its capacity limit and confirms its waiting list
+   * @param userIdentityId user {@link Identity} identifier
+   * @return Updated {@link Event}
+   * @throws IllegalAccessException when user is not allowed to update event,
+   *           or moves it to another calendar in which they can't create events
+   * @throws ObjectNotFoundException when the event identified by its technical
+   *           identifier is not found
+   * @throws AgendaException when the event attributes aren't valid
+   * @throws IllegalArgumentException with the message code
+   *           {@code agenda.capacity.invalid} or
+   *           {@code agenda.capacity.belowAccepted} when the capacity asked is
+   *           refused, {@code agenda.capacity.closeNeedsConfirmation} when the
+   *           save closes an event with a waiting list without confirmClose
+   */
   Event updateEvent(Event event,
                     List<EventAttendee> attendees,
                     List<EventConference> conferences,
@@ -268,6 +323,7 @@ public interface AgendaEventService {
                     List<EventDateOption> dateOptions,
                     RemoteEvent remoteEvent,
                     boolean sendInvitation,
+                    boolean confirmClose,
                     long userIdentityId) throws IllegalAccessException, ObjectNotFoundException, AgendaException;
 
   /**
@@ -289,10 +345,46 @@ public interface AgendaEventService {
    *           identifier is not found
    * @throws AgendaException when the event attribute isn't valid
    */
+  default void updateEventFields(long eventId,
+                                 Map<String, List<String>> fields,
+                                 boolean updateAllOccurrences,
+                                 boolean sendInvitation,
+                                 long userIdentityId) throws IllegalAccessException, ObjectNotFoundException, AgendaException {
+    updateEventFields(eventId, fields, updateAllOccurrences, sendInvitation, false, userIdentityId);
+  }
+
+  /**
+   * Updates fields of an event, as
+   * {@link #updateEventFields(long, Map, boolean, boolean, long)} does, once
+   * the user has confirmed closing it when the patch closes an open event
+   * whose waiting list it would confirm.
+   *
+   * @param eventId Event technical identifier to update
+   * @param fields {@link Event} fields with field name as map key and field
+   *          value as map value
+   * @param updateAllOccurrences whether apply modification on all exceptional
+   *          occurrences as well or not
+   * @param sendInvitation whether re-send invitation to attendees or not
+   * @param confirmClose whether the user confirmed that closing the event
+   *          removes its capacity limit and confirms its waiting list
+   * @param userIdentityId user {@link Identity} identifier
+   * @throws IllegalAccessException when user is not allowed to update event,
+   *           or moves it to another calendar in which they can't create events
+   * @throws ObjectNotFoundException when the event identified by its technical
+   *           identifier is not found
+   * @throws AgendaException when the event attribute isn't valid
+   * @throws IllegalArgumentException with the message code
+   *           {@code agenda.capacity.invalid},
+   *           {@code agenda.capacity.notAllowed} or
+   *           {@code agenda.capacity.belowAccepted} when the capacity asked is
+   *           refused, {@code agenda.capacity.closeNeedsConfirmation} when the
+   *           patch closes an event with a waiting list without confirmClose
+   */
   void updateEventFields(long eventId,
                          Map<String, List<String>> fields,
                          boolean updateAllOccurrences,
                          boolean sendInvitation,
+                         boolean confirmClose,
                          long userIdentityId) throws IllegalAccessException, ObjectNotFoundException, AgendaException;
 
   /**

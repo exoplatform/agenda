@@ -33,4 +33,5 @@ public enum AgendaEventModificationType {
   ALLOW_INVITE_UPDATED,
   ALLOW_MODIFY_UPDATED,
   OPEN_UPDATED,
+  CAPACITY_UPDATED,
 }

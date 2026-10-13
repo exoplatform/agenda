@@ -3313,7 +3313,8 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
    * by a save of the row at all. The caller shape is caldav-integration's
    * inbound sync, which builds a fresh Event.
    * <p>
-   * The limit is seeded through the storage: no Service path writes it yet.
+   * The event is open in a space's calendar, the only event a save keeps a
+   * limit on; the limit is seeded through the storage, with its marker.
    * <p>
    * Mutation note: with the capacity copy line removed from
    * {@code updateEvent}, the limit assertion after the save fails.
@@ -3324,7 +3325,10 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   public void testUpdateEventWithoutCapacityKeepsTheStoredOneAndItsReachedMarker() throws Exception { // NOSONAR
     ZonedDateTime start = getDate().withNano(0);
     long creatorIdentityId = Long.parseLong(testuser1Identity.getId());
-    Event createdEvent = createEvent(newEventInstance(start, start, false), creatorIdentityId, testuser2Identity);
+    Event openEvent = newEventInstance(start, start, false);
+    openEvent.setCalendarId(spaceCalendar.getId());
+    openEvent.setOpen(true);
+    Event createdEvent = createEvent(openEvent, creatorIdentityId, testuser2Identity);
     long eventId = createdEvent.getId();
 
     Event created = agendaEventService.getEventById(eventId);
