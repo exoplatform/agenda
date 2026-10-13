@@ -115,6 +115,29 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
                                                              boolean sendInvitations,
                                                              boolean resetResponses,
                                                              AgendaEventModification eventModifications) {
+    return saveEventAttendees(event, attendees, creatorUserId, sendInvitations, resetResponses, eventModifications, true);
+  }
+
+  /**
+   * Saves the attendees of a date of a series that is over, as a change of the
+   * series carries them there: a date over keeps its answers, so the seat a
+   * removal frees there goes to nobody.
+   *
+   * @param date the date's row
+   * @param attendees its attendees after the change
+   * @param creatorUserId who is saving
+   */
+  void saveOverDateAttendees(Event date, List<EventAttendee> attendees, long creatorUserId) {
+    saveEventAttendees(date, attendees, creatorUserId, false, false, null, false);
+  }
+
+  private Set<AgendaEventModificationType> saveEventAttendees(Event event,
+                                                              List<EventAttendee> attendees,
+                                                              long creatorUserId,
+                                                              boolean sendInvitations,
+                                                              boolean resetResponses,
+                                                              AgendaEventModification eventModifications,
+                                                              boolean givesFreedSeats) {
     // The caller hands the event: what is resolved again, when a date moved to
     // another series meanwhile, is only the series to lock
     return decideSteps.resolvingAgainOnce(() -> {
@@ -125,7 +148,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
                                                           creatorUserId,
                                                           sendInvitations,
                                                           resetResponses,
-                                                          eventModifications));
+                                                          eventModifications,
+                                                          givesFreedSeats));
     });
   }
 
@@ -134,7 +158,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
                                                                long creatorUserId,
                                                                boolean sendInvitations,
                                                                boolean resetResponses,
-                                                               AgendaEventModification eventModifications) {
+                                                               AgendaEventModification eventModifications,
+                                                               boolean givesFreedSeats) {
     long eventId = event.getId();
     EventStatus eventStatus = event.getStatus();
     // The pool's capacity is the stored one, read under the lock, never the
@@ -158,9 +183,13 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (resetResponses) {
       resetResponses(eventId, Collections.emptySet());
     } else {
-      // A seat the list frees goes to the waiting list first: the attendees
-      // the list adds with a Yes asked after them
-      if (seatFreed) {
+      // A seat the list frees, or the save of the event gives by raising or
+      // removing its limit, goes to the waiting list first: the attendees
+      // the list adds with a Yes asked after them, and the attendees it
+      // removes are not promoted. Rows copied from a series are not decided
+      // again
+      if (givesFreedSeats && (seatFreed || eventModifications != null
+          && eventModifications.hasModification(AgendaEventModificationType.CAPACITY_UPDATED))) {
         promoteWaitingAttendees(eventId);
       }
       for (long seatRequester : seatRequesters) {
