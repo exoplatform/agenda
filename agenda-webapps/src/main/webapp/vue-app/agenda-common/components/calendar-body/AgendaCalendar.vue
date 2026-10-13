@@ -323,7 +323,7 @@ export default {
         return eventColor;
       }
       const currentUserAttendee = event.attendees && event.attendees.find(attendee => attendee.identity.id === eXo.env.portal.userIdentityId);
-      if (!currentUserAttendee || currentUserAttendee.response === 'DECLINED' || currentUserAttendee.response === 'NEEDS_ACTION' || currentUserAttendee.response === 'TENTATIVE') {
+      if (!currentUserAttendee || currentUserAttendee.response === 'DECLINED' || currentUserAttendee.response === 'NEEDS_ACTION' || currentUserAttendee.response === 'TENTATIVE' || currentUserAttendee.response === 'WAITING') {
         return eventColor;
       }
       return 'white';
@@ -371,7 +371,7 @@ export default {
         return 'white';
       }
       const currentUserAttendee = event.attendees && event.attendees.find(attendee => attendee.identity.id === eXo.env.portal.userIdentityId);
-      if (!currentUserAttendee || currentUserAttendee.response === 'DECLINED' || currentUserAttendee.response === 'NEEDS_ACTION' || currentUserAttendee.response === 'TENTATIVE') {
+      if (!currentUserAttendee || currentUserAttendee.response === 'DECLINED' || currentUserAttendee.response === 'NEEDS_ACTION' || currentUserAttendee.response === 'TENTATIVE' || currentUserAttendee.response === 'WAITING') {
         return 'white';
       }
       const eventColor = event && (event.color || event.calendar && event.calendar.color) || '#2196F3';
