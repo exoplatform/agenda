@@ -307,6 +307,27 @@ class AgendaScheduleConflictServiceImplTest {
     assertEquals(1, conflicts().size());
   }
 
+  /**
+   * A place on the waiting list is a possible attendance, like an unanswered
+   * invitation: the read asks for it, and the clash names the answer.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void anEventTheUserWaitsForStillConflicts() throws Exception {
+    Event waiting = event(at(9), at(11));
+    givenEvents(waiting, event(at(10), at(12)));
+    givenAnswer(waiting, EventAttendeeResponse.WAITING);
+
+    List<ScheduleConflict> conflicts = conflicts();
+
+    verify(agendaEventService).getEvents(argThat(filter -> filter.getResponseTypes().contains(EventAttendeeResponse.WAITING)),
+                                         eq(ZoneOffset.UTC),
+                                         eq(USER));
+    assertEquals(1, conflicts.size());
+    assertEquals(EventAttendeeResponse.WAITING, conflictOn(conflicts.get(0), waiting).getResponse());
+  }
+
   @Test
   void anEventTheUserWasNeverInvitedToStillConflicts() throws Exception {
     // No attendee row for this user: normal for an event on a calendar of a
