@@ -23,6 +23,7 @@ import java.util.Map;
 
 import org.exoplatform.agenda.constant.EventAccess;
 import org.exoplatform.agenda.exception.AgendaException;
+import org.exoplatform.agenda.exception.CapacityBelowAcceptedException;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -313,8 +314,10 @@ public interface AgendaEventService {
    * @throws IllegalArgumentException with the message code
    *           {@code agenda.capacity.invalid} or
    *           {@code agenda.capacity.belowAccepted} when the capacity asked is
-   *           refused, {@code agenda.capacity.closeNeedsConfirmation} when the
-   *           save closes an event with a waiting list without confirmClose
+   *           refused, the latter a {@link CapacityBelowAcceptedException}
+   *           naming the date of a series that blocks,
+   *           {@code agenda.capacity.closeNeedsConfirmation} when the save
+   *           closes an event with a waiting list without confirmClose
    */
   Event updateEvent(Event event,
                     List<EventAttendee> attendees,
@@ -377,8 +380,10 @@ public interface AgendaEventService {
    *           {@code agenda.capacity.invalid},
    *           {@code agenda.capacity.notAllowed} or
    *           {@code agenda.capacity.belowAccepted} when the capacity asked is
-   *           refused, {@code agenda.capacity.closeNeedsConfirmation} when the
-   *           patch closes an event with a waiting list without confirmClose
+   *           refused, the latter a {@link CapacityBelowAcceptedException}
+   *           naming the date of a series that blocks,
+   *           {@code agenda.capacity.closeNeedsConfirmation} when the patch
+   *           closes an event with a waiting list without confirmClose
    */
   void updateEventFields(long eventId,
                          Map<String, List<String>> fields,

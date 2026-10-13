@@ -29,6 +29,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
+import org.exoplatform.agenda.exception.CapacityBelowAcceptedException;
 import org.exoplatform.agenda.model.CalendarEditorChange;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
@@ -61,8 +62,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   private static final String          CAPACITY_INVALID                   = "agenda.capacity.invalid";
 
   private static final String          CAPACITY_NOT_ALLOWED               = "agenda.capacity.notAllowed";
-
-  private static final String          CAPACITY_BELOW_ACCEPTED            = "agenda.capacity.belowAccepted";
 
   private static final String          CAPACITY_CLOSE_NEEDS_CONFIRMATION  = "agenda.capacity.closeNeedsConfirmation";
 
@@ -2746,8 +2745,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * not confirm (D15, M2). A limit is lowered no further than the Yes answers
    * it holds (D2); on a series, than the most Yes answers given at one of its
    * dates still to come, and at each date individually modified whose limit
-   * follows the series' (D16). A switch to a date poll is not a closing: it
-   * confirms nobody (F1).
+   * follows the series' (D16), the refusal naming the first date that blocks.
+   * A switch to a date poll is not a closing: it confirms nobody (F1).
    *
    * @param storedEvent the event as stored, read under the lock
    * @param eventToStore the event as it is about to be stored
@@ -2766,11 +2765,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                    boolean reachesDates) {
     int capacity = SeatRule.capacityOf(eventToStore);
     boolean series = eventToStore.getParentId() <= 0 && eventToStore.getRecurrence() != null;
+    LocalDate blockingDate = null;
     if (tightens(SeatRule.capacityOf(storedEvent), capacity)) {
       if (series && storedEvent.getRecurrence() != null) {
-        checkSeriesFloor(storedEvent, capacity, removedIdentityIds);
-      } else {
-        checkPoolFloor(storedEvent.getId(), capacity, removedIdentityIds);
+        blockingDate = firstDateBelowSeriesFloor(storedEvent, capacity, removedIdentityIds);
+      } else if (isBelowPoolFloor(storedEvent.getId(), capacity, removedIdentityIds)) {
+        throw new CapacityBelowAcceptedException(null);
       }
     }
     // A save that changes the dates or the rule of a series, or removes the
@@ -2783,8 +2783,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (series && reachesDates) {
       for (DateCapacity date : mergedDateCapacities(storedEvent, eventToStore, calendar)) {
         int dateCapacity = SeatRule.capacityOf(date.after());
-        if (tightens(SeatRule.capacityOf(date.before()), dateCapacity)) {
-          checkPoolFloor(date.before().getId(), dateCapacity, removedIdentityIds);
+        if (tightens(SeatRule.capacityOf(date.before()), dateCapacity)
+            && isBelowPoolFloor(date.before().getId(), dateCapacity, removedIdentityIds)) {
+          LocalDate day = dayOf(storedEvent, date.before());
+          blockingDate = blockingDate == null || day.isBefore(blockingDate) ? day : blockingDate;
         }
         // A date's closing confirms its waiting list as its merge does: only
         // when it removes a limit, a date over, left out above, confirming
@@ -2794,6 +2796,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                 && gainsSeats(SeatRule.capacityOf(date.before()), SeatRule.capacityOf(date.after()))
                 && hasWaitingAttendees(date.before(), removedIdentityIds, false);
       }
+    }
+    if (blockingDate != null) {
+      throw new CapacityBelowAcceptedException(blockingDate);
     }
     if (confirmsWaitingList && !confirmClose) {
       throw new IllegalArgumentException(CAPACITY_CLOSE_NEEDS_CONFIRMATION);
@@ -2829,31 +2834,33 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   /**
-   * Refuses a limit below the Yes answers of one pool: an event of no series,
-   * or one date's own row.
+   * @return whether a limit is below the Yes answers of one pool: an event of
+   *         no series, or one date's own row
    */
-  private void checkPoolFloor(long poolId, int capacity, Set<Long> removedIdentityIds) {
+  private boolean isBelowPoolFloor(long poolId, int capacity, Set<Long> removedIdentityIds) {
     int accepted = SeatRule.acceptedAt(keptRows(poolId, EventAttendeeResponse.ACCEPTED, removedIdentityIds), null, 0);
     if (accepted > capacity) {
       LOG.debug("Event {}: a limit of {} is below its {} accepted participants", poolId, capacity, accepted);
-      throw new IllegalArgumentException(CAPACITY_BELOW_ACCEPTED);
+      return true;
     }
+    return false;
   }
 
   /**
-   * Refuses a limit of a series below the Yes answers given at one of its
-   * dates still to come that has no row of its own (D16), naming the first
-   * such date in the log.
+   * @return the day, in the series' zone, of the first date of a series still
+   *         to come that has no row of its own and holds more Yes answers than
+   *         the limit (D16), or null when there is none
    */
-  private void checkSeriesFloor(Event series, int capacity, Set<Long> removedIdentityIds) {
+  private LocalDate firstDateBelowSeriesFloor(Event series, int capacity, Set<Long> removedIdentityIds) {
     long seriesId = series.getId();
     List<EventAttendee> acceptedRows = keptRows(seriesId, EventAttendeeResponse.ACCEPTED, removedIdentityIds);
     if (acceptedRows.isEmpty()) {
-      return;
+      return null;
     }
     SeriesDates seriesDates = new SeriesDates(series,
                                               () -> agendaEventStorage.getExceptionalOccurrences(seriesId),
                                               ZonedDateTime.now(ZoneOffset.UTC));
+    // The stretches come in order: the first that blocks holds the first date
     for (SeatStretch stretch : SeatRule.stretches(acceptedRows, null, null)) {
       ZonedDateTime date = seriesDates.firstCountedDate(stretch.from(), stretch.until());
       int accepted = date == null ? 0 : SeatRule.acceptedAt(acceptedRows, date, 0);
@@ -2863,9 +2870,21 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                   capacity,
                   accepted,
                   date);
-        throw new IllegalArgumentException(CAPACITY_BELOW_ACCEPTED);
+        return Utils.getSeriesDate(series, date);
       }
     }
+    return null;
+  }
+
+  /**
+   * @return the day, in the series' zone, a date of a series with a row of its
+   *         own stands on: a date moved at its own start, any other where its
+   *         id puts it
+   */
+  private static LocalDate dayOf(Event series, Event dateRow) {
+    return Utils.getSeriesDate(series,
+                               dateRow.getOccurrence().isDatesModified() ? dateRow.getStart()
+                                                                         : dateRow.getOccurrence().getId());
   }
 
   /**
