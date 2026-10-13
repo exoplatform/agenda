@@ -724,9 +724,13 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   /**
    * Starts every answer of an event over, on its row and on the rows of its
    * dates when it is a series, the waiting list included. A reset frees no
-   * seat: nobody is promoted, and no answer is reported as sent.
+   * seat: nobody is promoted, and no answer is reported as sent. Runs inside
+   * the decide step of its caller, which locked the event.
+   *
+   * @param eventId the identifier of the event row
+   * @param keptIdentityIds the attendees whose answer is kept
    */
-  private void resetResponses(long eventId, Set<Long> keptIdentityIds) {
+  void resetResponses(long eventId, Set<Long> keptIdentityIds) {
     Event event = eventStorage.getEventById(eventId);
     resetPoolResponses(event, keptIdentityIds);
     if (event.getRecurrence() != null) {
