@@ -47,6 +47,7 @@ import org.picocontainer.Startable;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
+import org.exoplatform.agenda.exception.CapacityBelowAcceptedException;
 import org.exoplatform.agenda.exception.EventInvitationExpiredException;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.rest.model.*;
@@ -698,7 +699,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       // A value the event's invariants refuse is a caller error, its message a
       // code, as for a patch
       LOG.debug("Invalid event created", e);
-      return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
+      return Response.status(Status.BAD_REQUEST).entity(badRequestEntity(e)).build();
     } catch (Exception e) {
       LOG.warn("Error creating an event", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -798,7 +799,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       // A value the event's invariants refuse is a caller error, its message a
       // code, as for a patch
       LOG.debug("Invalid update of event {}", eventEntity.getId(), e);
-      return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
+      return Response.status(Status.BAD_REQUEST).entity(badRequestEntity(e)).build();
     } catch (IllegalAccessException e) {
       LOG.error("User '{}' attempts to update a non authorized event", RestUtils.getCurrentUser(), e);
       return Response.status(Status.UNAUTHORIZED).build();
@@ -820,7 +821,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
           @ApiResponse(responseCode = "404", description = "Object not found"),
           @ApiResponse(
               responseCode = "400",
-              description = "Invalid query input: unsupported field, or a value the event's invariants refuse. The body carries the message code"
+              description = "Invalid query input: unsupported field, or a value the event's invariants refuse. The body carries the message code; a limit of a series below the Yes answers of one of its dates is answered with an object carrying the code and that date"
           ),
           @ApiResponse(responseCode = "403", description = "Forbidden operation"),
           @ApiResponse(responseCode = "500", description = "Internal server error"),
@@ -931,7 +932,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       // error and not an incident: the message is a code the frontend and
       // third-party integrators can act on
       LOG.debug("Invalid field patched on event {}", eventId, e);
-      return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
+      return Response.status(Status.BAD_REQUEST).entity(badRequestEntity(e)).build();
     } catch (IllegalAccessException e) {
       // The platform REST contract answers 403 when the caller is
       // authenticated but not allowed (backend-spring.md §5)
@@ -2039,6 +2040,19 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     }
     List<String> spaceIdsString = spaceIds.stream().map(String::valueOf).toList();
     return SpaceUtils.getSpaceIdentityIds(getCurrentUser(), spaceIdsString).stream().map(Long::valueOf).toList();
+  }
+
+  /**
+   * @param e a value the event refuses
+   * @return the body of the 400 answering it: its code, with the date that
+   *         blocks when a limit of a series is below the Yes answers of one of
+   *         its dates (D16)
+   */
+  private static Object badRequestEntity(IllegalArgumentException e) {
+    if (e instanceof CapacityBelowAcceptedException refused && refused.getDate() != null) {
+      return new CapacityErrorEntity(refused.getMessage(), refused.getDate().toString());
+    }
+    return e.getMessage();
   }
 
 }

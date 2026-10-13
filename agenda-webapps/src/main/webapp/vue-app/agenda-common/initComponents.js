@@ -57,6 +57,7 @@ import AgendaEventFormConference from './components/event/form/AgendaEventFormCo
 import AgendaEventFormColorPicker from './components/event/form/AgendaEventFormColorPicker.vue';
 import AgendaEventFormAvailabilityVisibility from './components/event/form/AgendaEventFormAvailabilityVisibility.vue';
 import AgendaEventFormAttendeesDrawer from './components/event/form/AgendaEventFormAttendeesDrawer.vue';
+import AgendaEventCapacityStepper from './components/event/form/AgendaEventCapacityStepper.vue';
 import AgendaEventAttendeesAvatars from './components/event/common/AgendaEventAttendeesAvatars.vue';
 
 import AgendaEventDatePollDetails from './components/event/date-poll/AgendaEventDatePollDetails.vue';
@@ -89,6 +90,7 @@ import AgendaEventAttendeeItem from './components/event/view/AgendaEventAttendee
 import AgendaEventRemindersDrawer from './components/event/view/AgendaEventRemindersDrawer.vue';
 
 import AgendaRecurrentEventSaveConfirmDialog from './components/event/confirm-dialog/AgendaRecurrentEventSaveConfirmDialog.vue';
+import AgendaCapacityCloseConfirmDialog from './components/event/confirm-dialog/AgendaCapacityCloseConfirmDialog.vue';
 import AgendaRecurrentEventDeleteConfirmDialog from './components/event/confirm-dialog/AgendaRecurrentEventDeleteConfirmDialog.vue';
 import AgendaRecurrentEventResponseConfirmDialog from './components/event/confirm-dialog/AgendaRecurrentEventResponseConfirmDialog.vue';
 import AgendaRecurrentEventReminderConfirmDialog from './components/event/confirm-dialog/AgendaRecurrentEventReminderConfirmDialog.vue';
@@ -174,6 +176,7 @@ const components = {
   'agenda-date-poll-action-buttons': AgendaDatePollActionButtons,
   'agenda-date-poll-participants-drawer-mobile': AgendaDatePollParticipantsDrawerMobile,
   'agenda-recurrent-event-save-confirm-dialog': AgendaRecurrentEventSaveConfirmDialog,
+  'agenda-capacity-close-confirm-dialog': AgendaCapacityCloseConfirmDialog,
   'agenda-recurrent-event-response-confirm-dialog': AgendaRecurrentEventResponseConfirmDialog,
   'agenda-recurrent-event-reminders-confirm-dialog': AgendaRecurrentEventReminderConfirmDialog,
   'agenda-user-setting-drawer': AgendaUserSettingDrawer,
@@ -193,6 +196,7 @@ const components = {
   'agenda-connector-remote-event-item': AgendaConnectorRemoteEventItem,
   'agenda-time-zone-select-box': AgendaTimeZoneSelectBox,
   'agenda-event-form-attendees-drawer': AgendaEventFormAttendeesDrawer,
+  'agenda-event-capacity-stepper': AgendaEventCapacityStepper,
   'agenda-event-attendees-avatars': AgendaEventAttendeesAvatars,
   
 };

@@ -196,12 +196,21 @@ export function createEvent(event) {
       if (resp && resp.ok) {
         return resp.json();
       } else {
-        throw new Error('Error creating event');
+        return toSaveError(resp, 'Error creating event');
       }
     });
 }
 
-export function updateEvent(event) {
+/**
+ * Saves an event as a whole.
+ *
+ * @param {Object} event the event to save
+ * @param {Boolean} confirmClose whether the user confirmed that the save closes
+ *          an open event with a limit, its waiting list then confirmed: without
+ *          it, such a save is refused with agenda.capacity.closeNeedsConfirmation
+ * @returns {Promise} the event saved
+ */
+export function updateEvent(event, confirmClose) {
   if (!Object.prototype.hasOwnProperty.call(event, 'sendInvitation')) {
     event.sendInvitation = true;
   }
@@ -215,7 +224,7 @@ export function updateEvent(event) {
     })
     .then(conferences => {
       event.conferences = conferences && conferences.filter(conference => !!conference);
-      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events`, {
+      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events?confirmClose=${!!confirmClose}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -227,7 +236,7 @@ export function updateEvent(event) {
       if (resp && resp.ok) {
         return resp.json();
       } else {
-        throw new Error('Error updating event');
+        return toSaveError(resp, 'Error updating event');
       }
     });
 }
@@ -246,7 +255,7 @@ export function sendEventResponse(eventId, occurrenceId, response, upcoming) {
   });
 }
 
-export function updateEventFields(event, eventFields, updateAllOccurrences, sendInvitations) {
+export function updateEventFields(event, eventFields, updateAllOccurrences, sendInvitations, confirmClose) {
   const eventId = event.id;
   eventFields = formatEventToSave(eventFields);
 
@@ -265,7 +274,7 @@ export function updateEventFields(event, eventFields, updateAllOccurrences, send
       updateAllOccurrences = !!updateAllOccurrences;
       sendInvitations = !!sendInvitations;
 
-      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?updateAllOccurrences=${updateAllOccurrences}&timeZoneId=${USER_TIMEZONE_ID}&sendInvitations=${sendInvitations}`, {
+      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?updateAllOccurrences=${updateAllOccurrences}&timeZoneId=${USER_TIMEZONE_ID}&sendInvitations=${sendInvitations}&confirmClose=${!!confirmClose}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: {
@@ -276,20 +285,49 @@ export function updateEventFields(event, eventFields, updateAllOccurrences, send
     }).then((resp) => {
       if (resp && resp.ok) {
         return resp.json();
-      } else if (resp) {
-        // A 400 carries a message code in its body (agenda.openEvent.notAllowed,
-        // agenda.eventFieldNotSupported...): handed to the caller, which may
-        // translate it instead of showing a generic error
-        return resp.text().then(body => {
-          const error = new Error('Error updating event');
-          error.status = resp.status;
-          error.code = (body || '').trim().replace(/^"|"$/g, '');
-          throw error;
-        });
       } else {
-        throw new Error('Error updating event');
+        return toSaveError(resp, 'Error updating event');
       }
     });
+}
+
+/**
+ * A refused save carries a message code in its body (agenda.openEvent.notAllowed,
+ * agenda.capacity.belowAccepted...), or an object holding the code and the day,
+ * yyyy-MM-dd, of the date of a series that blocks a limit: handed to the
+ * caller, which may translate it instead of showing a generic error.
+ *
+ * @param {Response} resp the response of the refused save, or nothing
+ * @param {String} message the error's message
+ * @returns {Promise} rejected with an error carrying the status, the code and
+ *          the day named, if any
+ */
+function toSaveError(resp, message) {
+  if (!resp) {
+    return Promise.reject(new Error(message));
+  }
+  return resp.text().then(body => {
+    const error = new Error(message);
+    error.status = resp.status;
+    const text = (body || '').trim();
+    if (text.startsWith('{')) {
+      // An object without a code, the body of an invalid event, has none
+      const refusal = parseRefusal(text);
+      error.code = refusal.code;
+      error.date = refusal.date;
+    } else {
+      error.code = text.replace(/^"|"$/g, '');
+    }
+    throw error;
+  });
+}
+
+function parseRefusal(text) {
+  try {
+    return JSON.parse(text) || {};
+  } catch (e) {
+    return {};
+  }
 }
 
 export function getUserReminderSettings() {
