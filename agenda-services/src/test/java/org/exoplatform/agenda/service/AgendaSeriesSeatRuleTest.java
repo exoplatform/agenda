@@ -959,6 +959,106 @@ public class AgendaSeriesSeatRuleTest extends BaseAgendaEventTest {
   }
 
   /**
+   * A No to every date of a series reaches the row of a date over as given and
+   * gives up no seat there: nobody waiting on that date is promoted.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aNoToEveryDateGivesUpNoSeatOnADateOver() throws Exception {
+    ZonedDateTime start = LocalDate.now().minusDays(10).atTime(9, 0).atZone(ZoneOffset.UTC);
+    Event series = limitedSeries(start, 1, 20, testuser2Identity, testuser3Identity);
+    long rowId = rowOfADateOverWithItsSeatHeld(series, start.plusDays(2));
+
+    answer(series.getId(), testuser2Identity, EventAttendeeResponse.DECLINED);
+
+    assertEquals(EventAttendeeResponse.DECLINED, responseOn(rowId, testuser2Identity));
+    assertEquals(EventAttendeeResponse.WAITING, responseOn(rowId, testuser3Identity));
+    assertTrue(broadcasts(Utils.POST_EVENT_ATTENDEE_PROMOTED).isEmpty());
+  }
+
+  /**
+   * A No to a series from a date reaches the row of a later date over as given
+   * and gives up no seat there.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aNoFromADateGivesUpNoSeatOnALaterDateOver() throws Exception {
+    ZonedDateTime start = LocalDate.now().minusDays(10).atTime(9, 0).atZone(ZoneOffset.UTC);
+    Event series = limitedSeries(start, 1, 20, testuser2Identity, testuser3Identity);
+    long rowId = rowOfADateOverWithItsSeatHeld(series, start.plusDays(2));
+
+    answerFrom(series.getId(), start.plusDays(1), testuser2Identity, EventAttendeeResponse.DECLINED);
+
+    assertEquals(EventAttendeeResponse.DECLINED, responseOn(rowId, testuser2Identity));
+    assertEquals(EventAttendeeResponse.WAITING, responseOn(rowId, testuser3Identity));
+    assertTrue(broadcasts(Utils.POST_EVENT_ATTENDEE_PROMOTED).isEmpty());
+  }
+
+  /**
+   * A Yes to a series from a date reaches the row of a full later date still
+   * to come as a place on its waiting list: a seat is decided there.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aYesFromADateWaitsOnAFullLaterDateStillToCome() throws Exception {
+    Event series = limitedSeries(1, 5, testuser2Identity, testuser3Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    long rowId = agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(2)).getId();
+    setCapacity(rowId, 1);
+    replaceRows(rowId, testuser3Identity, new EventAttendee(0, rowId, id(testuser3Identity), EventAttendeeResponse.ACCEPTED));
+    replaceRows(rowId, testuser2Identity, new EventAttendee(0, rowId, id(testuser2Identity), EventAttendeeResponse.NEEDS_ACTION));
+
+    answerFrom(series.getId(), dates.get(1), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertEquals(EventAttendeeResponse.WAITING, responseOn(rowId, testuser2Identity));
+  }
+
+  /**
+   * A Yes to every date of a series reaches the row of a full date over as a
+   * Yes: it waits there for no seat, reports no date left waiting, and does
+   * not mark the date full.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aYesToEveryDateWaitsOnNoDateOver() throws Exception {
+    ZonedDateTime start = LocalDate.now().minusDays(10).atTime(9, 0).atZone(ZoneOffset.UTC);
+    Event series = limitedSeries(start, 1, 20, testuser2Identity, testuser3Identity);
+    long rowId = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start.plusDays(2)).getId();
+    setCapacity(rowId, 1);
+    replaceRows(rowId, testuser3Identity, new EventAttendee(0, rowId, id(testuser3Identity), EventAttendeeResponse.ACCEPTED));
+    replaceRows(rowId, testuser2Identity, new EventAttendee(0, rowId, id(testuser2Identity), EventAttendeeResponse.NEEDS_ACTION));
+
+    EventResponseOutcome outcome = agendaEventAttendeeService.sendEventResponse(series.getId(),
+                                                                                null,
+                                                                                id(testuser2Identity),
+                                                                                EventAttendeeResponse.ACCEPTED,
+                                                                                true);
+
+    assertEquals(EventAttendeeResponse.ACCEPTED, responseOn(rowId, testuser2Identity));
+    assertNull(outcome.firstWaitingOccurrenceId());
+    assertNull(agendaEventStorage.getEventById(rowId).getCapacityReachedDate());
+  }
+
+  /**
+   * Materialises the row of a date of a series that is over, with a limit of
+   * one seat: testuser2 holds it with a Yes, testuser3 waits, as answers given
+   * while the date was still to come left them.
+   *
+   * @return the id of the row
+   */
+  private long rowOfADateOverWithItsSeatHeld(Event series, ZonedDateTime date) throws Exception {
+    long rowId = agendaEventService.saveEventExceptionalOccurrence(series.getId(), date).getId();
+    setCapacity(rowId, 1);
+    replaceRows(rowId, testuser2Identity, new EventAttendee(0, rowId, id(testuser2Identity), EventAttendeeResponse.ACCEPTED));
+    replaceRows(rowId, testuser3Identity, new EventAttendee(0, rowId, id(testuser3Identity), EventAttendeeResponse.WAITING));
+    return rowId;
+  }
+
+  /**
    * A series in the first test user's calendar, who is not one of its
    * attendees, daily at the start's time with a count, with the capacity
    * given.
