@@ -18,6 +18,7 @@ package org.exoplatform.agenda.service;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -67,6 +68,8 @@ final class SeriesDates {
   private static final int    HORIZON_YEARS              = 5;
 
   private static final long   DAY_SECONDS                = Duration.ofDays(1).getSeconds();
+
+  private static final Duration RULE_READ_MARGIN         = Duration.ofHours(27);
 
   private final Event         series;
 
@@ -153,8 +156,64 @@ final class SeriesDates {
     return last == null ? null : idOf(last);
   }
 
+  /**
+   * @param row the row of one of its dates
+   * @return whether that date is over: a moved row at its own dates, any other
+   *         where the rule puts its date, the stored dates of such a row not
+   *         being relied on: at the end the rule gives its day, its id keeping
+   *         the time of day the series had when the row was made, or, for a
+   *         day the rule no longer gives, at the series' time of day plus its
+   *         length; on a series with several dates a day, at its id plus that
+   *         length
+   */
+  boolean isOver(Event row) {
+    return !endOfRow(row).isAfter(now);
+  }
+
   private boolean isCounted(Event occurrence) {
     return endOf(occurrence).isAfter(now) && !hasOwnRow(occurrence);
+  }
+
+  private ZonedDateTime endOfRow(Event row) {
+    if (row.getOccurrence().isDatesModified()) {
+      return endOf(row);
+    }
+    ZonedDateTime occurrenceId = row.getOccurrence().getId();
+    Duration length = Duration.between(series.getStart(), series.getEnd());
+    if (!series.isAllDay() && severalDatesADay) {
+      return occurrenceId.plus(length);
+    }
+    LocalDate day = Utils.getSeriesDate(series, occurrenceId);
+    ZonedDateTime estimate = endAtSeriesTime(day, length);
+    // The rule's date of that day starts on that day, at a time of day that
+    // differs from the series' on a day the offset changes, so its end lies
+    // within a day and two hours of the estimate: further from now than that,
+    // the estimate decides alone, and the rule, which a reading walks from its
+    // first date, is read only near now
+    if (Duration.between(estimate, now).abs().compareTo(RULE_READ_MARGIN) > 0) {
+      return estimate;
+    }
+    Object key = dateKey(occurrenceId);
+    for (Event date : Utils.getOccurrences(series, day.minusDays(1), day.plusDays(1), 0)) {
+      if (key.equals(dateKey(date.getOccurrence().getId()))) {
+        return endOf(date);
+      }
+    }
+    // A day the rule no longer gives
+    return estimate;
+  }
+
+  /**
+   * @return the end of a date on a day at the series' time of day, the last
+   *         second of its last day for an all-day one
+   */
+  private ZonedDateTime endAtSeriesTime(LocalDate day, Duration length) {
+    if (!series.isAllDay()) {
+      LocalTime time = series.getStart().withZoneSameInstant(zone).toLocalTime();
+      return day.atTime(time).atZone(zone).plus(length);
+    }
+    long days = Math.max(1, Math.round(length.getSeconds() / (double) DAY_SECONDS));
+    return day.plusDays(days).atStartOfDay(zone).minusSeconds(1);
   }
 
   /**
