@@ -164,10 +164,10 @@
 /*
  * The responses that make an event a commitment on the organiser's week. An
  * invitation they have not answered still occupies the slot as far as picking
- * one goes; a declined event does not. Same set EXO-89840 settled on for the
- * conflicts panel.
+ * one goes; a declined event does not, and a waiting one does, as a possible
+ * attendance. Same set EXO-89840 settled on for the conflicts panel.
  */
-const SCHEDULED_RESPONSES = ['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
+const SCHEDULED_RESPONSES = ['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE', 'WAITING'];
 
 export default {
   props: {

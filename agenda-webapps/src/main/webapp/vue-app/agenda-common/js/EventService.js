@@ -241,6 +241,17 @@ export function updateEvent(event, confirmClose) {
     });
 }
 
+/**
+ * @param {Number} eventId the event answered, a series for several dates
+ * @param {String} occurrenceId the date answered, if one is
+ * @param {String} response the answer given, WAITING asking for a seat as
+ *        ACCEPTED does
+ * @param {Boolean} upcoming whether the answer holds for that date and the
+ *        ones after it
+ * @returns {Promise} resolved with what the server decided: the answer stored
+ *          at the date answered (a Yes on a full event waits) and the first
+ *          date an answer for several dates waits for, null when none
+ */
 export function sendEventResponse(eventId, occurrenceId, response, upcoming) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/response/send?response=${response}&occurrenceId=${occurrenceId || ''}&upcoming=${upcoming || false}`, {
     method: 'GET',
@@ -252,6 +263,7 @@ export function sendEventResponse(eventId, occurrenceId, response, upcoming) {
     if (!resp || !resp.ok) {
       throw new Error('Error sending event response');
     }
+    return resp.json().catch(() => null);
   });
 }
 
