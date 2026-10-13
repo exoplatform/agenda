@@ -5,14 +5,14 @@
     </div>
     <div class="event-attendees-responses d-flex ms-auto">
       <v-btn
-        :loading="savingResponse === 'ACCEPTED'"
+        :loading="savingResponse === seatResponse"
         :disabled="savingResponse"
-        :class="eventResponse === 'ACCEPTED' && 'btn-primary'"
-        value="ACCEPTED"
+        :class="eventResponse === seatResponse && 'btn-primary'"
+        :value="seatResponse"
         class="btn border-radius"
-        @click="changeResponse('ACCEPTED')">
-        <v-icon size="20" class="me-4">fas fa-check-circle</v-icon>
-        {{ $t('agenda.button.yes') }}
+        @click="changeResponse(seatResponse)">
+        <v-icon size="20" class="me-4">{{ waits ? 'fas fa-info-circle' : 'fas fa-check-circle' }}</v-icon>
+        {{ waits ? $t('agenda.button.waitingList') : $t('agenda.button.yes') }}
       </v-btn>
       <v-btn
         :loading="savingResponse === 'DECLINED'"
@@ -39,6 +39,9 @@
         ref="responseConfirmDialog"
         :event="event" />
     </div>
+    <span v-if="capacityLine" class="caption text-sub-title ms-auto mt-1">
+      {{ capacityLine }}
+    </span>
   </div>
 </template>
 
@@ -73,6 +76,28 @@ export default {
     eventResponse() {
       return this.userAttendee && this.userAttendee.response || 'NEEDS_ACTION';
     },
+    /**
+     * @returns {Boolean} whether the seat answer is the waiting list: the
+     *          event is full for someone who holds no seat there, or they wait
+     *          already. The counts are the displayed date's.
+     */
+    waits() {
+      return this.eventResponse === 'WAITING'
+        || this.event.capacity > 0 && this.event.acceptedCount >= this.event.capacity && this.eventResponse !== 'ACCEPTED';
+    },
+    seatResponse() {
+      return this.waits ? 'WAITING' : 'ACCEPTED';
+    },
+    /**
+     * @returns {String} the place of a waiting viewer in the line, otherwise
+     *          the limit of an event that has one
+     */
+    capacityLine() {
+      if (this.eventResponse === 'WAITING' && this.event.waitingListPosition) {
+        return this.$t('agenda.capacity.waitingPosition', {0: this.event.waitingListPosition});
+      }
+      return this.event.capacity > 0 && this.$t('agenda.capacity.indicator', {0: this.event.capacity}) || '';
+    },
   },
   methods: {
     changeResponse(response) {
@@ -84,7 +109,13 @@ export default {
       } else {
         this.savingResponse = response;
         this.$eventService.sendEventResponse(this.event.id, null, response)
-          .then(() => this.$root.$emit('agenda-event-response-sent', this.event, null, response))
+          .then(outcome => {
+            // The server decides the seat: what follows reads its answer
+            this.$root.$emit('agenda-event-response-sent', this.event, null, outcome && outcome.response || response);
+            if (this.event.recurrence) {
+              this.$agendaUtils.announcePartlyWaiting(this, this.event.id, outcome && outcome.firstWaitingOccurrenceId);
+            }
+          })
           .finally(() => this.savingResponse = false);
       }
     },
