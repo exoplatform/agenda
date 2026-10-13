@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import org.junit.After;
 import org.junit.Before;
@@ -325,6 +326,49 @@ public class AgendaDecideStepTest extends BaseAgendaEventTest {
   }
 
   /**
+   * A patch that turns an open event with a limit into a date poll starts its
+   * answers over but its modifier's, the waiting list included, in the step
+   * that switches it (D19): the answers are written under the lock of that
+   * step, before any other lock is taken, so that no reader finds a poll still
+   * holding a waiting list, and the listener of the update finds nothing left
+   * to reset.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aSwitchToADatePollStartsTheAnswersOverInTheStepThatSwitchesIt() throws Exception {
+    ZonedDateTime start = ZonedDateTime.now().plusDays(60).withNano(0).withSecond(0).withMinute(0);
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setRecurrence(null);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(true);
+    event.setCapacity(1);
+    long eventId = createEvent(event, id(testuser1Identity), testuser1Identity, testuser2Identity, testuser3Identity).getId();
+    agendaEventAttendeeService.sendEventResponse(eventId, id(testuser1Identity), EventAttendeeResponse.ACCEPTED);
+    agendaEventAttendeeService.sendEventResponse(eventId, id(testuser2Identity), EventAttendeeResponse.ACCEPTED);
+    agendaEventAttendeeService.sendEventResponse(eventId, id(testuser3Identity), EventAttendeeResponse.ACCEPTED);
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(eventId, testuser2Identity));
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(eventId, testuser3Identity));
+
+    List<RecordedStatement> statements =
+                                       record(() -> agendaEventService.updateEventFields(eventId,
+                                                                                         Collections.singletonMap("status",
+                                                                                                                  List.of("TENTATIVE")),
+                                                                                         false,
+                                                                                         false,
+                                                                                         false,
+                                                                                         id(testuser1Identity)));
+
+    assertTheAnswersAreWrittenUnderTheFirstLock(statements);
+    assertEquals(EventStatus.TENTATIVE, agendaEventStorage.getEventById(eventId).getStatus());
+    // The modifier's answer is kept, then becomes the vote the listener of
+    // the update records for them on every date the poll proposes
+    assertEquals(EventAttendeeResponse.TENTATIVE, responseOf(eventId, testuser1Identity));
+    assertEquals(EventAttendeeResponse.NEEDS_ACTION, responseOf(eventId, testuser2Identity));
+    assertEquals(EventAttendeeResponse.NEEDS_ACTION, responseOf(eventId, testuser3Identity));
+  }
+
+  /**
    * A decide step called inside a transaction it did not begin is refused,
    * before anything is written: its lock would not be the first read of that
    * transaction. The transaction is begun by hand, the test classes not being
@@ -572,6 +616,36 @@ public class AgendaDecideStepTest extends BaseAgendaEventTest {
                                             + statements));
     assertTrue("the first statement of the transaction is not a locking read of an event row: " + statements,
                first.isLockingReadOfAnEvent());
+  }
+
+  /**
+   * Asserts that answers are written in the transaction of the first locking
+   * read of an event, before any later lock: the one the update's listener
+   * would take to reset them on its own.
+   */
+  private static void assertTheAnswersAreWrittenUnderTheFirstLock(List<RecordedStatement> statements) {
+    int firstLock = indexOf(statements, RecordedStatement::isLockingReadOfAnEvent, 0);
+    int secondLock = indexOf(statements, RecordedStatement::isLockingReadOfAnEvent, firstLock + 1);
+    int firstAnswerWrite = indexOf(statements, AgendaDecideStepTest::isAnswerWrite, 0);
+    assertTrue("no locking read of an event: " + statements, firstLock >= 0);
+    assertTrue("no answer written: " + statements, firstAnswerWrite >= 0);
+    assertTrue("the answers are not written under the first lock: " + statements,
+               firstAnswerWrite > firstLock && (secondLock < 0 || firstAnswerWrite < secondLock));
+  }
+
+  private static int indexOf(List<RecordedStatement> statements, Predicate<RecordedStatement> matching, int from) {
+    for (int i = Math.max(from, 0); i < statements.size(); i++) {
+      if (matching.test(statements.get(i))) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  private static boolean isAnswerWrite(RecordedStatement statement) {
+    String sql = statement.sql().toLowerCase();
+    return statement.inTransaction() && sql.contains("exo_agenda_attendee")
+        && (sql.startsWith("update") || sql.startsWith("insert") || sql.startsWith("delete"));
   }
 
   private static boolean isDatesOfASeriesRead(RecordedStatement statement) {
