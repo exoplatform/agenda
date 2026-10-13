@@ -261,6 +261,33 @@ export function formatDay(day) {
     day: 'numeric',
   });
 }
+
+/**
+ * Says that an answer for several dates of a series got a seat on some of
+ * them only, and offers to open the first date where it waits (US02). An
+ * answer that got every seat it asked for says nothing.
+ *
+ * @param {Object} vm the component that answered, passed in for its
+ *        translations and its root: this module has no Vue prototype
+ * @param {Number} seriesId the series answered
+ * @param {String} firstWaitingOccurrenceId the first date the answer waits
+ *        for, if any
+ * @returns {void}
+ */
+export function announcePartlyWaiting(vm, seriesId, firstWaitingOccurrenceId) {
+  if (!firstWaitingOccurrenceId) {
+    return;
+  }
+  document.dispatchEvent(new CustomEvent('alert-message', {detail: {
+    alertType: 'info',
+    alertMessage: vm.$t('agenda.capacity.partlyWaiting'),
+    alertLinkText: vm.$t('agenda.capacity.view'),
+    alertLinkCallback: () => vm.$root.$emit('agenda-event-details', {
+      parent: {id: seriesId},
+      occurrence: {id: firstWaitingOccurrenceId},
+    }),
+  }}));
+}
 export function convertDates(event) {
   event.startDate = event.start && toDate(event.start) || null;
   event.endDate = event.end && toDate(event.end) || null;
