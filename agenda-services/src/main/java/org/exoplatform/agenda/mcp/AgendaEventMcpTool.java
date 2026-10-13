@@ -936,9 +936,11 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   /**
    * Keyword search over the agenda events the current user can access,
    * optionally restricted to a space. The search index has no date-range
-   * filter, so start and end are applied as a post-filter here. None
-   * when the {@code spaceId} names a space that is missing or that the user
-   * can't view.
+   * filter, so start and end are applied as a post-filter here. With a
+   * {@code spaceId}, only the events of that space's own calendar are kept:
+   * the index matches an event that merely invites the space too, and that one
+   * belongs to the owner of its calendar. None when the space is missing or
+   * the user can't view it.
    *
    * @param query the keywords, mandatory
    * @param start the window start, or blank for none
@@ -974,6 +976,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     return results.stream()
                   .filter(event -> startFilter == null || event.getEnd() == null || !event.getEnd().isBefore(startFilter))
                   .filter(event -> endFilter == null || event.getStart() == null || !event.getStart().isAfter(endFilter))
+                  .filter(event -> isOwnedByOneOf(event.getCalendarId(), spaceIdentityIds))
                   .map(this::toAgendaEventModel)
                   .filter(Objects::nonNull)
                   .toList();
@@ -1358,6 +1361,25 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                                getCurrentUserAclIdentity())) {
       throw new IllegalAccessException(MSG_USER_NOT_ALLOWED_TO_CREATE_EVENT.formatted(spaceId));
     }
+  }
+
+  /**
+   * Tells whether the owner of a calendar is one of the given identities. An
+   * event belongs to the space that owns its calendar, and an event that only
+   * invites the space belongs to its own calendar's owner, so the scoped
+   * search keeps an event only when this holds.
+   *
+   * @param calendarId the calendar the event is in
+   * @param ownerIds the owner identity ids to match, or null to match any
+   * @return true when {@code ownerIds} is null, or the calendar exists and its
+   *         owner is one of them
+   */
+  private boolean isOwnedByOneOf(long calendarId, List<Long> ownerIds) {
+    if (ownerIds == null) {
+      return true;
+    }
+    Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
+    return calendar != null && ownerIds.contains(calendar.getOwnerId());
   }
 
   /**

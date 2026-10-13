@@ -37,7 +37,10 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Tells which space an agenda event belongs to, for the space scope of the
  * agenda tools that reach an event by its id: the space that owns the
- * calendar the event is in. An event of a personal calendar belongs to no
+ * calendar the event is in. The rule is one for every scoped tool: an event
+ * belongs to the space that owns its calendar, and a space that is only
+ * invited does not own it, so the scoped listing and the scoped search keep
+ * the same events as this resolver. An event of a personal calendar belongs to no
  * space, and so does one of a calendar whose owner is gone, and a missing
  * event. The event's attendees play no part: an event of a space calendar
  * that invites people from outside is still that space's, and an event of a
