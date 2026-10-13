@@ -17,7 +17,9 @@
 package org.exoplatform.agenda.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -155,6 +157,20 @@ class SeriesDatesTest {
     SeriesDates dates = dates(series, List.of(dateRow(series, START.plusHours(1), EventStatus.CONFIRMED)), BEFORE);
 
     assertEquals(START.plusHours(2).withZoneSameInstant(ZoneOffset.UTC), dates.firstCountedDate(START.plusHours(1), null));
+  }
+
+  /**
+   * The row of a day the rule no longer gives is over at the series' time of
+   * day on that day, plus its length, not at its own id or dates, which are
+   * at another time.
+   */
+  @Test
+  void aRowOfADayTheRuleNoLongerGivesIsOverAtTheSeriesTimeOfDay() {
+    Event series = series(START, HOUR, EventRecurrenceFrequency.WEEKLY, 10, null);
+    Event row = dateRow(series, START.plusDays(1).withHour(1), EventStatus.CONFIRMED);
+
+    assertFalse(dates(series, List.of(row), START.plusDays(1).plus(HOUR).minusMinutes(10)).isOver(row));
+    assertTrue(dates(series, List.of(row), START.plusDays(1).plus(HOUR)).isOver(row));
   }
 
   /**
@@ -387,6 +403,19 @@ class SeriesDatesTest {
                           label + ": first counted date of [" + range[0] + ", " + range[1] + ")",
                           expectedFirstCountedDate(ends, ids, rows, now, range[0], range[1]),
                           dates.firstCountedDate(range[0], range[1]));
+                  }
+                  List<Map.Entry<Integer, SweptRow>> sweptRows = List.copyOf(rows.entrySet());
+                  for (int r = 0; r < sweptRows.size(); r++) {
+                    int index = sweptRows.get(r).getKey();
+                    int movedDays = sweptRows.get(r).getValue().movedDays();
+                    ZonedDateTime end = movedDays == 0 ? ends.get(index)
+                                                       : movedDates(series, starts.get(index), ends.get(index), movedDays)[1];
+                    boolean over = !end.isAfter(now);
+                    checks++;
+                    if (dates.isOver(dateRows.get(r)) != over) {
+                      mismatches.add(label + ": row of date " + index + " " + (over ? "over" : "not over") + " expected, its end "
+                          + end);
+                    }
                   }
                 }
               }
