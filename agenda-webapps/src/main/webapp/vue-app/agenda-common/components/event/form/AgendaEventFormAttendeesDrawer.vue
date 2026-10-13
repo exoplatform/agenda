@@ -300,6 +300,7 @@ export default {
         {value: 'TENTATIVE', icon: 'fas fa-question-circle', label: this.$t('agenda.tentative'), title: this.$t('agenda.filter.title.tentative'), color: null, colorClass: 'primary--text'},
         {value: 'DECLINED', icon: 'fas fa-times-circle', label: this.$t('agenda.declined'), title: this.$t('agenda.filter.title.declined'), color: null, colorClass: 'error-color'},
         {value: 'NEEDS_ACTION', icon: 'fas fa-info-circle', label: this.$t('agenda.needs_action'), title: this.$t('agenda.filter.title.needs.action'), color: 'grey', colorClass: null},
+        {value: 'WAITING', icon: 'fas fa-info-circle', label: this.$t('agenda.waiting'), title: this.$t('agenda.filter.title.waiting'), color: null, colorClass: 'info--text'},
       ];
     },
     activeStatusOption() {
@@ -358,6 +359,17 @@ export default {
       const others = attendees
         .filter(a => Number(a.identity.id) !== Number(creatorId))
         .sort((a1, a2) => {
+          // The waiting list closes the list, in the order its people asked:
+          // the order its seats are given in (US02)
+          const waits1 = a1.response === 'WAITING';
+          const waits2 = a2.response === 'WAITING';
+          if (waits1 !== waits2) {
+            return waits1 ? 1 : -1;
+          }
+          const askedFirst = waits1 && new Date(a1.responseDate).getTime() - new Date(a2.responseDate).getTime();
+          if (askedFirst) {
+            return askedFirst;
+          }
           const n1 = (a1.identity.profile && (a1.identity.profile.fullname || a1.identity.profile.fullName))
             || (a1.identity.space && a1.identity.space.displayName) || '';
           const n2 = (a2.identity.profile && (a2.identity.profile.fullname || a2.identity.profile.fullName))
