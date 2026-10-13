@@ -36,10 +36,12 @@ import java.util.stream.Collectors;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.function.ThrowingRunnable;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventStatus;
+import org.exoplatform.agenda.exception.CapacityBelowAcceptedException;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.model.RemoteEvent;
@@ -159,12 +161,11 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
     answer(eventId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
     answer(eventId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
 
-    assertCode("agenda.capacity.belowAccepted",
-               assertThrows(IllegalArgumentException.class, () -> patch(eventId, CAPACITY, "1")));
+    assertBlocks(null, () -> patch(eventId, CAPACITY, "1"));
     Event toSave = agendaEventService.getEventById(eventId);
     toSave.setCapacity(1);
     toSave.setSummary("refused");
-    assertCode("agenda.capacity.belowAccepted", assertThrows(IllegalArgumentException.class, () -> save(toSave, false)));
+    assertBlocks(null, () -> save(toSave, false));
     Event stored = agendaEventService.getEventById(eventId);
     assertEquals(3, capacityOf(eventId));
     assertEquals("eventSummary", stored.getSummary());
@@ -580,8 +581,7 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
     patchAll(seriesId, CAPACITY, "3");
 
     assertEquals(3, capacityOf(seriesId));
-    assertCode("agenda.capacity.belowAccepted",
-               assertThrows(IllegalArgumentException.class, () -> patchAll(seriesId, CAPACITY, "2")));
+    assertBlocks(dates.get(1).toLocalDate(), () -> patchAll(seriesId, CAPACITY, "2"));
     assertEquals(3, capacityOf(seriesId));
   }
 
@@ -632,8 +632,7 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
     long dateId = agendaEventService.getExceptionalOccurrenceEvent(seriesId, firstDate).getId();
     assertEquals(3, capacityOf(dateId));
 
-    assertCode("agenda.capacity.belowAccepted",
-               assertThrows(IllegalArgumentException.class, () -> patchAll(seriesId, CAPACITY, "2")));
+    assertBlocks(firstDate.toLocalDate(), () -> patchAll(seriesId, CAPACITY, "2"));
 
     patch(seriesId, CAPACITY, "2");
 
@@ -884,8 +883,8 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
       setAnswer(todayId, identity, null, null, EventAttendeeResponse.ACCEPTED);
     }
 
-    assertCode("agenda.capacity.belowAccepted",
-               assertThrows(IllegalArgumentException.class, () -> patchAll(seriesId, CAPACITY, "2")));
+    // Named by its day in New York, the day of its UTC midnight id
+    assertBlocks(start.toLocalDate(), () -> patchAll(seriesId, CAPACITY, "2"));
   }
 
   /**
@@ -923,8 +922,7 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
     assertEquals("today's row is kept", todayRowId, agendaEventService.getExceptionalOccurrenceEvent(seriesId, todayId).getId());
     accepting.forEach(identity -> setAnswer(todayRowId, identity, null, null, EventAttendeeResponse.ACCEPTED));
 
-    assertCode("agenda.capacity.belowAccepted",
-               assertThrows(IllegalArgumentException.class, () -> patchAll(seriesId, CAPACITY, "2")));
+    assertBlocks(today, () -> patchAll(seriesId, CAPACITY, "2"));
   }
 
   /**
@@ -950,8 +948,97 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
       setAnswer(rowId, identity, null, null, EventAttendeeResponse.ACCEPTED);
     }
 
-    assertCode("agenda.capacity.belowAccepted",
-               assertThrows(IllegalArgumentException.class, () -> patchAll(seriesId, CAPACITY, "2")));
+    // Named by the day it was moved to, not the day over its id keeps
+    assertBlocks(comingStart.toLocalDate(), () -> patchAll(seriesId, CAPACITY, "2"));
+  }
+
+  /**
+   * A limit of a series below the Yes answers of a date individually modified
+   * and of a later date of its rule is refused naming the first of the two
+   * (D16).
+   *
+   * @throws Exception when a write fails otherwise
+   */
+  @Test
+  public void aSeriesLimitRefusedNamesAnEarlierModifiedDateFirst() throws Exception {
+    Event series = openSeries(3, testuser2Identity, testuser3Identity, testuser4Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    for (Identity identity : List.of(testuser2Identity, testuser3Identity, testuser4Identity)) {
+      answerDate(seriesId, dates.get(0), identity, EventAttendeeResponse.ACCEPTED);
+      agendaEventAttendeeService.sendUpcomingEventResponse(seriesId, dates.get(2), id(identity), EventAttendeeResponse.ACCEPTED, true);
+    }
+
+    assertBlocks(dates.get(0).toLocalDate(), () -> patchAll(seriesId, CAPACITY, "2"));
+  }
+
+  /**
+   * A limit of a series below the Yes answers of a date of its rule and of a
+   * later date individually modified is refused naming the first of the two
+   * (D16).
+   *
+   * @throws Exception when a write fails otherwise
+   */
+  @Test
+  public void aSeriesLimitRefusedNamesAnEarlierDateOfItsRuleFirst() throws Exception {
+    Event series = openSeries(3, testuser2Identity, testuser3Identity, testuser4Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    for (Identity identity : List.of(testuser2Identity, testuser3Identity, testuser4Identity)) {
+      answerDate(seriesId, dates.get(2), identity, EventAttendeeResponse.ACCEPTED);
+      agendaEventAttendeeService.sendUpcomingEventResponse(seriesId, dates.get(1), id(identity), EventAttendeeResponse.ACCEPTED, true);
+    }
+
+    assertBlocks(dates.get(1).toLocalDate(), () -> patchAll(seriesId, CAPACITY, "2"));
+  }
+
+  /**
+   * A date of a series that blocks its limit is named by its day in the
+   * series' zone: east of UTC, a date at 08:00 is on the day after its UTC
+   * one.
+   *
+   * @throws Exception when a write fails otherwise
+   */
+  @Test
+  public void aSeriesLimitRefusedNamesItsDateByItsDayInTheSeriesZone() throws Exception {
+    ZoneId tokyo = ZoneId.of("Asia/Tokyo");
+    ZonedDateTime start = LocalDate.now(tokyo).plusDays(60).atTime(8, 0).atZone(tokyo);
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setTimeZoneId(tokyo);
+    event.getRecurrence().setUntil(null);
+    event.getRecurrence().setCount(3);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(true);
+    event.setCapacity(2);
+    long seriesId = createEvent(event, id(testuser1Identity), testuser2Identity, testuser3Identity).getId();
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertBlocks(start.toLocalDate(), () -> patchAll(seriesId, CAPACITY, "1"));
+  }
+
+  /**
+   * A date of an all-day series that blocks its limit is named by its own day,
+   * west of UTC too, not by the day before its UTC midnight id falls on there.
+   *
+   * @throws Exception when a write fails otherwise
+   */
+  @Test
+  public void anAllDaySeriesLimitRefusedNamesItsDateByItsDayWestOfUtc() throws Exception {
+    ZoneId newYork = ZoneId.of("America/New_York");
+    ZonedDateTime start = LocalDate.now(newYork).plusDays(60).atStartOfDay(newYork);
+    Event event = newEventInstance(start, start, true);
+    event.setTimeZoneId(newYork);
+    event.getRecurrence().setUntil(null);
+    event.getRecurrence().setCount(3);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(true);
+    event.setCapacity(2);
+    long seriesId = createEvent(event, id(testuser1Identity), testuser2Identity, testuser3Identity).getId();
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertBlocks(start.toLocalDate(), () -> patchAll(seriesId, CAPACITY, "1"));
   }
 
   /**
@@ -1293,6 +1380,16 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
 
   private static void assertCode(String code, IllegalArgumentException exception) {
     assertEquals(code, exception.getMessage());
+  }
+
+  /**
+   * Asserts the write refuses a limit below the Yes answers, naming the date
+   * given, or no date.
+   */
+  private static void assertBlocks(LocalDate date, ThrowingRunnable write) {
+    CapacityBelowAcceptedException refusal = assertThrows(CapacityBelowAcceptedException.class, write);
+    assertEquals("agenda.capacity.belowAccepted", refusal.getMessage());
+    assertEquals(date, refusal.getDate());
   }
 
   private static List<Broadcast> broadcasts(String name) {
