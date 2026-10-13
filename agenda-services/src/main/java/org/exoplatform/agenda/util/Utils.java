@@ -782,6 +782,11 @@ public class Utils {
     if (!Objects.equals(newEvent.getOpen(), oldEvent.getOpen())) {
       eventModification.addModificationType(AgendaEventModificationType.OPEN_UPDATED);
     }
+    // A limit not stated is no limit, as the column stores it
+    if (!Objects.equals(Objects.requireNonNullElse(newEvent.getCapacity(), 0),
+                        Objects.requireNonNullElse(oldEvent.getCapacity(), 0))) {
+      eventModification.addModificationType(AgendaEventModificationType.CAPACITY_UPDATED);
+    }
     if (newEvent.getCalendarId() != oldEvent.getCalendarId()) {
       eventModification.addModificationType(AgendaEventModificationType.OWNER_UPDATED);
     }

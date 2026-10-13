@@ -694,6 +694,11 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     } catch (AgendaException e) {
       LOG.debug("Error in event validation", e);
       return Response.serverError().entity(e.getAgendaExceptionType().getCompleteMessage()).build();
+    } catch (IllegalArgumentException e) {
+      // A value the event's invariants refuse is a caller error, its message a
+      // code, as for a patch
+      LOG.debug("Invalid event created", e);
+      return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
     } catch (Exception e) {
       LOG.warn("Error creating an event", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -720,7 +725,13 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                               @QueryParam(
                                 "timeZoneId"
                               )
-                              String timeZoneId) {
+                              String timeZoneId,
+                              @Parameter(
+                                  description = "Whether the user confirmed that closing the event removes its capacity limit and confirms its waiting list"
+                              )
+                              @Schema(defaultValue = "false")
+                              @QueryParam("confirmClose")
+                              boolean confirmClose) {
     if (eventEntity == null) {
       return Response.status(Status.BAD_REQUEST).entity(AgendaExceptionType.EVENT_MANDATORY.getCompleteMessage()).build();
     }
@@ -777,11 +788,17 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                      dateOptions,
                                      remoteEvent,
                                      eventEntity.isSendInvitation(),
+                                     confirmClose,
                                      userIdentityId);
       return getEventById(event.getId(), "all", userTimeZoneId, false);
     } catch (AgendaException e) {
       LOG.debug("Error in event validation", e);
       return Response.serverError().entity(e.getAgendaExceptionType().getCompleteMessage()).build();
+    } catch (IllegalArgumentException e) {
+      // A value the event's invariants refuse is a caller error, its message a
+      // code, as for a patch
+      LOG.debug("Invalid update of event {}", eventEntity.getId(), e);
+      return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
     } catch (IllegalAccessException e) {
       LOG.error("User '{}' attempts to update a non authorized event", RestUtils.getCurrentUser(), e);
       return Response.status(Status.UNAUTHORIZED).build();
@@ -832,6 +849,12 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                     )
                                     String timeZoneId,
                                     @Parameter(
+                                        description = "Whether the user confirmed that closing the event removes its capacity limit and confirms its waiting list"
+                                    )
+                                    @Schema(defaultValue = "false")
+                                    @QueryParam("confirmClose")
+                                    boolean confirmClose,
+                                    @Parameter(
                                         description = "Event fields to patch",
                                         required = true
                                     )
@@ -880,6 +903,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                              eventFields,
                                              updateAllOccurrences,
                                              sendInvitations,
+                                             confirmClose,
                                              userIdentityId);
       }
 
