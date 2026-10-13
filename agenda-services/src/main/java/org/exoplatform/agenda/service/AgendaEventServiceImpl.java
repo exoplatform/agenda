@@ -2139,6 +2139,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     event = agendaEventStorage.updateEvent(event);
     applyCapacityChange(originalEvent, event);
+    // A switch to a date poll starts every answer over but the modifier's, the
+    // waiting list included, in the step that switches it, atomic with the
+    // limit it removes (D19): nobody is promoted, and the listener of the
+    // update finds nothing left to reset. A poll, never open nor limited, and
+    // an event that holds no capacity state leave the reset to that listener.
+    if (decidesCapacity && becomesDatePoll(originalEvent, event)) {
+      resetResponses(eventId, Collections.singleton(userIdentityId));
+    }
 
     // A patch meant for the whole series reaches the dates individually
     // modified instead of deleting them, and leaves the properties customised
@@ -2968,6 +2976,19 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // Not part of the attendee service's contract: a promotion runs only
     // inside the decide step that gave the seats
     ((AgendaEventAttendeeServiceImpl) attendeeService).promoteWaitingAttendees(eventId);
+  }
+
+  private void resetResponses(long eventId, Set<Long> keptIdentityIds) {
+    // The step's own reset, not the service's, which would take the lock this
+    // step already holds
+    ((AgendaEventAttendeeServiceImpl) attendeeService).resetResponses(eventId, keptIdentityIds);
+  }
+
+  /**
+   * @return whether a save turns an event into a date poll
+   */
+  private static boolean becomesDatePoll(Event before, Event after) {
+    return before.getStatus() != EventStatus.TENTATIVE && after.getStatus() == EventStatus.TENTATIVE;
   }
 
   /**
