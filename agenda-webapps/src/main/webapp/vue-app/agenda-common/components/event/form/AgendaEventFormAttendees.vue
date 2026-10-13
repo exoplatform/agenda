@@ -23,7 +23,11 @@
       ref="attendeesDrawer"
       :event="event"
       @toggle-open="toggleOpen"
+      @change-capacity="changeCapacity"
       @initialized="$emit('initialized')" />
+    <agenda-capacity-close-confirm-dialog
+      v-if="confirmClosing"
+      ref="closeConfirm" />
   </div>
 </template>
 
@@ -33,6 +37,17 @@ export default {
     event: {
       type: Object,
       default: () => ({}),
+    },
+    /**
+     * Whether locking the event is confirmed at the padlock, for a host whose
+     * save asks nothing (D15): the event of an article, when it was loaded open
+     * with a limit. The server asks from the event as stored, so a limit the
+     * stepper removed since does not spare the question. The event form asks
+     * when it saves instead.
+     */
+    confirmClosing: {
+      type: Boolean,
+      default: false,
     },
   },
   computed: {
@@ -74,11 +89,25 @@ export default {
      * (the detail page patches instead, where the event already exists). On a
      * date of a series it travels through the scope dialog like every other
      * field of the form, which is what makes it answerable per date (US06).
+     * Where the host asks nothing when it saves, locking an event loaded open
+     * with a limit is confirmed here first, the host told once it is.
      *
      * @returns {void}
      */
     toggleOpen() {
       const open = !this.event.open;
+      if (!open && this.confirmClosing) {
+        this.$refs.closeConfirm.confirm()
+          .then(() => {
+            this.setOpen(false);
+            this.$emit('closing-confirmed');
+          })
+          .catch(() => null);
+        return;
+      }
+      this.setOpen(open);
+    },
+    setOpen(open) {
       this.$set(this.event, 'open', open);
       if (open) {
         // An open event excludes both participant permissions: the drawer
@@ -88,6 +117,16 @@ export default {
         this.$set(this.event, 'allowAttendeeToUpdate', false);
         this.$set(this.event, 'allowAttendeeToInvite', false);
       }
+    },
+    /**
+     * The limit is a form value like the padlock: saved with the event, and on
+     * a date of a series through the scope dialog of the save.
+     *
+     * @param {Number} capacity the limit chosen, 0 for none
+     * @returns {void}
+     */
+    changeCapacity(capacity) {
+      this.$set(this.event, 'capacity', capacity);
     },
     openDrawer() {
       this.$refs.attendeesDrawer.open();
