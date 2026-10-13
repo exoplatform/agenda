@@ -640,7 +640,8 @@ export default {
         this.initialized = true;
         return;
       }
-      const responseTypes = this.spaceContextId && this.eventType === 'allEvents' ? null : this.eventType === 'declinedEvent' ? ['DECLINED']:['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
+      // An event the user waits for a seat at is still theirs to attend
+      const responseTypes = this.spaceContextId && this.eventType === 'allEvents' ? null : this.eventType === 'declinedEvent' ? ['DECLINED']:['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE', 'WAITING'];
       // No shared calendar in a space agenda: the selection is the space
       const sharedCalendarIds = this.leftPanelAvailable ? this.sharedCalendarIds : [];
       // The calendars the selected owners subscribed to carry no attendee row:

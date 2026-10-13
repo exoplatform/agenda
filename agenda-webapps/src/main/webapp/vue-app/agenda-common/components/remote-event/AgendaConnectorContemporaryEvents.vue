@@ -99,9 +99,9 @@
  * The attendee responses that put an event on the viewer's schedule. Every
  * response but DECLINED: a meeting the viewer turned down is not on their
  * schedule, while one they have not answered yet is exactly what they need
- * to see before answering this one.
+ * to see before answering this one, a seat they wait for included.
  */
-const SCHEDULED_RESPONSES = ['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
+const SCHEDULED_RESPONSES = ['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE', 'WAITING'];
 
 export default {
   props: {
