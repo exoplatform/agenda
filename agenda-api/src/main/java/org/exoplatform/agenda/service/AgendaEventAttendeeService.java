@@ -232,7 +232,11 @@ public interface AgendaEventAttendeeService {
    * {@link EventAttendeeResponse#WAITING} which asks for the same, is decided
    * date by date: stored as a Yes over the dates with a seat free or already
    * held, and as {@link EventAttendeeResponse#WAITING} over the others, one
-   * attendee row per run of dates with the same outcome.
+   * attendee row per run of dates with the same outcome. The answer reaches
+   * the row of each date individually modified the user attends, from the
+   * date answered from; on the row of one that is over, it is stored as with
+   * no limit, a {@link EventAttendeeResponse#WAITING} asked becoming a Yes:
+   * no seat is decided there.
    *
    * @param eventId Technical identifier of the series
    * @param occurrenceId occurrence id of the date the answer starts from
@@ -350,7 +354,11 @@ public interface AgendaEventAttendeeService {
    * On an event with a capacity limit, a Yes, or
    * {@link EventAttendeeResponse#WAITING} which asks for the same, is stored
    * as a Yes when a seat is free at the date or the attendee already holds
-   * one, and as {@link EventAttendeeResponse#WAITING} otherwise.
+   * one, and as {@link EventAttendeeResponse#WAITING} otherwise. An answer to
+   * every date of a series reaches the row of each date individually modified
+   * the user attends; on the row of one that is over, it is stored as with no
+   * limit, a {@link EventAttendeeResponse#WAITING} asked becoming a Yes: no
+   * seat is decided there.
    *
    * @param eventId Technical identifier of the series, or of the event when
    *          no date is given
