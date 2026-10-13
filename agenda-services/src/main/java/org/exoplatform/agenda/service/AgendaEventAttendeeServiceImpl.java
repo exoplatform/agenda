@@ -470,10 +470,12 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     Event ownRow = null;
     EventAttendeeResponse responseOnOwnRow = null;
     ZonedDateTime firstWaitingOccurrenceId = outcome.firstWaitingOccurrenceId();
-    for (Event occurrence : eventStorage.getExceptionalOccurrences(eventId)) {
+    List<Event> occurrences = eventStorage.getExceptionalOccurrences(eventId);
+    SeriesDates seriesDates = new SeriesDates(series, () -> occurrences, ZonedDateTime.now(ZoneOffset.UTC));
+    for (Event occurrence : occurrences) {
       if (isOnOrAfterSeriesDate(series, occurrenceDateOf(occurrence), fromDate)
           && isEventAttendee(occurrence.getId(), identityId)) {
-        EventAttendee propagated = saveEventAttendee(occurrence, identityId, response, false);
+        EventAttendee propagated = saveEventAttendee(occurrence, identityId, response, false, decidesSeat(occurrence, seriesDates));
         firstWaitingOccurrenceId = earliestWaiting(firstWaitingOccurrenceId, occurrence, propagated);
         // The date answered from has a row of its own, a pool deciding alone:
         // the answer stored at that date is the one its row stores, the first
@@ -636,18 +638,33 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     EventResponseOutcome outcome = answerPool(event, null, identityId, response, broadcast);
     ZonedDateTime firstWaitingOccurrenceId = outcome.firstWaitingOccurrenceId();
 
-    // Apply modification on exceptional occurrences as well
+    // Apply modification on exceptional occurrences as well, deciding no seat
+    // on a date over
     if (event.getRecurrence() != null) {
+      SeriesDates seriesDates = new SeriesDates(event,
+                                                () -> eventStorage.getExceptionalOccurrences(eventId),
+                                                ZonedDateTime.now(ZoneOffset.UTC));
       List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceIds(eventId);
       for (long exceptionalOccurenceEventId : exceptionalOccurenceEventIds) {
         if (isEventAttendee(exceptionalOccurenceEventId, identityId)) {
           Event occurrence = eventStorage.getEventById(exceptionalOccurenceEventId);
-          EventAttendee propagated = saveEventAttendee(occurrence, identityId, response, false);
+          EventAttendee propagated = saveEventAttendee(occurrence, identityId, response, false, decidesSeat(occurrence, seriesDates));
           firstWaitingOccurrenceId = earliestWaiting(firstWaitingOccurrenceId, occurrence, propagated);
         }
       }
     }
     return new EventResponseOutcome(outcome.response(), firstWaitingOccurrenceId);
+  }
+
+  /**
+   * @param occurrence the row of a date of a series an answer to the series is
+   *          copied to
+   * @param seriesDates the dates of that series
+   * @return whether the copy decides a seat there: not on a date over
+   */
+  private static boolean decidesSeat(Event occurrence, SeriesDates seriesDates) {
+    return occurrence.getOccurrence() == null || occurrence.getOccurrence().getId() == null
+        || !seriesDates.isOver(occurrence);
   }
 
   /**
@@ -1133,7 +1150,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (pool.getRecurrence() != null) {
       return answerSeries(pool, fromDate, identityId, requested, userResponseSent);
     }
-    EventAttendee stored = saveEventAttendee(pool, identityId, requested, userResponseSent);
+    EventAttendee stored = saveEventAttendee(pool, identityId, requested, userResponseSent, true);
     return new EventResponseOutcome(stored.getResponse(), earliestWaiting(null, pool, stored));
   }
 
@@ -1347,18 +1364,23 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * seat given up, seated rows merged), the waiting list is promoted in the
    * same transaction while seats are free. An answer stored as a Yes that
    * leaves the pool full while it is not marked marks it (see
-   * {@link #markCapacityReached(Event)}).
+   * {@link #markCapacityReached(Event)}). On a pool that decides no seat, the
+   * answer is stored as with no limit, a place on the waiting list asked
+   * becoming a Yes, and nobody is promoted.
    *
    * @param pool the stored row answered, as read under the lock
    * @param identityId the attendee's identity identifier
    * @param requested the answer given
    * @param userResponseSent whether the attendee sent it, reported as such
+   * @param decidesSeat whether the answer decides a seat on the pool: not on
+   *          the row of a date over that an answer to the series is copied to
    * @return the attendee row stored
    */
   private EventAttendee saveEventAttendee(Event pool,
                                           long identityId,
                                           EventAttendeeResponse requested,
-                                          boolean userResponseSent) {
+                                          boolean userResponseSent,
+                                          boolean decidesSeat) {
     long eventId = pool.getId();
     EventAttendeeList eventAttendees = attendeeStorage.getEventAttendees(eventId, identityId);
     EventAttendee attendee = eventAttendees.getEventAttendee(identityId, null);
@@ -1368,7 +1390,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     // rows, not only from the first one
     List<EventAttendee> replacedRows = eventAttendees.getEventAttendees(identityId);
     long seatsHeld = replacedRows.stream().filter(row -> row.getResponse() == EventAttendeeResponse.ACCEPTED).count();
-    EventAttendeeResponse response = decideSeat(pool, identityId, requested, seatsHeld > 0);
+    EventAttendeeResponse response = decidesSeat ? decideSeat(pool, identityId, requested, seatsHeld > 0)
+                                                 : SeatRule.decide(requested, null, 0, 0);
     // The date changes only with the answer stored: when every replaced row
     // already holds it, the earliest of their dates is kept, a null one
     // included; now otherwise, a Yes again after a No on some dates included
@@ -1400,10 +1423,10 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     }
 
     // Fewer seats held than before: a seat given up, or rows merged into one
-    if (seatsHeld > (response == EventAttendeeResponse.ACCEPTED ? 1 : 0)) {
+    if (decidesSeat && seatsHeld > (response == EventAttendeeResponse.ACCEPTED ? 1 : 0)) {
       promoteWaitingAttendees(eventId);
     }
-    if (response == EventAttendeeResponse.ACCEPTED) {
+    if (decidesSeat && response == EventAttendeeResponse.ACCEPTED) {
       markCapacityReached(pool);
     }
     return attendee;
