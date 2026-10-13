@@ -90,26 +90,34 @@ export default {
     confirmUpcomingEvent() {
       this.loading = true;
       this.$eventService.sendEventResponse(this.event.parent.id, this.event.occurrence.id, this.eventResponse, true)
-        .then(() => {
-          this.$root.$emit('agenda-event-response-sent', this.event.parent, null, this.eventResponse);
-          this.dialog = false;
-        })
+        .then(outcome => this.seriesAnswered(outcome))
         .finally(() => this.loading = false);
     },
     confirmRecurrentEvent() {
       this.loading = true;
       this.$eventService.sendEventResponse(this.event.parent.id, null, this.eventResponse)
-        .then(() => {
-          this.$root.$emit('agenda-event-response-sent', this.event.parent, null, this.eventResponse);
-          this.dialog = false;
-        })
+        .then(outcome => this.seriesAnswered(outcome))
         .finally(() => this.loading = false);
+    },
+    /**
+     * An answer for several dates is decided date by date: a seat where one
+     * is free, the waiting list elsewhere, said once when some date waits.
+     *
+     * @param {Object} outcome the answer decided at the date answered, and the
+     *          first date it waits for, if any
+     * @returns {void}
+     */
+    seriesAnswered(outcome) {
+      this.$root.$emit('agenda-event-response-sent', this.event.parent, null, outcome && outcome.response || this.eventResponse);
+      this.dialog = false;
+      this.$agendaUtils.announcePartlyWaiting(this, this.event.parent.id, outcome && outcome.firstWaitingOccurrenceId);
     },
     confirmOccurrenceEvent() {
       this.loading = true;
       this.$eventService.sendEventResponse(this.event.parent.id, this.event.occurrence.id, this.eventResponse)
-        .then(() => {
-          this.$root.$emit('agenda-event-response-sent', this.event, this.event.occurrence.id, this.eventResponse);
+        .then(outcome => {
+          // The server decides the seat: what follows reads its answer
+          this.$root.$emit('agenda-event-response-sent', this.event, this.event.occurrence.id, outcome && outcome.response || this.eventResponse);
           this.dialog = false;
         })
         .finally(() => this.loading = false);

@@ -107,6 +107,7 @@ export default {
       case 'ACCEPTED': return null;
       case 'TENTATIVE': return null;
       case 'DECLINED': return null;
+      case 'WAITING': return null;
       default: return 'grey';
       }
     },
@@ -115,6 +116,7 @@ export default {
       case 'ACCEPTED': return 'success-color';
       case 'TENTATIVE': return 'primary--text';
       case 'DECLINED': return 'error-color';
+      case 'WAITING': return 'info--text';
       default: return null;
       }
     },
@@ -123,6 +125,7 @@ export default {
       case 'ACCEPTED': return this.$t('agenda.attendee.title.accepted');
       case 'TENTATIVE': return this.$t('agenda.attendee.title.tentative');
       case 'DECLINED': return this.$t('agenda.attendee.title.declined');
+      case 'WAITING': return this.$t('agenda.attendee.title.waiting');
       default: return this.$t('agenda.attendee.title.needs.action');
       }
     },
