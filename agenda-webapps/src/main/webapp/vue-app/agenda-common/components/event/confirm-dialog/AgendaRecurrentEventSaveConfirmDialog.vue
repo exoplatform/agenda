@@ -188,6 +188,8 @@ export default {
             // events" would silently drop the change the organiser just
             // made
             recurrentEvent.open = this.event.open;
+            // The limit too, a form value since eXIP 7.3.0.21
+            recurrentEvent.capacity = this.event.capacity;
             recurrentEvent.summary = this.event.summary;
             recurrentEvent.dateOptions = this.event.dateOptions || [];
             if (this.event.recurrence) {

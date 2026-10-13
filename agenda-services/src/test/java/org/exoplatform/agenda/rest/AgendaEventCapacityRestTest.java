@@ -19,6 +19,7 @@ package org.exoplatform.agenda.rest;
 import static org.junit.Assert.assertEquals;
 
 import java.net.URI;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.HashMap;
@@ -34,6 +35,7 @@ import org.mockito.Mockito;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.rest.model.CapacityErrorEntity;
 import org.exoplatform.agenda.rest.model.EventEntity;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
 import org.exoplatform.agenda.util.RestUtils;
@@ -153,6 +155,34 @@ public class AgendaEventCapacityRestTest extends BaseAgendaEventTest {
     Response response = eventRest().updateEventFields(eventId, false, false, "UTC", false, fields);
 
     assertBadRequest("agenda.capacity.notAllowed", response);
+  }
+
+  /**
+   * A limit of a series below the Yes answers of one of its dates is a 400
+   * whose body names that date beside the code (D16).
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aSeriesLimitBelowTheYesAnswersOfADateIsABadRequestNamingIt() throws Exception {
+    ZonedDateTime start = LocalDate.now(ZoneOffset.UTC).plusDays(60).atTime(9, 0).atZone(ZoneOffset.UTC);
+    Event series = newEventInstance(start, start.plusHours(1), false);
+    series.setTimeZoneId(ZoneOffset.UTC);
+    series.getRecurrence().setUntil(null);
+    series.getRecurrence().setCount(3);
+    series.setCalendarId(spaceCalendar.getId());
+    series.setOpen(true);
+    series.setCapacity(2);
+    long seriesId = createEvent(series, id(testuser1Identity), testuser2Identity, testuser3Identity).getId();
+    answer(seriesId, testuser2Identity);
+    answer(seriesId, testuser3Identity);
+    MultivaluedMap<String, String> fields = new MultivaluedMapImpl();
+    fields.putSingle("capacity", "1");
+
+    Response response = eventRest().updateEventFields(seriesId, true, false, "UTC", false, fields);
+
+    assertEquals("unexpected status, body: " + response.getEntity(), 400, response.getStatus());
+    assertEquals(new CapacityErrorEntity("agenda.capacity.belowAccepted", start.toLocalDate().toString()), response.getEntity());
   }
 
   private static void assertBadRequest(String code, Response response) {

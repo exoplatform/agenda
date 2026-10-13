@@ -249,6 +249,18 @@ export function toDate(date) {
     return new Date(date);
   }
 }
+
+/**
+ * @param {String} day a day as the server names it, yyyy-MM-dd
+ * @returns {String} that day as the user reads it, in the portal's language
+ */
+export function formatDay(day) {
+  return toDate(day).toLocaleDateString(eXo.env.portal.language, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
 export function convertDates(event) {
   event.startDate = event.start && toDate(event.start) || null;
   event.endDate = event.end && toDate(event.end) || null;
