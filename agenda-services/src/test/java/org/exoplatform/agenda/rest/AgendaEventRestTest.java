@@ -139,7 +139,7 @@ class AgendaEventRestTest {
     when(agendaEventService.getEventById(eq(EVENT_ID), any(), anyLong())).thenReturn(new Event());
     Mockito.doThrow(new IllegalAccessException("not allowed"))
            .when(agendaEventService)
-           .updateEventFields(eq(EVENT_ID), any(), anyBoolean(), anyBoolean(), anyLong());
+           .updateEventFields(eq(EVENT_ID), any(), anyBoolean(), anyBoolean(), anyBoolean(), anyLong());
 
     Response response = patch(fields("open", "true"));
 
@@ -151,12 +151,22 @@ class AgendaEventRestTest {
     when(agendaEventService.getEventById(eq(EVENT_ID), any(), anyLong())).thenReturn(new Event());
     Mockito.doThrow(new IllegalArgumentException("agenda.openEvent.notAllowed"))
            .when(agendaEventService)
-           .updateEventFields(eq(EVENT_ID), any(), anyBoolean(), anyBoolean(), anyLong());
+           .updateEventFields(eq(EVENT_ID), any(), anyBoolean(), anyBoolean(), anyBoolean(), anyLong());
 
     Response response = patch(fields("open", "true"));
 
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
     assertEquals("agenda.openEvent.notAllowed", response.getEntity());
+  }
+
+  @Test
+  void aPatchCarriesTheClosingConfirmationToTheService() throws Exception {
+    when(agendaEventService.getEventById(eq(EVENT_ID), any(), anyLong())).thenReturn(new Event());
+
+    eventRest.updateEventFields(EVENT_ID, false, false, null, true, fields("open", "false"));
+
+    Mockito.verify(agendaEventService)
+           .updateEventFields(eq(EVENT_ID), any(), eq(false), eq(false), eq(true), eq(USER_IDENTITY_ID));
   }
 
   @Test
@@ -351,7 +361,7 @@ class AgendaEventRestTest {
   }
 
   private Response patch(MultivaluedMap<String, String> fields) {
-    return eventRest.updateEventFields(EVENT_ID, false, false, null, fields);
+    return eventRest.updateEventFields(EVENT_ID, false, false, null, false, fields);
   }
 
   private MultivaluedMap<String, String> fields(String name, String value) {
