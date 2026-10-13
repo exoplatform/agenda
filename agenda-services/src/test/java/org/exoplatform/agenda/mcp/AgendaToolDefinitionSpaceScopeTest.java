@@ -99,8 +99,8 @@ class AgendaToolDefinitionSpaceScopeTest {
    * Exactly the expected tools declare a space scope, by the space argument
    * or by the event they reach and the {@value AgendaEventSpaceScopeResolver#NAME}
    * resolver, well formed for what they are, a read or a write. A tool added,
-   * or one that stops declaring, fails here, and every refused tool carries
-   * none.
+   * or one that stops declaring, fails here, every write needs an approval,
+   * and every refused tool carries none.
    */
   @Test
   void declaredToolsAreTheExpectedOnes() {
@@ -124,6 +124,7 @@ class AgendaToolDefinitionSpaceScopeTest {
       boolean write = WRITES.contains(name);
       assertNotNull(tool.getAnnotations(), name);
       assertEquals(!write, McpToolSpaceScopeService.isReadTool(tool), name);
+      assertEquals(write, tool.isRequireApproval(), name);
       assertTrue(scope.isWellFormedFor(write), name);
       if (SPACE_TOOLS.contains(name)) {
         assertTrue(scope.isSpaceKind(), name);
