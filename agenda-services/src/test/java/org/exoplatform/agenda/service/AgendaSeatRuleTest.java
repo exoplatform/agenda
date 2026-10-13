@@ -1330,7 +1330,7 @@ public class AgendaSeatRuleTest extends BaseAgendaEventTest {
    */
   @Test
   public void aSaveOfTheWholeEventKeepsTheCapacityReachedMarkSetSinceItsRead() throws Exception {
-    Event event = limitedEvent(1, testuser2Identity);
+    Event event = openLimitedEvent(1, testuser2Identity);
     long eventId = event.getId();
     // Read from the database by this request: its row is in the persistence
     // context the save goes through
@@ -1376,7 +1376,7 @@ public class AgendaSeatRuleTest extends BaseAgendaEventTest {
    */
   @Test
   public void aChangeOfOneFieldKeepsTheCapacityReachedMarkClearedSinceItsRead() throws Exception {
-    Event event = limitedEvent(5, testuser2Identity);
+    Event event = openLimitedEvent(5, testuser2Identity);
     long eventId = event.getId();
     saveCapacityReachedDate(eventId, ZonedDateTime.now(ZoneOffset.UTC));
     // Read from the database by this request: its marked row is in the
@@ -1398,14 +1398,14 @@ public class AgendaSeatRuleTest extends BaseAgendaEventTest {
    * A change of one field of the event, in a request that read the event
    * before the answers marked its pool as having reached its capacity, leaves
    * the mark, and the event read again in that request, as the listeners of
-   * the change read it, carries it: no decide step follows to read the row
-   * afresh.
+   * the change read it, carries it: the decide step the change of an event
+   * with a limit runs in reads the row afresh.
    *
    * @throws Exception when the change fails
    */
   @Test
   public void aChangeOfOneFieldKeepsTheCapacityReachedMarkSetSinceItsRead() throws Exception {
-    Event event = limitedEvent(1, testuser2Identity);
+    Event event = openLimitedEvent(1, testuser2Identity);
     long eventId = event.getId();
     // Read from the database by this request: its row is in the persistence
     // context the change goes through
@@ -1429,7 +1429,7 @@ public class AgendaSeatRuleTest extends BaseAgendaEventTest {
    */
   @Test
   public void aSaveOfTheWholeEventFromItsCachedCopyReturnsTheStoredMark() throws Exception {
-    Event event = limitedEvent(1, testuser2Identity);
+    Event event = openLimitedEvent(1, testuser2Identity);
     long eventId = event.getId();
     assertNull("the cache is warm", agendaEventStorage.getEventById(eventId).getCapacityReachedDate());
     markInOtherTransaction(eventId);
@@ -1477,7 +1477,7 @@ public class AgendaSeatRuleTest extends BaseAgendaEventTest {
    */
   @Test
   public void aDateChangeStartsTheWaitingListOver() throws Exception {
-    Event event = limitedEvent(1, testuser2Identity, testuser3Identity);
+    Event event = openLimitedEvent(1, testuser2Identity, testuser3Identity);
     long eventId = event.getId();
     answer(eventId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
     answer(eventId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
@@ -1512,8 +1512,7 @@ public class AgendaSeatRuleTest extends BaseAgendaEventTest {
   public void aDateChangeOfASeriesStartsTheAnswersOfItsDatesOver() throws Exception {
     for (int capacity : List.of(0, 1)) {
       String label = "capacity " + capacity;
-      Event series = futureSeries(testuser2Identity, testuser3Identity);
-      setCapacity(series.getId(), capacity);
+      Event series = openFutureSeries(capacity, testuser2Identity, testuser3Identity);
       ZonedDateTime date = occurrenceIds(series).get(1);
       answerDate(series.getId(), date, testuser2Identity, EventAttendeeResponse.ACCEPTED);
       answerDate(series.getId(), date, testuser3Identity, EventAttendeeResponse.ACCEPTED);
@@ -1578,7 +1577,7 @@ public class AgendaSeatRuleTest extends BaseAgendaEventTest {
    */
   @Test
   public void theSaversOwnYesWaitsOnAFullEvent() throws Exception {
-    Event event = limitedEvent(1, testuser2Identity);
+    Event event = openLimitedEvent(1, testuser2Identity);
     long eventId = event.getId();
     answer(eventId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
 
@@ -1632,12 +1631,39 @@ public class AgendaSeatRuleTest extends BaseAgendaEventTest {
   }
 
   /**
+   * An event of no series, starting in sixty days, open in the space's
+   * calendar with the capacity given: the only event a full save keeps a
+   * limit on, which the first test user creates without attending it.
+   */
+  private Event openLimitedEvent(int capacity, Identity... attendees) throws Exception {
+    ZonedDateTime start = ZonedDateTime.now().plusDays(60).withNano(0).withSecond(0).withMinute(0);
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setRecurrence(null);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(true);
+    event.setCapacity(capacity);
+    return createEvent(event, id(testuser1Identity), attendees);
+  }
+
+  /**
    * A daily series of three dates starting in sixty days, in the first test
    * user's calendar, who is not one of its attendees.
    */
   private Event futureSeries(Identity... attendees) throws Exception {
     ZonedDateTime start = ZonedDateTime.now().plusDays(60).withNano(0).withSecond(0).withMinute(0);
     return createEvent(newEventInstance(start, start.plusHours(1), false), id(testuser1Identity), attendees);
+  }
+
+  /**
+   * The same series, open in the space's calendar with the capacity given.
+   */
+  private Event openFutureSeries(int capacity, Identity... attendees) throws Exception {
+    ZonedDateTime start = ZonedDateTime.now().plusDays(60).withNano(0).withSecond(0).withMinute(0);
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(true);
+    event.setCapacity(capacity);
+    return createEvent(event, id(testuser1Identity), attendees);
   }
 
   /**
