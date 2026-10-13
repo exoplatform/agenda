@@ -40,8 +40,10 @@ import java.util.Locale;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
+import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
 import org.exoplatform.agenda.constant.EventStatus;
@@ -1293,6 +1295,36 @@ class AgendaEventMcpToolTest {
                                   tool.searchAgendaEvents("meeting", "2026-08-01T00:00:00Z", "2026-08-02T00:00:00Z", null);
 
     assertTrue(models.isEmpty());
+  }
+
+  /**
+   * A scoped listing whose space can't be resolved reads nothing, and never the user's whole agenda.
+   */
+  @Test
+  void getAgendaEventsOfAMissingOrUnviewableSpaceReturnsNoEvents() throws Exception {
+    try (MockedStatic<SpaceUtils> spaceUtils = Mockito.mockStatic(SpaceUtils.class)) {
+      spaceUtils.when(() -> SpaceUtils.getSpaceIdentityIds(any(), any())).thenReturn(Collections.emptyList());
+
+      AgendaEventCollectionModel model = tool.getAgendaEvents(null, null, SPACE_ID, null);
+
+      assertTrue(model.getEvents().isEmpty());
+      verify(agendaEventService, never()).getEvents(any(), any(), anyLong());
+    }
+  }
+
+  /**
+   * A scoped search whose space can't be resolved finds nothing, and never the user's whole agenda.
+   */
+  @Test
+  void searchAgendaEventsOfAMissingOrUnviewableSpaceReturnsNoEvents() {
+    try (MockedStatic<SpaceUtils> spaceUtils = Mockito.mockStatic(SpaceUtils.class)) {
+      spaceUtils.when(() -> SpaceUtils.getSpaceIdentityIds(any(), any())).thenReturn(Collections.emptyList());
+
+      List<AgendaEventModel> models = tool.searchAgendaEvents("kickoff", null, null, SPACE_ID);
+
+      assertTrue(models.isEmpty());
+      verify(agendaEventService, never()).search(any());
+    }
   }
 
   @SuppressWarnings("unused")

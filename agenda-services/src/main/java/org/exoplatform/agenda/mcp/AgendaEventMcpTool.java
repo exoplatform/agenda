@@ -221,6 +221,18 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     this.userAcl = userAcl;
   }
 
+  /**
+   * Lists the current user's events from a start date, up to an end date or a
+   * limit. With a {@code spaceId}, only the events of that space's calendar
+   * are listed, and none when the space is missing or the user can't view it.
+   *
+   * @param start the window start, now when blank
+   * @param end the window end, or blank to use the limit
+   * @param spaceId the space to restrict to, or null or 0 for none
+   * @param limit the maximum number of events
+   * @return the events of the window
+   * @throws IllegalAccessException when the user may not read the events
+   */
   public AgendaEventCollectionModel getAgendaEvents(String start,
                                                     String end,
                                                     Long spaceId,
@@ -242,6 +254,10 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     long userIdentityId = getCurrentUserIdentityId();
     List<Long> ownerIds = spaceId == null || spaceId.longValue() == 0 ? null :
                                                                       getSpaceIdentityIds(Collections.singletonList(spaceId));
+    if (ownerIds != null && ownerIds.isEmpty()) {
+      // the scope's space is missing or not viewable: no owner filter would mean the whole agenda
+      return new AgendaEventCollectionModel(Collections.emptyList(), start, end, limit);
+    }
     EventFilter eventFilter = new EventFilter(userIdentityId,
                                               ownerIds,
                                               List.of(EventAttendeeResponse.ACCEPTED,
@@ -917,8 +933,19 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     return new ConferenceModel(conference.getType(), conference.getUrl());
   }
 
-  // Keyword search over agenda events the current user can access, optionally restricted to a space.
-  // Note: the underlying search index has no date-range filter, so start/end are applied as a post-filter here.
+  /**
+   * Keyword search over the agenda events the current user can access,
+   * optionally restricted to a space. The search index has no date-range
+   * filter, so start and end are applied as a post-filter here. None
+   * when the {@code spaceId} names a space that is missing or that the user
+   * can't view.
+   *
+   * @param query the keywords, mandatory
+   * @param start the window start, or blank for none
+   * @param end the window end, or blank for none
+   * @param spaceId the space to restrict to, or null or 0 for none
+   * @return the matching events
+   */
   public List<AgendaEventModel> searchAgendaEvents(String query,
                                                    String start,
                                                    String end,
@@ -929,6 +956,10 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     long userIdentityId = getCurrentUserIdentityId();
     List<Long> spaceIdentityIds = spaceId == null || spaceId == 0 ? null
                                                                    : getSpaceIdentityIds(Collections.singletonList(spaceId));
+    if (spaceIdentityIds != null && spaceIdentityIds.isEmpty()) {
+      // the scope's space is missing or not viewable: no owner filter would mean the whole agenda
+      return Collections.emptyList();
+    }
     AgendaEventSearchFilter filter = new AgendaEventSearchFilter(userIdentityId,
                                                                  TIMEZONE,
                                                                  query,
@@ -1329,6 +1360,13 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     }
   }
 
+  /**
+   * Resolves space ids to the identity ids of the spaces the current user can
+   * view, dropping a missing or unviewable space.
+   *
+   * @param spaceIds the space ids
+   * @return the identity ids of the spaces that resolved, possibly empty
+   */
   private List<Long> getSpaceIdentityIds(List<Long> spaceIds) {
     if (CollectionUtils.isEmpty(spaceIds)) {
       return Collections.emptyList();
