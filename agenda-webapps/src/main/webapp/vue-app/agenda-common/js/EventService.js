@@ -169,6 +169,86 @@ export function moveExceptionalOccurrences(eventId, toEventId, from) {
   });
 }
 
+/**
+ * Splits a recurring event at one of its dates, a "this and upcoming" change,
+ * in one request: the series continuing it from that date is created with the
+ * fields given, the dates customised from it on move under it, and the event
+ * ends the day before. The participants are the series' own, with the change
+ * given as a delta.
+ *
+ * @param {Number} seriesId the recurring event
+ * @param {Object} event the continuing series as edited; its participants are
+ *          the ones its conferences are synchronised with, and are not sent
+ * @param {Object} delta the participants added and the participant keys
+ *          removed (see AgendaUtils#attendeesDelta), null when nobody changed
+ * @param {String} splitFrom the occurrence id of the date it starts on
+ * @param {Boolean} sendInvitation whether the participants are notified
+ * @param {Boolean} confirmClose whether the organiser confirmed closing the
+ *          event while people wait for a seat: without it, such a split is
+ *          refused with agenda.capacity.closeNeedsConfirmation
+ * @param {Array} seriesFields the fields of the event the series keeps as its
+ *          own, which are not sent: among them, start, end, allDay and
+ *          recurrence. What is sent is written in the zone the series was
+ *          read in, which the request names: the series keeps its own zone,
+ *          and the server moves the one day a rule derived from the date
+ *          names there onto the series' zone (see EventSplit#readZone)
+ * @returns {Promise} the continuing series
+ */
+export function splitEvent(seriesId, event, delta, splitFrom, sendInvitation, confirmClose, seriesFields) {
+  event = formatEventToSave(event);
+  // Synchronised on a copy: the participants are not sent
+  const saveWebConferencePromises = getSaveAllWebConferencesPromises(Object.assign({}, event));
+  delete event.attendees;
+  (seriesFields || []).forEach(field => delete event[field]);
+  const addedAttendees = {attendees: JSON.parse(JSON.stringify(delta && delta.added || []))};
+  formatEventAttendees(addedAttendees);
+
+  return Promise.all(saveWebConferencePromises)
+    .catch(e => {
+      console.error('Error saving web conferencing, delete them', e);
+    })
+    .then(conferences => {
+      event.conferences = conferences && conferences.filter(conference => !!conference);
+      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${seriesId}/split?timeZoneId=${USER_TIMEZONE_ID}&confirmClose=${!!confirmClose}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          event,
+          addedAttendees: addedAttendees.attendees,
+          removedAttendees: (delta && delta.removedParticipantKeys || []).map(toRemovedAttendee),
+          splitFrom,
+          sendInvitation: !!sendInvitation,
+        }),
+      });
+    })
+    .then((resp) => {
+      if (resp && resp.ok) {
+        return resp.json();
+      } else {
+        return toSaveError(resp, 'Error splitting event');
+      }
+    });
+}
+
+/**
+ * @param {String} participantKey a participant key (see
+ *          AgendaUtils#participantKey): `providerId:remoteId`, split on its
+ *          first colon, or an identity id
+ * @returns {Object} the participant a split removes
+ */
+function toRemovedAttendee(participantKey) {
+  const separator = participantKey.indexOf(':');
+  return {
+    identity: separator < 0 ? {id: participantKey} : {
+      providerId: participantKey.substring(0, separator),
+      remoteId: participantKey.substring(separator + 1),
+    },
+  };
+}
+
 export function createEvent(event) {
   if (!Object.prototype.hasOwnProperty.call(event, 'sendInvitation')) {
     event.sendInvitation = true;
@@ -754,9 +834,9 @@ function getSaveAllWebConferencesPromises(event) {
   // conferences and must not speak for them: an absent attendee list is not an
   // empty one. The parent of a recurrent event and the exceptional occurrences
   // are exactly that — the expand fills attendees on the top-level entity only
-  // — and a remote-id patch routes them through here (EXO-90015). The three
-  // other callers pass a form event or an expand=all one, which always carries
-  // the list, empty or not.
+  // — and a remote-id patch routes them through here (EXO-90015). The other
+  // callers pass a form event or an expand=all one, which always carries the
+  // list, empty or not.
   if (event.conferences && event.conferences.length && event.attendees) {
     event.conferences.forEach(conference => {
       const saveWebConferencePromise = saveEventWebConferencing(event, conference);
