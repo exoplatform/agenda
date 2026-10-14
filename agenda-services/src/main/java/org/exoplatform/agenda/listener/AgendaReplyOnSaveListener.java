@@ -37,6 +37,10 @@ public class AgendaReplyOnSaveListener extends Listener<AgendaEventModification,
   @Override
   public void onEvent(Event<AgendaEventModification, Object> event) throws Exception {
     AgendaEventModification eventModification = event.getSource();
+    if (eventModification.hasModification(AgendaEventModificationType.SPLIT)) {
+      // The split already carried the answers over, or started them over
+      return;
+    }
     long eventId = eventModification.getEventId();
     long modifierId = eventModification.getModifierId();
     try {
