@@ -2,10 +2,10 @@
   <v-dialog
     v-model="dialog"
     :width="width"
-    content-class="uiPopup width-auto"
+    content-class="uiPopup width-auto layout-drawer"
     max-width="100vw">
-    <v-card class="elevation-12">
-      <div class="ignore-vuetify-classes popupHeader ClearFix">
+    <v-card class="elevation-12 transparent">
+      <div class="ignore-vuetify-classes popupHeader ClearFix layout-drawer">
         <a
           class="uiIconClose pull-right"
           aria-hidden="true"

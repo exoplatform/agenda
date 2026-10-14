@@ -299,8 +299,10 @@
       padding-bottom: 16px !important;
     }
 
+    /* the field sits on the form's toolbar and shows the toolbar's colour,
+       the drawers and popups background colour of the theme settings */
     .agenda-time-zone .v-input__slot {
-      background: white !important;
+      background: transparent !important;
     }
 
     .space-suggester {
@@ -1343,6 +1345,44 @@
     .v-date-picker-table--date .v-btn:not(.v-btn--active):not(.v-date-picker-table__current) {
       color: @textColor;
     }
+  }
+}
+
+/* The event dialog carries the platform's layout-drawer class, which paints
+   the drawers and popups background configured in the theme settings on the
+   dialog and on the cards, sheets and inputs inside it. The cards filling the
+   dialog (the form's, the details', and the date poll's nested in the
+   details') would cover the dialog's background image with the background
+   colour alone, as the platform's confirm dialog avoids with a transparent
+   card. The form's stepper, which this Vuetify does not render as a sheet,
+   and the date step's calendar grid paint their own white over it (Vuetify's
+   light theme) (EXO-91394) */
+.agendaEventDialog.layout-drawer {
+  > .v-card,
+  .v-card.event-poll-details {
+    background-color: transparent !important;
+  }
+  .theme--light.v-stepper,
+  .theme--light.v-calendar-daily {
+    background-color: transparent;
+  }
+
+  /* the grid's labels follow the drawers and popups text colours, which the
+     layout-drawer class sets as the base text colours: Vuetify's light theme
+     fixes them to #000 and #424242, unreadable on a dark background */
+  .theme--light.v-calendar-daily .v-calendar-daily_head-day,
+  .v-calendar-daily_head-day-label .v-btn.transparent {
+    color: @textColor;
+  }
+
+  /* past days keep the colour of the other days, as agenda's own
+     !important rule on .v-past does on a white grid */
+  .v-calendar-daily_head-day.v-past .v-calendar-daily_head-weekday {
+    color: @textColor !important;
+  }
+
+  .theme--light.v-calendar-daily .v-calendar-daily__intervals-body .v-calendar-daily__interval-text {
+    color: @textSubtitleColor;
   }
 }
 
