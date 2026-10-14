@@ -1292,6 +1292,20 @@
   }
 }
 
+/* The application background configured in the theme settings is painted by
+   the platform on the portlet frame, which also clears the cards and sheets
+   inside .application-body. The calendar grid (Vuetify's light theme) and the
+   left panel paint their own white over it: cleared under the same condition
+   as the platform's, so an agenda without the layout background keeps its
+   white surfaces (EXO-91399, EXO-91392) */
+.PORTLET-FRAGMENT:not(.no-layout-style):not(.no-layout-background-color) .agenda-application {
+  .theme--light.v-calendar-daily,
+  .theme--light.v-calendar-weekly,
+  .agenda-left-panel {
+    background-color: transparent;
+  }
+}
+
 .agendaMirrorCalendarDrawer {
   /* laid out here rather than with the d-flex/align-center utilities: in this
      skin align-center also sets text-align, which centred the label */
