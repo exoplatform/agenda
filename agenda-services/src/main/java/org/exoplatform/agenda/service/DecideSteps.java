@@ -122,6 +122,24 @@ class DecideSteps {
   }
 
   /**
+   * Counts a row the running decide step has just inserted as locked by it,
+   * so that the steps nested in it may reach the row. No other transaction
+   * sees the row before the step's transaction commits, so it needs no lock
+   * of its own.
+   *
+   * @param eventId the technical identifier of the row inserted
+   * @throws IllegalStateException when no decide step runs on the thread
+   */
+  void joinInsertedEvent(long eventId) {
+    DecideContext context = DecideContext.current();
+    if (context == null) {
+      throw new IllegalStateException("Event " + eventId + " cannot join a decide step: none runs");
+    }
+    DecideContext.recordEvent(eventId);
+    context.addLockedEvent(eventId);
+  }
+
+  /**
    * Runs a resolve and its decide step, and both again once when the decide
    * step finds that the rows resolved changed meanwhile. A second change
    * propagates as a {@link ResolveAgainException}.
