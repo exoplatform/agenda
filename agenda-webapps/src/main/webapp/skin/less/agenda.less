@@ -1129,6 +1129,15 @@
     min-width: 0;
   }
 
+  /* Full agenda: the calendar card starts at the panel's top edge. The panel
+     column is rendered only where the left panel is available (v-if on
+     leftPanelAvailable: not in a space agenda), and only hidden when
+     collapsed (v-show), so the grid keeps its place when the panel toggles.
+     !important beats the card's own pa-5 utility (EXO-91400) */
+  .agenda-left-panel-column + .agenda-body-column > .application-body {
+    padding-top: 0 !important;
+  }
+
   .agenda-left-panel {
     height: 100%;
     /* same background as the v-card hosting the calendar body */
