@@ -54,7 +54,7 @@ export default {
       if (event.occurrence && !ignoreRecurrentPopin) {
         const asOpened = this.asOpened.get(event);
         const attendeesDelta = asOpened ? this.$agendaUtils.attendeesDelta(asOpened.attendees, event.attendees) : null;
-        this.$refs.recurrentEventConfirm.open(event, changeDatesOnly, attendeesDelta);
+        this.$refs.recurrentEventConfirm.open(event, changeDatesOnly, attendeesDelta, this.confirmClose);
       } else {
         this.save(event, changeDatesOnly);
       }
