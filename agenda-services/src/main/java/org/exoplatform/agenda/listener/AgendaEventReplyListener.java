@@ -56,11 +56,25 @@ public class AgendaEventReplyListener extends Listener<EventAttendee, EventAtten
 
   public void sendReplyResponseNotification(org.exoplatform.agenda.model.Event event,
                                             EventAttendee eventAttendee) {
+    sendReplyNotification(event, eventAttendee);
+  }
+
+  /**
+   * Hands an attendee's answer to the "Answer to an invitation" notification.
+   * On a series, it is told at the first date of the attendee's row when the
+   * row has one. On a date the series stores, it is told at that date: the
+   * row there keeps the range it was copied with, which may start on an
+   * earlier date.
+   *
+   * @param event the event answered
+   * @param eventAttendee the attendee row holding the answer to tell
+   */
+  static void sendReplyNotification(org.exoplatform.agenda.model.Event event, EventAttendee eventAttendee) {
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     ctx.append(NotificationUtils.EVENT_AGENDA, event);
     ctx.append(NotificationUtils.EVENT_PARTICIPANT_ID, eventAttendee.getIdentityId());
     ctx.append(NotificationUtils.EVENT_RESPONSE, eventAttendee.getResponse());
-    if (eventAttendee.getFromOccurrenceId() != null) {
+    if (event.getRecurrence() != null && eventAttendee.getFromOccurrenceId() != null) {
       ctx.append(NotificationUtils.EVENT_OCCURRENCE_ID, eventAttendee.getFromOccurrenceId());
     }
     ctx.getNotificationExecutor()
