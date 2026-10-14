@@ -1293,11 +1293,15 @@
 }
 
 /* The application background configured in the theme settings is painted by
-   the platform on the portlet frame, which also clears the cards and sheets
-   inside .application-body. The calendar grid (Vuetify's light theme) and the
-   left panel paint their own white over it: cleared under the same condition
-   as the platform's, so an agenda without the layout background keeps its
-   white surfaces and dark labels (EXO-91399, EXO-91392) */
+   the platform on the portlet frame, or on an element carrying
+   .application-background-color or .application-layout-style, which also
+   clears the cards and sheets inside .application-body. The calendar grid
+   (Vuetify's light theme) and the left panel paint their own white over it:
+   cleared under the same three selectors as the platform's, so an agenda
+   without the layout background keeps its white surfaces and dark labels
+   (EXO-91399, EXO-91392) */
+.application-background-color .agenda-application,
+.application-layout-style .agenda-application,
 .PORTLET-FRAGMENT:not(.no-layout-style):not(.no-layout-background-color) .agenda-application {
   .theme--light.v-calendar-daily,
   .theme--light.v-calendar-weekly,
