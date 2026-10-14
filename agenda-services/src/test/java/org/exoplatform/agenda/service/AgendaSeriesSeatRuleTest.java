@@ -275,6 +275,9 @@ public class AgendaSeriesSeatRuleTest extends BaseAgendaEventTest {
     assertTrue("the part promoted is a Yes of now", rows.get(1).getResponseDate().isAfter(beforePromotion));
     Broadcast promoted = only(Utils.POST_EVENT_ATTENDEE_PROMOTED);
     assertEquals(dates.get(2), ((EventAttendee) promoted.data()).getFromOccurrenceId());
+    assertEquals("the promotion is told as a Yes",
+                 EventAttendeeResponse.ACCEPTED,
+                 ((EventAttendee) promoted.data()).getResponse());
     assertEquals(List.of(id(testuser2Identity)), identitiesOf(Utils.POST_EVENT_RESPONSE_SENT));
   }
 
