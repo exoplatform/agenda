@@ -650,6 +650,86 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     }
   }
 
+  @Path("{eventId}/split")
+  @POST
+  @Consumes(MediaType.APPLICATION_JSON)
+  @Produces(MediaType.APPLICATION_JSON)
+  @RolesAllowed("users")
+  @Operation(
+      summary = "Splits a recurring event at one of its dates: a 'this and upcoming' change",
+      description = "Creates the series that continues the recurring event from the date given, with the fields the user edited, in the event's calendar; moves the dates customised from that date on under it; and ends the event the day before. When no date moves, every participant keeps their answers and their places on the waiting list; when one does, every answer but the user's starts over. Everything is written at once, or nothing",
+      method = "POST"
+  )
+  @ApiResponses(
+      value = {
+          @ApiResponse(responseCode = "200", description = "Request fulfilled: the continuing series"),
+          @ApiResponse(
+              responseCode = "400",
+              description = "Invalid input: a date that is not one of the event's after its first, an invalid limit, a limit below the Yes answers of a date, or a closing of the event while people wait that is not confirmed. The body carries the message code, and the date for a limit below the Yes answers"
+          ),
+          @ApiResponse(responseCode = "403", description = "Forbidden operation"),
+          @ApiResponse(responseCode = "404", description = "Object not found"),
+          @ApiResponse(responseCode = "500", description = "Internal server error"),
+      }
+  )
+  public Response splitEvent(
+                             @Parameter(description = "Technical identifier of the recurring event", required = true)
+                             @PathParam("eventId")
+                             long eventId,
+                             @Parameter(
+                                 description = "IANA time zone identifier the event was read in, which the result is returned in. A change given in that zone, or in none, keeps the event's own zone, and a weekly rule naming the one weekday, or a monthly or yearly rule naming no weekday and the one day of the month, that its first date falls on in that zone names the one that date falls on in the event's zone; any other rule the change gives keeps the days it names. The dates of a change given in no zone are read in that zone, or in UTC when it is missing"
+                             )
+                             @QueryParam("timeZoneId")
+                             String timeZoneId,
+                             @Parameter(
+                                 description = "Whether the user confirmed closing the event while people are waiting for a seat"
+                             )
+                             @Schema(defaultValue = "false")
+                             @QueryParam("confirmClose")
+                             boolean confirmClose,
+                             @Parameter(description = "The change", required = true)
+                             EventSplitEntity splitEntity) {
+    if (eventId <= 0) {
+      return Response.status(Status.BAD_REQUEST).entity(AgendaExceptionType.EVENT_ID_MANDATORY.getCompleteMessage()).build();
+    }
+    if (splitEntity == null) {
+      return Response.status(Status.BAD_REQUEST).entity(AgendaExceptionType.EVENT_MANDATORY.getCompleteMessage()).build();
+    }
+    long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
+    try {
+      Event continuation = RestUtils.splitEvent(identityManager,
+                                                agendaEventService,
+                                                agendaEventAttendeeService,
+                                                eventId,
+                                                splitEntity,
+                                                timeZoneId,
+                                                confirmClose,
+                                                userIdentityId);
+      return getEventById(continuation.getId(),
+                          "all",
+                          timeZoneId == null ? continuation.getTimeZoneId().getId() : timeZoneId,
+                          false);
+    } catch (AgendaException e) {
+      LOG.debug("Error in event validation", e);
+      if (e.getAgendaExceptionType() == AgendaExceptionType.EVENT_NOT_FOUND) {
+        return Response.status(Status.NOT_FOUND).entity("Event not found").build();
+      }
+      return Response.status(Status.BAD_REQUEST).entity(e.getAgendaExceptionType().getCompleteMessage()).build();
+    } catch (IllegalArgumentException e) {
+      LOG.debug("Invalid split of event {}", eventId, e);
+      return Response.status(Status.BAD_REQUEST).entity(badRequestEntity(e)).build();
+    } catch (DateTimeException e) {
+      LOG.debug("Invalid split date of event {}", eventId, e);
+      return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
+    } catch (IllegalAccessException e) {
+      LOG.debug("User '{}' attempts to split a non authorized event", RestUtils.getCurrentUser(), e);
+      return Response.status(Status.FORBIDDEN).build();
+    } catch (Exception e) {
+      LOG.warn("Error splitting event {}", eventId, e);
+      return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)

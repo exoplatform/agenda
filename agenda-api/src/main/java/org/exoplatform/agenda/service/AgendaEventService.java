@@ -161,6 +161,49 @@ public interface AgendaEventService {
                                         long userIdentityId) throws IllegalAccessException, AgendaException;
 
   /**
+   * Splits a recurring event at one of its dates: a "this and upcoming"
+   * change. A series continuing the first one from that date on is created,
+   * the dates customised from it on move under it, and the first series is
+   * shortened to the day before, all in one transaction.
+   * <p>
+   * The continuation keeps the series' creator and calendar, and takes from
+   * the change only the fields {@link EventSplit#event()} lists. When the
+   * change moves no date (same first date, times, duration, time zone,
+   * all-day flag and recurrence pattern), every attendee keeps their answers
+   * and their places on the waiting list, which takes the seats the change
+   * frees; when it moves one, every answer but the user's starts over.
+   *
+   * @param seriesId technical identifier of the recurring event
+   * @param split what the change asks of the continuation
+   * @param splitFrom the occurrence id of the continuation's first date, a
+   *          date of the series after its first one
+   * @param sendInvitation whether the attendees are notified
+   * @param confirmClose whether the user confirmed a change that closes the
+   *          event while people are waiting
+   * @param userIdentityId who is splitting; must be allowed to update the
+   *          series and to create an event in its calendar
+   * @return the continuation, as stored
+   * @throws IllegalAccessException when the user may not update the series or
+   *           create an event in its calendar
+   * @throws AgendaException when the series does not exist, or the
+   *           continuation is invalid
+   * @throws CapacityBelowAcceptedException when the continuation's limit, or
+   *           the limit a moved date gets, is below the Yes answers of a date
+   * @throws IllegalArgumentException with the code
+   *           {@code agenda.seriesSplit.notAllowed} when the event is not a
+   *           series or the date is not one of its dates after the first,
+   *           {@code agenda.capacity.invalid} for a negative limit, and
+   *           {@code agenda.capacity.closeNeedsConfirmation} when the change
+   *           closes the event while people are waiting and is not confirmed
+   */
+  Event splitEvent(long seriesId,
+                   EventSplit split,
+                   ZonedDateTime splitFrom,
+                   boolean sendInvitation,
+                   boolean confirmClose,
+                   long userIdentityId) throws IllegalAccessException, AgendaException;
+
+  /**
    * Retrieves the exceptional occurrence a recurrent event holds for one of
    * its dates: the row whose occurrence id designates the same date of the
    * series — a timed id read in the series' zone, an all-day id as the later
