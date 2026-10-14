@@ -254,6 +254,9 @@ public class AgendaSeatRuleTest extends BaseAgendaEventTest {
                rowOf(eventId, testuser4Identity).getResponseDate().isAfter(longestWaiting.plusHours(1)));
     Broadcast promoted = only(Utils.POST_EVENT_ATTENDEE_PROMOTED);
     assertEquals(id(testuser4Identity), ((EventAttendee) promoted.data()).getIdentityId());
+    assertEquals("the promotion is told as a Yes",
+                 EventAttendeeResponse.ACCEPTED,
+                 ((EventAttendee) promoted.data()).getResponse());
     assertEquals(EventAttendeeResponse.WAITING, ((EventAttendee) promoted.source()).getResponse());
     assertEquals("only the No is an answer sent",
                  List.of(id(testuser2Identity)),
