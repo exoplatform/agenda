@@ -24,7 +24,6 @@ import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.resources.LocaleConfig;
 import org.exoplatform.services.resources.ResourceBundleService;
-import static org.exoplatform.agenda.util.NotificationUtils.STORED_PARAMETER_EVENT_IS_CREATOR;
 import static org.exoplatform.agenda.util.NotificationUtils.STORED_PARAMETER_EVENT_PARTICIPANT_NAME;
 import static org.exoplatform.agenda.util.NotificationUtils.STORED_PARAMETER_EVENT_RESPONSE;
 import static org.exoplatform.agenda.util.NotificationUtils.STORED_PARAMETER_EVENT_TITLE;
@@ -51,14 +50,7 @@ public class EventReplyNotificationPwaPlugin implements PwaNotificationPlugin {
   public PwaNotificationMessage process(NotificationInfo notification, LocaleConfig localeConfig) {
     PwaNotificationMessage notificationMessage = new PwaNotificationMessage();
 
-    String key = TITLE_LABEL_KEY;
-
-    if ("true".equals(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_IS_CREATOR))) {
-      key += ".creator";
-    } else {
-      key += ".participant";
-    }
-    key += ".response";
+    String key = TITLE_LABEL_KEY + ".reply";
 
     String status = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_RESPONSE);
     switch (status) {
@@ -67,6 +59,9 @@ public class EventReplyNotificationPwaPlugin implements PwaNotificationPlugin {
       break;
     case "DECLINED":
       key += ".declined";
+      break;
+    case "WAITING":
+      key += ".waiting";
       break;
     default:
       key+= ".mayBe";
