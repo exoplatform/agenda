@@ -1297,12 +1297,52 @@
    inside .application-body. The calendar grid (Vuetify's light theme) and the
    left panel paint their own white over it: cleared under the same condition
    as the platform's, so an agenda without the layout background keeps its
-   white surfaces (EXO-91399, EXO-91392) */
+   white surfaces and dark labels (EXO-91399, EXO-91392) */
 .PORTLET-FRAGMENT:not(.no-layout-style):not(.no-layout-background-color) .agenda-application {
   .theme--light.v-calendar-daily,
   .theme--light.v-calendar-weekly,
   .agenda-left-panel {
     background-color: transparent;
+  }
+
+  /* the grid's labels follow the theme's text colours, readable on a dark
+     application background as well: Vuetify's light theme fixes them to
+     #000 and #424242. The days outside the month keep their fixed grey
+     background, and so their dark labels */
+  .theme--light.v-calendar-weekly .v-calendar-weekly__head-weekday:not(.v-outside),
+  .theme--light.v-calendar-weekly .v-calendar-weekly__day:not(.v-outside),
+  .theme--light.v-calendar-daily .v-calendar-daily_head-day {
+    color: @textColor;
+  }
+
+  /* a date is a v-btn with its own text colour; today's button, coloured,
+     keeps it: Vuetify gives the other dates the 'transparent' class */
+  .v-calendar-weekly__day:not(.v-outside) .v-calendar-weekly__day-label .v-btn.transparent,
+  .v-calendar-daily_head-day-label .v-btn.transparent {
+    color: @textColor;
+  }
+
+  /* past days keep the colour of the other days, as agenda's own
+     !important rules on .v-past do without the application background */
+  .v-calendar-weekly .v-calendar-weekly__head-weekday.v-past:not(.v-outside),
+  .v-calendar-daily_head-day.v-past .v-calendar-daily_head-weekday {
+    color: @textColor !important;
+  }
+
+  .theme--light.v-calendar-daily .v-calendar-daily__interval-text {
+    color: @textSubtitleColor;
+  }
+
+  /* the left panel's month calendar: weekday initials, and the dates other
+     than the selected one and today, which keep their primary colour */
+  .agenda-left-panel-mini-calendar {
+    .v-date-picker-table th {
+      color: @textSubtitleColor;
+    }
+
+    .v-date-picker-table--date .v-btn:not(.v-btn--active):not(.v-date-picker-table__current) {
+      color: @textColor;
+    }
   }
 }
 
