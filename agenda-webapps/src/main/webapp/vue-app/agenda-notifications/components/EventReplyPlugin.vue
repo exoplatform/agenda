@@ -86,6 +86,8 @@ export default {
         status='accepted';
       } else if (responseType === 'DECLINED') {
         status='declined';
+      } else if (responseType === 'WAITING') {
+        status='waiting';
       } else {
         status='mayBe';
       }
@@ -112,10 +114,8 @@ export default {
   },
   methods: {
     computeMessage(partipantName, eventTitle, status) {
-      const isCreator = this.notification?.parameters?.isCreator || false;
       const agendaName = this.spaceName;
-      const resourceBundleKey = 'Notification.agenda.event.'.concat(isCreator ? 'creator' : 'participant').concat('.response.').concat(status);
-      return this.$t(resourceBundleKey, {
+      return this.$t(`Notification.agenda.event.reply.${status}`, {
         0: `<a class="user-name font-weight-bold">${partipantName}</a>`,
         1: `<span class="font-weight-bold">${eventTitle}</span>`,
         2: `<a class="space-name font-weight-bold">${agendaName}</a>`

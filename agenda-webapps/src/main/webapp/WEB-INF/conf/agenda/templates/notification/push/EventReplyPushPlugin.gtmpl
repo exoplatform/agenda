@@ -1,6 +1,5 @@
 <%
   eventTitle = _ctx.escapeHTML(eventTitle);
-  isCreator = "true".equals(isCreator);
 %>
 <div>
     <div class="contentSmall" data-link="<%= eventURL %>">
@@ -9,23 +8,13 @@
             String eventTitle = "<span class=\"user-name text-bold\">"+ eventTitle +"</span>";
             String participantName = "<a class=\"user-name text-bold\">" + participantName +"</a>";
             if (org.exoplatform.agenda.constant.EventAttendeeResponse.ACCEPTED.name().equals(responseType)) { %>
-              <% if (isCreator) { %>
-                <%=  _ctx.appRes("Notification.agenda.event.creator.response.accepted", participantName, eventTitle) %>
-              <% } else { %>
-                <%=  _ctx.appRes("Notification.agenda.event.participant.response.accepted", participantName, eventTitle) %>
-              <% } %>
-            <% } else if(org.exoplatform.agenda.constant.EventAttendeeResponse.DECLINED.name().equals(responseType)){ %>
-              <% if (isCreator) { %>
-                <%=  _ctx.appRes("Notification.agenda.event.creator.response.declined", participantName, eventTitle) %>
-              <% } else { %>
-                <%=  _ctx.appRes("Notification.agenda.event.participant.response.declined", participantName, eventTitle) %>
-              <% } %>
+              <%=  _ctx.appRes("Notification.agenda.event.reply.accepted", participantName, eventTitle) %>
+            <% } else if (org.exoplatform.agenda.constant.EventAttendeeResponse.DECLINED.name().equals(responseType)) { %>
+              <%=  _ctx.appRes("Notification.agenda.event.reply.declined", participantName, eventTitle) %>
+            <% } else if (org.exoplatform.agenda.constant.EventAttendeeResponse.WAITING.name().equals(responseType)) { %>
+              <%=  _ctx.appRes("Notification.agenda.event.reply.waiting", participantName, eventTitle) %>
             <% } else { %>
-              <% if (isCreator) { %>
-                <%=  _ctx.appRes("Notification.agenda.event.creator.response.mayBe", participantName, eventTitle) %>
-              <% } else { %>
-                <%=  _ctx.appRes("Notification.agenda.event.participant.response.mayBe", participantName, eventTitle) %>
-              <% } %>
+              <%=  _ctx.appRes("Notification.agenda.event.reply.mayBe", participantName, eventTitle) %>
             <% } %>
         </div>
     </div>
