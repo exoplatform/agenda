@@ -804,13 +804,20 @@ public class NotificationUtils {
     return eventsBaseURL() + "?eventId=" + eventId;
   }
 
+  /**
+   * The absolute link that opens an event, or one date of a series.
+   *
+   * @param event the event, a series or a stored date of a series
+   * @param occurrenceId the date to open, null for the event itself
+   * @return the link, naming the series and the date when a date is given
+   */
   public static String getEventURL(Event event, ZonedDateTime occurrenceId) {
     String notificationURL = "";
     if (event != null) {
       if (occurrenceId == null) {
         notificationURL = getEventURL(event.getId());
       } else {
-        notificationURL = eventsBaseURL() + "?parentId=" + event.getId() + "&occurrenceId="
+        notificationURL = eventsBaseURL() + "?parentId=" + seriesIdOf(event) + "&occurrenceId="
             + AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC);
       }
     } else {
@@ -839,6 +846,14 @@ public class NotificationUtils {
     return currentDomain + "portal/" + getDefaultSite() + "/agenda";
   }
 
+  /**
+   * The link, relative to the server, that opens an event, or one date of a
+   * series.
+   *
+   * @param event the event, a series or a stored date of a series
+   * @param occurrenceId the date to open, null for the event itself
+   * @return the link, naming the series and the date when a date is given
+   */
   public static String getWebEventURL(Event event, ZonedDateTime occurrenceId) {
     String currentSite = getDefaultSite();
     String notificationURL = "";
@@ -846,13 +861,25 @@ public class NotificationUtils {
       if (occurrenceId == null) {
         notificationURL = "/portal/" + currentSite + "/agenda?eventId=" + event.getId();
       } else {
-        notificationURL = "/portal/" + currentSite + "/agenda?parentId=" + event.getId() + "&occurrenceId="
+        notificationURL = "/portal/" + currentSite + "/agenda?parentId=" + seriesIdOf(event) + "&occurrenceId="
                 + AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC);
       }
     } else {
       notificationURL = "/portal/" + currentSite + "/agenda";
     }
     return notificationURL;
+  }
+
+  /**
+   * The series a date is read on: a date the series stores has a row of its
+   * own, which the page cannot read as a series, so a link to it names its
+   * series, where the date finds its row again.
+   *
+   * @param event a series, or a stored date of a series
+   * @return the series' identifier
+   */
+  private static long seriesIdOf(Event event) {
+    return event.getParentId() > 0 ? event.getParentId() : event.getId();
   }
 
 

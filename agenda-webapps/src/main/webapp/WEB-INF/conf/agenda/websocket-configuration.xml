@@ -50,6 +50,12 @@
       <set-method>addListener</set-method>
       <type>org.exoplatform.agenda.listener.AgendaWebSocketEventReplyListener</type>
     </component-plugin>
+    <!-- EXO-90311: the calendar of an attendee promoted from the waiting list shows their seat -->
+    <component-plugin>
+      <name>exo.agenda.event.attendee.promoted</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.listener.AgendaWebSocketEventReplyListener</type>
+    </component-plugin>
   </external-component-plugins>
 
 </configuration>
