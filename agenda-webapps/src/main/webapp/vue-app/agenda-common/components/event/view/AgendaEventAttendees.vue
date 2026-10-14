@@ -465,7 +465,7 @@ export default {
       this.scopeConfirmClose = !!confirmClose;
       this.scopeFields = changedFields;
       this.scopeAttendeesDelta = attendeesDelta || null;
-      this.$refs.scopeDialog.open(eventToSave, false);
+      this.$refs.scopeDialog.open(eventToSave, false, null, confirmClose);
     },
     /**
      * Applies the answer to "only this event" and to "all events". "This and
