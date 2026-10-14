@@ -37,6 +37,7 @@
           {{ $t('agenda.button.save') }}
         </button>
       </v-card-actions>
+      <agenda-capacity-close-confirm-dialog ref="closeConfirm" />
     </v-card>
   </v-dialog>
 </template>
@@ -107,6 +108,7 @@ export default {
     event: null,
     changeDatesOnly: false,
     formAttendeesDelta: null,
+    confirmClose: false,
     recurrenceModificationType: 'single',
     loading: false,
     dialog: false,
@@ -163,21 +165,44 @@ export default {
           if (startDate >= untilDate) {
             return this.saveRecurrentEvent();
           }
+          // The fields the series keeps as its own: they are not sent, so
+          // that the server keeps them in the series' zone. Sent back as
+          // read, they would be recomputed in the viewer's zone
+          let seriesFields = [];
           if (this.changedFields) {
             // The second series continues the first one and keeps its
             // rule, its fields and its time of day; it only starts on the
-            // displayed date, and carries the fields the host changed
-            recurrentEvent.start = this.$agendaUtils.getSameTime(this.event.start, recurrentEvent.start);
-            recurrentEvent.end = this.$agendaUtils.getSameTime(this.event.end, recurrentEvent.end);
+            // displayed date, and carries the fields the host changed. The
+            // server continues the dates; the ones computed here only tell
+            // the conference provider the times of the call
+            // The series' kind of dates: the server keeps it, whatever a
+            // customised date holds
+            if (recurrentEvent.allDay) {
+              recurrentEvent.start = this.$agendaUtils.getSameTime(this.event.start, recurrentEvent.start);
+              recurrentEvent.end = this.$agendaUtils.getSameTime(this.event.end, recurrentEvent.end);
+            } else {
+              // The server starts it at the instant the date's id names,
+              // for the series' duration
+              const duration = new Date(recurrentEvent.end) - new Date(recurrentEvent.start);
+              recurrentEvent.start = new Date(this.event.occurrence.id);
+              recurrentEvent.end = new Date(recurrentEvent.start.getTime() + duration);
+            }
+            seriesFields = ['start', 'end', 'allDay', 'recurrence'];
             this.changedFields.forEach(field => {
               recurrentEvent[field] = this.event[field];
             });
+            // The participants the conferences are synchronised with
             this.applyAttendeesDelta(recurrentEvent);
             recurrentEvent.sendInvitation = !!this.event.sendInvitation;
           } else {
-            recurrentEvent.start = this.event.start;
-            recurrentEvent.end = this.event.end;
+            // The form edits its single date option, not the event: its
+            // schedule is the option's when there is one
+            const schedule = this.event.dateOptions && this.event.dateOptions.length === 1 ? this.event.dateOptions[0] : this.event;
+            recurrentEvent.start = schedule.start;
+            recurrentEvent.end = schedule.end;
+            recurrentEvent.allDay = !!schedule.allDay;
             recurrentEvent.attachments = this.event.attachments;
+            // The participants the conferences are synchronised with
             recurrentEvent.attendees = this.seriesAttendeesFromForm(recurrentEvent.attendees);
             recurrentEvent.conferences = this.event.conferences;
             recurrentEvent.description = this.event.description;
@@ -188,6 +213,13 @@ export default {
             // events" would silently drop the change the organiser just
             // made
             recurrentEvent.open = this.event.open;
+            // Cleared by the padlock when it opens the event: kept, the
+            // server would drop the opening
+            recurrentEvent.allowAttendeeToInvite = this.event.allowAttendeeToInvite;
+            // The switch the invite permission follows: kept, it would raise
+            // the permission again, or leave it alone in a state the form
+            // cannot show
+            recurrentEvent.allowAttendeeToUpdate = this.event.allowAttendeeToUpdate;
             // The limit too, a form value since eXIP 7.3.0.21
             recurrentEvent.capacity = this.event.capacity;
             recurrentEvent.summary = this.event.summary;
@@ -195,57 +227,68 @@ export default {
             if (this.event.recurrence) {
               recurrentEvent.recurrence = this.event.recurrence;
             } else {
-              const eventRecurrence = this.event?.recurrence || this.event?.parent?.recurrence;
-              const recurrenceType = eventRecurrence?.type || 'NO_REPEAT';
-              if (recurrenceType === 'WEEKLY') {
-                const dayNameFromDate = this.$agendaUtils.getDayNameFromDate(this.event.start);
-                recurrentEvent.recurrence.byDay = [dayNameFromDate.substring(0, 2).toUpperCase()];
-              }
+              // A repetition the form did not change: the server keeps the
+              // series' own, and moves the day of the date it names onto the
+              // day the date moved to, in the shapes
+              // AgendaEventServiceImpl#movePatternDay moves
+              seriesFields = ['recurrence'];
             }
           }
           delete recurrentEvent.id;
-          // The continuing series is created first, the dates the organiser
-          // had customised from this one on are moved under it, and the first
-          // series is shortened last. In that order a step that fails loses
-          // no date: if the move or the shortening fails, the continuing
-          // series stays, its invitations sent, overlapping the first one,
-          // and the organiser deletes it before trying again — a retry
-          // creates another continuation. Shortening first dropped those
-          // dates with their answers before the continuation existed. A
-          // customisation is kept whatever the scope (the PO's rule;
-          // integration review, finding 14)
+          // One request does the whole change, at once or not at all: the
+          // server creates the continuing series in the series' calendar,
+          // keeps every answer and place on the waiting list when no date
+          // moves, moves the dates customised from this one on under it, and
+          // ends the first series the day before. The participant change
+          // travels as a delta, which the server applies to the series' own
+          // list; a closing the server finds people waiting on asks D15
           const splitFrom = this.event.occurrence.id;
-          return this.$eventService.createEvent(recurrentEvent)
+          const delta = this.changedFields ? this.attendeesDelta : this.formAttendeesDelta;
+          const sendInvitation = Object.prototype.hasOwnProperty.call(recurrentEvent, 'sendInvitation') ? !!recurrentEvent.sendInvitation : true;
+          return this.$refs.closeConfirm.writeConfirmingClose(confirmClose => this.$eventService.splitEvent(parentRecurrentEvent.id,
+            recurrentEvent,
+            delta,
+            splitFrom,
+            sendInvitation,
+            confirmClose,
+            seriesFields), this.confirmClose)
             .then(createdEvent => {
-              recurrentEvent = createdEvent;
-              return this.$eventService.moveExceptionalOccurrences(parentRecurrentEvent.id, createdEvent.id, splitFrom);
-            })
-            .then(() => {
-              parentRecurrentEvent.recurrence.until = this.$agendaUtils.toRFC3339(untilDate);
-              parentRecurrentEvent.sendInvitation = false;
-              return this.$eventService.updateEvent(parentRecurrentEvent);
-            })
-            .then(() => {
               this.close();
-              this.$root.$emit('agenda-event-saved', recurrentEvent);
+              this.$root.$emit('agenda-event-saved', createdEvent);
             });
         })
-        // Reaches all four calls of this scope — the read, the creation, the
-        // move and the shortening. The other two scopes are answered by their
-        // host's catch; this one does its own work, so it carries its own
+        // Reaches both calls of this scope, the read and the split. The other
+        // two scopes are answered by their host's catch; this one does its own
+        // work, so it carries its own
         .catch(this.saveFailed);
     },
     /**
      * This scope is the one that acts on its own instead of handing an event
-     * back to its host, so a rejection has no other handler to reach.
+     * back to its host, so a rejection has no other handler to reach. A value
+     * the split refuses (a limit below the Yes answers of a date) is said; a
+     * closing the organiser cancelled is no error. A date that is no longer
+     * one of the series' after its first, as on a page loaded before another
+     * split, fails as any save does: the label of its code gives the reason
+     * the move endpoint refuses for.
      *
-     * @param {Object} error the rejected response
+     * @param {Object} error the rejected response, null when the organiser
+     *          cancelled the closing
      * @returns {void}
      */
     saveFailed(error) {
       this.close();
+      if (!error) {
+        this.$root.$emit('agenda-event-save-cancel');
+        return;
+      }
       this.$root.$emit('agenda-event-save-error', this.event, error);
-      this.$root.$emit('alert-message', this.$t('agenda.eventSave.error'), 'error');
+      if (error.code && error.date && this.$te(`${error.code}OnDate`)) {
+        this.$root.$emit('alert-message', this.$t(`${error.code}OnDate`, {0: this.$agendaUtils.formatDay(error.date)}), 'error');
+      } else if (error.code && error.code !== 'agenda.seriesSplit.notAllowed' && this.$te(error.code)) {
+        this.$root.$emit('alert-message', this.$t(error.code), 'error');
+      } else {
+        this.$root.$emit('alert-message', this.$t('agenda.eventSave.error'), 'error');
+      }
     },
     saveRecurrentEvent(eventObject) {
       if (eventObject) {
@@ -376,13 +419,17 @@ export default {
      * @param {Object} formAttendeesDelta what the event form did to the date's
      *          participants since it opened it (see AgendaUtils#attendeesDelta),
      *          null when nobody's participation changed: a move of dates
+     * @param {Boolean} confirmClose whether the organiser already confirmed
+     *          that the change closes the event while people wait for a seat
+     *          (D15), which "this and upcoming" sends with its own request
      * @returns {void}
      */
-    open(event, changeDatesOnly, formAttendeesDelta) {
+    open(event, changeDatesOnly, formAttendeesDelta, confirmClose) {
       this.event = event;
       this.recurrenceModificationType = 'single';
       this.changeDatesOnly = changeDatesOnly;
       this.formAttendeesDelta = formAttendeesDelta || null;
+      this.confirmClose = !!confirmClose;
       this.dialog = true;
       this.$nextTick(this.raiseAboveOverlays);
     },
