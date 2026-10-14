@@ -173,6 +173,131 @@ public class RestUtils {
   }
 
   /**
+   * Splits a recurring event as a "this and upcoming" body asks. A participant
+   * the body adds is resolved as an attendee of a new event is, an email
+   * guest's identity being created. One it removes is resolved among the
+   * attendees of the series only, by its identity's provider and remote ids,
+   * or by its identity id; a removal that matches none of them is ignored,
+   * and never creates an identity.
+   *
+   * @param identityManager {@link IdentityManager} service instance
+   * @param agendaEventService {@link AgendaEventService} service instance
+   * @param agendaEventAttendeeService {@link AgendaEventAttendeeService}
+   *          service instance
+   * @param seriesId the recurring event split
+   * @param splitEntity the body
+   * @param timeZoneId the zone the user read the series in, which the body
+   *          was written in (see {@link EventSplit#readZone()}); a body
+   *          without a zone is read in it and keeps the series' zone; null
+   *          when unknown
+   * @param confirmClose whether the user confirmed closing the event while
+   *          people are waiting
+   * @param userIdentityId who is splitting
+   * @return the continuing series
+   * @throws AgendaException when the series does not exist, or an attendee
+   *           added or the continuation is invalid
+   * @throws IllegalAccessException when the user may not split the series
+   */
+  public static Event splitEvent(IdentityManager identityManager,
+                                 AgendaEventService agendaEventService,
+                                 AgendaEventAttendeeService agendaEventAttendeeService,
+                                 long seriesId,
+                                 EventSplitEntity splitEntity,
+                                 String timeZoneId,
+                                 boolean confirmClose,
+                                 long userIdentityId) throws AgendaException, IllegalAccessException {
+    EventEntity eventEntity = splitEntity.getEvent();
+    if (eventEntity == null) {
+      throw new AgendaException(AgendaExceptionType.EVENT_MANDATORY);
+    }
+    List<EventReminder> reminders = null;
+    if (eventEntity.getReminders() != null) {
+      reminders = new ArrayList<>();
+      for (EventReminderEntity reminderEntity : eventEntity.getReminders()) {
+        reminders.add(RestEntityBuilder.toEventReminder(seriesId, reminderEntity));
+      }
+    }
+    List<Long> addedIdentityIds = new ArrayList<>();
+    if (splitEntity.getAddedAttendees() != null) {
+      for (EventAttendeeEntity attendeeEntity : splitEntity.getAddedAttendees()) {
+        IdentityEntity attendeeIdentity = attendeeEntity.getIdentity();
+        String attendeeIdString = RestUtils.getIdentityId(attendeeIdentity, identityManager);
+        if (StringUtils.isBlank(attendeeIdString)) {
+          throw new AgendaException(AgendaExceptionType.ATTENDEE_IDENTITY_NOT_FOUND);
+        }
+        attendeeIdentity.setId(attendeeIdString);
+        addedIdentityIds.add(RestEntityBuilder.toEventAttendee(identityManager, seriesId, attendeeEntity).getIdentityId());
+      }
+    }
+    Set<Long> removedIdentityIds = removedIdentityIds(identityManager,
+                                                      agendaEventAttendeeService,
+                                                      seriesId,
+                                                      splitEntity.getRemovedAttendees());
+    ZonedDateTime splitFrom = StringUtils.isBlank(splitEntity.getSplitFrom()) ? null
+                                                                              : AgendaDateUtils.parseRFC3339ToZonedDateTime(splitEntity.getSplitFrom(),
+                                                                                                                            ZoneOffset.UTC);
+    boolean givesNoZone = StringUtils.isBlank(eventEntity.getTimeZoneId());
+    if (givesNoZone) {
+      // Its dates, if any, are read in the zone the series was read in
+      eventEntity.setTimeZoneId(StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC.getId() : timeZoneId);
+    }
+    Event event = RestEntityBuilder.toEvent(eventEntity);
+    if (givesNoZone) {
+      // No zone chosen: the continuation keeps the series' own
+      event.setTimeZoneId(null);
+    }
+    return agendaEventService.splitEvent(seriesId,
+                                         new EventSplit(event,
+                                                        eventEntity.getConferences(),
+                                                        reminders,
+                                                        addedIdentityIds,
+                                                        removedIdentityIds,
+                                                        StringUtils.isBlank(timeZoneId) ? null : ZoneId.of(timeZoneId)),
+                                         splitFrom,
+                                         splitEntity.isSendInvitation(),
+                                         confirmClose,
+                                         userIdentityId);
+  }
+
+  /**
+   * @return the identities of the series' attendees the removals designate,
+   *         read by id, which never creates one
+   */
+  private static Set<Long> removedIdentityIds(IdentityManager identityManager,
+                                              AgendaEventAttendeeService agendaEventAttendeeService,
+                                              long seriesId,
+                                              List<EventAttendeeEntity> removedAttendees) {
+    if (removedAttendees == null || removedAttendees.isEmpty()) {
+      return Collections.emptySet();
+    }
+    Map<Long, Identity> attendeeIdentities = new HashMap<>();
+    for (EventAttendee attendee : agendaEventAttendeeService.getEventAttendees(seriesId).getEventAttendees()) {
+      attendeeIdentities.computeIfAbsent(attendee.getIdentityId(), identityManager::getIdentity);
+    }
+    Set<Long> removedIdentityIds = new HashSet<>();
+    for (EventAttendeeEntity removedAttendee : removedAttendees) {
+      IdentityEntity removedIdentity = removedAttendee.getIdentity();
+      if (removedIdentity == null) {
+        continue;
+      }
+      attendeeIdentities.entrySet()
+                        .stream()
+                        .filter(attendee -> designates(removedIdentity, attendee.getKey(), attendee.getValue()))
+                        .findFirst()
+                        .ifPresent(attendee -> removedIdentityIds.add(attendee.getKey()));
+    }
+    return removedIdentityIds;
+  }
+
+  private static boolean designates(IdentityEntity removedIdentity, long attendeeIdentityId, Identity attendeeIdentity) {
+    if (StringUtils.isNotBlank(removedIdentity.getProviderId()) && StringUtils.isNotBlank(removedIdentity.getRemoteId())) {
+      return attendeeIdentity != null && removedIdentity.getProviderId().equals(attendeeIdentity.getProviderId())
+          && removedIdentity.getRemoteId().equals(attendeeIdentity.getRemoteId());
+    }
+    return String.valueOf(attendeeIdentityId).equals(removedIdentity.getId());
+  }
+
+  /**
    * Resolves the destination calendar of an event to create. See
    * {@link #checkCalendar(IdentityManager, AgendaCalendarService, EventEntity, Event)}
    * for the resolution rules — this creation variant has no stored event to
