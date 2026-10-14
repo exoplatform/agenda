@@ -744,6 +744,92 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   }
 
   /**
+   * The attendee rows of the series that continues a series from one of its
+   * dates on. Every identity holding a row that covers a date from the split
+   * on, whatever the row's start, keeps the part of its rows from that date
+   * on, with their answers and answer dates: the rows are read whole, never
+   * through the date filter of {@link EventAttendeeList}, which would lose an
+   * answer given from a later date. An identity the change adds outside them
+   * starts with no answer, and one it removes is left out. Nothing is written.
+   *
+   * @param seriesId the series split
+   * @param splitFrom the occurrence id of the continuation's first date
+   * @param addedIdentityIds the identities the change invites
+   * @param removedIdentityIds the identities the change removes
+   * @return the continuation's rows, with no identifier and no event
+   */
+  List<EventAttendee> continuationRows(long seriesId,
+                                       ZonedDateTime splitFrom,
+                                       Collection<Long> addedIdentityIds,
+                                       Set<Long> removedIdentityIds) {
+    List<EventAttendee> rows = new ArrayList<>();
+    Set<Long> identityIds = new HashSet<>();
+    for (EventAttendee row : attendeeStorage.getEventAttendees(seriesId).getEventAttendees()) {
+      ZonedDateTime until = row.getUntilOccurrenceId();
+      if (removedIdentityIds.contains(row.getIdentityId()) || until != null && !until.isAfter(splitFrom)) {
+        continue;
+      }
+      EventAttendee copy = row.clone();
+      copy.setId(0);
+      copy.setEventId(0);
+      if (copy.getFromOccurrenceId() != null && !copy.getFromOccurrenceId().isAfter(splitFrom)) {
+        // From the continuation's first date on
+        copy.setFromOccurrenceId(null);
+      }
+      rows.add(copy);
+      identityIds.add(row.getIdentityId());
+    }
+    for (long addedIdentityId : addedIdentityIds) {
+      if (!removedIdentityIds.contains(addedIdentityId) && identityIds.add(addedIdentityId)) {
+        rows.add(new EventAttendee(0, 0, addedIdentityId, EventAttendeeResponse.NEEDS_ACTION));
+      }
+    }
+    return rows;
+  }
+
+  /**
+   * Stores the rows {@link #continuationRows} computed under the continuation,
+   * as copies: each gets an identifier of its own, the series' rows staying
+   * where they are. No answer is reported as saved: the rows carry answers
+   * given before. Runs inside the decide step of the split.
+   *
+   * @param continuationId the continuation's identifier
+   * @param rows its rows
+   */
+  void saveContinuationRows(long continuationId, List<EventAttendee> rows) {
+    for (EventAttendee row : rows) {
+      EventAttendee copy = row.clone();
+      // With an identifier, the storage would move the series' row instead
+      copy.setId(0);
+      copy.setEventId(continuationId);
+      attendeeStorage.saveEventAttendee(copy, continuationId);
+    }
+  }
+
+  /**
+   * Ends the rows of a split series at the date its continuation starts on: a
+   * row starting from that date on is removed, and one covering it ends
+   * there, as an answer from a date ends the rows before it. Runs inside the
+   * decide step of the split.
+   *
+   * @param seriesId the series split
+   * @param splitFrom the occurrence id of the continuation's first date
+   */
+  void endSeriesRowsAt(long seriesId, ZonedDateTime splitFrom) {
+    for (EventAttendee row : attendeeStorage.getEventAttendees(seriesId).getEventAttendees()) {
+      ZonedDateTime from = row.getFromOccurrenceId();
+      ZonedDateTime until = row.getUntilOccurrenceId();
+      if (from != null && !from.isBefore(splitFrom)) {
+        attendeeStorage.removeEventAttendee(row.getId());
+      } else if (until == null || until.isAfter(splitFrom)) {
+        EventAttendee capped = row.clone();
+        capped.setUntilOccurrenceId(splitFrom);
+        attendeeStorage.saveEventAttendee(capped, seriesId);
+      }
+    }
+  }
+
+  /**
    * Whether a reset would change anything, on the event or, for a series, on
    * the row of one of its dates, where the answers to single dates are.
    */
