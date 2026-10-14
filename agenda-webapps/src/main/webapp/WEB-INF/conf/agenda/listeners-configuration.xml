@@ -35,6 +35,12 @@
       <set-method>addListener</set-method>
       <type>org.exoplatform.agenda.listener.AgendaEventReplyListener</type>
     </component-plugin>
+    <!-- EXO-90311: the manager is told that an attendee on the waiting list got a seat -->
+    <component-plugin>
+      <name>exo.agenda.event.attendee.promoted</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.listener.AgendaEventPromotedListener</type>
+    </component-plugin>
     <!-- EXO-90357: a colleague is told that a calendar was shared with them -->
     <component-plugin>
       <name>exo.agenda.calendar.shared</name>
