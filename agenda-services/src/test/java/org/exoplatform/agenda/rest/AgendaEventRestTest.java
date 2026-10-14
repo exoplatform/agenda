@@ -34,15 +34,24 @@ import java.util.ResourceBundle;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
+import org.exoplatform.agenda.exception.CapacityBelowAcceptedException;
 import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.model.EventAttendeeList;
 import org.exoplatform.agenda.model.EventResponseOutcome;
+import org.exoplatform.agenda.model.EventSplit;
+import org.exoplatform.agenda.rest.model.CapacityErrorEntity;
+import org.exoplatform.agenda.rest.model.EventAttendeeEntity;
+import org.exoplatform.agenda.rest.model.EventEntity;
 import org.exoplatform.agenda.rest.model.EventResponseOutcomeEntity;
+import org.exoplatform.agenda.rest.model.EventSplitEntity;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.service.AgendaEventConferenceService;
@@ -59,6 +68,7 @@ import org.exoplatform.services.security.IdentityConstants;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.rest.entity.IdentityEntity;
 
 import org.exoplatform.services.rest.impl.MultivaluedMapImpl;
 import javax.ws.rs.core.MediaType;
@@ -358,6 +368,162 @@ class AgendaEventRestTest {
     Response response = eventRest.moveEventExceptionalOccurrences(EVENT_ID, 43L, "2026-10-05T09:00:00.000Z");
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     assertEquals(kept, response.getEntity());
+  }
+
+  @Test
+  void aSplitRemovingAnEmailNobodyInvitedCreatesNoIdentity() throws Exception {
+    seriesAttendees(7L, "testuser2");
+    EventSplitEntity body = splitBody(List.of(), List.of(attendee(null, "GUEST_USER", "nobody@example.com")));
+
+    Response response = eventRest.splitEvent(EVENT_ID, null, false, body);
+
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
+    assertTrue(capturedSplit().removedIdentityIds().isEmpty());
+    Mockito.verify(identityManager, Mockito.never()).getOrCreateIdentity(any(), eq("nobody@example.com"));
+  }
+
+  @Test
+  void aSplitResolvesARemovalAmongTheSeriesAttendeesByRemoteId() throws Exception {
+    seriesAttendees(7L, "testuser2");
+    EventSplitEntity body = splitBody(List.of(),
+                                      List.of(attendee(null, OrganizationIdentityProvider.NAME, "testuser2"),
+                                              attendee(null, OrganizationIdentityProvider.NAME, "testuser3")));
+
+    eventRest.splitEvent(EVENT_ID, null, false, body);
+
+    assertEquals(java.util.Set.of(7L), capturedSplit().removedIdentityIds());
+  }
+
+  @Test
+  void aSplitResolvesARemovalAmongTheSeriesAttendeesByIdentityId() throws Exception {
+    seriesAttendees(7L, "testuser2");
+    EventSplitEntity body = splitBody(List.of(), List.of(attendee("7", null, null), attendee("8", null, null)));
+
+    eventRest.splitEvent(EVENT_ID, null, false, body);
+
+    assertEquals(java.util.Set.of(7L), capturedSplit().removedIdentityIds());
+  }
+
+  @Test
+  void aSplitResolvesAnAddedEmailGuestAsANewEventDoes() throws Exception {
+    seriesAttendees(7L, "testuser2");
+    Identity guest = Mockito.mock(Identity.class);
+    when(guest.getId()).thenReturn("9");
+    when(identityManager.getOrCreateIdentity("GUEST_USER", "guest@example.com")).thenReturn(guest);
+    EventSplitEntity body = splitBody(List.of(attendee(null, "GUEST_USER", "guest@example.com")), List.of());
+
+    eventRest.splitEvent(EVENT_ID, null, true, body);
+
+    assertEquals(List.of(9L), capturedSplit().addedIdentityIds());
+    Mockito.verify(agendaEventService)
+           .splitEvent(eq(EVENT_ID), any(), eq(ZonedDateTime.parse("2026-10-05T09:00:00Z")), eq(true), eq(true), eq(USER_IDENTITY_ID));
+  }
+
+  @Test
+  void aRefusedSplitGetsBadRequestWithItsMessageCodeAndDate() throws Exception {
+    seriesAttendees(7L, "testuser2");
+    EventSplitEntity body = splitBody(List.of(), List.of());
+    when(agendaEventService.splitEvent(eq(EVENT_ID), any(), any(), anyBoolean(), anyBoolean(), anyLong()))
+      .thenThrow(new IllegalArgumentException("agenda.capacity.closeNeedsConfirmation"));
+    Response refusal = eventRest.splitEvent(EVENT_ID, null, false, body);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), refusal.getStatus());
+    assertEquals("agenda.capacity.closeNeedsConfirmation", refusal.getEntity());
+
+    when(agendaEventService.splitEvent(eq(EVENT_ID), any(), any(), anyBoolean(), anyBoolean(), anyLong()))
+      .thenThrow(new CapacityBelowAcceptedException(java.time.LocalDate.of(2026, 10, 7)));
+    Response belowAccepted = eventRest.splitEvent(EVENT_ID, null, false, body);
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), belowAccepted.getStatus());
+    assertEquals(new CapacityErrorEntity("agenda.capacity.belowAccepted", "2026-10-07"), belowAccepted.getEntity());
+  }
+
+  @Test
+  void aSplitOfAnUnknownSeriesGetsNotFound() throws Exception {
+    seriesAttendees(7L, "testuser2");
+    EventSplitEntity body = splitBody(List.of(), List.of());
+    when(agendaEventService.splitEvent(eq(EVENT_ID), any(), any(), anyBoolean(), anyBoolean(), anyLong()))
+      .thenThrow(new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND));
+
+    Response response = eventRest.splitEvent(EVENT_ID, null, false, body);
+
+    assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response.getStatus());
+  }
+
+  @Test
+  void aSplitPassesItsZoneAndTheZoneTheSeriesWasReadIn() throws Exception {
+    seriesAttendees(7L, "testuser2");
+    EventSplitEntity body = splitBody(List.of(), List.of());
+
+    eventRest.splitEvent(EVENT_ID, "Etc/UTC", false, body);
+
+    EventSplit split = capturedSplit();
+    assertEquals(java.time.ZoneId.of("UTC"), split.event().getTimeZoneId());
+    assertEquals(java.time.ZoneId.of("Etc/UTC"), split.readZone());
+  }
+
+  @Test
+  void aSplitGivingNoZoneReadsItsDatesInTheZoneTheSeriesWasReadInAndKeepsTheSeriesZone() throws Exception {
+    seriesAttendees(7L, "testuser2");
+    EventSplitEntity body = splitBody(List.of(), List.of());
+    body.getEvent().setTimeZoneId(null);
+    body.getEvent().setStart("2026-10-05T10:00:00");
+    body.getEvent().setEnd("2026-10-05T11:00:00");
+
+    Response response = eventRest.splitEvent(EVENT_ID, "Europe/Paris", false, body);
+
+    assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
+    EventSplit split = capturedSplit();
+    assertEquals(null, split.event().getTimeZoneId());
+    assertEquals(ZonedDateTime.parse("2026-10-05T08:00:00Z").toInstant(), split.event().getStart().toInstant());
+  }
+
+  @Test
+  void aSplitGivingNoZoneNorTheZoneTheSeriesWasReadInKeepsTheSeriesZone() throws Exception {
+    seriesAttendees(7L, "testuser2");
+    EventSplitEntity body = splitBody(List.of(), List.of());
+    body.getEvent().setTimeZoneId(null);
+
+    eventRest.splitEvent(EVENT_ID, null, false, body);
+
+    assertEquals(null, capturedSplit().event().getTimeZoneId());
+  }
+
+  /** The series holds one attendee, the user given. */
+  private void seriesAttendees(long identityId, String username) {
+    Identity identity = Mockito.mock(Identity.class);
+    when(identity.getId()).thenReturn(String.valueOf(identityId));
+    when(identity.getProviderId()).thenReturn(OrganizationIdentityProvider.NAME);
+    when(identity.getRemoteId()).thenReturn(username);
+    when(identityManager.getIdentity(identityId)).thenReturn(identity);
+    when(attendeeService.getEventAttendees(EVENT_ID))
+      .thenReturn(new EventAttendeeList(List.of(new EventAttendee(1L, EVENT_ID, identityId, EventAttendeeResponse.ACCEPTED))));
+  }
+
+  /**
+   * A body that splits the series from the 5th of October 2026, refused by
+   * default as a caller who may not split it, so that the split asked is
+   * captured without the continuation being read back.
+   */
+  private EventSplitEntity splitBody(List<EventAttendeeEntity> added, List<EventAttendeeEntity> removed) throws Exception {
+    when(agendaEventService.splitEvent(eq(EVENT_ID), any(), any(), anyBoolean(), anyBoolean(), anyLong()))
+      .thenThrow(new IllegalAccessException("not allowed"));
+    EventEntity event = new EventEntity();
+    event.setSummary("summary");
+    event.setTimeZoneId("UTC");
+    return new EventSplitEntity(event, added, removed, "2026-10-05T09:00:00.000Z", true);
+  }
+
+  private EventSplit capturedSplit() throws Exception {
+    ArgumentCaptor<EventSplit> split = ArgumentCaptor.forClass(EventSplit.class);
+    Mockito.verify(agendaEventService).splitEvent(eq(EVENT_ID), split.capture(), any(), anyBoolean(), anyBoolean(), anyLong());
+    return split.getValue();
+  }
+
+  private static EventAttendeeEntity attendee(String id, String providerId, String remoteId) {
+    IdentityEntity identity = new IdentityEntity();
+    identity.setId(id);
+    identity.setProviderId(providerId);
+    identity.setRemoteId(remoteId);
+    return new EventAttendeeEntity(0, identity, null);
   }
 
   private Response patch(MultivaluedMap<String, String> fields) {
