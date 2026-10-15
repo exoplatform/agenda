@@ -18,7 +18,8 @@ import static org.exoplatform.agenda.util.NotificationUtils.*;
     @TemplateConfig(pluginId = AGENDA_DATE_POLL_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/mail/DatePollMailPlugin.gtmpl"),
     @TemplateConfig(pluginId = AGENDA_VOTE_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/mail/VoteMailPlugin.gtmpl"),
     @TemplateConfig(pluginId = AGENDA_CALENDAR_SHARED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/mail/CalendarSharedMailPlugin.gtmpl"),
-    @TemplateConfig(pluginId = AGENDA_CALENDAR_EDITED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/mail/CalendarEditedMailPlugin.gtmpl"), })
+    @TemplateConfig(pluginId = AGENDA_CALENDAR_EDITED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/mail/CalendarEditedMailPlugin.gtmpl"),
+    @TemplateConfig(pluginId = AGENDA_PARTICIPATION_CONFIRMED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/mail/EventParticipationConfirmedMailPlugin.gtmpl"), })
 public class MailTemplateProvider extends TemplateProvider {
   public MailTemplateProvider(ExoContainer container, InitParams initParams) {
     super(initParams);
@@ -31,5 +32,7 @@ public class MailTemplateProvider extends TemplateProvider {
     this.templateBuilders.put(EVENT_DATE_VOTE_KEY, new VoteTemplateBuilder(this, container, EVENT_DATE_VOTE_KEY, false));
     this.templateBuilders.put(CALENDAR_SHARED_KEY, new CalendarSharedTemplateBuilder(this, container, CALENDAR_SHARED_KEY, false));
     this.templateBuilders.put(CALENDAR_EDITED_KEY, new CalendarEditedTemplateBuilder(this, container, CALENDAR_EDITED_KEY, false));
+    this.templateBuilders.put(PARTICIPATION_CONFIRMED_KEY,
+                              new ParticipationConfirmedTemplateBuilder(this, container, PARTICIPATION_CONFIRMED_KEY, false, true));
   }
 }

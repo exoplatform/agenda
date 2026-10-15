@@ -311,6 +311,21 @@ class SeriesDatesTest {
   }
 
   /**
+   * Every date of a series with several dates a day is counted once, a date
+   * that starts before midnight in the series' zone and runs into the next day
+   * included: it is not counted again with the dates of that day.
+   */
+  @Test
+  void aDateRunningIntoTheNextDayIsCountedOnce() {
+    ZonedDateTime start = ZonedDateTime.of(2030, 1, 7, 10, 0, 0, 0, PARIS);
+    Event series = series(start, HOUR, EventRecurrenceFrequency.HOURLY, 48, start.plusHours(47).plus(HOUR));
+
+    assertEquals(48, dates(series, List.of(), BEFORE).countCountedDates(null, null));
+    assertEquals(24, dates(series, List.of(), BEFORE).countCountedDates(start.plusHours(12).withZoneSameInstant(ZoneOffset.UTC),
+                                                                         start.plusHours(36).withZoneSameInstant(ZoneOffset.UTC)));
+  }
+
+  /**
    * The rows of the dates are read once, and only when a date is looked for.
    */
   @Test
@@ -348,9 +363,9 @@ class SeriesDatesTest {
    * anchored as the materialisation of a date anchors them, their ids in each
    * form a row may be stored with, and current instants before the series,
    * in the last minutes of a date, at its end and past the series: the first
-   * counted date of a range, the first date and the date read are those a
-   * reading of every date of the rule at once gives, an all-day date ending
-   * with the last of its days.
+   * counted date of a range, the number of its counted dates, the first date
+   * and the date read are those a reading of every date of the rule at once
+   * gives, an all-day date ending with the last of its days.
    */
   @Test
   void theDatesFoundAreThoseOfTheWholeRuleReadAtOnce() {
@@ -398,11 +413,16 @@ class SeriesDatesTest {
                   check(mismatches, label + ": first date", ids.get(0), dates.firstDate());
                   check(mismatches, label + ": date read", expectedReadDate(series, starts, ends, ids, rows, now), dates.readDate());
                   for (ZonedDateTime[] range : ranges) {
-                    checks++;
+                    checks += 2;
                     check(mismatches,
                           label + ": first counted date of [" + range[0] + ", " + range[1] + ")",
                           expectedFirstCountedDate(ends, ids, rows, now, range[0], range[1]),
                           dates.firstCountedDate(range[0], range[1]));
+                    check(mismatches,
+                          label + ": counted dates of [" + range[0] + ", " + range[1] + ")",
+                          range[1] == null && rule.count() <= 0 ? -1
+                                                                : expectedCountedDates(ends, ids, rows, now, range[0], range[1]),
+                          dates.countCountedDates(range[0], range[1]));
                   }
                   List<Map.Entry<Integer, SweptRow>> sweptRows = List.copyOf(rows.entrySet());
                   for (int r = 0; r < sweptRows.size(); r++) {
@@ -696,6 +716,23 @@ class SeriesDatesTest {
     return null;
   }
 
+  private static int expectedCountedDates(List<ZonedDateTime> ends,
+                                          List<ZonedDateTime> ids,
+                                          Map<Integer, SweptRow> rows,
+                                          ZonedDateTime now,
+                                          ZonedDateTime from,
+                                          ZonedDateTime until) {
+    int count = 0;
+    for (int i = 0; i < ends.size(); i++) {
+      ZonedDateTime id = ids.get(i);
+      if (!rows.containsKey(i) && ends.get(i).isAfter(now) && (from == null || !id.isBefore(from))
+          && (until == null || id.isBefore(until))) {
+        count++;
+      }
+    }
+    return count;
+  }
+
   /**
    * The dates carried are the dates of the rule with no row or a row neither
    * cancelled nor moved, at their place in the rule, and the moved rows not
@@ -736,6 +773,12 @@ class SeriesDatesTest {
   private static void check(List<String> mismatches, String label, ZonedDateTime expected, ZonedDateTime found) {
     boolean same = expected == null ? found == null : found != null && expected.isEqual(found);
     if (!same) {
+      mismatches.add(label + ": " + expected + " expected, " + found + " found");
+    }
+  }
+
+  private static void check(List<String> mismatches, String label, int expected, int found) {
+    if (expected != found) {
       mismatches.add(label + ": " + expected + " expected, " + found + " found");
     }
   }
