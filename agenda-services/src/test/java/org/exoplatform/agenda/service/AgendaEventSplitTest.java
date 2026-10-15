@@ -56,6 +56,7 @@ import org.exoplatform.agenda.exception.CapacityBelowAcceptedException;
 import org.exoplatform.agenda.model.AgendaEventModification;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.model.EventAttendeePromotion;
 import org.exoplatform.agenda.model.EventRecurrence;
 import org.exoplatform.agenda.model.EventReminder;
 import org.exoplatform.agenda.model.EventSplit;
@@ -95,10 +96,10 @@ public class AgendaEventSplitTest extends BaseAgendaEventTest {
           CREATIONS.add(event.getSource());
         }
       });
-      listenerService.addListener(Utils.POST_EVENT_ATTENDEE_PROMOTED, new Listener<EventAttendee, EventAttendee>() {
+      listenerService.addListener(Utils.POST_EVENT_ATTENDEE_PROMOTED, new Listener<EventAttendee, EventAttendeePromotion>() {
         @Override
-        public void onEvent(org.exoplatform.services.listener.Event<EventAttendee, EventAttendee> event) {
-          PROMOTIONS.add(event.getData());
+        public void onEvent(org.exoplatform.services.listener.Event<EventAttendee, EventAttendeePromotion> event) {
+          PROMOTIONS.add(event.getData().attendee());
         }
       });
       listenersRegistered = true;
