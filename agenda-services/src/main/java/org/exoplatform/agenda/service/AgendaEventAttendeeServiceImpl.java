@@ -470,14 +470,14 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     // designating the date answered from, or a later one, read at once
     Event ownRow = null;
     EventAttendeeResponse responseOnOwnRow = null;
-    ZonedDateTime firstWaitingOccurrenceId = outcome.firstWaitingOccurrenceId();
+    Event earliestWaitingRow = null;
     List<Event> occurrences = eventStorage.getExceptionalOccurrences(eventId);
     SeriesDates seriesDates = new SeriesDates(series, () -> occurrences, ZonedDateTime.now(ZoneOffset.UTC));
     for (Event occurrence : occurrences) {
       if (isOnOrAfterSeriesDate(series, occurrenceDateOf(occurrence), fromDate)
           && isEventAttendee(occurrence.getId(), identityId)) {
         EventAttendee propagated = saveEventAttendee(occurrence, identityId, response, false, decidesSeat(occurrence, seriesDates));
-        firstWaitingOccurrenceId = earliestWaiting(firstWaitingOccurrenceId, occurrence, propagated);
+        earliestWaitingRow = earliestWaiting(earliestWaitingRow, occurrence, propagated);
         // The date answered from has a row of its own, a pool deciding alone:
         // the answer stored at that date is the one its row stores, the first
         // created among several
@@ -488,7 +488,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
         }
       }
     }
-    return new EventResponseOutcome(ownRow == null ? outcome.response() : responseOnOwnRow, firstWaitingOccurrenceId);
+    return new EventResponseOutcome(ownRow == null ? outcome.response() : responseOnOwnRow,
+                                    firstWaiting(series, outcome.firstWaitingOccurrenceId(), earliestWaitingRow));
   }
 
   /**
@@ -637,7 +638,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
                                                   boolean broadcast) {
     Event event = eventStorage.getEventById(eventId);
     EventResponseOutcome outcome = answerPool(event, null, identityId, response, broadcast);
-    ZonedDateTime firstWaitingOccurrenceId = outcome.firstWaitingOccurrenceId();
+    Event earliestWaitingRow = null;
 
     // Apply modification on exceptional occurrences as well, deciding no seat
     // on a date over
@@ -650,11 +651,11 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
         if (isEventAttendee(exceptionalOccurenceEventId, identityId)) {
           Event occurrence = eventStorage.getEventById(exceptionalOccurenceEventId);
           EventAttendee propagated = saveEventAttendee(occurrence, identityId, response, false, decidesSeat(occurrence, seriesDates));
-          firstWaitingOccurrenceId = earliestWaiting(firstWaitingOccurrenceId, occurrence, propagated);
+          earliestWaitingRow = earliestWaiting(earliestWaitingRow, occurrence, propagated);
         }
       }
     }
-    return new EventResponseOutcome(outcome.response(), firstWaitingOccurrenceId);
+    return new EventResponseOutcome(outcome.response(), firstWaiting(event, outcome.firstWaitingOccurrenceId(), earliestWaitingRow));
   }
 
   /**
@@ -669,18 +670,40 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   }
 
   /**
-   * @param current the earliest waiting date found so far, or null
+   * @param current the row of the earliest date left waiting found so far, or
+   *          null
    * @param pool a row an answer was stored on
    * @param stored the attendee row stored on it
-   * @return the earlier of the current one and the pool's date, when the pool
-   *         is a date of a series, not cancelled, that the answer left waiting
+   * @return the earlier of the current row and the pool, by when their dates
+   *         start, a date moved at its own start, when the pool is a date of
+   *         a series, not cancelled, that the answer left waiting; else the
+   *         current row
    */
-  private static ZonedDateTime earliestWaiting(ZonedDateTime current, Event pool, EventAttendee stored) {
-    ZonedDateTime date = occurrenceDateOf(pool);
-    if (date == null || stored.getResponse() != EventAttendeeResponse.WAITING || pool.getStatus() == EventStatus.CANCELLED) {
+  private Event earliestWaiting(Event current, Event pool, EventAttendee stored) {
+    if (occurrenceDateOf(pool) == null || stored.getResponse() != EventAttendeeResponse.WAITING
+        || pool.getStatus() == EventStatus.CANCELLED) {
       return current;
     }
-    return current == null || date.isBefore(current) ? date : current;
+    return current == null || startOfDate(pool).isBefore(startOfDate(current)) ? pool : current;
+  }
+
+  /**
+   * @param series the series answered
+   * @param seriesDate the first date the answer left waiting on the series'
+   *          own rows, or null
+   * @param dateRow the row of the earliest date stored on a row of its own
+   *          the answer left waiting, or null
+   * @return the id of the first date left waiting, by when each starts, a
+   *         date moved at its own start
+   */
+  private ZonedDateTime firstWaiting(Event series, ZonedDateTime seriesDate, Event dateRow) {
+    if (dateRow == null) {
+      return seriesDate;
+    }
+    if (seriesDate == null || startOfDate(dateRow).isBefore(startOf(seriesDate, series))) {
+      return occurrenceDateOf(dateRow);
+    }
+    return seriesDate;
   }
 
   /**
@@ -1279,7 +1302,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       return answerSeries(pool, fromDate, identityId, requested, userResponseSent);
     }
     EventAttendee stored = saveEventAttendee(pool, identityId, requested, userResponseSent, true);
-    return new EventResponseOutcome(stored.getResponse(), earliestWaiting(null, pool, stored));
+    Event waitingRow = earliestWaiting(null, pool, stored);
+    return new EventResponseOutcome(stored.getResponse(), waitingRow == null ? null : occurrenceDateOf(waitingRow));
   }
 
   /**
