@@ -5,6 +5,8 @@ import java.net.*;
 import java.nio.charset.Charset;
 import java.time.*;
 import java.util.*;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.stream.Collectors;
 
 import net.fortuna.ical4j.data.CalendarOutputter;
@@ -17,6 +19,7 @@ import net.fortuna.ical4j.util.RandomUidGenerator;
 import net.fortuna.ical4j.util.UidGenerator;
 import org.apache.commons.lang3.LocaleUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
@@ -124,6 +127,18 @@ public class NotificationUtils {
                                                                             new ArgumentLiteral<>(CalendarEditorChange.class,
                                                                                                   "calendar_editor_change");
 
+  /**
+   * Plugin id of "your participation is confirmed", sent to an attendee who
+   * got a seat from the waiting list (EXO-90315).
+   */
+  public static final String                                 AGENDA_PARTICIPATION_CONFIRMED_NOTIFICATION_PLUGIN =
+                                                                                                                "EventParticipationConfirmedNotificationPlugin";
+
+  /** The promotion handed to the participation-confirmed notification (EXO-90315). */
+  public static final ArgumentLiteral<EventAttendeePromotion> EVENT_PROMOTION                               =
+                                                                              new ArgumentLiteral<>(EventAttendeePromotion.class,
+                                                                                                    "event_promotion");
+
   /** Stored parameter: full name of the colleague who made the change (EXO-90378). */
   public static final String                                 STORED_PARAMETER_MODIFIER_NAME                 = "modifierName";
 
@@ -198,6 +213,10 @@ public class NotificationUtils {
   public static final PluginKey                              CALENDAR_EDITED_KEY                            =
                                                                                  PluginKey.key(AGENDA_CALENDAR_EDITED_NOTIFICATION_PLUGIN);
 
+  /** Plugin key of "your participation is confirmed" (EXO-90315). */
+  public static final PluginKey                              PARTICIPATION_CONFIRMED_KEY                    =
+                                                                                         PluginKey.key(AGENDA_PARTICIPATION_CONFIRMED_NOTIFICATION_PLUGIN);
+
   public static final String                                 STORED_PARAMETER_EVENT_TITLE                   = "eventTitle";
 
   public static final String                                 STORED_PARAMETER_EVENT_CALENDAR_NAME           = "calendarName";
@@ -252,6 +271,18 @@ public class NotificationUtils {
 
   public static final String                                STORED_PARAMETER_EVENT_IS_CREATOR = "isCreator";
 
+  /** "true" on an all-day date, whose start and end are then stored as days */
+  public static final String                                 STORED_PARAMETER_EVENT_ALL_DAY                 = "allDay";
+
+  /** The number of dates promoted after the first one */
+  public static final String                                 STORED_PARAMETER_OTHER_DATES                   = "otherDates";
+
+  /** "true" when the dates promoted have no last one */
+  public static final String                                 STORED_PARAMETER_OPEN_ENDED                    = "openEnded";
+
+  /** "true" when the recipient is a guest without an account */
+  public static final String                                 STORED_PARAMETER_IS_GUEST                      = "isGuest";
+
   private static final String                                TEMPLATE_VARIABLE_EVENT_START_DATE             = "startDate";
 
   private static final String                                TEMPLATE_VARIABLE_EVENT_END_DATE               = "endDate";
@@ -280,6 +311,14 @@ public class NotificationUtils {
   private static final String                                TEMPLATE_VARIABLE_EVENT_ATTENDEES              = "attendees";
 
   private static final String                                TEMPLATE_VARIABLE_EVENT_IS_GUEST               = "isGuest";
+
+  private static final String                                TEMPLATE_VARIABLE_PROMOTED_DAY                 = "promotedDay";
+
+  private static final String                                TEMPLATE_VARIABLE_PROMOTED_TIME                = "promotedTime";
+
+  private static final String                                TEMPLATE_VARIABLE_OTHER_DATES                  = "otherDates";
+
+  private static final String                                TEMPLATE_VARIABLE_OPEN_ENDED                   = "openEnded";
 
   /**
    * Name the CalDAV connector registers itself under in a user's connected
@@ -442,6 +481,54 @@ public class NotificationUtils {
     storeCalendarName(notification, calendar);
   }
 
+  /**
+   * Stores what the "Participation confirmation" notification shows: the
+   * event, and on a recurring event the first date promoted, which its links
+   * open, and the number of the other dates promoted.
+   *
+   * @param notification the notification
+   * @param event the event whose row holds the first date promoted: a series,
+   *          the row of one of its dates, or an event that is not recurring
+   * @param date the first date promoted, as served: an occurrence of the
+   *          series, or the event itself
+   * @param occurrenceId the id of that date on a recurring event, null
+   *          otherwise
+   * @param calendar the event's calendar
+   * @param promotion the seats the attendee got
+   * @param guest whether the recipient is a guest without an account
+   */
+  public static final void storeParticipationConfirmedParameters(NotificationInfo notification,
+                                                                 Event event,
+                                                                 Event date,
+                                                                 ZonedDateTime occurrenceId,
+                                                                 Calendar calendar,
+                                                                 EventAttendeePromotion promotion,
+                                                                 boolean guest) {
+    notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
+                .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
+                .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
+                .with(STORED_PARAMETER_EVENT_URL, getEventURL(event, occurrenceId))
+                .with(STORED_PARAMETER_WEB_EVENT_URL, getWebEventURL(event, occurrenceId))
+                .with(STORED_PARAMETER_EVENT_ALL_DAY, String.valueOf(date.isAllDay()))
+                .with(STORED_PARAMETER_EVENT_START_DATE, storedDate(date, date.getStart()))
+                .with(STORED_PARAMETER_EVENT_END_DATE, storedDate(date, date.getEnd()))
+                .with(STORED_PARAMETER_OTHER_DATES, String.valueOf(promotion.otherDates()))
+                .with(STORED_PARAMETER_OPEN_ENDED, String.valueOf(promotion.openEnded()))
+                .with(STORED_PARAMETER_IS_GUEST, String.valueOf(guest));
+    if (occurrenceId != null) {
+      notification.with(STORED_PARAMETER_EVENT_OCCURRENCE_ID, AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC));
+    }
+    storeCalendarName(notification, calendar);
+  }
+
+  /**
+   * @return the day of an all-day date, which is the same in every zone, or
+   *         the instant of a timed one
+   */
+  private static String storedDate(Event date, ZonedDateTime value) {
+    return date.isAllDay() ? value.toLocalDate().toString() : AgendaDateUtils.toRFC3339Date(value);
+  }
+
   public static final void storeEventParameters(IdentityManager identityManager,
                                                 NotificationInfo notification,
                                                 Event event,
@@ -597,6 +684,63 @@ public class NotificationUtils {
 
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
     templateContext.put(TEMPLATE_VARIABLE_WEB_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_WEB_EVENT_URL));
+    return templateContext;
+  }
+
+  /**
+   * Builds the context of the "Participation confirmation" templates. On a
+   * recurring event, the first date promoted is given as a day and, on a
+   * timed event, a time, in the recipient's zone and language. A guest
+   * without an account is given no link to the event: the portal is closed to
+   * them.
+   *
+   * @param templateProvider the provider of the channel's template
+   * @param notification the notification
+   * @param timeZone the recipient's zone
+   * @return the template context
+   */
+  public static final TemplateContext buildTemplateParticipationConfirmedParameters(TemplateProvider templateProvider,
+                                                                                    NotificationInfo notification,
+                                                                                    ZoneId timeZone) {
+    String language = NotificationPluginUtils.getLanguage(notification.getTo());
+    TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
+
+    setFooter(notification, templateContext);
+    setRead(notification, templateContext);
+    setNotificationId(notification, templateContext);
+    setLasModifiedTime(notification, templateContext, language);
+
+    boolean guest = Boolean.parseBoolean(notification.getValueOwnerParameter(STORED_PARAMETER_IS_GUEST));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_ID, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ID));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_TITLE, getEventTitle(notification));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_IS_GUEST, guest);
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, guest ? "" : notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
+    templateContext.put(TEMPLATE_VARIABLE_WEB_EVENT_URL,
+                        guest ? "" : notification.getValueOwnerParameter(STORED_PARAMETER_WEB_EVENT_URL));
+
+    String promotedDay = "";
+    String promotedTime = "";
+    String start = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_START_DATE);
+    if (StringUtils.isNotBlank(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OCCURRENCE_ID))
+        && StringUtils.isNotBlank(start)) {
+      Locale locale = StringUtils.isBlank(language) ? Locale.ENGLISH : LocaleUtils.toLocale(language);
+      DateTimeFormatter dayFormat = DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale);
+      if (Boolean.parseBoolean(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ALL_DAY))) {
+        // An all-day date is a calendar day, the same whatever the recipient's
+        // zone: never converted, or a westward recipient reads the day before
+        promotedDay = dayFormat.format(LocalDate.parse(start));
+      } else {
+        ZonedDateTime startDate = ZonedDateTime.parse(start).withZoneSameInstant(timeZone);
+        promotedDay = dayFormat.format(startDate);
+        promotedTime = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).format(startDate);
+      }
+    }
+    templateContext.put(TEMPLATE_VARIABLE_PROMOTED_DAY, promotedDay);
+    templateContext.put(TEMPLATE_VARIABLE_PROMOTED_TIME, promotedTime);
+    templateContext.put(TEMPLATE_VARIABLE_OTHER_DATES,
+                        NumberUtils.toInt(notification.getValueOwnerParameter(STORED_PARAMETER_OTHER_DATES), 0));
+    templateContext.put(TEMPLATE_VARIABLE_OPEN_ENDED,
+                        Boolean.parseBoolean(notification.getValueOwnerParameter(STORED_PARAMETER_OPEN_ENDED)));
     return templateContext;
   }
 

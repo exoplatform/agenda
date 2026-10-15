@@ -17,6 +17,7 @@
 package org.exoplatform.agenda.service;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -52,6 +53,7 @@ import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
 import org.exoplatform.agenda.model.AgendaEventModification;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.model.EventAttendeePromotion;
 import org.exoplatform.agenda.model.EventDateOption;
 import org.exoplatform.agenda.model.EventOccurrence;
 import org.exoplatform.agenda.model.EventRecurrence;
@@ -253,10 +255,11 @@ public class AgendaSeatRuleTest extends BaseAgendaEventTest {
     assertTrue("the promotion is dated when it happens",
                rowOf(eventId, testuser4Identity).getResponseDate().isAfter(longestWaiting.plusHours(1)));
     Broadcast promoted = only(Utils.POST_EVENT_ATTENDEE_PROMOTED);
-    assertEquals(id(testuser4Identity), ((EventAttendee) promoted.data()).getIdentityId());
-    assertEquals("the promotion is told as a Yes",
-                 EventAttendeeResponse.ACCEPTED,
-                 ((EventAttendee) promoted.data()).getResponse());
+    EventAttendeePromotion promotion = (EventAttendeePromotion) promoted.data();
+    assertEquals(id(testuser4Identity), promotion.attendee().getIdentityId());
+    assertEquals("the promotion is told as a Yes", EventAttendeeResponse.ACCEPTED, promotion.attendee().getResponse());
+    assertEquals("an event that is not recurring has no other date", 0, promotion.otherDates());
+    assertFalse(promotion.openEnded());
     assertEquals(EventAttendeeResponse.WAITING, ((EventAttendee) promoted.source()).getResponse());
     assertEquals("only the No is an answer sent",
                  List.of(id(testuser2Identity)),
@@ -462,7 +465,7 @@ public class AgendaSeatRuleTest extends BaseAgendaEventTest {
 
     assertEquals(EventAttendeeResponse.ACCEPTED, responseOf(eventId, testuser3Identity));
     assertEquals(id(testuser3Identity),
-                 ((EventAttendee) only(Utils.POST_EVENT_ATTENDEE_PROMOTED).data()).getIdentityId());
+                 ((EventAttendeePromotion) only(Utils.POST_EVENT_ATTENDEE_PROMOTED).data()).attendee().getIdentityId());
   }
 
   /**
@@ -1322,6 +1325,31 @@ public class AgendaSeatRuleTest extends BaseAgendaEventTest {
     assertTrue(broadcasts(Utils.POST_EVENT_RESPONSE_SENT).isEmpty());
     assertEquals(Set.of(id(testuser2Identity), id(testuser3Identity)),
                  Set.copyOf(identitiesOf(Utils.POST_EVENT_RESPONSE_SAVED)));
+  }
+
+  /**
+   * A date moved on a full event starts every answer over in the save itself,
+   * the waiting list included: the seats the answers free go to nobody, so
+   * nobody is told their participation is confirmed.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aMovedDateStartsTheWaitingListOverAndConfirmsNobody() throws Exception {
+    long eventId = openLimitedEvent(1, testuser2Identity, testuser3Identity).getId();
+    answer(eventId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(eventId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(eventId, testuser3Identity));
+    BROADCASTS.clear();
+
+    Event moved = agendaEventService.getEventById(eventId, null, id(testuser1Identity));
+    moved.setStart(moved.getStart().plusDays(1));
+    moved.setEnd(moved.getEnd().plusDays(1));
+    saveWholeEvent(moved);
+
+    assertEquals(EventAttendeeResponse.NEEDS_ACTION, responseOf(eventId, testuser2Identity));
+    assertEquals(EventAttendeeResponse.NEEDS_ACTION, responseOf(eventId, testuser3Identity));
+    assertTrue(broadcasts(Utils.POST_EVENT_ATTENDEE_PROMOTED).isEmpty());
   }
 
   /**
