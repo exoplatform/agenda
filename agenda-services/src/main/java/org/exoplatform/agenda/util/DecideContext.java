@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * The state of the decide step running on the current thread: the event rows
@@ -101,6 +102,30 @@ public final class DecideContext {
       return false;
     }
     context.effects.add(effect);
+    return true;
+  }
+
+  /**
+   * Queues one share of a side effect for after the transaction of the decide
+   * step running on the current thread. The shares queued under equal keys
+   * make one effect: it runs once, where the first of them was queued, on all
+   * of them in the order they were queued. A share dropped with the nested
+   * step that queued it takes no part in it.
+   *
+   * @param <S> the type of the shares
+   * @param key what the shares are about
+   * @param share this share
+   * @param effect the effect of all the shares queued under the key
+   * @return true when it was queued, false when no decide step runs on the
+   *         thread, in which case the caller runs the effect of its share
+   *         itself
+   */
+  public static <S> boolean queueMerged(Object key, S share, Consumer<List<S>> effect) {
+    DecideContext context = CURRENT.get();
+    if (context == null) {
+      return false;
+    }
+    context.effects.add(new MergedShare<>(context, key, share, effect));
     return true;
   }
 
