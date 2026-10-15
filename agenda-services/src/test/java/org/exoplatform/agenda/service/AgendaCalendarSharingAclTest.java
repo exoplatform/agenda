@@ -35,6 +35,7 @@ import static org.mockito.Mockito.when;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -393,6 +394,26 @@ class AgendaCalendarSharingAclTest {
     eventService.getEvents(restricted, ZoneOffset.UTC, ALICE);
     org.mockito.Mockito.verify(eventStorage, org.mockito.Mockito.times(2)).getEventIds(sent.capture());
     assertTrue(sent.getValue().getCalendarIds().isEmpty(), "an owner restriction reads no shared calendar by default");
+  }
+
+  /**
+   * An attendee read naming an empty calendar list reads no shared calendar:
+   * the busy time and the conflicts of a person rely on it to count only their
+   * own commitments, where a null list would add every calendar shared with them.
+   *
+   * @throws Exception when a read is refused
+   */
+  @Test
+  void anAttendeeReadNamingAnEmptyCalendarListReadsNoSharedCalendar() throws Exception {
+    when(eventStorage.getEventIds(any())).thenReturn(List.of());
+    ArgumentCaptor<EventFilter> sent = ArgumentCaptor.forClass(EventFilter.class);
+
+    EventFilter own = filter(null);
+    own.setAttendeeId(ALICE);
+    own.setCalendarIds(Collections.emptyList());
+    eventService.getEvents(own, ZoneOffset.UTC, ALICE);
+    org.mockito.Mockito.verify(eventStorage).getEventIds(sent.capture());
+    assertTrue(sent.getValue().getCalendarIds().isEmpty(), "an empty calendar list adds no shared calendar");
   }
 
   /**

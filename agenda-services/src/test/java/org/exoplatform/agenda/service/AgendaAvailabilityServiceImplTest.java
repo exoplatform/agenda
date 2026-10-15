@@ -190,6 +190,32 @@ class AgendaAvailabilityServiceImplTest {
                                          eq(COLLEAGUE));
   }
 
+  /**
+   * A calendar somebody shared with the target is not the target's own
+   * commitment (EXO-91169). The event service reads every shared calendar when
+   * the filter names no calendar (null), and none when it names an empty list:
+   * the stub below answers the way it does, so a busy read that leaves the
+   * calendars unnamed would report the shared calendar's event as busy time.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void aCalendarSharedWithTheTargetNeverMakesItBusy() throws Exception {
+    sharing(COLLEAGUE, AvailabilitySharing.SHARED_SPACES);
+    membersOfASameSpace("user400", "user5");
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(COLLEAGUE))).thenAnswer(invocation -> {
+      EventFilter filter = invocation.getArgument(0);
+      return filter.getCalendarIds() == null ? List.of(busyEvent(9, 10)) : List.of();
+    });
+
+    List<UserAvailability> result = availabilityService.getAvailability(List.of(COLLEAGUE), WINDOW_START, WINDOW_END, ASKER);
+
+    assertEquals(0, result.get(0).getBusy().size());
+    verify(agendaEventService).getEvents(argThat(filter -> filter.getCalendarIds() != null && filter.getCalendarIds().isEmpty()),
+                                         eq(ZoneOffset.UTC),
+                                         eq(COLLEAGUE));
+  }
+
   @Test
   void anUnknownAskerIsRefused() {
     when(identityManager.getIdentity("999")).thenReturn(null);
