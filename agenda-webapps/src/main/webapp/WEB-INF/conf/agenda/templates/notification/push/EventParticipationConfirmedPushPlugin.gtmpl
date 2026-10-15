@@ -1,0 +1,28 @@
+<%
+  eventTitle = _ctx.escapeHTML(eventTitle);
+  String datesLine = "";
+  if (promotedDay) {
+    String promotedDate = promotedTime ? _ctx.appRes("Notification.agenda.event.participationConfirmed.dateTime", promotedDay, promotedTime) : promotedDay;
+    if (openEnded) {
+      datesLine = _ctx.appRes("Notification.agenda.event.participationConfirmed.followingDates", promotedDate);
+    } else if (otherDates == 1) {
+      datesLine = _ctx.appRes("Notification.agenda.event.participationConfirmed.otherDate", promotedDate);
+    } else if (otherDates > 1) {
+      datesLine = _ctx.appRes("Notification.agenda.event.participationConfirmed.otherDates", promotedDate, String.valueOf(otherDates));
+    } else {
+      datesLine = promotedDate;
+    }
+  }
+%>
+<div>
+    <div class="contentSmall" data-link="<%= eventURL %>">
+        <div class="status">
+            <%= _ctx.appRes("Notification.agenda.event.participationConfirmed") %>
+        </div>
+        <div><span class="user-name text-bold"><%= eventTitle %></span></div>
+        <% if (datesLine) { %>
+        <div><%= datesLine %></div>
+        <% } %>
+        <div class="lastUpdatedTime"><%= LAST_UPDATED_TIME %></div>
+    </div>
+</div>
