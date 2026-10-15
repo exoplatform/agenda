@@ -113,6 +113,31 @@ final class SeriesDates {
   }
 
   /**
+   * @param from the occurrence id the range starts at, inclusive, or null from
+   *          the first date of the series
+   * @param until the occurrence id the range ends before, exclusive, or null
+   *          when it has no end
+   * @return the number of counted dates of the range, or -1 when the range
+   *         has no end on a series that has none either: its dates are not
+   *         counted
+   */
+  int countCountedDates(ZonedDateTime from, ZonedDateTime until) {
+    if (until == null && neverEnds()) {
+      return -1;
+    }
+    int[] count = new int[1];
+    // Every date of the range is visited: the rule is read once over it, as
+    // each window reads it again from the start of the series
+    walk(from, until, true, true, occurrence -> {
+      if (isCounted(occurrence)) {
+        count[0]++;
+      }
+      return true;
+    });
+    return count[0];
+  }
+
+  /**
    * @return the id of the first date the rule of the series produces, over
    *         or not
    */
@@ -272,16 +297,35 @@ final class SeriesDates {
     return severalDatesADay ? occurrenceId.toEpochSecond() : Utils.getSeriesDate(series, occurrenceId);
   }
 
+  private Event firstDate(ZonedDateTime from, ZonedDateTime until, boolean notOver, Predicate<Event> accepted) {
+    Event[] first = new Event[1];
+    walk(from, until, notOver, false, occurrence -> {
+      if (accepted.test(occurrence)) {
+        first[0] = occurrence;
+        return false;
+      }
+      return true;
+    });
+    return first[0];
+  }
+
   /**
    * Reads the rule forward, window by window, from the start of the range,
    * or from the earliest start of a date not over yet when only those are
-   * looked for, whichever is later.
+   * looked for, whichever is later, and hands each date of the range to a
+   * visitor, in order, until it returns false. A visitor that stops early
+   * reads the rule window by window; one that visits the whole range reads it
+   * in one window, up to the range's last day.
    */
-  private Event firstDate(ZonedDateTime from, ZonedDateTime until, boolean notOver, Predicate<Event> accepted) {
+  private void walk(ZonedDateTime from,
+                    ZonedDateTime until,
+                    boolean notOver,
+                    boolean wholeRange,
+                    Predicate<Event> visitor) {
     LocalDate day = scanStart(from, notOver);
     LocalDate last = scanEnd(until);
     while (!day.isAfter(last)) {
-      LocalDate windowEnd = day.plusDays(windowDays() - 1L);
+      LocalDate windowEnd = wholeRange ? last : day.plusDays(windowDays() - 1L);
       if (windowEnd.isAfter(last)) {
         windowEnd = last;
       }
@@ -291,15 +335,23 @@ final class SeriesDates {
           continue;
         }
         if (until != null && !date.isBefore(until)) {
-          return null;
+          return;
         }
-        if (accepted.test(occurrence)) {
-          return occurrence;
+        if (!visitor.test(occurrence)) {
+          return;
         }
       }
       day = windowEnd.plusDays(1);
     }
-    return null;
+  }
+
+  /**
+   * @return whether the rule of the series has no end: neither a last day nor
+   *         a number of dates
+   */
+  private boolean neverEnds() {
+    EventRecurrence recurrence = series.getRecurrence();
+    return recurrence != null && recurrence.getUntil() == null && recurrence.getCount() <= 0;
   }
 
   /**

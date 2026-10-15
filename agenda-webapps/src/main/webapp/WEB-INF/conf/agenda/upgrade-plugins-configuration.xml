@@ -43,5 +43,34 @@
         </value-param>
       </init-params>
     </component-plugin>
+    <component-plugin>
+      <name>EventParticipationConfirmedNotificationPlugin</name>
+      <set-method>addUpgradePlugin</set-method>
+      <type>io.meeds.social.notification.upgrade.NotificationUpgradePlugin</type>
+      <description>Turns the participation confirmation (EXO-90315) on for the users who saved their notification settings before it existed</description>
+      <init-params>
+        <value-param>
+          <name>product.group.id</name>
+          <value>org.exoplatform.social</value>
+        </value-param>
+        <value-param>
+          <name>plugin.execution.order</name>
+          <value>90</value>
+        </value-param>
+        <value-param>
+          <name>notificationPluginId</name>
+          <value>EventParticipationConfirmedNotificationPlugin</value>
+        </value-param>
+        <value-param>
+          <name>notificationChannelId</name>
+          <description>Every channel, when empty</description>
+          <value></value>
+        </value-param>
+        <value-param>
+          <name>plugin.upgrade.execute.once</name>
+          <value>true</value>
+        </value-param>
+      </init-params>
+    </component-plugin>
   </external-component-plugins>
 </configuration>
