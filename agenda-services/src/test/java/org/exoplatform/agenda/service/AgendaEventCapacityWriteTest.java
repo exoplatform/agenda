@@ -41,12 +41,14 @@ import org.junit.function.ThrowingRunnable;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.exception.CapacityBelowAcceptedException;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.model.EventAttendeePromotion;
 import org.exoplatform.agenda.model.EventOccurrence;
+import org.exoplatform.agenda.model.EventResponseOutcome;
 import org.exoplatform.agenda.model.RemoteEvent;
 import org.exoplatform.agenda.service.RecordingStatementInspector.RecordedStatement;
 import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
@@ -1492,6 +1494,241 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
   }
 
   /**
+   * The first date an answer to a series leaves waiting, which the message
+   * telling the attendee so opens, is the one that starts first: the series'
+   * second date, not its first one moved after the fourth, though that one's
+   * id names the earliest day.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void theFirstDateLeftWaitingIsTheOneThatStartsFirstNotADateMovedLater() throws Exception {
+    Event series = openSeries(LocalDate.now().plusDays(60), 5, 1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    long movedRowId = moveDate(seriesId, dates.get(0), dates.get(3).plusHours(5));
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    EventResponseOutcome outcome =
+                                 agendaEventAttendeeService.sendEventResponse(seriesId, null, id(testuser3Identity), EventAttendeeResponse.ACCEPTED, true);
+
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(movedRowId, testuser3Identity));
+    assertEquals(dates.get(1), outcome.firstWaitingOccurrenceId());
+  }
+
+  /**
+   * The first date an answer to a series leaves waiting is its last date,
+   * moved before the first one: a moved date is at its own start.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void theFirstDateLeftWaitingIsADateMovedBeforeTheOthers() throws Exception {
+    Event series = openSeries(LocalDate.now().plusDays(60), 5, 1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    moveDate(seriesId, dates.get(4), dates.get(0).minusHours(5));
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    EventResponseOutcome outcome =
+                                 agendaEventAttendeeService.sendEventResponse(seriesId, null, id(testuser3Identity), EventAttendeeResponse.ACCEPTED, true);
+
+    assertEquals(dates.get(4), outcome.firstWaitingOccurrenceId());
+  }
+
+  /**
+   * Among the dates stored on rows of their own an answer leaves waiting, the
+   * first one is the one that starts first: the second date, not the first
+   * one moved after the fourth, nor the series' third date.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void theFirstDateLeftWaitingAmongStoredDatesIsTheOneThatStartsFirst() throws Exception {
+    Event series = openSeries(LocalDate.now().plusDays(60), 5, 1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    moveDate(seriesId, dates.get(0), dates.get(3).plusHours(5));
+    agendaEventService.saveEventExceptionalOccurrence(seriesId, dates.get(1));
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    EventResponseOutcome outcome =
+                                 agendaEventAttendeeService.sendEventResponse(seriesId, null, id(testuser3Identity), EventAttendeeResponse.ACCEPTED, true);
+
+    assertEquals(dates.get(1), outcome.firstWaitingOccurrenceId());
+  }
+
+  /**
+   * On an all-day series in Tokyo, its first date made a timed date at 05:00
+   * on the day of its second date starts after that day's midnight in Tokyo,
+   * though before that date's id, the midnight UTC of its day: the first
+   * date an answer leaves waiting is the second one.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void theFirstDateLeftWaitingOnAnAllDaySeriesIsOrderedAtTheStartOfItsDay() throws Exception {
+    ZoneId tokyo = ZoneId.of("Asia/Tokyo");
+    ZonedDateTime start = LocalDate.now(tokyo).plusDays(60).atStartOfDay(tokyo);
+    Event series = openSeries(start, true, 5, 1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    moveDate(seriesId, dates.get(0), start.toLocalDate().plusDays(1).atTime(5, 0).atZone(tokyo), false);
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    EventResponseOutcome outcome =
+                                 agendaEventAttendeeService.sendEventResponse(seriesId, null, id(testuser3Identity), EventAttendeeResponse.ACCEPTED, true);
+
+    assertEquals(dates.get(1), outcome.firstWaitingOccurrenceId());
+  }
+
+  /**
+   * On an all-day series in New York, its first date made a timed date at
+   * 22:00 on its own day starts before the second date, though after that
+   * date's id, the midnight UTC of its day, which is still the evening before
+   * in New York: the first date an answer leaves waiting is the moved one.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void theFirstDateLeftWaitingOnAnAllDaySeriesIsOrderedAtTheStartOfItsDayWestOfUtc() throws Exception {
+    ZoneId newYork = ZoneId.of("America/New_York");
+    ZonedDateTime start = LocalDate.now(newYork).plusDays(60).atStartOfDay(newYork);
+    Event series = openSeries(start, true, 5, 1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    moveDate(seriesId, dates.get(0), start.toLocalDate().atTime(22, 0).atZone(newYork), false);
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    EventResponseOutcome outcome =
+                                 agendaEventAttendeeService.sendEventResponse(seriesId, null, id(testuser3Identity), EventAttendeeResponse.ACCEPTED, true);
+
+    assertEquals(dates.get(0), outcome.firstWaitingOccurrenceId());
+  }
+
+  /**
+   * An answer to every date of a series that gets a seat on each date the
+   * series carries, a date stored on its own row being full, leaves that date
+   * waiting alone: it is the first date left waiting, and the answer stored
+   * on the series is a Yes.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void theFirstDateLeftWaitingIsAStoredDateWhenEveryDateOfTheSeriesHasASeat() throws Exception {
+    Event series = openSeries(LocalDate.now().plusDays(60), 5, 1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    long dateId = agendaEventService.saveEventExceptionalOccurrence(seriesId, dates.get(1)).getId();
+    answerDate(seriesId, dates.get(1), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    EventResponseOutcome outcome =
+                                 agendaEventAttendeeService.sendEventResponse(seriesId, null, id(testuser3Identity), EventAttendeeResponse.ACCEPTED, true);
+
+    assertEquals(EventAttendeeResponse.ACCEPTED, outcome.response());
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(dateId, testuser3Identity));
+    assertEquals(dates.get(1), outcome.firstWaitingOccurrenceId());
+  }
+
+  /**
+   * An answer to a date and the following ones leaves waiting, first, the
+   * date that starts first: the series' second date, not its first one moved
+   * after the fourth, which the answer starts from.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void theFirstDateAnUpcomingAnswerLeavesWaitingIsTheOneThatStartsFirst() throws Exception {
+    Event series = openSeries(LocalDate.now().plusDays(60), 5, 1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    moveDate(seriesId, dates.get(0), dates.get(3).plusHours(5));
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    EventResponseOutcome outcome = agendaEventAttendeeService.sendUpcomingEventResponse(seriesId,
+                                                                                        dates.get(0),
+                                                                                        id(testuser3Identity),
+                                                                                        EventAttendeeResponse.ACCEPTED,
+                                                                                        true);
+
+    assertEquals(dates.get(1), outcome.firstWaitingOccurrenceId());
+  }
+
+  /**
+   * An answer to a date and the following ones that gets a seat on each date
+   * the series carries from there, a later date stored on its own row being
+   * full, leaves that date waiting alone: it is the first date left waiting.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void theFirstDateAnUpcomingAnswerLeavesWaitingIsAStoredDateWhenEveryDateOfTheSeriesHasASeat() throws Exception {
+    Event series = openSeries(LocalDate.now().plusDays(60), 5, 1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    long dateId = agendaEventService.saveEventExceptionalOccurrence(seriesId, dates.get(2)).getId();
+    answerDate(seriesId, dates.get(2), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    EventResponseOutcome outcome = agendaEventAttendeeService.sendUpcomingEventResponse(seriesId,
+                                                                                        dates.get(1),
+                                                                                        id(testuser3Identity),
+                                                                                        EventAttendeeResponse.ACCEPTED,
+                                                                                        true);
+
+    assertEquals(EventAttendeeResponse.ACCEPTED, outcome.response());
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(dateId, testuser3Identity));
+    assertEquals(dates.get(2), outcome.firstWaitingOccurrenceId());
+  }
+
+  /**
+   * An answer to a date and the following ones leaves waiting, first, the
+   * series' last date, moved before the date answered from: among the dates
+   * answered, it is the one that starts first.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void theFirstDateAnUpcomingAnswerLeavesWaitingIsADateMovedBeforeTheOthers() throws Exception {
+    Event series = openSeries(LocalDate.now().plusDays(60), 5, 1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    long movedRowId = moveDate(seriesId, dates.get(4), dates.get(1).minusHours(5));
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    EventResponseOutcome outcome = agendaEventAttendeeService.sendUpcomingEventResponse(seriesId,
+                                                                                        dates.get(1),
+                                                                                        id(testuser3Identity),
+                                                                                        EventAttendeeResponse.ACCEPTED,
+                                                                                        true);
+
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(movedRowId, testuser3Identity));
+    assertEquals(dates.get(4), outcome.firstWaitingOccurrenceId());
+  }
+
+  /**
+   * On a series of several dates a day, the first date an answer leaves
+   * waiting is the one that starts first on that day: the 10:00 date, not
+   * the 09:00 one moved to 11:30 the same day.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void theFirstDateLeftWaitingIsTheOneThatStartsFirstOnTheSameDay() throws Exception {
+    ZonedDateTime start = LocalDate.now().plusDays(60).atTime(9, 0).atZone(ZoneOffset.UTC);
+    Event series = openHourlySeries(start, 5, 1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    assertEquals(start.plusHours(1), dates.get(1));
+    moveDate(seriesId, dates.get(0), start.plusHours(2).plusMinutes(30));
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    EventResponseOutcome outcome =
+                                 agendaEventAttendeeService.sendEventResponse(seriesId, null, id(testuser3Identity), EventAttendeeResponse.ACCEPTED, true);
+
+    assertEquals(dates.get(1), outcome.firstWaitingOccurrenceId());
+  }
+
+  /**
    * Closing a series counts the waiting lists of the dates individually
    * modified it closes: refused until confirmed, then each of them confirmed.
    *
@@ -1554,6 +1791,22 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
 
   private Event openSeries(LocalDate firstDate, int count, int capacity, Identity... attendees) throws Exception {
     return openSeries(firstDate.atTime(9, 0).atZone(ZoneOffset.UTC), false, count, capacity, attendees);
+  }
+
+  /**
+   * An hourly series of dates an hour long from the start given, in its
+   * zone, in the space's calendar, open, with the limit given.
+   */
+  private Event openHourlySeries(ZonedDateTime start, int count, int capacity, Identity... attendees) throws Exception {
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setTimeZoneId(start.getZone());
+    event.getRecurrence().setFrequency(EventRecurrenceFrequency.HOURLY);
+    event.getRecurrence().setUntil(null);
+    event.getRecurrence().setCount(count);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(true);
+    event.setCapacity(capacity);
+    return createEvent(event, id(testuser1Identity), attendees);
   }
 
   /**
