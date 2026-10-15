@@ -31,6 +31,7 @@ import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.model.EventAttendeePromotion;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.agenda.util.NotificationUtils;
@@ -64,6 +65,98 @@ public class AgendaEventPromotedListenerTest extends BaseAgendaEventTest {
                  notification.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_RESPONSE));
     assertEquals(testuser4Identity.getProfile().getFullName(),
                  notification.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_PARTICIPANT_NAME));
+  }
+
+  /**
+   * A promotion is told to the promoted attendee with the "Participation
+   * confirmation" notification, which opens the event; an event that is not
+   * recurring names no date.
+   */
+  @Test
+  public void testPromotionConfirmsTheParticipationOfTheAttendee() throws Exception {
+    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setRecurrence(null);
+    event = createEvent(event, Long.parseLong(testuser1Identity.getId()), testuser4Identity, testuser5Identity);
+    WebNotificationService webNotificationService = container.getComponentInstanceOfType(WebNotificationService.class);
+    int initialNotificationsSize = webNotificationService.getNumberOnBadge(testuser4Identity.getRemoteId());
+
+    promote(event.getId(), Long.parseLong(testuser4Identity.getId()), null, 0, false);
+
+    assertEquals(initialNotificationsSize + 1l, webNotificationService.getNumberOnBadge(testuser4Identity.getRemoteId()));
+    NotificationInfo notification = confirmationOf(webNotificationService, event.getId());
+    assertEquals(event.getSummary(), notification.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_TITLE));
+    assertTrue(notification.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_WEB_EVENT_URL)
+                           .endsWith("?eventId=" + event.getId()));
+    assertNull(notification.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_OCCURRENCE_ID));
+    assertEquals("false", notification.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_IS_GUEST));
+  }
+
+  /**
+   * On a series, the confirmation opens the first date the attendee got a
+   * seat for, gives its own start, and counts the other dates promoted.
+   */
+  @Test
+  public void testConfirmationOnASeriesNamesTheFirstDatePromoted() throws Exception {
+    ZonedDateTime start = ZonedDateTime.now().withNano(0).plusDays(1);
+    Event series = createEvent(newEventInstance(start, start.plusHours(1), false),
+                               Long.parseLong(testuser1Identity.getId()),
+                               testuser4Identity,
+                               testuser5Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                             start.minusDays(1),
+                                                                             start.plusDays(3),
+                                                                             series.getTimeZoneId(),
+                                                                             10);
+    Event firstPromoted = occurrences.get(1);
+    WebNotificationService webNotificationService = container.getComponentInstanceOfType(WebNotificationService.class);
+
+    promote(series.getId(), Long.parseLong(testuser4Identity.getId()), firstPromoted.getOccurrence().getId(), 3, false);
+
+    NotificationInfo notification = confirmationOf(webNotificationService, series.getId());
+    String occurrenceId = AgendaDateUtils.toRFC3339Date(firstPromoted.getOccurrence().getId(), ZoneOffset.UTC);
+    assertEquals(occurrenceId, notification.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_OCCURRENCE_ID));
+    assertTrue(notification.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_WEB_EVENT_URL)
+                           .endsWith("?parentId=" + series.getId() + "&occurrenceId=" + occurrenceId));
+    assertEquals("the start of the date promoted, not of the series",
+                 firstPromoted.getStart().toInstant(),
+                 ZonedDateTime.parse(notification.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_START_DATE))
+                              .toInstant());
+    assertEquals("3", notification.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_OTHER_DATES));
+    assertEquals("false", notification.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_OPEN_ENDED));
+  }
+
+  /**
+   * On a date the series stores, the confirmation opens that date, at the
+   * start the date's own row gives it.
+   */
+  @Test
+  public void testConfirmationOnAStoredDateOpensThatDate() throws Exception {
+    ZonedDateTime start = ZonedDateTime.now().withNano(0).plusDays(1);
+    Event series = createEvent(newEventInstance(start, start.plusHours(1), false),
+                               Long.parseLong(testuser1Identity.getId()),
+                               testuser4Identity,
+                               testuser5Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                             start.minusDays(1),
+                                                                             start.plusDays(3),
+                                                                             series.getTimeZoneId(),
+                                                                             10);
+    ZonedDateTime promotedDate = occurrences.get(1).getOccurrence().getId();
+    Event date = agendaEventService.saveEventExceptionalOccurrence(series.getId(), promotedDate);
+    WebNotificationService webNotificationService = container.getComponentInstanceOfType(WebNotificationService.class);
+
+    promote(date.getId(), Long.parseLong(testuser4Identity.getId()), occurrences.get(0).getOccurrence().getId(), 1, true);
+
+    NotificationInfo notification = confirmationOf(webNotificationService, date.getId());
+    String occurrenceId = AgendaDateUtils.toRFC3339Date(promotedDate, ZoneOffset.UTC);
+    assertEquals(occurrenceId, notification.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_OCCURRENCE_ID));
+    assertTrue(notification.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_WEB_EVENT_URL)
+                           .endsWith("?parentId=" + series.getId() + "&occurrenceId=" + occurrenceId));
+    assertEquals(date.getStart().toInstant(),
+                 ZonedDateTime.parse(notification.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_START_DATE))
+                              .toInstant());
+    assertEquals("true", notification.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_OPEN_ENDED));
   }
 
   /**
@@ -145,10 +238,12 @@ public class AgendaEventPromotedListenerTest extends BaseAgendaEventTest {
                                    creatorId);
     WebNotificationService webNotificationService = container.getComponentInstanceOfType(WebNotificationService.class);
     int initialNotificationsSize = webNotificationService.getNumberOnBadge(testuser1Identity.getRemoteId());
+    int initialAttendeeNotificationsSize = webNotificationService.getNumberOnBadge(testuser4Identity.getRemoteId());
 
     promote(event.getId(), Long.parseLong(testuser4Identity.getId()), null);
 
     assertEquals(initialNotificationsSize, webNotificationService.getNumberOnBadge(testuser1Identity.getRemoteId()));
+    assertEquals(initialAttendeeNotificationsSize, webNotificationService.getNumberOnBadge(testuser4Identity.getRemoteId()));
   }
 
   /**
@@ -178,12 +273,37 @@ public class AgendaEventPromotedListenerTest extends BaseAgendaEventTest {
   }
 
   private void promote(long eventId, long identityId, ZonedDateTime firstPromotedDate) throws Exception {
+    promote(eventId, identityId, firstPromotedDate, 0, false);
+  }
+
+  private void promote(long eventId,
+                       long identityId,
+                       ZonedDateTime firstPromotedDate,
+                       int otherDates,
+                       boolean openEnded) throws Exception {
     EventAttendee waiting = new EventAttendee(0, eventId, identityId, EventAttendeeResponse.WAITING);
     EventAttendee promoted = new EventAttendee(0, eventId, identityId, EventAttendeeResponse.ACCEPTED);
     promoted.setFromOccurrenceId(firstPromotedDate);
     new AgendaEventPromotedListener(container).onEvent(new org.exoplatform.services.listener.Event<>(Utils.POST_EVENT_ATTENDEE_PROMOTED,
                                                                                                       waiting,
-                                                                                                      promoted));
+                                                                                                      new EventAttendeePromotion(promoted,
+                                                                                                                                 otherDates,
+                                                                                                                                 openEnded)));
+  }
+
+  private NotificationInfo confirmationOf(WebNotificationService webNotificationService, long eventId) {
+    NotificationInfo notification = webNotificationService.getNotificationInfos(new WebNotificationFilter(testuser4Identity.getRemoteId()),
+                                                                                0,
+                                                                                50)
+                                                          .stream()
+                                                          .filter(info -> NotificationUtils.AGENDA_PARTICIPATION_CONFIRMED_NOTIFICATION_PLUGIN.equals(info.getKey()
+                                                                                                                                                       .getId()))
+                                                          .filter(info -> String.valueOf(eventId)
+                                                                                .equals(info.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_ID)))
+                                                          .findFirst()
+                                                          .orElse(null);
+    assertNotNull("the promoted attendee holds a confirmation on event " + eventId, notification);
+    return notification;
   }
 
   private NotificationInfo replyNotificationOf(WebNotificationService webNotificationService, long eventId) {
