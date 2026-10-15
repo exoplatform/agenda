@@ -18,6 +18,7 @@ package org.exoplatform.agenda.service;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.*;
@@ -689,6 +690,43 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    */
   private static ZonedDateTime occurrenceDateOf(Event pool) {
     return pool.getParentId() > 0 && pool.getOccurrence() != null ? pool.getOccurrence().getId() : null;
+  }
+
+  /**
+   * @param pool a stored event row
+   * @return when the date it is starts, when it is a date of a series: at its
+   *         id, where the rule puts it, or at its own start when it was moved;
+   *         else null
+   */
+  private ZonedDateTime startOfDate(Event pool) {
+    ZonedDateTime occurrenceDate = occurrenceDateOf(pool);
+    if (occurrenceDate == null) {
+      return null;
+    }
+    if (pool.getOccurrence().isDatesModified()) {
+      return startOf(pool.getStart(), pool);
+    }
+    // The id of a date not moved was written in its series' zone and length
+    // of day, which the date's own zone may have left since
+    return startOf(occurrenceDate, eventStorage.getEventById(pool.getParentId()));
+  }
+
+  /**
+   * @param date the id or the start of a date of an event
+   * @param event the row of that date, which says whether it lasts all day,
+   *          and in which zone
+   * @return when that date starts: an all-day date, whose id and start name
+   *         its day in one of the forms
+   *         {@link Utils#getOccurrenceId(boolean, ZonedDateTime, ZoneId)}
+   *         reads, at the start of that day in the event's zone, so that
+   *         dates timed and all day compare
+   */
+  private static ZonedDateTime startOf(ZonedDateTime date, Event event) {
+    if (!event.isAllDay()) {
+      return date;
+    }
+    ZoneId zone = event.getTimeZoneId() == null ? ZoneOffset.UTC : event.getTimeZoneId();
+    return Utils.getOccurrenceId(true, date, zone).toLocalDate().atStartOfDay(zone);
   }
 
   /**
@@ -1583,7 +1621,11 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * decide step that freed the seat. A promotion is stored as a Yes of now,
    * and reported as saved and as promoted, never as an answer the attendee
    * sent. On a series, the seats are given date by date (see
-   * {@link #promoteSeriesWaitingAttendees(Event, List)}).
+   * {@link #promoteSeriesWaitingAttendees(Event, List)}). The seats a decision
+   * gives one attendee on one event are reported promoted once, whichever
+   * pools of a series they were given on (see
+   * {@link #reportPromotion(Event, PromotedShare)}); on a cancelled event or
+   * date, they are not reported promoted.
    *
    * @param eventId the identifier of the pool's event row
    */
@@ -1609,7 +1651,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       attendeeStorage.saveEventAttendee(waitingAttendee, eventId);
       accepted++;
       Utils.broadcastEvent(listenerService, Utils.POST_EVENT_RESPONSE_SAVED, oldAttendee, waitingAttendee);
-      Utils.broadcastEvent(listenerService, Utils.POST_EVENT_ATTENDEE_PROMOTED, oldAttendee, waitingAttendee);
+      reportPromotion(pool, new PromotedShare(oldAttendee, waitingAttendee, startOfDate(pool), 1));
     }
   }
 
@@ -1654,6 +1696,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       EventAttendee oldAttendee = waitingAttendee.clone();
       EventAttendee promoted = null;
       ZonedDateTime firstPromotedDate = null;
+      int promotedDates = 0;
       for (int i = 0; i < pieces.size(); i++) {
         SeatPiece piece = pieces.get(i);
         EventAttendee row = i == 0 ? waitingAttendee : new EventAttendee(0, seriesId, identityId, piece.from(), null, null, null);
@@ -1661,9 +1704,13 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
         row.setResponse(piece.response());
         row.setResponseDate(piece.response() == EventAttendeeResponse.ACCEPTED ? now : oldAttendee.getResponseDate());
         attendeeStorage.saveEventAttendee(row, seriesId);
-        if (promoted == null && piece.response() == EventAttendeeResponse.ACCEPTED) {
-          promoted = row;
-          firstPromotedDate = piece.firstCountedDate();
+        if (piece.response() == EventAttendeeResponse.ACCEPTED) {
+          if (promoted == null) {
+            promoted = row;
+            firstPromotedDate = piece.firstCountedDate();
+          }
+          int pieceDates = seriesDates.countCountedDates(piece.from(), piece.until());
+          promotedDates = pieceDates < 0 || promotedDates < 0 ? -1 : promotedDates + pieceDates;
         }
       }
       Utils.broadcastEvent(listenerService, Utils.POST_EVENT_RESPONSE_SAVED, oldAttendee, promoted);
@@ -1674,8 +1721,51 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       // decision of a counted neighbour and joins its run
       EventAttendee reported = promoted.clone();
       reported.setFromOccurrenceId(firstPromotedDate);
-      Utils.broadcastEvent(listenerService, Utils.POST_EVENT_ATTENDEE_PROMOTED, oldAttendee, reported);
+      reportPromotion(series, new PromotedShare(oldAttendee, reported, startOf(firstPromotedDate, series), promotedDates));
     }
+  }
+
+  /**
+   * Reports a promotion once the transaction of the decide step is over,
+   * merged with the other promotions the decision gives the same attendee on
+   * the same event: to the attendee, the pool of a series and the pools of its
+   * dates stored on a row of their own are one event. Seats given on a
+   * cancelled event or date are not reported: they are no seat to announce
+   * nor to show, and, merged, they would be the first date of the promotion,
+   * which is not told on an event that is not confirmed, or one of its other
+   * dates.
+   *
+   * @param pool the pool the seats were given on
+   * @param share the seats given there
+   */
+  private void reportPromotion(Event pool, PromotedShare share) {
+    if (pool.getStatus() == EventStatus.CANCELLED) {
+      return;
+    }
+    long eventId = pool.getParentId() > 0 ? pool.getParentId() : pool.getId();
+    List<Long> key = List.of(eventId, share.promoted().getIdentityId());
+    if (!DecideContext.queueMerged(key, share, this::broadcastPromotion)) {
+      broadcastPromotion(List.of(share));
+    }
+  }
+
+  /**
+   * Broadcasts the promotion of one attendee on one event, from the date
+   * promoted that starts first, a date moved at its own start, the dates of
+   * every pool counted after it.
+   *
+   * @param shares the seats given to the attendee, pool by pool
+   */
+  private void broadcastPromotion(List<PromotedShare> shares) {
+    PromotedShare first = shares.stream()
+                                .min(Comparator.comparing(PromotedShare::date, Comparator.nullsFirst(Comparator.naturalOrder())))
+                                .orElseThrow();
+    boolean openEnded = shares.stream().anyMatch(share -> share.dates() < 0);
+    int otherDates = openEnded ? 0 : shares.stream().mapToInt(PromotedShare::dates).sum() - 1;
+    Utils.broadcastEvent(listenerService,
+                         Utils.POST_EVENT_ATTENDEE_PROMOTED,
+                         first.before(),
+                         new EventAttendeePromotion(first.promoted(), otherDates, openEnded));
   }
 
   private AgendaEventService getAgendaEventService() {

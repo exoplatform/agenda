@@ -29,6 +29,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -44,6 +45,8 @@ import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.exception.CapacityBelowAcceptedException;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.model.EventAttendeePromotion;
+import org.exoplatform.agenda.model.EventOccurrence;
 import org.exoplatform.agenda.model.RemoteEvent;
 import org.exoplatform.agenda.service.RecordingStatementInspector.RecordedStatement;
 import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
@@ -1187,6 +1190,308 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
   }
 
   /**
+   * A raised series' limit that reaches the waiting list of its first date,
+   * individually modified and cancelled, reports the promotion from the
+   * series' first date that is not cancelled.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aRaisedSeriesLimitReportsNoPromotionFromACancelledDate() throws Exception {
+    Event series = openSeries(1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    long dateId = cancelDate(seriesId, dates.get(0));
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(dateId, testuser3Identity));
+    BROADCASTS.clear();
+
+    patchAll(seriesId, CAPACITY, "2");
+
+    EventAttendeePromotion promotion = onlyPromotion();
+    assertEquals(seriesId, promotion.attendee().getEventId());
+    assertEquals(dates.get(1), promotion.attendee().getFromOccurrenceId());
+    assertEquals(1, promotion.otherDates());
+  }
+
+  /**
+   * A No to every date that gives a waiting attendee a seat on the series
+   * and on its first date, individually modified and cancelled, reports the
+   * promotion from the series' first date that is not cancelled: a cancelled
+   * date is no seat to tell, and a promotion told from it reaches nobody.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aPromotionIsNotReportedFromACancelledFirstDate() throws Exception {
+    Event series = openSeries(1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    long dateId = cancelDate(seriesId, dates.get(0));
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(dateId, testuser3Identity));
+    BROADCASTS.clear();
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.DECLINED);
+
+    EventAttendeePromotion promotion = onlyPromotion();
+    assertEquals(id(testuser3Identity), promotion.attendee().getIdentityId());
+    assertEquals("reported from the series", seriesId, promotion.attendee().getEventId());
+    assertEquals(dates.get(1), promotion.attendee().getFromOccurrenceId());
+    assertEquals("the last date, the cancelled one not counted", 1, promotion.otherDates());
+    assertFalse(promotion.openEnded());
+  }
+
+  /**
+   * A No to every date that gives a waiting attendee a seat on the series
+   * and on a date in between, individually modified and cancelled, does not
+   * count that date among the other dates promoted.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aCancelledDateIsNotCountedAmongTheOtherDatesPromoted() throws Exception {
+    Event series = openSeries(1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    long dateId = cancelDate(seriesId, dates.get(1));
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(dateId, testuser3Identity));
+    BROADCASTS.clear();
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.DECLINED);
+
+    EventAttendeePromotion promotion = onlyPromotion();
+    assertEquals(seriesId, promotion.attendee().getEventId());
+    assertEquals(dates.get(0), promotion.attendee().getFromOccurrenceId());
+    assertEquals("the last date, the cancelled one not counted", 1, promotion.otherDates());
+  }
+
+  /**
+   * A No to every date of a series cancelled alone, its date individually
+   * modified still confirmed, that gives a waiting attendee a seat on both,
+   * reports the promotion from that date only: the dates the cancelled series
+   * carries are no seat to tell.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aPromotionIsNotReportedFromACancelledSeries() throws Exception {
+    Event series = openSeries(1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    long dateId = agendaEventService.saveEventExceptionalOccurrence(seriesId, dates.get(1)).getId();
+    patch(seriesId, "status", EventStatus.CANCELLED.name());
+    assertEquals(EventStatus.CONFIRMED, agendaEventService.getEventById(dateId).getStatus());
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(dateId, testuser3Identity));
+    BROADCASTS.clear();
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.DECLINED);
+
+    EventAttendeePromotion promotion = onlyPromotion();
+    assertEquals(id(testuser3Identity), promotion.attendee().getIdentityId());
+    assertEquals("reported from the date still confirmed", dateId, promotion.attendee().getEventId());
+    assertEquals("the dates of the cancelled series not counted", 0, promotion.otherDates());
+  }
+
+  /**
+   * A seat given up on a cancelled event of no series reports no promotion:
+   * the event is no seat to tell, nor to show.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aPromotionOnACancelledEventIsNotReported() throws Exception {
+    long eventId = openEvent(1, testuser2Identity, testuser3Identity).getId();
+    answer(eventId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(eventId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    patch(eventId, "status", EventStatus.CANCELLED.name());
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(eventId, testuser3Identity));
+    BROADCASTS.clear();
+
+    answer(eventId, testuser2Identity, EventAttendeeResponse.DECLINED);
+
+    assertEquals(List.of(), promotedIdentities());
+  }
+
+  /**
+   * A promotion over a series and its first date, moved after its fourth, is
+   * reported from the series' second date, which starts first: a date moved
+   * is ordered at its own start, not at the day its id keeps.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aPromotionIsReportedFromTheDateThatStartsFirstNotFromADateMovedLater() throws Exception {
+    Event series = openSeries(LocalDate.now().plusDays(60), 5, 1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    long rowId = moveDate(seriesId, dates.get(0), dates.get(3).plusHours(5));
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(rowId, testuser3Identity));
+    BROADCASTS.clear();
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.DECLINED);
+
+    EventAttendeePromotion promotion = onlyPromotion();
+    assertEquals("reported from the series", seriesId, promotion.attendee().getEventId());
+    assertEquals(dates.get(1), promotion.attendee().getFromOccurrenceId());
+    assertEquals("the three later dates of the series and the date moved", 4, promotion.otherDates());
+  }
+
+  /**
+   * A promotion over a series and its last date, moved before its first, is
+   * reported from the date moved, which starts first.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aPromotionIsReportedFromADateMovedBeforeTheOthers() throws Exception {
+    Event series = openSeries(LocalDate.now().plusDays(60), 5, 1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    long rowId = moveDate(seriesId, dates.get(4), dates.get(0).minusHours(5));
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(rowId, testuser3Identity));
+    BROADCASTS.clear();
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.DECLINED);
+
+    EventAttendeePromotion promotion = onlyPromotion();
+    assertEquals("reported from the date moved", rowId, promotion.attendee().getEventId());
+    assertEquals("the four dates of the series", 4, promotion.otherDates());
+  }
+
+  /**
+   * On a series at 20:00 in Phoenix, a zone seven hours behind UTC all year,
+   * a date made all day on the day of the series' second date starts after
+   * the first one, whose id falls on that day in UTC three hours after its
+   * midnight: the promotion is reported from the series' first date.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aDateMadeAllDayIsOrderedAtTheStartOfItsDayInTheSeriesZone() throws Exception {
+    ZoneId phoenix = ZoneId.of("America/Phoenix");
+    ZonedDateTime start = LocalDate.now(phoenix).plusDays(60).atTime(20, 0).atZone(phoenix);
+    Event series = openSeries(start, false, 5, 1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    LocalDate secondDay = start.toLocalDate().plusDays(1);
+    long rowId = moveDate(seriesId, dates.get(4), secondDay.atStartOfDay(phoenix), true);
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(rowId, testuser3Identity));
+    BROADCASTS.clear();
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.DECLINED);
+
+    EventAttendeePromotion promotion = onlyPromotion();
+    assertEquals("reported from the series", seriesId, promotion.attendee().getEventId());
+    assertEquals(dates.get(0), promotion.attendee().getFromOccurrenceId());
+    assertEquals(4, promotion.otherDates());
+  }
+
+  /**
+   * On an all-day series in Tokyo, its first date made a timed date at 05:00
+   * on the day of its second date starts after that day's midnight in Tokyo,
+   * though before that date's id, the midnight UTC of its day: the promotion
+   * is reported from the series' second date.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void anAllDayDateIsOrderedAtTheStartOfItsDayInTheSeriesZone() throws Exception {
+    ZoneId tokyo = ZoneId.of("Asia/Tokyo");
+    ZonedDateTime start = LocalDate.now(tokyo).plusDays(60).atStartOfDay(tokyo);
+    Event series = openSeries(start, true, 5, 1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    LocalDate secondDay = start.toLocalDate().plusDays(1);
+    long rowId = moveDate(seriesId, dates.get(0), secondDay.atTime(5, 0).atZone(tokyo), false);
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(rowId, testuser3Identity));
+    BROADCASTS.clear();
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.DECLINED);
+
+    EventAttendeePromotion promotion = onlyPromotion();
+    assertEquals("reported from the series", seriesId, promotion.attendee().getEventId());
+    assertEquals(dates.get(1), promotion.attendee().getFromOccurrenceId());
+    assertEquals(4, promotion.otherDates());
+  }
+
+  /**
+   * On an all-day series in Tokyo, the row of its second date stored before
+   * TASK-39591, at the local midnight of that day, which is the UTC day
+   * before, is ordered at its day in Tokyo: the first date, made a timed
+   * date at 10:00 on its own day, starts before it, and the promotion is
+   * reported from that date.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aLegacyAllDayRowIsOrderedAtItsDateInTheSeriesZone() throws Exception {
+    ZoneId tokyo = ZoneId.of("Asia/Tokyo");
+    ZonedDateTime start = LocalDate.now(tokyo).plusDays(60).atStartOfDay(tokyo);
+    Event series = openSeries(start, true, 5, 1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    long legacyRowId = legacyRow(series, dates.get(1).toLocalDate().atStartOfDay(tokyo), testuser2Identity, testuser3Identity);
+    long movedRowId = moveDate(seriesId, dates.get(0), start.toLocalDate().atTime(10, 0).atZone(tokyo), false);
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(legacyRowId, testuser3Identity));
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(movedRowId, testuser3Identity));
+    BROADCASTS.clear();
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.DECLINED);
+
+    EventAttendeePromotion promotion = onlyPromotion();
+    assertEquals("reported from the first date, made timed", movedRowId, promotion.attendee().getEventId());
+    assertEquals("the legacy row and the three dates of the series", 4, promotion.otherDates());
+  }
+
+  /**
+   * The row of a date not moved, given a zone of its own, keeps the id its
+   * series wrote in the series' zone: a row stored before TASK-39591 at its
+   * Tokyo midnight, its zone then set to Paris, is still ordered at its day
+   * in Tokyo, after the first date made a timed date on its own day.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aLegacyAllDayRowInAZoneOfItsOwnIsOrderedAtItsDateInTheSeriesZone() throws Exception {
+    ZoneId tokyo = ZoneId.of("Asia/Tokyo");
+    ZonedDateTime start = LocalDate.now(tokyo).plusDays(60).atStartOfDay(tokyo);
+    Event series = openSeries(start, true, 5, 1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    long legacyRowId = legacyRow(series, dates.get(1).toLocalDate().atStartOfDay(tokyo), testuser2Identity, testuser3Identity);
+    patch(legacyRowId, "timeZoneId", "Europe/Paris");
+    assertFalse(agendaEventService.getEventById(legacyRowId).getOccurrence().isDatesModified());
+    long movedRowId = moveDate(seriesId, dates.get(0), start.toLocalDate().atTime(10, 0).atZone(tokyo), false);
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(legacyRowId, testuser3Identity));
+    BROADCASTS.clear();
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.DECLINED);
+
+    EventAttendeePromotion promotion = onlyPromotion();
+    assertEquals("reported from the first date, made timed", movedRowId, promotion.attendee().getEventId());
+    assertEquals(4, promotion.otherDates());
+  }
+
+  /**
    * Closing a series counts the waiting lists of the dates individually
    * modified it closes: refused until confirmed, then each of them confirmed.
    *
@@ -1248,9 +1553,20 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
   }
 
   private Event openSeries(LocalDate firstDate, int count, int capacity, Identity... attendees) throws Exception {
-    ZonedDateTime start = firstDate.atTime(9, 0).atZone(ZoneOffset.UTC);
-    Event event = newEventInstance(start, start.plusHours(1), false);
-    event.setTimeZoneId(ZoneOffset.UTC);
+    return openSeries(firstDate.atTime(9, 0).atZone(ZoneOffset.UTC), false, count, capacity, attendees);
+  }
+
+  /**
+   * A daily series from the start given, in its zone, an hour long or all
+   * day, in the space's calendar, open, with the limit given.
+   */
+  private Event openSeries(ZonedDateTime start,
+                           boolean allDay,
+                           int count,
+                           int capacity,
+                           Identity... attendees) throws Exception {
+    Event event = newEventInstance(start, allDay ? start : start.plusHours(1), allDay);
+    event.setTimeZoneId(start.getZone());
     event.getRecurrence().setUntil(null);
     event.getRecurrence().setCount(count);
     event.setCalendarId(spaceCalendar.getId());
@@ -1310,6 +1626,73 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
 
   private void patchAll(long seriesId, String field, String value) throws Exception {
     agendaEventService.updateEventFields(seriesId, getFields(field, value), true, false, false, id(testuser1Identity));
+  }
+
+  /**
+   * Stores a date of a series on its own row and cancels it, as the MCP tool
+   * cancels one date.
+   *
+   * @return the identifier of the date's row
+   */
+  private long cancelDate(long seriesId, ZonedDateTime date) throws Exception {
+    long dateId = agendaEventService.saveEventExceptionalOccurrence(seriesId, date).getId();
+    patch(dateId, "status", EventStatus.CANCELLED.name());
+    return dateId;
+  }
+
+  /**
+   * Stores a date of a series on a row of its own through the storage, with
+   * the occurrence id given as stored, as the rows made before TASK-39591
+   * were, the attendees given needing action on it.
+   *
+   * @return the identifier of the date's row
+   */
+  private long legacyRow(Event series, ZonedDateTime storedOccurrenceId, Identity... attendees) throws Exception {
+    Event row = agendaEventStorage.getEventById(series.getId());
+    row.setId(0);
+    row.setParentId(series.getId());
+    row.setRecurrence(null);
+    row.setOccurrence(new EventOccurrence(storedOccurrenceId.withZoneSameInstant(ZoneOffset.UTC), true, false));
+    Event storedRow = agendaEventStorage.createEvent(row);
+    agendaEventAttendeeService.saveEventAttendees(storedRow,
+                                                  Arrays.stream(attendees)
+                                                        .map(attendee -> new EventAttendee(0,
+                                                                                           storedRow.getId(),
+                                                                                           id(attendee),
+                                                                                           EventAttendeeResponse.NEEDS_ACTION))
+                                                        .toList(),
+                                                  0,
+                                                  false,
+                                                  false,
+                                                  null);
+    return storedRow.getId();
+  }
+
+  /**
+   * Stores a date of a series on its own row and moves it to the start given,
+   * for an hour.
+   *
+   * @return the identifier of the date's row
+   */
+  private long moveDate(long seriesId, ZonedDateTime date, ZonedDateTime start) throws Exception {
+    return moveDate(seriesId, date, start, false);
+  }
+
+  /**
+   * Stores a date of a series on its own row and moves it to the start given,
+   * for an hour, or all day from the start of its day.
+   *
+   * @return the identifier of the date's row
+   */
+  private long moveDate(long seriesId, ZonedDateTime date, ZonedDateTime start, boolean allDay) throws Exception {
+    long dateId = agendaEventService.saveEventExceptionalOccurrence(seriesId, date).getId();
+    Event row = agendaEventService.getEventById(dateId);
+    row.setAllDay(allDay);
+    row.setStart(start);
+    row.setEnd(allDay ? start : start.plusHours(1));
+    save(row, false);
+    assertTrue(agendaEventService.getEventById(dateId).getOccurrence().isDatesModified());
+    return dateId;
   }
 
   /** A full save of the event by its creator, one of its attendees removed. */
@@ -1398,9 +1781,15 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
     }
   }
 
+  private static EventAttendeePromotion onlyPromotion() {
+    List<Broadcast> promotions = broadcasts(Utils.POST_EVENT_ATTENDEE_PROMOTED);
+    assertEquals("one promotion reported", 1, promotions.size());
+    return (EventAttendeePromotion) promotions.get(0).data();
+  }
+
   private static List<Long> promotedIdentities() {
     return broadcasts(Utils.POST_EVENT_ATTENDEE_PROMOTED).stream()
-                                                         .map(broadcast -> ((EventAttendee) broadcast.data()).getIdentityId())
+                                                         .map(broadcast -> ((EventAttendeePromotion) broadcast.data()).attendee().getIdentityId())
                                                          .toList();
   }
 
