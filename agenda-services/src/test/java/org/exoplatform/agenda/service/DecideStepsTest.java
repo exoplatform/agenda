@@ -29,6 +29,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -188,6 +189,64 @@ class DecideStepsTest {
 
     assertEquals(List.of(before), context.getEffects());
     assertTrue(context.getEventIds().contains(8L), "an event the failed step read is no longer evicted");
+  }
+
+  /**
+   * The shares queued under one key make one effect, run once where the first
+   * of them was queued, on all of them in the order they were queued; the
+   * shares of another key make another.
+   */
+  @Test
+  void theSharesOfOneKeyMakeOneEffect() {
+    DecideContext context = DecideContext.open();
+    List<List<String>> runs = new ArrayList<>();
+    DecideContext.queueMerged("first", "first-1", runs::add);
+    DecideContext.queueMerged("second", "second-1", runs::add);
+    DecideContext.queueMerged("first", "first-2", runs::add);
+
+    context.getEffects().forEach(Runnable::run);
+
+    assertEquals(List.of(List.of("first-1", "first-2"), List.of("second-1")), runs);
+  }
+
+  /**
+   * A share queued by a nested step that fails, and whose failure its caller
+   * catches, takes no part in the effect of its key.
+   */
+  @Test
+  void aShareDroppedWithItsNestedStepTakesNoPartInTheEffect() {
+    DecideContext context = DecideContext.open();
+    context.addLockedEvent(1);
+    List<List<String>> runs = new ArrayList<>();
+    DecideContext.queueMerged("key", "kept", runs::add);
+
+    assertThrows(IllegalArgumentException.class, () -> decideSteps.decide(DecideSteps.targetOfSeries(1), () -> {
+      DecideContext.queueMerged("key", "dropped", runs::add);
+      throw new IllegalArgumentException("failed after a promotion");
+    }));
+    context.getEffects().forEach(Runnable::run);
+
+    assertEquals(List.of(List.of("kept")), runs);
+  }
+
+  /**
+   * When the first share of a key is dropped with the nested step that queued
+   * it, the effect runs once, from the first share kept.
+   */
+  @Test
+  void aDroppedFirstShareLeavesTheEffectToTheShareKept() {
+    DecideContext context = DecideContext.open();
+    context.addLockedEvent(1);
+    List<List<String>> runs = new ArrayList<>();
+
+    assertThrows(IllegalArgumentException.class, () -> decideSteps.decide(DecideSteps.targetOfSeries(1), () -> {
+      DecideContext.queueMerged("key", "dropped", runs::add);
+      throw new IllegalArgumentException("failed after a promotion");
+    }));
+    DecideContext.queueMerged("key", "kept", runs::add);
+    context.getEffects().forEach(Runnable::run);
+
+    assertEquals(List.of(List.of("kept")), runs);
   }
 
   /**

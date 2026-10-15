@@ -17,6 +17,7 @@
 package org.exoplatform.agenda.service;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
@@ -48,6 +49,7 @@ import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.model.AgendaEventModification;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.model.EventAttendeePromotion;
 import org.exoplatform.agenda.model.EventOccurrence;
 import org.exoplatform.agenda.model.EventResponseOutcome;
 import org.exoplatform.agenda.model.EventSeatCounts;
@@ -273,11 +275,10 @@ public class AgendaSeriesSeatRuleTest extends BaseAgendaEventTest {
     assertEquals("the rest keeps its row", waiting.getId(), rows.get(0).getId());
     assertEquals("the rest keeps its answer date", waitingDate, rows.get(0).getResponseDate());
     assertTrue("the part promoted is a Yes of now", rows.get(1).getResponseDate().isAfter(beforePromotion));
-    Broadcast promoted = only(Utils.POST_EVENT_ATTENDEE_PROMOTED);
-    assertEquals(dates.get(2), ((EventAttendee) promoted.data()).getFromOccurrenceId());
-    assertEquals("the promotion is told as a Yes",
-                 EventAttendeeResponse.ACCEPTED,
-                 ((EventAttendee) promoted.data()).getResponse());
+    EventAttendeePromotion promotion = (EventAttendeePromotion) only(Utils.POST_EVENT_ATTENDEE_PROMOTED).data();
+    assertEquals(dates.get(2), promotion.attendee().getFromOccurrenceId());
+    assertEquals("the promotion is told as a Yes", EventAttendeeResponse.ACCEPTED, promotion.attendee().getResponse());
+    assertEquals("the dates after the first one promoted", 2, promotion.otherDates());
     assertEquals(List.of(id(testuser2Identity)), identitiesOf(Utils.POST_EVENT_RESPONSE_SENT));
   }
 
@@ -298,15 +299,19 @@ public class AgendaSeriesSeatRuleTest extends BaseAgendaEventTest {
     removeAttendee(series.getId(), id(testuser2Identity), id(testuser1Identity));
 
     assertRows(series.getId(), testuser3Identity, row(null, null, EventAttendeeResponse.ACCEPTED));
-    EventAttendee promoted = (EventAttendee) only(Utils.POST_EVENT_ATTENDEE_PROMOTED).data();
-    assertEquals(id(testuser3Identity), promoted.getIdentityId());
-    assertEquals("the promotion is reported from the first date promoted", dates.get(0), promoted.getFromOccurrenceId());
+    EventAttendeePromotion promotion = (EventAttendeePromotion) only(Utils.POST_EVENT_ATTENDEE_PROMOTED).data();
+    assertEquals(id(testuser3Identity), promotion.attendee().getIdentityId());
+    assertEquals("the promotion is reported from the first date promoted",
+                 dates.get(0),
+                 promotion.attendee().getFromOccurrenceId());
+    assertEquals(2, promotion.otherDates());
   }
 
   /**
    * A promotion on a series is reported from the first date the attendee got
    * a seat for, not from the start of the row promoted: the series' first
-   * date, which has a row of its own, is not one of them.
+   * date, which has a row of its own where the attendee said No, is not one
+   * of them, nor is it counted.
    *
    * @throws Exception when a save fails
    */
@@ -316,18 +321,105 @@ public class AgendaSeriesSeatRuleTest extends BaseAgendaEventTest {
     List<ZonedDateTime> dates = occurrenceIds(series);
     answer(series.getId(), testuser2Identity, EventAttendeeResponse.ACCEPTED);
     answer(series.getId(), testuser3Identity, EventAttendeeResponse.ACCEPTED);
-    agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(0));
+    Event firstDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(0));
+    agendaEventAttendeeService.sendEventResponse(series.getId(), dates.get(0), id(testuser3Identity), EventAttendeeResponse.DECLINED, true);
+    assertEquals(EventAttendeeResponse.DECLINED, responseOn(firstDate.getId(), testuser3Identity));
     BROADCASTS.clear();
 
     removeAttendee(series.getId(), id(testuser2Identity), id(testuser1Identity));
 
-    List<EventAttendee> promotedOnSeries = broadcasts(Utils.POST_EVENT_ATTENDEE_PROMOTED).stream()
-                                                                                         .map(broadcast -> (EventAttendee) broadcast.data())
-                                                                                         .filter(promoted -> promoted.getEventId() == series.getId())
-                                                                                         .toList();
-    assertEquals(1, promotedOnSeries.size());
+    EventAttendeePromotion promotion = (EventAttendeePromotion) only(Utils.POST_EVENT_ATTENDEE_PROMOTED).data();
     assertRows(series.getId(), testuser3Identity, row(null, null, EventAttendeeResponse.ACCEPTED));
-    assertEquals(dates.get(1), promotedOnSeries.get(0).getFromOccurrenceId());
+    assertEquals(series.getId(), promotion.attendee().getEventId());
+    assertEquals(dates.get(1), promotion.attendee().getFromOccurrenceId());
+    assertEquals("the date with its own row is not counted", 1, promotion.otherDates());
+  }
+
+  /**
+   * A No to every date that gives a waiting attendee a seat on the dates of
+   * the series and on a date stored on its own row, as the reminders store
+   * the next days of a confirmed series, reports one promotion: one decision,
+   * one attendee.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aPromotionOverTheSeriesAndAStoredDateIsReportedOnce() throws Exception {
+    Event series = limitedSeries(1, 3, testuser2Identity, testuser3Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answer(series.getId(), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(series.getId(), testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    Event storedDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(0));
+    assertEquals(EventAttendeeResponse.WAITING, responseOn(storedDate.getId(), testuser3Identity));
+    BROADCASTS.clear();
+
+    answer(series.getId(), testuser2Identity, EventAttendeeResponse.DECLINED);
+
+    assertEquals(EventAttendeeResponse.ACCEPTED, responseOn(storedDate.getId(), testuser3Identity));
+    assertRows(series.getId(), testuser3Identity, row(null, null, EventAttendeeResponse.ACCEPTED));
+    EventAttendeePromotion promotion = (EventAttendeePromotion) only(Utils.POST_EVENT_ATTENDEE_PROMOTED).data();
+    assertEquals(id(testuser3Identity), promotion.attendee().getIdentityId());
+    assertEquals("reported from the first date, stored on its own row", storedDate.getId(), promotion.attendee().getEventId());
+    assertEquals("the two dates the series carries", 2, promotion.otherDates());
+    assertFalse(promotion.openEnded());
+  }
+
+  /**
+   * A promotion that gives seats on the dates before a full date and after it
+   * counts the dates with a seat only, the full date not among them.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aPromotionAroundAFullDateCountsOnlyTheDatesWithASeat() throws Exception {
+    Event series = limitedSeries(1, 5, testuser2Identity, testuser3Identity, testuser4Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    replaceRows(series.getId(), testuser2Identity, row(null, null, EventAttendeeResponse.ACCEPTED));
+    replaceRows(series.getId(), testuser4Identity, row(dates.get(2), dates.get(3), EventAttendeeResponse.ACCEPTED));
+    replaceRows(series.getId(), testuser3Identity, row(null, null, EventAttendeeResponse.WAITING));
+    BROADCASTS.clear();
+
+    answer(series.getId(), testuser2Identity, EventAttendeeResponse.DECLINED);
+
+    assertRows(series.getId(),
+               testuser3Identity,
+               row(null, dates.get(2), EventAttendeeResponse.ACCEPTED),
+               row(dates.get(2), dates.get(3), EventAttendeeResponse.WAITING),
+               row(dates.get(3), null, EventAttendeeResponse.ACCEPTED));
+    EventAttendeePromotion promotion = (EventAttendeePromotion) only(Utils.POST_EVENT_ATTENDEE_PROMOTED).data();
+    assertEquals(dates.get(0), promotion.attendee().getFromOccurrenceId());
+    assertEquals("the four dates with a seat, the first one apart", 3, promotion.otherDates());
+    assertFalse(promotion.openEnded());
+  }
+
+  /**
+   * A promotion on every date of a series with no end, from the first date
+   * promoted on, has no last date: it is reported open-ended, its dates not
+   * counted.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aPromotionOnASeriesWithNoEndIsReportedOpenEnded() throws Exception {
+    ZonedDateTime start = LocalDate.now().plusDays(60).atTime(9, 0).atZone(ZoneOffset.UTC);
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setTimeZoneId(ZoneOffset.UTC);
+    event.getRecurrence().setUntil(null);
+    event.getRecurrence().setCount(0);
+    Event series = createEvent(event, id(testuser1Identity), testuser2Identity, testuser3Identity);
+    setCapacity(series.getId(), 1);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answer(series.getId(), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(series.getId(), testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertRows(series.getId(), testuser3Identity, row(null, null, EventAttendeeResponse.WAITING));
+    BROADCASTS.clear();
+
+    answer(series.getId(), testuser2Identity, EventAttendeeResponse.DECLINED);
+
+    EventAttendeePromotion promotion = (EventAttendeePromotion) only(Utils.POST_EVENT_ATTENDEE_PROMOTED).data();
+    assertEquals(dates.get(0), promotion.attendee().getFromOccurrenceId());
+    assertTrue(promotion.openEnded());
+    assertEquals(0, promotion.otherDates());
   }
 
   /**
@@ -350,7 +442,8 @@ public class AgendaSeriesSeatRuleTest extends BaseAgendaEventTest {
 
     assertRows(series.getId(), testuser3Identity, row(null, null, EventAttendeeResponse.ACCEPTED));
     assertRows(series.getId(), testuser4Identity, row(null, null, EventAttendeeResponse.WAITING));
-    assertEquals(id(testuser3Identity), ((EventAttendee) only(Utils.POST_EVENT_ATTENDEE_PROMOTED).data()).getIdentityId());
+    assertEquals(id(testuser3Identity),
+                 ((EventAttendeePromotion) only(Utils.POST_EVENT_ATTENDEE_PROMOTED).data()).attendee().getIdentityId());
   }
 
   /**
@@ -379,9 +472,9 @@ public class AgendaSeriesSeatRuleTest extends BaseAgendaEventTest {
                testuser3Identity,
                row(null, dates.get(2), EventAttendeeResponse.WAITING),
                row(dates.get(2), null, EventAttendeeResponse.DECLINED));
-    assertTrue("no promotion on the series",
-               broadcasts(Utils.POST_EVENT_ATTENDEE_PROMOTED).stream()
-                                                             .noneMatch(broadcast -> ((EventAttendee) broadcast.data()).getEventId() == series.getId()));
+    EventAttendeePromotion promotion = (EventAttendeePromotion) only(Utils.POST_EVENT_ATTENDEE_PROMOTED).data();
+    assertEquals("reported from the first date's own row", firstDate.getId(), promotion.attendee().getEventId());
+    assertEquals("the second date's own row, and no date of the series", 1, promotion.otherDates());
     assertEquals(EventAttendeeResponse.ACCEPTED, responseOn(firstDate.getId(), testuser3Identity));
     assertEquals(EventAttendeeResponse.ACCEPTED, responseOn(secondDate.getId(), testuser3Identity));
   }
