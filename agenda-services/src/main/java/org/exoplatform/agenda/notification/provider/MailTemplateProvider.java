@@ -19,7 +19,8 @@ import static org.exoplatform.agenda.util.NotificationUtils.*;
     @TemplateConfig(pluginId = AGENDA_VOTE_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/mail/VoteMailPlugin.gtmpl"),
     @TemplateConfig(pluginId = AGENDA_CALENDAR_SHARED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/mail/CalendarSharedMailPlugin.gtmpl"),
     @TemplateConfig(pluginId = AGENDA_CALENDAR_EDITED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/mail/CalendarEditedMailPlugin.gtmpl"),
-    @TemplateConfig(pluginId = AGENDA_PARTICIPATION_CONFIRMED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/mail/EventParticipationConfirmedMailPlugin.gtmpl"), })
+    @TemplateConfig(pluginId = AGENDA_PARTICIPATION_CONFIRMED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/mail/EventParticipationConfirmedMailPlugin.gtmpl"),
+    @TemplateConfig(pluginId = AGENDA_CAPACITY_REACHED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/mail/EventCapacityReachedMailPlugin.gtmpl"), })
 public class MailTemplateProvider extends TemplateProvider {
   public MailTemplateProvider(ExoContainer container, InitParams initParams) {
     super(initParams);
@@ -34,5 +35,6 @@ public class MailTemplateProvider extends TemplateProvider {
     this.templateBuilders.put(CALENDAR_EDITED_KEY, new CalendarEditedTemplateBuilder(this, container, CALENDAR_EDITED_KEY, false));
     this.templateBuilders.put(PARTICIPATION_CONFIRMED_KEY,
                               new ParticipationConfirmedTemplateBuilder(this, container, PARTICIPATION_CONFIRMED_KEY, false, true));
+    this.templateBuilders.put(CAPACITY_REACHED_KEY, new CapacityReachedTemplateBuilder(this, container, CAPACITY_REACHED_KEY, false));
   }
 }

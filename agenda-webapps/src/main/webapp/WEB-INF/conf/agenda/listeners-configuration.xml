@@ -41,6 +41,12 @@
       <set-method>addListener</set-method>
       <type>org.exoplatform.agenda.listener.AgendaEventPromotedListener</type>
     </component-plugin>
+    <!-- EXO-90320: the creator and the space managers are told that an answer filled the last seat -->
+    <component-plugin>
+      <name>exo.agenda.event.capacity.reached</name>
+      <set-method>addListener</set-method>
+      <type>org.exoplatform.agenda.listener.AgendaEventCapacityReachedListener</type>
+    </component-plugin>
     <!-- EXO-90357: a colleague is told that a calendar was shared with them -->
     <component-plugin>
       <name>exo.agenda.calendar.shared</name>
