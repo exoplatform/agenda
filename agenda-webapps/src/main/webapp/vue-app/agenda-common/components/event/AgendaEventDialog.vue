@@ -3,7 +3,7 @@
     ref="eventDialog"
     v-model="dialog"
     :retain-focus="false"
-    content-class="agendaEventDialog"
+    content-class="agendaEventDialog layout-drawer"
     attach="#vuetify-apps"
     persistent
     fullscreen
