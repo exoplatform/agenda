@@ -22,6 +22,7 @@ import EventReplyPlugin from './components/EventReplyPlugin.vue';
 import EventReminderPlugin from './components/EventReminderPlugin.vue';
 import CalendarSharedPlugin from './components/CalendarSharedPlugin.vue';
 import EventParticipationConfirmedPlugin from './components/EventParticipationConfirmedPlugin.vue';
+import EventCapacityReachedPlugin from './components/EventCapacityReachedPlugin.vue';
 
 const components = {
   'user-notification-agenda-event': AgendaEventPlugin,
@@ -31,6 +32,7 @@ const components = {
   'user-notification-event-reminder': EventReminderPlugin,
   'user-notification-calendar-shared': CalendarSharedPlugin,
   'user-notification-event-participation-confirmed': EventParticipationConfirmedPlugin,
+  'user-notification-event-capacity-reached': EventCapacityReachedPlugin,
 };
 
 for (const key in components) {
