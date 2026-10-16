@@ -1,10 +1,10 @@
 <template>
   <v-dialog
     v-model="dialog"
-    content-class="uiPopup width-auto"
+    content-class="uiPopup width-auto layout-drawer"
     width="300">
-    <v-card class="elevation-12">
-      <div class="ignore-vuetify-classes popupHeader ClearFix">
+    <v-card class="elevation-12 transparent">
+      <div class="ignore-vuetify-classes popupHeader ClearFix layout-drawer">
         <a
           class="uiIconClose pull-right"
           aria-hidden="true"
