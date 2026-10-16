@@ -139,6 +139,23 @@ public class NotificationUtils {
                                                                               new ArgumentLiteral<>(EventAttendeePromotion.class,
                                                                                                     "event_promotion");
 
+  /**
+   * Plugin id of "your event has reached its capacity limit", sent to the
+   * creator of an event and the managers of its space when an answer fills
+   * its last seat (EXO-90320).
+   */
+  public static final String                                 AGENDA_CAPACITY_REACHED_NOTIFICATION_PLUGIN   =
+                                                                                                           "EventCapacityReachedNotificationPlugin";
+
+  /**
+   * The identifier of the event row whose pool of seats reached its capacity,
+   * handed to the capacity-reached notification (EXO-90320): a series, the
+   * row of one of its dates, or an event that is not recurring.
+   */
+  public static final ArgumentLiteral<Long>                  CAPACITY_REACHED_EVENT_ID                     =
+                                                                                       new ArgumentLiteral<>(Long.class,
+                                                                                                             "capacity_reached_event_id");
+
   /** Stored parameter: full name of the colleague who made the change (EXO-90378). */
   public static final String                                 STORED_PARAMETER_MODIFIER_NAME                 = "modifierName";
 
@@ -216,6 +233,10 @@ public class NotificationUtils {
   /** Plugin key of "your participation is confirmed" (EXO-90315). */
   public static final PluginKey                              PARTICIPATION_CONFIRMED_KEY                    =
                                                                                          PluginKey.key(AGENDA_PARTICIPATION_CONFIRMED_NOTIFICATION_PLUGIN);
+
+  /** Plugin key of "your event has reached its capacity limit" (EXO-90320). */
+  public static final PluginKey                              CAPACITY_REACHED_KEY                           =
+                                                                                      PluginKey.key(AGENDA_CAPACITY_REACHED_NOTIFICATION_PLUGIN);
 
   public static final String                                 STORED_PARAMETER_EVENT_TITLE                   = "eventTitle";
 
@@ -529,6 +550,53 @@ public class NotificationUtils {
     return date.isAllDay() ? value.toLocalDate().toString() : AgendaDateUtils.toRFC3339Date(value);
   }
 
+  /**
+   * Stores what the "Event capacity reached" notification shows: the event
+   * and, on a recurring event, the date that filled up, which its links open.
+   *
+   * @param notification the notification
+   * @param event the event whose pool of seats filled up: a series, the row
+   *          of one of its dates, or an event that is not recurring
+   * @param occurrenceId the id of the date that filled up on a recurring
+   *          event, null otherwise
+   * @param calendar the event's calendar
+   */
+  public static final void storeCapacityReachedParameters(NotificationInfo notification,
+                                                          Event event,
+                                                          ZonedDateTime occurrenceId,
+                                                          Calendar calendar) {
+    notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
+                .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
+                .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
+                .with(STORED_PARAMETER_EVENT_URL, getEventURL(event, occurrenceId))
+                .with(STORED_PARAMETER_WEB_EVENT_URL, getWebEventURL(event, occurrenceId));
+    if (occurrenceId != null) {
+      notification.with(STORED_PARAMETER_EVENT_OCCURRENCE_ID, AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC));
+    }
+    storeCalendarName(notification, calendar);
+  }
+
+  /**
+   * The managers of the space owning a calendar, by username: who hears, with
+   * the event's creator, that an event of the space reached its capacity.
+   *
+   * @param identityManager the identity manager
+   * @param spaceService the space service
+   * @param ownerId the identity identifier of the calendar's owner
+   * @return the managers' usernames, none when the owner is not a space
+   */
+  public static List<String> getSpaceManagersByOwnerId(IdentityManager identityManager, SpaceService spaceService, long ownerId) {
+    Identity identity = Utils.getIdentityById(identityManager, ownerId);
+    if (identity == null || !SpaceIdentityProvider.NAME.equals(identity.getProviderId())) {
+      return Collections.emptyList();
+    }
+    Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
+    if (space == null || space.getManagers() == null) {
+      return Collections.emptyList();
+    }
+    return Arrays.stream(space.getManagers()).filter(StringUtils::isNotBlank).toList();
+  }
+
   public static final void storeEventParameters(IdentityManager identityManager,
                                                 NotificationInfo notification,
                                                 Event event,
@@ -741,6 +809,32 @@ public class NotificationUtils {
                         NumberUtils.toInt(notification.getValueOwnerParameter(STORED_PARAMETER_OTHER_DATES), 0));
     templateContext.put(TEMPLATE_VARIABLE_OPEN_ENDED,
                         Boolean.parseBoolean(notification.getValueOwnerParameter(STORED_PARAMETER_OPEN_ENDED)));
+    return templateContext;
+  }
+
+  /**
+   * Builds the context of the "Event capacity reached" templates: the event's
+   * title and the link that opens it, on a recurring event at the date that
+   * filled up.
+   *
+   * @param templateProvider the provider of the channel's template
+   * @param notification the notification
+   * @return the template context
+   */
+  public static final TemplateContext buildTemplateCapacityReachedParameters(TemplateProvider templateProvider,
+                                                                             NotificationInfo notification) {
+    String language = NotificationPluginUtils.getLanguage(notification.getTo());
+    TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
+
+    setFooter(notification, templateContext);
+    setRead(notification, templateContext);
+    setNotificationId(notification, templateContext);
+    setLasModifiedTime(notification, templateContext, language);
+
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_ID, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ID));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_TITLE, getEventTitle(notification));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
+    templateContext.put(TEMPLATE_VARIABLE_WEB_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_WEB_EVENT_URL));
     return templateContext;
   }
 
