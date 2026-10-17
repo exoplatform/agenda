@@ -6,7 +6,9 @@ import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -84,7 +86,16 @@ public class AgendaNotificationPlugin extends BaseNotificationPlugin {
     NotificationInfo notification = NotificationInfo.instance();
     notification.key(getId());
     if (event.getId() > 0) {
-      setNotificationRecipients(identityManager, notification, spaceService, eventAttendees, event, typeModification, modifierId);
+      @SuppressWarnings("unchecked")
+      Set<String> alreadyInvited = ctx.value(EVENT_ALREADY_INVITED);
+      setNotificationRecipients(identityManager,
+                                notification,
+                                spaceService,
+                                eventAttendees,
+                                event,
+                                typeModification,
+                                modifierId,
+                                alreadyInvited == null ? Collections.emptySet() : alreadyInvited);
       // The one who did the action, so that whoever consumes the notification
       // apart from the channels, like the digest, can leave him out of what
       // happened to him. The on-site and mail behaviors are unchanged.
