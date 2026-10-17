@@ -221,6 +221,18 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     this.userAcl = userAcl;
   }
 
+  /**
+   * Lists the current user's events from a start date, up to an end date or a
+   * limit. With a {@code spaceId}, only the events of that space's calendar
+   * are listed, and none when the space is missing or the user can't view it.
+   *
+   * @param start the window start, now when blank
+   * @param end the window end, or blank to use the limit
+   * @param spaceId the space to restrict to, or null or 0 for none
+   * @param limit the maximum number of events
+   * @return the events of the window
+   * @throws IllegalAccessException when the user may not read the events
+   */
   public AgendaEventCollectionModel getAgendaEvents(String start,
                                                     String end,
                                                     Long spaceId,
@@ -242,6 +254,10 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     long userIdentityId = getCurrentUserIdentityId();
     List<Long> ownerIds = spaceId == null || spaceId.longValue() == 0 ? null :
                                                                       getSpaceIdentityIds(Collections.singletonList(spaceId));
+    if (ownerIds != null && ownerIds.isEmpty()) {
+      // the scope's space is missing or not viewable: no owner filter would mean the whole agenda
+      return new AgendaEventCollectionModel(Collections.emptyList(), start, end, limit);
+    }
     EventFilter eventFilter = new EventFilter(userIdentityId,
                                               ownerIds,
                                               List.of(EventAttendeeResponse.ACCEPTED,
@@ -917,8 +933,21 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     return new ConferenceModel(conference.getType(), conference.getUrl());
   }
 
-  // Keyword search over agenda events the current user can access, optionally restricted to a space.
-  // Note: the underlying search index has no date-range filter, so start/end are applied as a post-filter here.
+  /**
+   * Keyword search over the agenda events the current user can access,
+   * optionally restricted to a space. The search index has no date-range
+   * filter, so start and end are applied as a post-filter here. With a
+   * {@code spaceId}, only the events of that space's own calendar are kept:
+   * the index matches an event that merely invites the space too, and that one
+   * belongs to the owner of its calendar. None when the space is missing or
+   * the user can't view it.
+   *
+   * @param query the keywords, mandatory
+   * @param start the window start, or blank for none
+   * @param end the window end, or blank for none
+   * @param spaceId the space to restrict to, or null or 0 for none
+   * @return the matching events
+   */
   public List<AgendaEventModel> searchAgendaEvents(String query,
                                                    String start,
                                                    String end,
@@ -929,6 +958,10 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     long userIdentityId = getCurrentUserIdentityId();
     List<Long> spaceIdentityIds = spaceId == null || spaceId == 0 ? null
                                                                    : getSpaceIdentityIds(Collections.singletonList(spaceId));
+    if (spaceIdentityIds != null && spaceIdentityIds.isEmpty()) {
+      // the scope's space is missing or not viewable: no owner filter would mean the whole agenda
+      return Collections.emptyList();
+    }
     AgendaEventSearchFilter filter = new AgendaEventSearchFilter(userIdentityId,
                                                                  TIMEZONE,
                                                                  query,
@@ -943,6 +976,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     return results.stream()
                   .filter(event -> startFilter == null || event.getEnd() == null || !event.getEnd().isBefore(startFilter))
                   .filter(event -> endFilter == null || event.getStart() == null || !event.getStart().isAfter(endFilter))
+                  .filter(event -> isOwnedByOneOf(event.getCalendarId(), spaceIdentityIds))
                   .map(this::toAgendaEventModel)
                   .filter(Objects::nonNull)
                   .toList();
@@ -1329,6 +1363,32 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     }
   }
 
+  /**
+   * Tells whether the owner of a calendar is one of the given identities. An
+   * event belongs to the space that owns its calendar, and an event that only
+   * invites the space belongs to its own calendar's owner, so the scoped
+   * search keeps an event only when this holds.
+   *
+   * @param calendarId the calendar the event is in
+   * @param ownerIds the owner identity ids to match, or null to match any
+   * @return true when {@code ownerIds} is null, or the calendar exists and its
+   *         owner is one of them
+   */
+  private boolean isOwnedByOneOf(long calendarId, List<Long> ownerIds) {
+    if (ownerIds == null) {
+      return true;
+    }
+    Calendar calendar = agendaCalendarService.getCalendarById(calendarId);
+    return calendar != null && ownerIds.contains(calendar.getOwnerId());
+  }
+
+  /**
+   * Resolves space ids to the identity ids of the spaces the current user can
+   * view, dropping a missing or unviewable space.
+   *
+   * @param spaceIds the space ids
+   * @return the identity ids of the spaces that resolved, possibly empty
+   */
   private List<Long> getSpaceIdentityIds(List<Long> spaceIds) {
     if (CollectionUtils.isEmpty(spaceIds)) {
       return Collections.emptyList();
