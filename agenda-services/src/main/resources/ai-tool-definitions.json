@@ -361,7 +361,7 @@
     {
       "name": "invite_space_to_agenda_event",
       "title": "Invite space members to an agenda event",
-      "description": "Invite space members to an agenda event",
+      "description": "Invite a space to an agenda event: its members receive the invitation, except those who already attend. In a run limited to a space, only that space can be invited.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -383,6 +383,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "event_id", "resolver": "event", "allowed_args": ["space_id"] },
       "require_approval": true
     },
     {
@@ -400,7 +401,7 @@
             "items": {
               "type": "string"
             },
-            "description": "List of attendee usernames to invite (the current user is added automatically)."
+            "description": "List of attendee usernames to invite. Only the newly invited ones receive the invitation. In a run limited to a space, each must be a member of that space."
           }
         },
         "required": [
@@ -414,6 +415,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "event_id", "resolver": "event", "allowed_args": ["attendee_usernames"] },
       "require_approval": true
     },
     {
@@ -540,7 +542,7 @@
     {
       "name": "confirm_date_poll",
       "title": "Confirm a date poll",
-      "description": "Pick the winning slot of a date poll: converts the poll into a confirmed event on that slot and returns the attendee conflict report for the confirmed window.",
+      "description": "Pick the winning slot of a date poll: converts the poll into a confirmed event on that slot and returns the attendee conflict report for the confirmed window. In a run limited to a space, the conflict report is left out.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -559,6 +561,7 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "date_option_id", "resolver": "event_date_option" },
       "require_approval": true
     },
     {
