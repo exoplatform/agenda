@@ -63,6 +63,16 @@ public class NotificationUtils {
   public static final ArgumentLiteral<List>                  EVENT_ATTENDEE                                 =
                                                                             new ArgumentLiteral<>(List.class, "eventAttendee");
 
+  /**
+   * Usernames of the users who already attended an event before an
+   * invitation, left out of its recipients while it still names them among
+   * the attendees.
+   */
+  @SuppressWarnings("rawtypes")
+  public static final ArgumentLiteral<Set>                   EVENT_ALREADY_INVITED                          =
+                                                                                   new ArgumentLiteral<>(Set.class,
+                                                                                                         "eventAlreadyInvited");
+
   public static final ArgumentLiteral<Long>                  EVENT_MODIFIER                                 =
                                                                             new ArgumentLiteral<>(Long.class, "eventModifier");
 
@@ -336,6 +346,41 @@ public class NotificationUtils {
                                                      Event event,
                                                      String typeModification,
                                                      long modifierId) {
+    setNotificationRecipients(identityManager,
+                              notification,
+                              spaceService,
+                              eventAttendees,
+                              event,
+                              typeModification,
+                              modifierId,
+                              Collections.emptySet());
+  }
+
+  /**
+   * Sets the recipients of an event notification: every user and guest
+   * attendee, and every member of a space attendee, except the users already
+   * invited; the stored attendees line names every user and guest attendee.
+   *
+   * @param identityManager reads the attendees' identities
+   * @param notification the notification
+   * @param spaceService reads the members of a space attendee
+   * @param eventAttendees the event's attendees: each user and guest among
+   *          them is named, and each user, guest and member of a space among
+   *          them is a recipient unless already invited
+   * @param event the event
+   * @param typeModification the modification notified
+   * @param modifierId the identity that made the modification
+   * @param alreadyInvited usernames left out of the recipients, none to
+   *          leave out nobody
+   */
+  public static final void setNotificationRecipients(IdentityManager identityManager,
+                                                     NotificationInfo notification,
+                                                     SpaceService spaceService,
+                                                     List<EventAttendee> eventAttendees,
+                                                     Event event,
+                                                     String typeModification,
+                                                     long modifierId,
+                                                     Set<String> alreadyInvited) {
     if (event == null) {
       throw new IllegalArgumentException("event is null");
     }
@@ -365,6 +410,9 @@ public class NotificationUtils {
     String showParticipants = getFullUserName(participants, identityManager);
     notification.with(STORED_PARAMETER_EVENT_ATTENDEES, showParticipants);
 
+    if (alreadyInvited != null) {
+      recipients.removeAll(alreadyInvited);
+    }
     notification.to(new ArrayList<>(recipients));
   }
 

@@ -3,7 +3,9 @@ package org.exoplatform.agenda.notification.plugin;
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -84,7 +86,16 @@ public class DatePollNotificationPlugin extends BaseNotificationPlugin {
     NotificationInfo notification = NotificationInfo.instance();
     notification.key(getId());
     if (event.getId() > 0) {
-      setNotificationRecipients(identityManager, notification, spaceService, eventAttendees, event, typeModification, modifierId);
+      @SuppressWarnings("unchecked")
+      Set<String> alreadyInvited = ctx.value(EVENT_ALREADY_INVITED);
+      setNotificationRecipients(identityManager,
+                                notification,
+                                spaceService,
+                                eventAttendees,
+                                event,
+                                typeModification,
+                                modifierId,
+                                alreadyInvited == null ? Collections.emptySet() : alreadyInvited);
       excludeDatePollActor(notification, event, modifierId);
     }
     if (notification.getSendToUserIds() == null || notification.getSendToUserIds().isEmpty()) {
