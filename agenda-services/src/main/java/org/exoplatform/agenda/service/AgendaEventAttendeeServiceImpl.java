@@ -576,9 +576,23 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    */
   @Override
   public void sendInvitations(Event event, List<EventAttendee> eventAttendees, AgendaEventModification eventModifications) {
+    sendInvitations(event, eventAttendees, Collections.emptySet(), eventModifications);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void sendInvitations(Event event,
+                              List<EventAttendee> eventAttendees,
+                              Set<String> alreadyInvited,
+                              AgendaEventModification eventModifications) {
     NotificationContext ctx = NotificationContextImpl.cloneInstance();
     ctx.append(EVENT_AGENDA, event);
     ctx.append(EVENT_ATTENDEE, eventAttendees);
+    if (alreadyInvited != null && !alreadyInvited.isEmpty()) {
+      ctx.append(EVENT_ALREADY_INVITED, alreadyInvited);
+    }
     ctx.append(EVENT_MODIFIER, eventModifications.getModifierId());
 
     if (eventModifications.hasModification(AgendaEventModificationType.DELETED)) {
