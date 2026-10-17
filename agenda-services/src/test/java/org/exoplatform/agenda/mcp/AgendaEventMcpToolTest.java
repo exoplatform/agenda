@@ -31,17 +31,19 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.Locale;
+import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.ArgumentCaptor;
 
 import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
@@ -67,7 +69,9 @@ import org.exoplatform.agenda.model.EventOccurrence;
 import org.exoplatform.agenda.model.EventDateOption;
 import org.exoplatform.agenda.model.EventReminder;
 import org.exoplatform.agenda.model.EventSearchResult;
+import org.exoplatform.agenda.model.AgendaEventModification;
 import org.exoplatform.agenda.constant.AvailabilitySharing;
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.service.AgendaAvailabilityServiceImpl;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
@@ -81,9 +85,11 @@ import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.profileproperty.ProfilePropertyService;
-
 import io.meeds.portal.permlink.service.PermanentLinkService;
+import io.meeds.mcp.server.util.McpToolUtils;
 import io.meeds.social.translation.service.TranslationService;
+import io.meeds.mcp.server.model.ActingIdentity;
+
 
 class AgendaEventMcpToolTest {
 
@@ -140,6 +146,10 @@ class AgendaEventMcpToolTest {
   private AgendaEventMcpTool                 tool;
 
   private Identity                           currentUserIdentityMock;
+
+  private Long                               scopeSpaceId;
+
+  private boolean                            scopeUnreadable;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -208,6 +218,14 @@ class AgendaEventMcpToolTest {
       @Override
       public Locale getCurrentUserLocale() {
         return Locale.ENGLISH;
+      }
+
+      @Override
+      protected Long getScopeSpaceId() {
+        if (scopeUnreadable) {
+          throw new IllegalStateException("No acting identity");
+        }
+        return scopeSpaceId;
       }
     };
   }
@@ -838,6 +856,308 @@ class AgendaEventMcpToolTest {
     assertNotNull(model);
     verify(agendaEventAttendeeService,
           times(1)).saveEventAttendees(any(), any(), eq(USER_IDENTITY_ID), eq(false), eq(false), any());
+  }
+
+  // --- invitations under a space scope -----------------------------------------
+
+  /**
+   * In a call limited to a space, users are invited to an event only when
+   * they are members of that space, and nobody is when the call's identity
+   * can't be read. A call that isn't limited invites anyone the event's
+   * access rules allow, as before.
+   * Mutants: the membership check removed, negated, run on an unlimited
+   * call, or an unreadable identity taken as unlimited.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void invitedUsersOfACallLimitedToASpaceAreMembersOfIt() throws Exception {
+    stubInvitableEvent();
+    org.exoplatform.social.core.space.model.Space scope = Mockito.mock(org.exoplatform.social.core.space.model.Space.class);
+    when(spaceService.getSpaceById(12L)).thenReturn(scope);
+    when(spaceService.isMember(scope, "john")).thenReturn(false);
+
+    scopeSpaceId = 12L;
+    assertThrows(IllegalAccessException.class, () -> tool.inviteUsersToAgendaEvent(EVENT_ID, List.of("john")));
+    scopeSpaceId = null;
+    scopeUnreadable = true;
+    assertThrows(IllegalAccessException.class, () -> tool.inviteUsersToAgendaEvent(EVENT_ID, List.of("john")));
+    verify(agendaEventAttendeeService, never()).saveEventAttendees(any(), any(), anyLong(), anyBoolean(), anyBoolean(), any());
+
+    scopeUnreadable = false;
+    scopeSpaceId = 12L;
+    when(spaceService.isMember(scope, "john")).thenReturn(true);
+    tool.inviteUsersToAgendaEvent(EVENT_ID, List.of("john"));
+    scopeSpaceId = null;
+    when(spaceService.isMember(scope, "john")).thenReturn(false);
+    tool.inviteUsersToAgendaEvent(EVENT_ID, List.of("john"));
+    verify(agendaEventAttendeeService, times(2)).saveEventAttendees(any(), any(), anyLong(), anyBoolean(), anyBoolean(), any());
+  }
+
+  /**
+   * Inviting users sends the invitation, as an added event, naming every
+   * attendee and leaving out of its recipients the users already invited,
+   * who stay attendees but are not notified again; inviting only users
+   * already invited sends nothing.
+   * Mutants: no invitation sent, the existing attendees left out of it or
+   * not left out of its recipients, or sent when nobody new is invited.
+   *
+   * @throws Exception never
+   */
+  @Test
+  @SuppressWarnings("unchecked")
+  void theInvitationGoesToTheNewlyInvitedUsersOnly() throws Exception {
+    Event event = stubInvitableEvent();
+    Identity maryIdentity = Mockito.mock(Identity.class);
+    when(maryIdentity.isUser()).thenReturn(true);
+    when(maryIdentity.getRemoteId()).thenReturn("mary");
+    when(identityManager.getIdentity(301L)).thenReturn(maryIdentity);
+    EventAttendee mary = new EventAttendee(1L, 301L, EventAttendeeResponse.ACCEPTED);
+    when(agendaEventAttendeeService.getEventAttendees(EVENT_ID)).thenReturn(new EventAttendeeList(List.of(mary)));
+
+    tool.inviteUsersToAgendaEvent(EVENT_ID, List.of("mary", "john"));
+
+    ArgumentCaptor<List<EventAttendee>> saved = ArgumentCaptor.forClass(List.class);
+    verify(agendaEventAttendeeService).saveEventAttendees(eq(event), saved.capture(), eq(USER_IDENTITY_ID), eq(false), eq(false), any());
+    assertEquals(Set.of(300L, 301L), saved.getValue().stream().map(EventAttendee::getIdentityId).collect(Collectors.toSet()));
+    ArgumentCaptor<List<EventAttendee>> notified = ArgumentCaptor.forClass(List.class);
+    ArgumentCaptor<AgendaEventModification> modification = ArgumentCaptor.forClass(AgendaEventModification.class);
+    ArgumentCaptor<Set<String>> alreadyInvited = ArgumentCaptor.forClass(Set.class);
+    verify(agendaEventAttendeeService).sendInvitations(eq(event), notified.capture(), alreadyInvited.capture(), modification.capture());
+    assertEquals(Set.of(300L, 301L), notified.getValue().stream().map(EventAttendee::getIdentityId).collect(Collectors.toSet()));
+    assertEquals(Set.of("mary"), alreadyInvited.getValue());
+    assertTrue(modification.getValue().hasModification(AgendaEventModificationType.ADDED));
+    assertEquals(USER_IDENTITY_ID, modification.getValue().getModifierId());
+
+    tool.inviteUsersToAgendaEvent(EVENT_ID, List.of("mary"));
+    verify(agendaEventAttendeeService, times(1)).sendInvitations(any(), any(), any(), any());
+  }
+
+  /**
+   * In a call limited to a space, only that space can be invited to an
+   * event, and none when the call's identity can't be read; the invitation
+   * goes to the invited space, and inviting a space already invited sends
+   * nothing. A call that isn't limited invites any space the user can access.
+   * Mutants: the space check removed or negated, an unreadable identity taken
+   * as unlimited, or the invitation not sent.
+   *
+   * @throws Exception never
+   */
+  @Test
+  @SuppressWarnings("unchecked")
+  void aCallLimitedToASpaceInvitesThatSpaceOnly() throws Exception {
+    Event event = stubInvitableEvent();
+    when(userAcl.hasAccessPermission(any(), eq(String.valueOf(SPACE_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
+
+    scopeSpaceId = 12L;
+    assertThrows(IllegalAccessException.class, () -> tool.inviteSpaceToAgendaEvent(EVENT_ID, SPACE_ID));
+    scopeSpaceId = null;
+    scopeUnreadable = true;
+    assertThrows(IllegalAccessException.class, () -> tool.inviteSpaceToAgendaEvent(EVENT_ID, SPACE_ID));
+    verify(agendaEventAttendeeService, never()).saveEventAttendees(any(), any(), anyLong(), anyBoolean(), anyBoolean(), any());
+
+    scopeUnreadable = false;
+    scopeSpaceId = SPACE_ID;
+    tool.inviteSpaceToAgendaEvent(EVENT_ID, SPACE_ID);
+    ArgumentCaptor<List<EventAttendee>> notified = ArgumentCaptor.forClass(List.class);
+    verify(agendaEventAttendeeService).sendInvitations(eq(event), notified.capture(), any(), any());
+    assertEquals(List.of(OWNER_IDENTITY_ID), notified.getValue().stream().map(EventAttendee::getIdentityId).toList());
+
+    scopeSpaceId = null;
+    tool.inviteSpaceToAgendaEvent(EVENT_ID, SPACE_ID);
+    verify(agendaEventAttendeeService, times(2)).saveEventAttendees(any(), any(), anyLong(), anyBoolean(), anyBoolean(), any());
+
+    Identity spaceIdentity = identityManager.getOrCreateSpaceIdentity(SPACE_PRETTY_NAME);
+    when(spaceIdentity.isSpace()).thenReturn(true);
+    org.exoplatform.social.core.space.model.Space space = new org.exoplatform.social.core.space.model.Space();
+    space.setId(String.valueOf(SPACE_ID));
+    space.setPrettyName(SPACE_PRETTY_NAME);
+    space.setDisplayName(SPACE_PRETTY_NAME);
+    space.setVisibility("private");
+    space.setRegistration("validation");
+    space.setMembers(new String[0]);
+    space.setManagers(new String[0]);
+    when(spaceService.getSpaceById(SPACE_ID)).thenReturn(space);
+    when(spaceService.getSpaceByPrettyName(SPACE_PRETTY_NAME)).thenReturn(space);
+    when(identityManager.getIdentity(OWNER_IDENTITY_ID)).thenReturn(spaceIdentity);
+    EventAttendee invitedSpace = new EventAttendee(2L, OWNER_IDENTITY_ID, EventAttendeeResponse.NEEDS_ACTION);
+    when(agendaEventAttendeeService.getEventAttendees(EVENT_ID)).thenReturn(new EventAttendeeList(List.of(invitedSpace)));
+    tool.inviteSpaceToAgendaEvent(EVENT_ID, SPACE_ID);
+    verify(agendaEventAttendeeService, times(2)).sendInvitations(any(), any(), any(), any());
+  }
+
+  /**
+   * A date poll confirmed in a call limited to a space returns no conflicts
+   * report, which reads the attendees' own agendas; one confirmed in a call
+   * that isn't limited returns it, and so does none when the identity can't
+   * be read, which counts as limited.
+   * Mutants: the report kept under a scope, or dropped everywhere.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void aDatePollConfirmedInACallLimitedToASpaceReportsNoConflicts() throws Exception {
+    EventDateOption option = new EventDateOption(10L, EVENT_ID, START, END, false, false, null);
+    when(agendaEventDatePollService.getEventDateOption(eq(10L), eq(ZoneOffset.UTC))).thenReturn(option);
+    when(userAcl.hasEditPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
+    stubSpaceCalendarChain(SPACE_ID, SPACE_PRETTY_NAME, OWNER_IDENTITY_ID, CALENDAR_ID);
+    Event event = buildEvent(EVENT_ID, CALENDAR_ID, START, END, EventStatus.CONFIRMED);
+    when(agendaEventService.getEventById(eq(EVENT_ID), eq(ZoneOffset.UTC), eq(USER_IDENTITY_ID))).thenReturn(event);
+
+    scopeSpaceId = 12L;
+    assertNull(tool.confirmDatePoll(10L).getConflicts());
+    scopeSpaceId = null;
+    scopeUnreadable = true;
+    assertNull(tool.confirmDatePoll(10L).getConflicts());
+    scopeUnreadable = false;
+    assertNotNull(tool.confirmDatePoll(10L).getConflicts());
+    verify(agendaEventService, times(3)).selectEventDateOption(EVENT_ID, 10L, USER_IDENTITY_ID);
+  }
+
+  /**
+   * The space a call is limited to is the one its acting identity carries;
+   * an identity without a scope, or none, is unlimited, and one that can't be
+   * read fails the read and counts as limited. Runs the real
+   * {@code getScopeSpaceId} and {@code isSpaceScoped}, which the other tests
+   * stub.
+   * Mutants: the scope not read, or the read failure taken as unlimited.
+   */
+  @Test
+  void theScopeSpaceIsTheOneTheActingIdentityCarries() {
+    AgendaEventMcpTool realTool = new AgendaEventMcpTool(agendaCalendarService,
+                                                         agendaEventService,
+                                                         null,
+                                                         null,
+                                                         agendaEventConferenceService,
+                                                         agendaEventAttendeeService,
+                                                         agendaEventDatePollService,
+                                                         agendaEventReminderService,
+                                                         agendaUserSettingsService,
+                                                         portalConfigService,
+                                                         profilePropertyService,
+                                                         permanentLinkService,
+                                                         translationService,
+                                                         identityManager,
+                                                         spaceService,
+                                                         userAcl);
+    ActingIdentity limited = Mockito.mock(ActingIdentity.class);
+    when(limited.spaceScope()).thenReturn(7L);
+    ActingIdentity unlimited = Mockito.mock(ActingIdentity.class);
+    when(unlimited.spaceScope()).thenReturn(null);
+    try (MockedStatic<McpToolUtils> mocked = Mockito.mockStatic(McpToolUtils.class)) {
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(limited);
+      assertEquals(Long.valueOf(7L), realTool.getScopeSpaceId());
+      assertTrue(realTool.isSpaceScoped());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(unlimited);
+      assertNull(realTool.getScopeSpaceId());
+      assertFalse(realTool.isSpaceScoped());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenReturn(null);
+      assertNull(realTool.getScopeSpaceId());
+      mocked.when(McpToolUtils::getCurrentActingIdentity).thenThrow(new IllegalStateException("refused"));
+      assertThrows(IllegalStateException.class, realTool::getScopeSpaceId);
+      assertTrue(realTool.isSpaceScoped());
+    }
+  }
+
+  /**
+   * Inviting a space leaves out of its invitation the members who already
+   * attend by name, and inviting a user by name leaves out of it a user who
+   * already attends through an invited space or as a guest: the dispatch
+   * names every user who already attends, by name, as a guest or as a member
+   * of an invited space.
+   * Mutants: the users attending by name, the guests, or the members of
+   * invited spaces, left out of the already-invited users.
+   *
+   * @throws Exception never
+   */
+  @Test
+  @SuppressWarnings("unchecked")
+  void theInvitationLeavesOutEveryoneWhoAlreadyAttends() throws Exception {
+    Event event = stubInvitableEvent();
+    org.exoplatform.social.core.space.model.Space invitedSpace = spaceService.getSpaceById(SPACE_ID);
+    when(invitedSpace.getId()).thenReturn(String.valueOf(SPACE_ID));
+    when(invitedSpace.getVisibility()).thenReturn("private");
+    when(invitedSpace.getRegistration()).thenReturn("validation");
+    when(invitedSpace.getMembers()).thenReturn(new String[0]);
+    when(invitedSpace.getManagers()).thenReturn(new String[0]);
+    when(userAcl.hasAccessPermission(any(), eq(String.valueOf(SPACE_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
+    Identity maryIdentity = Mockito.mock(Identity.class);
+    when(maryIdentity.isUser()).thenReturn(true);
+    when(maryIdentity.getRemoteId()).thenReturn("mary");
+    when(identityManager.getIdentity(301L)).thenReturn(maryIdentity);
+    EventAttendee mary = new EventAttendee(1L, 301L, EventAttendeeResponse.ACCEPTED);
+    when(agendaEventAttendeeService.getEventAttendees(EVENT_ID)).thenReturn(new EventAttendeeList(List.of(mary)));
+
+    tool.inviteSpaceToAgendaEvent(EVENT_ID, SPACE_ID);
+
+    ArgumentCaptor<Set<String>> alreadyInvited = ArgumentCaptor.forClass(Set.class);
+    verify(agendaEventAttendeeService).sendInvitations(eq(event), any(), alreadyInvited.capture(), any());
+    assertEquals(Set.of("mary"), alreadyInvited.getValue());
+
+    Identity otherSpaceIdentity = Mockito.mock(Identity.class);
+    when(otherSpaceIdentity.isSpace()).thenReturn(true);
+    when(otherSpaceIdentity.getRemoteId()).thenReturn("legal");
+    when(identityManager.getIdentity(302L)).thenReturn(otherSpaceIdentity);
+    org.exoplatform.social.core.space.model.Space legal = new org.exoplatform.social.core.space.model.Space();
+    legal.setPrettyName("legal");
+    legal.setMembers(new String[] { "john", "paul" });
+    legal.setManagers(new String[0]);
+    legal.setVisibility("private");
+    legal.setRegistration("validation");
+    when(spaceService.getSpaceByPrettyName("legal")).thenReturn(legal);
+    EventAttendee legalSpace = new EventAttendee(2L, 302L, EventAttendeeResponse.NEEDS_ACTION);
+    Identity guestIdentity = Mockito.mock(Identity.class);
+    when(guestIdentity.getProviderId()).thenReturn(org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider.NAME);
+    when(guestIdentity.getRemoteId()).thenReturn("guest@example.org");
+    when(identityManager.getIdentity(303L)).thenReturn(guestIdentity);
+    EventAttendee guest = new EventAttendee(3L, 303L, EventAttendeeResponse.NEEDS_ACTION);
+    when(agendaEventAttendeeService.getEventAttendees(EVENT_ID)).thenReturn(new EventAttendeeList(List.of(legalSpace, guest)));
+
+    tool.inviteUsersToAgendaEvent(EVENT_ID, List.of("john"));
+
+    verify(agendaEventAttendeeService, times(2)).sendInvitations(eq(event), any(), alreadyInvited.capture(), any());
+    assertEquals(Set.of("john", "paul", "guest@example.org"), alreadyInvited.getValue());
+  }
+
+  /**
+   * An event updated in a call limited to a space returns no conflicts
+   * report, which reads the attendees' own agendas, and neither does one
+   * whose call identity can't be read, which counts as limited; one updated
+   * in a call that isn't limited returns it.
+   * Mutants: the report kept under a scope, or dropped everywhere.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void anEventUpdatedInACallLimitedToASpaceReportsNoConflicts() throws Exception {
+    Event event = stubInvitableEvent();
+    when(agendaEventService.getEventById(EVENT_ID)).thenReturn(event);
+
+    scopeSpaceId = 12L;
+    assertNull(tool.updateAgendaEvent(EVENT_ID, "Renewals", null, null, null, null, null, null, null, null, false).getConflicts());
+    scopeSpaceId = null;
+    scopeUnreadable = true;
+    assertNull(tool.updateAgendaEvent(EVENT_ID, "Renewals", null, null, null, null, null, null, null, null, false).getConflicts());
+    scopeUnreadable = false;
+    assertNotNull(tool.updateAgendaEvent(EVENT_ID, "Renewals", null, null, null, null, null, null, null, null, false).getConflicts());
+  }
+
+  /**
+   * @return an event of the space calendar that the current user may edit,
+   *         with no attendee yet, where john can be invited
+   * @throws Exception never, the services are mocks
+   */
+  private Event stubInvitableEvent() throws Exception {
+    when(userAcl.hasEditPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
+    when(agendaEventAttendeeService.getEventAttendees(EVENT_ID)).thenReturn(new EventAttendeeList(Collections.emptyList()));
+    Identity johnIdentity = Mockito.mock(Identity.class);
+    when(johnIdentity.getIdentityId()).thenReturn(300L);
+    when(identityManager.getOrCreateUserIdentity("john")).thenReturn(johnIdentity);
+    stubSpaceCalendarChain(SPACE_ID, SPACE_PRETTY_NAME, OWNER_IDENTITY_ID, CALENDAR_ID);
+    Event event = buildEvent(EVENT_ID, CALENDAR_ID, START, END, EventStatus.CONFIRMED);
+    when(agendaEventService.getEventById(eq(EVENT_ID), eq(ZoneOffset.UTC), eq(USER_IDENTITY_ID))).thenReturn(event);
+    when(agendaEventService.getEventById(EVENT_ID)).thenReturn(event);
+    return event;
   }
 
   // --- date polls happy paths --------------------------------------------------
