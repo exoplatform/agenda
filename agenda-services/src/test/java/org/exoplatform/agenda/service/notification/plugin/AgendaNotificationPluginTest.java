@@ -296,4 +296,74 @@ public class AgendaNotificationPluginTest extends BaseAgendaEventTest {
                         notificationInfo1.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_RECURRENT_DETAILS));
 
   }
+
+  /**
+   * A space invited to an event notifies its members except those who
+   * already attend, by name or through another space, whom the invitation
+   * names in the already-invited users; without them, every member is
+   * notified, as before.
+   * Mutants: the already-invited users not read from the context, or not
+   * removed from the recipients.
+   *
+   * @throws Exception when the event can't be created
+   */
+  @Test
+  public void testMakeNotificationLeavesOutAlreadyInvitedUsers() throws Exception {
+    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+    Event createdEvent = createEvent(newEventInstance(start, start, false).clone(),
+                                     Long.parseLong(testuser1Identity.getId()),
+                                     testuser1Identity,
+                                     testuser2Identity,
+                                     spaceIdentity);
+    InitParams initParams = new InitParams();
+    ValueParam value = new ValueParam();
+    value.setName(NotificationUtils.AGENDA_EVENT_ADDED_NOTIFICATION_PLUGIN);
+    value.setValue("#111111");
+    initParams.addParam(value);
+    ValueParam key = new ValueParam();
+    key.setName("agenda.notification.plugin.key");
+    key.setValue("111");
+    initParams.addParam(key);
+    AgendaNotificationPlugin plugin = new AgendaNotificationPlugin(initParams, identityManager, agendaCalendarService, spaceService);
+    List<EventAttendee> invitedSpace = agendaEventAttendeeService.getEventAttendees(createdEvent.getId())
+                                                                 .getEventAttendees()
+                                                                 .stream()
+                                                                 .filter(attendee -> attendee.getIdentityId() == Long.parseLong(spaceIdentity.getId()))
+                                                                 .toList();
+    Assert.assertEquals(1, invitedSpace.size());
+
+    NotificationContext withAlreadyInvited = NotificationContextImpl.cloneInstance()
+                                                                    .append(NotificationUtils.EVENT_AGENDA, createdEvent)
+                                                                    .append(NotificationUtils.EVENT_ATTENDEE, invitedSpace)
+                                                                    .append(NotificationUtils.EVENT_ALREADY_INVITED,
+                                                                            Set.of(testuser2Identity.getRemoteId()))
+                                                                    .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
+                                                                            AgendaEventModificationType.ADDED.name());
+    List<String> recipients = plugin.makeNotification(withAlreadyInvited).getSendToUserIds();
+    Assert.assertFalse(recipients.contains(testuser2Identity.getRemoteId()));
+    Assert.assertTrue(recipients.contains(testuser3Identity.getRemoteId()));
+
+    NotificationContext withoutAlreadyInvited = NotificationContextImpl.cloneInstance()
+                                                                       .append(NotificationUtils.EVENT_AGENDA, createdEvent)
+                                                                       .append(NotificationUtils.EVENT_ATTENDEE, invitedSpace)
+                                                                       .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
+                                                                               AgendaEventModificationType.ADDED.name());
+    Assert.assertTrue(plugin.makeNotification(withoutAlreadyInvited).getSendToUserIds().contains(testuser2Identity.getRemoteId()));
+
+    List<EventAttendee> allAttendees = agendaEventAttendeeService.getEventAttendees(createdEvent.getId()).getEventAttendees();
+    NotificationContext allNamed = NotificationContextImpl.cloneInstance()
+                                                          .append(NotificationUtils.EVENT_AGENDA, createdEvent)
+                                                          .append(NotificationUtils.EVENT_ATTENDEE, allAttendees)
+                                                          .append(NotificationUtils.EVENT_ALREADY_INVITED,
+                                                                  Set.of(testuser1Identity.getRemoteId(),
+                                                                         testuser2Identity.getRemoteId()))
+                                                          .append(NotificationUtils.EVENT_MODIFICATION_TYPE,
+                                                                  AgendaEventModificationType.ADDED.name());
+    NotificationInfo named = plugin.makeNotification(allNamed);
+    String attendeesLine = named.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_ATTENDEES);
+    Assert.assertTrue(attendeesLine, attendeesLine.contains(testuser2Identity.getProfile().getFullName()));
+    Assert.assertFalse(named.getSendToUserIds().contains(testuser2Identity.getRemoteId()));
+    Assert.assertTrue(named.getSendToUserIds().contains(testuser3Identity.getRemoteId()));
+  }
+
 }
