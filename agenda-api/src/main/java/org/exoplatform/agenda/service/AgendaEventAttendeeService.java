@@ -73,6 +73,29 @@ public interface AgendaEventAttendeeService {
                               AgendaEventModification eventModifications);
 
   /**
+   * Sends an invitation to event attendees of type: user, space or external
+   * user, naming every user and guest attendee given, and leaving out of its
+   * recipients the users who already attended the event before the
+   * invitation, by name, as a guest or through an invited space: a space
+   * attendee is notified through its members, and a member who already
+   * attends is not invited again.
+   *
+   * @param event {@link Event}
+   * @param eventAttendees {@link List} of every {@link EventAttendee} of the
+   *          event, the newly invited ones and those who already attend
+   * @param alreadyInvited usernames of the users who already attended the
+   *          event, left out of the recipients
+   * @param eventModifications {@link AgendaEventModification} contains a
+   *          {@link Set} of {@link AgendaEventModificationType} to indicate
+   *          event modification types: fields modifications, creation or
+   *          deletion
+   */
+  void sendInvitations(Event event,
+                       List<EventAttendee> eventAttendees,
+                       Set<String> alreadyInvited,
+                       AgendaEventModification eventModifications);
+
+  /**
    * @param event {@link Event} to attach attendees
    * @param attendees {@link List} of {@link EventAttendee} to save for event
    * @param creatorIdentityId technical identifier if {@link Identity} updating
