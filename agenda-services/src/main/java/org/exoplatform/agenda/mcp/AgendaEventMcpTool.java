@@ -30,11 +30,13 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -42,6 +44,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventAvailability;
 import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
@@ -63,6 +66,7 @@ import org.exoplatform.agenda.mcp.model.ScheduleConflictEventModel;
 import org.exoplatform.agenda.mcp.model.ScheduleConflictGroupModel;
 import org.exoplatform.agenda.mcp.model.ScheduleConflictsModel;
 import org.exoplatform.agenda.mcp.model.TimeBlockModel;
+import org.exoplatform.agenda.model.AgendaEventModification;
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.Event;
@@ -85,6 +89,7 @@ import org.exoplatform.agenda.model.TimeBlock;
 import org.exoplatform.agenda.model.UserAvailability;
 import org.exoplatform.agenda.plugin.AgendaEventAclPlugin;
 import org.exoplatform.agenda.plugin.AgendaEventPermanentLinkPlugin;
+import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.agenda.service.AgendaAvailabilityService;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
@@ -108,9 +113,11 @@ import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
+import io.meeds.mcp.server.model.ActingIdentity;
 import io.meeds.mcp.server.plugin.McpToolPlugin;
 import io.meeds.mcp.server.tool.model.SpaceModel;
 import io.meeds.mcp.server.tool.model.UserModel;
+import io.meeds.mcp.server.util.McpToolUtils;
 import io.meeds.portal.permlink.model.PermanentLinkObject;
 import io.meeds.portal.permlink.service.PermanentLinkService;
 import io.meeds.social.space.plugin.SpaceAclPlugin;
@@ -124,6 +131,15 @@ public class AgendaEventMcpTool implements McpToolPlugin {
 
   private static final String                MSG_USER_NOT_ALLOWED_TO_ACCESS_SPACE =
                                                                                   "User isn't allowed to access the space with id %s";
+
+  private static final String                MSG_NOT_SCOPE_SPACE_MEMBER           =
+                                                                                  "User '%s' isn't a member of the space this call is limited to";
+
+  private static final String                MSG_NOT_SCOPE_SPACE                  =
+                                                                                  "Space with id %s isn't the space this call is limited to";
+
+  private static final String                MSG_SCOPE_UNREADABLE                 =
+                                                                                  "The space this call is limited to can't be read, so it can't name a user or a space";
 
   private static final String                MSG_USER_NOT_ALLOWED_TO_CREATE_EVENT =
                                                                                   "User isn't allowed to create events in space with id %s";
@@ -451,6 +467,20 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     agendaEventAttendeeService.sendEventResponse(eventId, getCurrentUserIdentityId(), EventAttendeeResponse.ACCEPTED);
   }
 
+  /**
+   * Invites users to an event the current user can edit, and sends the
+   * invitation to the newly invited ones only; users already invited are
+   * neither added again nor notified again. In a call limited to a space,
+   * every invited user must be a member of that space.
+   *
+   * @param eventId the event
+   * @param attendeeUsernames the logins to invite
+   * @return the event
+   * @throws IllegalAccessException when the current user can't edit the event,
+   *           or, in a call limited to a space, a user isn't a member of it or
+   *           the call's space can't be read
+   * @throws ObjectNotFoundException when the event doesn't exist
+   */
   public AgendaEventModel inviteUsersToAgendaEvent(Long eventId, List<String> attendeeUsernames) throws IllegalAccessException,
                                                                                                  ObjectNotFoundException {
     if (eventId == null || eventId == 0) {
@@ -462,6 +492,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                                           getCurrentUserAclIdentity())) {
       throw new IllegalAccessException(MSG_USER_NOT_ALLOWED_TO_UPDATE.formatted(eventId));
     }
+    checkScopeSpaceMembers(attendeeUsernames);
     EventAttendeeList attendeeList = agendaEventAttendeeService.getEventAttendees(eventId);
     List<EventAttendee> existingAttendees = attendeeList.getEventAttendees() == null ? Collections.emptyList() :
                                                                                      attendeeList.getEventAttendees();
@@ -471,20 +502,37 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                                                               .filter(Identity::isUser)
                                                               .map(Identity::getRemoteId)
                                                               .toList();
-    List<EventAttendee> attendees = toEventAttendees(attendeeUsernames.stream()
-                                                                      .filter(u -> !existingAttendeeUsernames.contains(u))
-                                                                      .toList(),
-                                                     false);
+    List<EventAttendee> invited = toEventAttendees(attendeeUsernames.stream()
+                                                                    .filter(u -> !existingAttendeeUsernames.contains(u))
+                                                                    .toList(),
+                                                   false);
+    List<EventAttendee> attendees = new ArrayList<>(invited);
     attendees.addAll(existingAttendees);
-    agendaEventAttendeeService.saveEventAttendees(agendaEventService.getEventById(eventId),
+    Event event = agendaEventService.getEventById(eventId);
+    agendaEventAttendeeService.saveEventAttendees(event,
                                                   attendees,
                                                   getCurrentUserIdentityId(),
                                                   false,
                                                   false,
                                                   null);
+    sendInvitationsTo(event, invited, existingAttendees);
     return getAgendaEventById(eventId);
   }
 
+  /**
+   * Invites a space the current user can access to an event the current user
+   * can edit, and sends the invitation to its members; a space already
+   * invited is neither added again nor notified again. In a call limited to a
+   * space, only that space can be invited.
+   *
+   * @param eventId the event
+   * @param spaceId the space to invite
+   * @return the event
+   * @throws IllegalAccessException when the current user can't edit the event
+   *           or access the space, or, in a call limited to a space, the space
+   *           is another one or the call's space can't be read
+   * @throws ObjectNotFoundException when the event doesn't exist
+   */
   public AgendaEventModel inviteSpaceToAgendaEvent(Long eventId, Long spaceId) throws IllegalAccessException,
                                                                                ObjectNotFoundException {
     if (eventId == null || eventId == 0) {
@@ -500,6 +548,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                                             getCurrentUserAclIdentity())) {
       throw new IllegalAccessException(MSG_USER_NOT_ALLOWED_TO_ACCESS_SPACE.formatted(spaceId));
     }
+    checkScopeSpace(spaceId);
     EventAttendeeList attendeeList = agendaEventAttendeeService.getEventAttendees(eventId);
     List<EventAttendee> existingAttendees = attendeeList.getEventAttendees() == null ? Collections.emptyList() :
                                                                                      attendeeList.getEventAttendees();
@@ -513,20 +562,46 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                                                          .map(Space::getSpaceId)
                                                          .toList();
     if (!existingAttendeeSpaces.contains(spaceId)) {
+      EventAttendee invited = new EventAttendee(0l, getSpaceIdentityId(spaceId), EventAttendeeResponse.NEEDS_ACTION);
       List<EventAttendee> attendees = new ArrayList<>(existingAttendees);
-      attendees.add(new EventAttendee(0l, getSpaceIdentityId(spaceId), EventAttendeeResponse.NEEDS_ACTION));
-      agendaEventAttendeeService.saveEventAttendees(agendaEventService.getEventById(eventId),
+      attendees.add(invited);
+      Event event = agendaEventService.getEventById(eventId);
+      agendaEventAttendeeService.saveEventAttendees(event,
                                                     attendees,
                                                     getCurrentUserIdentityId(),
                                                     false,
                                                     false,
                                                     null);
+      sendInvitationsTo(event, List.of(invited), existingAttendees);
     }
     return getAgendaEventById(eventId);
   }
 
-  // Update an agenda event (only provided fields change), optionally (re)setting recurrence, with a conflict report.
-  // When fail_on_conflict is true and an attendee is busy/tentative in the (new) window, the update is aborted.
+  /**
+   * Updates an agenda event: only the provided fields change, and its
+   * recurrence may be set again. It reports the attendees' busy times in the
+   * event's window, unless the call is limited to a space: the report reads
+   * the attendees' own agendas, beyond the space. When fail_on_conflict is
+   * true and an attendee is busy or tentative in the window, the update is
+   * aborted; a call limited to a space can't ask for that.
+   *
+   * @param eventId the event
+   * @param summary its new title, unchanged when blank
+   * @param description its new description, unchanged when null
+   * @param location its new location, unchanged when null
+   * @param start its new start, unchanged when blank
+   * @param end its new end, unchanged when blank
+   * @param recurrenceFrequency its recurrence frequency, none to keep it
+   * @param recurrenceInterval its recurrence interval
+   * @param recurrenceUntil the end of its recurrence
+   * @param recurrenceCount its number of occurrences
+   * @param failOnConflict true to abort the update when an attendee is busy
+   * @return the updated event, with its conflicts report unless the call is
+   *         limited to a space
+   * @throws IllegalAccessException when the current user can't edit the event
+   * @throws ObjectNotFoundException when the event doesn't exist
+   * @throws AgendaException when the event can't be saved
+   */
   public AgendaEventModel updateAgendaEvent(Long eventId,
                                             String summary,
                                             String description,
@@ -601,7 +676,9 @@ public class AgendaEventMcpTool implements McpToolPlugin {
       }
     }
     AgendaEventModel model = getAgendaEventById(eventId);
-    model.setConflicts(conflicts);
+    if (!isSpaceScoped()) {
+      model.setConflicts(conflicts);
+    }
     return model;
   }
 
@@ -721,8 +798,18 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     return new DatePollModel(eventId, event.getSummary(), optionModels);
   }
 
-  // Confirm a date poll by picking a winning slot: converts the poll into a normal confirmed event on that slot,
-  // then re-computes and returns the attendee conflict report for the newly confirmed window.
+  /**
+   * Confirms a date poll on one of its proposed dates, which turns it into a
+   * confirmed event on that date, and reports the attendees' busy times in
+   * that window. In a call limited to a space, the report is left out: it
+   * reads the attendees' own agendas, beyond the space.
+   *
+   * @param dateOptionId the chosen date option
+   * @return the confirmed event, with its conflicts report unless the call is
+   *         limited to a space
+   * @throws ObjectNotFoundException when the date option doesn't exist
+   * @throws IllegalAccessException when the current user can't edit the event
+   */
   public AgendaEventModel confirmDatePoll(Long dateOptionId) throws ObjectNotFoundException, IllegalAccessException {
     if (dateOptionId == null || dateOptionId == 0) {
       throw new IllegalArgumentException("Parameter 'date_option_id' is mandatory");
@@ -738,12 +825,134 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     long userIdentityId = getCurrentUserIdentityId();
     agendaEventService.selectEventDateOption(eventId, dateOptionId, userIdentityId);
     AgendaEventModel model = getAgendaEventById(eventId);
+    if (isSpaceScoped()) {
+      return model;
+    }
     List<EventAttendee> attendees = getExistingEventAttendees(eventId);
     ConflictsModel conflicts = computeConflicts(attendees,
                                                 dateOption.getStart(),
                                                 dateOption.getEnd());
     model.setConflicts(conflicts);
     return model;
+  }
+
+  /**
+   * @return the space the current call is limited to, null when it isn't
+   * @throws IllegalStateException when the call's identity can't be read
+   */
+  protected Long getScopeSpaceId() {
+    ActingIdentity identity = McpToolUtils.getCurrentActingIdentity();
+    return identity == null ? null : identity.spaceScope();
+  }
+
+  /**
+   * @return true when the current call is limited to a space; also true when
+   *         its identity can't be read, which a limited call must never be
+   *         taken for the opposite of
+   */
+  protected boolean isSpaceScoped() {
+    try {
+      return getScopeSpaceId() != null;
+    } catch (IllegalStateException e) {
+      return true;
+    }
+  }
+
+  /**
+   * Checks the users a call limited to a space invites are members of that
+   * space. The space scope reads the space of the event only, so the people
+   * the call names are checked here. A call that isn't limited is not
+   * checked; one whose identity can't be read is refused.
+   *
+   * @param usernames the logins the call invites
+   * @throws IllegalAccessException when the call is limited to a space one of
+   *           them isn't a member of, or its identity can't be read
+   */
+  private void checkScopeSpaceMembers(List<String> usernames) throws IllegalAccessException {
+    Long scopeSpaceId;
+    try {
+      scopeSpaceId = getScopeSpaceId();
+    } catch (IllegalStateException e) {
+      throw new IllegalAccessException(MSG_SCOPE_UNREADABLE);
+    }
+    if (scopeSpaceId == null) {
+      return;
+    }
+    Space space = spaceService.getSpaceById(scopeSpaceId);
+    for (String username : usernames) {
+      if (space == null || !spaceService.isMember(space, username)) {
+        throw new IllegalAccessException(MSG_NOT_SCOPE_SPACE_MEMBER.formatted(username));
+      }
+    }
+  }
+
+  /**
+   * Checks the space a call limited to a space invites is that space itself.
+   * A call that isn't limited is not checked; one whose identity can't be
+   * read is refused.
+   *
+   * @param spaceId the space the call invites
+   * @throws IllegalAccessException when the call is limited to another space,
+   *           or its identity can't be read
+   */
+  private void checkScopeSpace(Long spaceId) throws IllegalAccessException {
+    Long scopeSpaceId;
+    try {
+      scopeSpaceId = getScopeSpaceId();
+    } catch (IllegalStateException e) {
+      throw new IllegalAccessException(MSG_SCOPE_UNREADABLE);
+    }
+    if (scopeSpaceId != null && !scopeSpaceId.equals(spaceId)) {
+      throw new IllegalAccessException(MSG_NOT_SCOPE_SPACE.formatted(spaceId));
+    }
+  }
+
+  /**
+   * Sends the invitation of an event to the attendees just added, and to them
+   * only. The notification is given every attendee, so that it names them
+   * all, and leaves out of its recipients every user who already attends, by
+   * name, as a guest or through an invited space, whom a newly invited space,
+   * or a name, would otherwise invite again.
+   *
+   * @param event the event
+   * @param invited the attendees just added, none to send nothing
+   * @param existing the attendees the event had before
+   */
+  private void sendInvitationsTo(Event event, List<EventAttendee> invited, List<EventAttendee> existing) {
+    if (event == null || invited.isEmpty()) {
+      return;
+    }
+    AgendaEventModification modification = new AgendaEventModification(event.getId(),
+                                                                        event.getCalendarId(),
+                                                                        getCurrentUserIdentityId());
+    modification.addModificationType(AgendaEventModificationType.ADDED);
+    List<EventAttendee> attendees = new ArrayList<>(invited);
+    attendees.addAll(existing);
+    agendaEventAttendeeService.sendInvitations(event, attendees, getAttendingUsernames(existing), modification);
+  }
+
+  /**
+   * @param attendees attendees of an event
+   * @return the usernames of the users who attend through them: each user
+   *         or guest attendee, and each member of a space attendee
+   */
+  private Set<String> getAttendingUsernames(List<EventAttendee> attendees) {
+    Set<String> usernames = new HashSet<>();
+    for (EventAttendee attendee : attendees) {
+      Identity identity = identityManager.getIdentity(attendee.getIdentityId());
+      if (identity == null) {
+        continue;
+      }
+      if (identity.isUser() || AgendaGuestUserIdentityProvider.NAME.equals(identity.getProviderId())) {
+        usernames.add(identity.getRemoteId());
+      } else if (identity.isSpace()) {
+        Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
+        if (space != null && space.getMembers() != null) {
+          usernames.addAll(Arrays.asList(space.getMembers()));
+        }
+      }
+    }
+    return usernames;
   }
 
   // ==========================================================================
