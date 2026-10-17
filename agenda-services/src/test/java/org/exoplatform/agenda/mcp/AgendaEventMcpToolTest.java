@@ -40,8 +40,10 @@ import java.util.Locale;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
+import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
 import org.exoplatform.agenda.constant.EventStatus;
@@ -1293,6 +1295,73 @@ class AgendaEventMcpToolTest {
                                   tool.searchAgendaEvents("meeting", "2026-08-01T00:00:00Z", "2026-08-02T00:00:00Z", null);
 
     assertTrue(models.isEmpty());
+  }
+
+  /**
+   * A scoped listing whose space can't be resolved reads nothing, and never the user's whole agenda.
+   */
+  @Test
+  void getAgendaEventsOfAMissingOrUnviewableSpaceReturnsNoEvents() throws Exception {
+    try (MockedStatic<SpaceUtils> spaceUtils = Mockito.mockStatic(SpaceUtils.class)) {
+      spaceUtils.when(() -> SpaceUtils.getSpaceIdentityIds(any(), any())).thenReturn(Collections.emptyList());
+
+      AgendaEventCollectionModel model = tool.getAgendaEvents(null, null, SPACE_ID, null);
+
+      assertTrue(model.getEvents().isEmpty());
+      verify(agendaEventService, never()).getEvents(any(), any(), anyLong());
+    }
+  }
+
+  /**
+   * A scoped search whose space can't be resolved finds nothing, and never the user's whole agenda.
+   */
+  @Test
+  void searchAgendaEventsOfAMissingOrUnviewableSpaceReturnsNoEvents() {
+    try (MockedStatic<SpaceUtils> spaceUtils = Mockito.mockStatic(SpaceUtils.class)) {
+      spaceUtils.when(() -> SpaceUtils.getSpaceIdentityIds(any(), any())).thenReturn(Collections.emptyList());
+
+      List<AgendaEventModel> models = tool.searchAgendaEvents("kickoff", null, null, SPACE_ID);
+
+      assertTrue(models.isEmpty());
+      verify(agendaEventService, never()).search(any());
+    }
+  }
+
+  /**
+   * A scoped search keeps the events of the space's own calendar and drops the one of a personal calendar that
+   * invites the space.
+   */
+  @Test
+  void searchAgendaEventsOfASpaceKeepsOnlyTheEventsOfItsCalendar() {
+    stubSpaceCalendarChain(SPACE_ID, SPACE_PRETTY_NAME, OWNER_IDENTITY_ID, CALENDAR_ID);
+    long personalCalendarId = 77L;
+    Calendar personal = new Calendar();
+    personal.setId(personalCalendarId);
+    personal.setOwnerId(USER_IDENTITY_ID);
+    when(agendaCalendarService.getCalendarById(personalCalendarId)).thenReturn(personal);
+    EventSearchResult ofTheSpace = new EventSearchResult();
+    ofTheSpace.setId(EVENT_ID);
+    ofTheSpace.setCalendarId(CALENDAR_ID);
+    ofTheSpace.setStart(START);
+    ofTheSpace.setEnd(END);
+    ofTheSpace.setSummary("Space event");
+    EventSearchResult invitingTheSpace = new EventSearchResult();
+    invitingTheSpace.setId(EVENT_ID + 1);
+    invitingTheSpace.setCalendarId(personalCalendarId);
+    invitingTheSpace.setStart(START);
+    invitingTheSpace.setEnd(END);
+    invitingTheSpace.setSummary("Personal event inviting the space");
+    when(agendaEventService.search(any())).thenReturn(List.of(ofTheSpace, invitingTheSpace));
+
+    try (MockedStatic<SpaceUtils> spaceUtils = Mockito.mockStatic(SpaceUtils.class)) {
+      spaceUtils.when(() -> SpaceUtils.getSpaceIdentityIds(any(), any()))
+                .thenReturn(List.of(String.valueOf(OWNER_IDENTITY_ID)));
+
+      List<AgendaEventModel> models = tool.searchAgendaEvents("event", null, null, SPACE_ID);
+
+      assertEquals(1, models.size());
+      assertEquals("Space event", models.get(0).getSummary());
+    }
   }
 
   @SuppressWarnings("unused")
