@@ -31,6 +31,15 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
+      },
+      "space_scope": {
+        "space_arg": "space_id",
+        "when_absent": "use_scope",
+        "allowed_args": [
+          "start",
+          "end",
+          "limit"
+        ]
       }
     },
     {
@@ -53,6 +62,10 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
+      },
+      "space_scope": {
+        "object_arg": "event_id",
+        "resolver": "event"
       }
     },
     {
@@ -130,6 +143,23 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
+      "space_scope": {
+        "space_arg": "space_id",
+        "allowed_args": [
+          "summary",
+          "description",
+          "location",
+          "start",
+          "end",
+          "recurrence_frequency",
+          "recurrence_interval",
+          "recurrence_until",
+          "recurrence_count"
+        ],
+        "false_only_args": [
+          "fail_on_conflict"
+        ]
+      },
       "require_approval": true
     },
     {
@@ -193,6 +223,24 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
+      "space_scope": {
+        "object_arg": "event_id",
+        "resolver": "event",
+        "allowed_args": [
+          "summary",
+          "description",
+          "location",
+          "start",
+          "end",
+          "recurrence_frequency",
+          "recurrence_interval",
+          "recurrence_until",
+          "recurrence_count"
+        ],
+        "false_only_args": [
+          "fail_on_conflict"
+        ]
+      },
       "require_approval": true
     },
     {
@@ -216,6 +264,10 @@
         "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": false
+      },
+      "space_scope": {
+        "object_arg": "event_id",
+        "resolver": "event"
       },
       "require_approval": true
     },
@@ -296,6 +348,13 @@
         "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": false
+      },
+      "space_scope": {
+        "object_arg": "event_id",
+        "resolver": "event",
+        "allowed_args": [
+          "occurrence_id"
+        ]
       },
       "require_approval": true
     },
@@ -410,6 +469,14 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
+      "space_scope": {
+        "space_arg": "space_id",
+        "allowed_args": [
+          "title",
+          "proposed_slots",
+          "description"
+        ]
+      },
       "require_approval": true
     },
     {
@@ -464,6 +531,10 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
+      },
+      "space_scope": {
+        "object_arg": "event_id",
+        "resolver": "event"
       }
     },
     {
@@ -620,6 +691,10 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
+      },
+      "space_scope": {
+        "object_arg": "event_id",
+        "resolver": "event"
       }
     },
     {
@@ -707,6 +782,10 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
+      },
+      "space_scope": {
+        "object_arg": "event_id",
+        "resolver": "event"
       }
     },
     {
@@ -738,6 +817,14 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
+      },
+      "space_scope": {
+        "object_arg": "event_id",
+        "resolver": "event",
+        "allowed_args": [
+          "url",
+          "type"
+        ]
       },
       "require_approval": true
     },
@@ -774,6 +861,15 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
+      },
+      "space_scope": {
+        "space_arg": "space_id",
+        "when_absent": "use_scope",
+        "allowed_args": [
+          "query",
+          "start",
+          "end"
+        ]
       }
     }
   ]
