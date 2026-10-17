@@ -22,6 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -67,19 +69,25 @@ class AgendaToolDefinitionSpaceScopeTest {
                                                               "update_agenda_event",
                                                               "delete_agenda_event",
                                                               "cancel_agenda_event",
-                                                              "set_event_conference");
+                                                              "set_event_conference",
+                                                              "invite_users_to_agenda_event",
+                                                              "invite_space_to_agenda_event",
+                                                              "confirm_date_poll");
 
   private static final Set<String> WRITES            = Set.of("create_agenda_event",
                                                               "create_date_poll",
                                                               "update_agenda_event",
                                                               "delete_agenda_event",
                                                               "cancel_agenda_event",
-                                                              "set_event_conference");
+                                                              "set_event_conference",
+                                                              "invite_users_to_agenda_event",
+                                                              "invite_space_to_agenda_event",
+                                                              "confirm_date_poll");
 
   /**
-   * Tools that read a person's own agenda, availability or conflicts, answer
-   * or remind on one's own invitation, or invite people or spaces outside, or
-   * reach an event through another id: refused under a space scope.
+   * Tools that read a person's own agenda, availability or conflicts, or
+   * answer, vote or remind on one's own invitation: refused under a space
+   * scope.
    */
   private static final Set<String> REFUSED           = Set.of("get_availability",
                                                               "suggest_meeting_time",
@@ -88,10 +96,7 @@ class AgendaToolDefinitionSpaceScopeTest {
                                                               "decline_agenda_event_invitation",
                                                               "respond_to_agenda_event",
                                                               "set_event_reminders",
-                                                              "vote_date_poll",
-                                                              "confirm_date_poll",
-                                                              "invite_space_to_agenda_event",
-                                                              "invite_users_to_agenda_event");
+                                                              "vote_date_poll");
 
   private static final ObjectMapper MAPPER           = new ObjectMapper();
 
@@ -130,6 +135,10 @@ class AgendaToolDefinitionSpaceScopeTest {
         assertTrue(scope.isSpaceKind(), name);
         assertEquals("space_id", scope.getSpaceArg(), name);
         assertEquals(!write, scope.isUseScopeWhenAbsent(), name);
+      } else if ("confirm_date_poll".equals(name)) {
+        assertTrue(scope.isObjectKind(), name);
+        assertEquals("date_option_id", scope.getObjectArg(), name);
+        assertEquals(AgendaEventDateOptionSpaceScopeResolver.NAME, scope.getResolver(), name);
       } else {
         assertTrue(scope.isObjectKind(), name);
         assertEquals("event_id", scope.getObjectArg(), name);
@@ -140,8 +149,12 @@ class AgendaToolDefinitionSpaceScopeTest {
 
   /**
    * The arguments a limited call may carry are schema properties, and none of
-   * them reaches outside the space: no attendees, no space name, no
-   * availability ranking. The conflict probe of a write is false-only.
+   * them reaches outside the space unchecked: the invited users and the
+   * invited space are accepted by the invitation tools only, which check them
+   * against the call's space ({@code AgendaEventMcpTool}); no other tool takes
+   * attendees, and none takes a space name or an availability ranking. The
+   * conflict probe of a write is false-only, and a date poll is confirmed by
+   * its date only.
    */
   @Test
   void acceptedArgumentsAreTheExpectedSchemaProperties() throws Exception {
@@ -157,6 +170,9 @@ class AgendaToolDefinitionSpaceScopeTest {
     assertEquals(List.of("title", "proposed_slots", "description"), allowed(shipped.get("create_date_poll")));
     assertEquals(List.of("occurrence_id"), allowed(shipped.get("cancel_agenda_event")));
     assertEquals(List.of("url", "type"), allowed(shipped.get("set_event_conference")));
+    assertEquals(List.of("attendee_usernames"), allowed(shipped.get("invite_users_to_agenda_event")));
+    assertEquals(List.of("space_id"), allowed(shipped.get("invite_space_to_agenda_event")));
+    assertEquals(List.of(), allowed(shipped.get("confirm_date_poll")));
     for (String name : List.of("create_agenda_event", "update_agenda_event")) {
       assertEquals(List.of("fail_on_conflict"), shipped.get(name).getSpaceScope().getFalseOnlyArgs(), name);
     }
@@ -170,7 +186,7 @@ class AgendaToolDefinitionSpaceScopeTest {
                                       .flatMap(List::stream)
                                       .toList();
         accepted.forEach(argument -> assertTrue(properties.has(argument), tool.getName() + " takes " + argument));
-        assertFalse(accepted.contains("attendee_usernames"), tool.getName());
+        assertEquals("invite_users_to_agenda_event".equals(tool.getName()), accepted.contains("attendee_usernames"), tool.getName());
         assertFalse(accepted.contains("attendees"), tool.getName());
         assertFalse(accepted.contains("space"), tool.getName());
         assertFalse(accepted.contains("rank_slots_by_availability"), tool.getName());
@@ -221,11 +237,68 @@ class AgendaToolDefinitionSpaceScopeTest {
     }
     assertThrows(SpaceScopeRefusedException.class,
                  () -> service.enforce("create_agenda_event", shipped.get("create_agenda_event"), create, read));
+    String invite = "{\"event_id\":100,\"attendee_usernames\":[\"mary\"]}";
+    assertSame(invite, service.enforce("invite_users_to_agenda_event", shipped.get("invite_users_to_agenda_event"), invite, proposal));
+    String inviteSpace = "{\"event_id\":100,\"space_id\":12}";
+    assertSame(inviteSpace,
+               service.enforce("invite_space_to_agenda_event", shipped.get("invite_space_to_agenda_event"), inviteSpace, proposal));
+    for (String outside : List.of("{\"event_id\":200,\"attendee_usernames\":[\"mary\"]}",
+                                  "{\"event_id\":100,\"attendee_usernames\":[\"mary\"],\"space_id\":12}",
+                                  "{\"attendee_usernames\":[\"mary\"]}")) {
+      assertThrows(SpaceScopeRefusedException.class,
+                   () -> service.enforce("invite_users_to_agenda_event", shipped.get("invite_users_to_agenda_event"), outside, proposal));
+    }
     assertThrows(SpaceScopeRefusedException.class,
-                 () -> service.enforce("invite_users_to_agenda_event",
-                                       shipped.get("invite_users_to_agenda_event"),
-                                       "{\"event_id\":100,\"attendee_usernames\":[\"mary\"]}",
+                 () -> service.enforce("invite_users_to_agenda_event", shipped.get("invite_users_to_agenda_event"), invite, read));
+    assertThrows(SpaceScopeRefusedException.class,
+                 () -> service.enforce("invite_space_to_agenda_event",
+                                       shipped.get("invite_space_to_agenda_event"),
+                                       "{\"event_id\":200,\"space_id\":12}",
                                        proposal));
+  }
+
+  /**
+   * A date poll is confirmed under a space scope only through a date of a
+   * poll of the call's space, through the real
+   * {@value AgendaEventDateOptionSpaceScopeResolver#NAME} resolver and the
+   * event's space: a date of another space's poll, a missing date, an id that
+   * isn't one and any other argument are refused, and so is a call that isn't
+   * an approved proposal.
+   * Mutants: the declaration dropped, its resolver renamed, or its object
+   * argument changed.
+   */
+  @Test
+  @SuppressWarnings("unchecked")
+  void aDatePollIsConfirmedThroughADateOfThePollsSpace() {
+    org.exoplatform.agenda.service.AgendaEventDatePollService datePollService =
+                                                                               mock(org.exoplatform.agenda.service.AgendaEventDatePollService.class);
+    AgendaEventSpaceScopeResolver eventResolver = mock(AgendaEventSpaceScopeResolver.class);
+    when(eventResolver.spaceOf("100")).thenReturn(12L);
+    when(eventResolver.spaceOf("200")).thenReturn(13L);
+    org.exoplatform.agenda.model.EventDateOption inSpace = new org.exoplatform.agenda.model.EventDateOption();
+    inSpace.setEventId(100L);
+    org.exoplatform.agenda.model.EventDateOption outside = new org.exoplatform.agenda.model.EventDateOption();
+    outside.setEventId(200L);
+    when(datePollService.getEventDateOption(eq(7L), any())).thenReturn(inSpace);
+    when(datePollService.getEventDateOption(eq(8L), any())).thenReturn(outside);
+    AgendaEventDateOptionSpaceScopeResolver resolver = new AgendaEventDateOptionSpaceScopeResolver(datePollService, eventResolver);
+    ObjectProvider<SpaceScopeResolver> provider = mock(ObjectProvider.class);
+    when(provider.orderedStream()).thenAnswer(invocation -> Stream.of(resolver));
+    McpToolSpaceScopeService service = new McpToolSpaceScopeService(provider);
+    ActingIdentity proposal = ActingIdentity.person("john", Origin.PROPOSAL, 12L);
+    ActingIdentity read = ActingIdentity.agent("agent", "ASSISTANT", Origin.MENTION, 12L);
+    SimpleToolDefinition tool = shipped().get("confirm_date_poll");
+
+    String confirm = "{\"date_option_id\":7}";
+    assertSame(confirm, service.enforce("confirm_date_poll", tool, confirm, proposal));
+    assertThrows(SpaceScopeRefusedException.class, () -> service.enforce("confirm_date_poll", tool, confirm, read));
+    for (String refused : List.of("{\"date_option_id\":8}",
+                                  "{\"date_option_id\":9}",
+                                  "{\"date_option_id\":0}",
+                                  "{\"date_option_id\":7,\"event_id\":100}",
+                                  "{}")) {
+      assertThrows(SpaceScopeRefusedException.class, () -> service.enforce("confirm_date_poll", tool, refused, proposal), refused);
+    }
   }
 
   /**
