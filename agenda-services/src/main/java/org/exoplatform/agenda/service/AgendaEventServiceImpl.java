@@ -2259,7 +2259,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // own pool. Whether that pool has reached it is a fact about this date,
     // never the series' marker, which another date may have set: computed
     // from the answers copied, and reported to nobody, since no answer
-    // filled it.
+    // filled it. The answer filling it later is reported through the series
+    // while the row is confirmed, holds the series' limit and the date is
+    // not over, the date being one the series carries (D21); a limit of its
+    // own, or the date cancelled or over, makes it report on its own.
     int capacity = SeatRule.capacityOf(exceptionalEvent);
     boolean full = capacity > 0 && exceptionalEvent.getStatus() == EventStatus.CONFIRMED && attendees != null
         && SeatRule.acceptedAt(attendees, null, 0) >= capacity;
