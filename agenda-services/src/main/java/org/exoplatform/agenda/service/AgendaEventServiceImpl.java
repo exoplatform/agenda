@@ -416,6 +416,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                        lockedSeries.getTimeZoneId());
     Event existingOccurrence = agendaEventStorage.findExceptionalOccurrence(lockedSeries, occurrenceId);
     if (existingOccurrence == null) {
+      markMovedWhenSavedAtOtherDates(lockedSeries, event, occurrenceId);
       return writeNewEvent(event,
                            attendees,
                            conferences,
@@ -432,6 +433,95 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // save would close with a waiting list is refused, as an update without
     // the confirmation is
     return updateEvent(event, attendees, conferences, reminders, dateOptions, remoteEvent, sendInvitation, false, userIdentityId);
+  }
+
+  /**
+   * Marks a date of a series saved alone for the first time as moved when the
+   * dates posted are not the ones its series gives it (under an identifier its
+   * rule gives no date for, the dates the seat rule reads an unmarked row at),
+   * as the update of a stored row marks a move: the mark is what every reader
+   * of a row's dates relies on (the seat rule and the capacity report through
+   * {@link SeriesDates}, the propagation of a series change, the user's intent
+   * on a series rewrite), and a date created at other dates is a moved date
+   * from its first save on. Compared as written: the posted dates adjusted as
+   * the creation adjusts them, against the date the series' rule gives, read
+   * in the series' zone and adjusted the same way.
+   *
+   * @param lockedSeries the series, as locked
+   * @param event the date as posted, whose occurrence is marked
+   * @param occurrenceId the date's identifier, normalised on the series
+   */
+  private void markMovedWhenSavedAtOtherDates(Event lockedSeries, Event event, ZonedDateTime occurrenceId) {
+    Event atSeriesDates = dateOfRule(lockedSeries, occurrenceId);
+    if (atSeriesDates == null) {
+      return;
+    }
+    Event posted = event.clone();
+    adjustEventDatesForWrite(posted);
+    adjustEventDatesForWrite(atSeriesDates);
+    if (lockedSeries.isAllDay() != event.isAllDay()
+        || !isSameInstant(atSeriesDates.getStart(), posted.getStart())
+        || !isSameInstant(atSeriesDates.getEnd(), posted.getEnd())) {
+      event.getOccurrence().setDatesModified(true);
+    }
+  }
+
+  /**
+   * The date of a series its rule gives for an occurrence id, as the rule
+   * computes it in the series' zone, the reading {@link SeriesDates} relies
+   * on: the id's UTC fields name another day where the series' local start
+   * falls on another UTC day.
+   *
+   * @param series the series
+   * @param occurrenceId the date's identifier, normalised on the series
+   * @return the rule's date, or the dates an unmarked row is read at when the
+   *         rule gives none for the identifier; null when the parent is no
+   *         series (a date posted on an event with no rule)
+   */
+  private Event dateOfRule(Event series, ZonedDateTime occurrenceId) {
+    if (series.getRecurrence() == null) {
+      return null;
+    }
+    LocalDate day = Utils.getSeriesDate(series, occurrenceId);
+    return Utils.getOccurrences(series, day.minusDays(1), day.plusDays(1), 0)
+                .stream()
+                .filter(date -> Utils.isSameSeriesDate(series, date.getOccurrence().getId(), occurrenceId))
+                .findFirst()
+                .orElseGet(() -> dateReadUnmarked(series, occurrenceId));
+  }
+
+  /**
+   * The dates an unmarked row of a series is read at under an identifier its
+   * rule gives no date for (a day it does not give; on a series with several
+   * dates a day, any instant that is none of its dates), as
+   * {@link SeriesDates} reads it for the seat rule: its identifier for the
+   * series' length on a series with several dates a day, else the series' time
+   * of day on the identifier's day for its length, or all day for its days.
+   *
+   * @param series the series
+   * @param occurrenceId the date's identifier, normalised on the series
+   * @return the dates an unmarked row of that identifier is read at
+   */
+  private Event dateReadUnmarked(Event series, ZonedDateTime occurrenceId) {
+    ZoneId zone = series.getTimeZoneId() == null ? ZoneOffset.UTC : series.getTimeZoneId();
+    Duration length = Duration.between(series.getStart(), series.getEnd());
+    Event date = series.clone();
+    if (!series.isAllDay() && Utils.hasSeveralDatesADay(series.getRecurrence())) {
+      date.setStart(occurrenceId.withZoneSameInstant(zone));
+      date.setEnd(occurrenceId.withZoneSameInstant(zone).plus(length));
+      return date;
+    }
+    LocalDate day = Utils.getSeriesDate(series, occurrenceId);
+    if (series.isAllDay()) {
+      long days = Math.max(1, Math.round(length.getSeconds() / (double) Duration.ofDays(1).getSeconds()));
+      date.setStart(day.atStartOfDay(zone));
+      date.setEnd(day.plusDays(days).atStartOfDay(zone).minusSeconds(1));
+    } else {
+      ZonedDateTime start = day.atTime(series.getStart().withZoneSameInstant(zone).toLocalTime()).atZone(zone);
+      date.setStart(start);
+      date.setEnd(start.plus(length));
+    }
+    return date;
   }
 
   private Event writeNewEvent(Event event,
