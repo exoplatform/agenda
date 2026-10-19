@@ -1584,6 +1584,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       // dates are under the continuation: a date with a row of its own decides
       // its seats there
       promoteWaitingAttendees(continuationId);
+      if (SeatRule.capacityOf(continuation) != SeatRule.capacityOf(series)) {
+        // The same dates under a new limit: the mark is written from the
+        // answers carried over, reporting nothing (D7)
+        writeCapacityReachedDate(continuationId);
+      }
     }
     shortenSeries(series, splitFrom, userIdentityId);
 
@@ -2551,9 +2556,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       eventToUpdate.getOccurrence().setDatesModified(true);
     }
     Event updatedEvent = agendaEventStorage.updateEvent(eventToUpdate);
-    // The waiting list this limit gives seats to is promoted when the
-    // attendees are saved below, after the ones the save removes
-    clearCapacityReachedDate(storedEvent, updatedEvent);
+    // A limit written clears the mark first, so that an answer this save
+    // stores can report the new limit it fills (D7); the mark is written
+    // again from the answers once the attendees are saved below
+    boolean capacityChanged = SeatRule.capacityOf(storedEvent) != SeatRule.capacityOf(updatedEvent);
+    if (capacityChanged && storedEvent.getCapacityReachedDate() != null) {
+      agendaEventStorage.saveCapacityReachedDate(eventId, null);
+    }
 
     createOrUpdateEventProperties(event.getParameters(), updatedEvent);
     // Snapshotted before saving, like the attendees below: a date whose
@@ -2600,6 +2609,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                 previousConferences,
                                                 userIdentityId);
     }
+    // The waiting lists this limit gives seats to were promoted by the attendee
+    // save above, after the ones the save removes, and on the dates a series
+    // stores by the merge above: the reached mark is written now, from the
+    // answers the row holds, a series' from the dates it reports (D7). A
+    // stored date the save brings, full, among the dates its series reports
+    // marks the series silently
+    if (capacityChanged) {
+      writeCapacityReachedDate(eventId);
+    }
+    markSeriesReachedByDateJoined(storedEvent, updatedEvent);
 
     if (eventModifications.hasModification(AgendaEventModificationType.START_DATE_UPDATED)) {
       List<EventReminder> allReminders = reminderService.getEventReminders(eventId);
@@ -2780,7 +2799,15 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       event.getOccurrence().setDatesModified(true);
     }
     event = agendaEventStorage.updateEvent(event);
-    applyCapacityChange(originalEvent, event);
+    boolean reachesTheStoredDates = updateAllOccurrences && event.getParentId() <= 0 && event.getRecurrence() != null;
+    if (reachesTheStoredDates) {
+      // The series' reached mark is written below, once the dates it stores
+      // have decided their seats under the limit
+      promoteOnCapacityChange(originalEvent, event);
+    } else {
+      applyCapacityChange(originalEvent, event);
+      markSeriesReachedByDateJoined(originalEvent, event);
+    }
     // A switch to a date poll starts every answer over but the modifier's, the
     // waiting list included, in the step that switches it, atomic with the
     // limit it removes (D19): nobody is promoted, and the listener of the
@@ -2794,10 +2821,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // modified instead of deleting them, and leaves the properties customised
     // there untouched. Run on the stored event for the same reasons as the
     // full-save path.
-    if (updateAllOccurrences && event.getParentId() <= 0 && event.getRecurrence() != null) {
+    if (reachesTheStoredDates) {
       // No attendee list travels on this path: a patch changes fields, never
       // the people invited
       applySeriesChangeToExceptionalOccurrences(originalEvent, event, null, null, userIdentityId);
+      if (SeatRule.capacityOf(originalEvent) != SeatRule.capacityOf(event)) {
+        writeCapacityReachedDate(eventId);
+      }
     }
 
     if (fields.containsKey("start")) {
@@ -3614,24 +3644,63 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   /**
-   * After a row's limit changed: its reached mark is cleared, a limit written
-   * never reporting itself reached (D7), and the waiting list takes the seats
-   * a higher limit, no limit or a closing gives (D4, D15), unless the row
-   * became a date poll, which confirms nobody (F1).
+   * After a row's limit changed: the waiting list takes the seats the change
+   * gives; then the row's reached mark is written from the answers it holds,
+   * a limit written never reporting itself reached (D7): set while the row is
+   * full, so that no Yes given again reports it, cleared while a seat is
+   * free, so that the answer filling it does. For a series whose change
+   * reaches the dates it stores, the caller writes the mark instead, once
+   * those dates have decided their seats under the limit.
    *
    * @param before the row before the change
    * @param after the row as stored
    */
   private void applyCapacityChange(Event before, Event after) {
-    clearCapacityReachedDate(before, after);
+    promoteOnCapacityChange(before, after);
+    if (SeatRule.capacityOf(before) != SeatRule.capacityOf(after)) {
+      writeCapacityReachedDate(after.getId());
+    }
+  }
+
+  /**
+   * After a row's limit changed: the waiting list takes the seats a higher
+   * limit, no limit or a closing gives (D4, D15), unless the row became a
+   * date poll, which confirms nobody (F1).
+   *
+   * @param before the row before the change
+   * @param after the row as stored
+   */
+  private void promoteOnCapacityChange(Event before, Event after) {
     if (gainsSeats(SeatRule.capacityOf(before), SeatRule.capacityOf(after)) && after.getStatus() != EventStatus.TENTATIVE) {
       promoteWaitingAttendees(after.getId());
     }
   }
 
-  private void clearCapacityReachedDate(Event before, Event after) {
-    if (SeatRule.capacityOf(before) != SeatRule.capacityOf(after) && before.getCapacityReachedDate() != null) {
-      agendaEventStorage.saveCapacityReachedDate(after.getId(), null);
+  /**
+   * After a stored date's write moved it into the dates its series reports
+   * (D21), a limit of its own taken back or the date confirmed again: full
+   * under the series' limit, the series is marked silently, a limit written
+   * never reporting itself reached (D7). A write that leaves the date where
+   * it was, or takes it out of those dates, a limit of its own given or the
+   * date cancelled, leaves the series' mark alone: the series' limit stands,
+   * and only a write of that limit or a reset clears its mark (D7). Under
+   * the series' lock, which a date's write takes.
+   *
+   * @param before the row before the write
+   * @param after the row as stored
+   */
+  private void markSeriesReachedByDateJoined(Event before, Event after) {
+    if (after.getParentId() <= 0) {
+      return;
+    }
+    Event series = agendaEventStorage.getEventById(after.getParentId());
+    if (series == null) {
+      return;
+    }
+    int seriesCapacity = SeatRule.capacityOf(series);
+    if (!AgendaEventAttendeeServiceImpl.reportsThroughSeries(before, seriesCapacity)
+        && AgendaEventAttendeeServiceImpl.reportsThroughSeries(after, seriesCapacity)) {
+      ((AgendaEventAttendeeServiceImpl) attendeeService).markSeriesReachedByDateJoined(series, after);
     }
   }
 
@@ -3639,6 +3708,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // Not part of the attendee service's contract: a promotion runs only
     // inside the decide step that gave the seats
     ((AgendaEventAttendeeServiceImpl) attendeeService).promoteWaitingAttendees(eventId);
+  }
+
+  private void writeCapacityReachedDate(long eventId) {
+    // Not part of the attendee service's contract either: the mark is written
+    // inside the decide step that wrote the limit
+    ((AgendaEventAttendeeServiceImpl) attendeeService).writeCapacityReachedDate(eventId);
   }
 
   private void resetResponses(long eventId, Set<Long> keptIdentityIds) {

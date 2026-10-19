@@ -275,8 +275,10 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
   }
 
   /**
-   * A limit written clears the mark of a reached limit and never reports
-   * itself reached, also when it is lowered to the Yes answers it holds.
+   * A limit written never reports itself reached: its mark is written from
+   * the Yes answers held, cleared by a limit raised above them, set silently
+   * by a limit lowered to them, so that a Yes given again by a seated
+   * attendee reports nothing.
    *
    * @throws Exception when a write fails
    */
@@ -293,24 +295,613 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
 
     patch(eventId, CAPACITY, "1");
 
-    assertNull(agendaEventService.getEventById(eventId).getCapacityReachedDate());
+    assertNotNull(agendaEventService.getEventById(eventId).getCapacityReachedDate());
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+
+    answer(eventId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
     assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
   }
 
   /**
-   * A limit written by a full save clears the mark of a reached limit, as a
-   * patch does.
+   * A limit raised to the seats its waiting list then takes leaves the event
+   * full and marked silently: a Yes given again by a seated attendee reports
+   * nothing; raised above them, the mark is cleared and the answer filling
+   * the new limit reports it (D7).
    *
    * @throws Exception when a write fails
    */
   @Test
-  public void aLimitWrittenByAFullSaveClearsTheReachedMark() throws Exception {
-    long eventId = openEvent(1, testuser2Identity).getId();
+  public void aLimitRaisedToTheSeatsItsWaitingListTakesIsMarkedSilently() throws Exception {
+    long eventId = openEvent(1, testuser2Identity, testuser3Identity).getId();
     answer(eventId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(eventId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(eventId, testuser3Identity));
+    BROADCASTS.clear();
+
+    patch(eventId, CAPACITY, "2");
+
+    assertEquals(EventAttendeeResponse.ACCEPTED, responseOf(eventId, testuser3Identity));
     assertNotNull(agendaEventService.getEventById(eventId).getCapacityReachedDate());
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+
+    answer(eventId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+
+    patch(eventId, CAPACITY, "3");
+
+    assertNull(agendaEventService.getEventById(eventId).getCapacityReachedDate());
+
+    answer(eventId, testuser1Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertEquals(1, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+    assertEquals(eventId, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).get(0).source());
+  }
+
+  /**
+   * A series' limit raised to the seats its waiting list takes at every
+   * date is marked silently: a Yes given again reports nothing; raised above
+   * them, the mark is cleared and the answer filling the new limit reports
+   * the series at its first date.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aSeriesLimitRaisedToTheSeatsItsWaitingListTakesIsMarkedSilently() throws Exception {
+    Event series = openSeries(1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(seriesId, testuser3Identity));
+    BROADCASTS.clear();
+
+    patchAll(seriesId, CAPACITY, "2");
+
+    assertEquals(EventAttendeeResponse.ACCEPTED, responseOf(seriesId, testuser3Identity));
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+
+    patchAll(seriesId, CAPACITY, "3");
+
+    assertNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+
+    answer(seriesId, testuser1Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertEquals(1, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+    assertEquals(seriesId, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).get(0).source());
+    assertEquals(dates.get(0), broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).get(0).data());
+  }
+
+  /**
+   * A series' limit is marked when a date it carries is full under it, not
+   * when the rows answering Yes over different dates add up to it.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aSeriesLimitIsMarkedWhenADateItCarriesIsFull() throws Exception {
+    Event series = openSeries(3, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    setAnswer(seriesId, testuser2Identity, null, dates.get(1), EventAttendeeResponse.ACCEPTED);
+    setAnswer(seriesId, testuser3Identity, dates.get(1), null, EventAttendeeResponse.ACCEPTED);
+    BROADCASTS.clear();
+
+    patchAll(seriesId, CAPACITY, "2");
+
+    assertNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+
+    patchAll(seriesId, CAPACITY, "1");
+
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+  }
+
+  /**
+   * A series' limit lowered to the Yes answers a date it stores holds, that
+   * date holding the series' limit, marks the series silently as well as the
+   * date: the date reports through the series' mark (D21), so an answer then
+   * filling a date of the series reports nothing, as it would had the
+   * platform stored no row for the date.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aSeriesLimitLoweredToTheYesHeldOnADateItStoresIsMarkedSilently() throws Exception {
+    Event series = openSeries(3, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answerDate(seriesId, dates.get(1), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answerDate(seriesId, dates.get(1), testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    long dateId = agendaEventService.getExceptionalOccurrenceEvent(seriesId, dates.get(1)).getId();
+    BROADCASTS.clear();
+
+    patchAll(seriesId, CAPACITY, "2");
+
+    assertEquals(2, capacityOf(dateId));
+    assertNotNull(agendaEventService.getEventById(dateId).getCapacityReachedDate());
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+  }
+
+  /**
+   * A series' limit raised to the seats the waiting list of a date it stores
+   * takes marks the series silently as well as the date: full under the new
+   * limit once promoted, the date reports through the series' mark (D21), so
+   * an answer then filling a date of the series reports nothing. The date's
+   * answers are stored as answers given before the limit existed, so that
+   * neither the date nor the series is marked before the limit is written.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aSeriesLimitRaisedToTheSeatsAStoredDatesWaitingListTakesIsMarkedSilently() throws Exception {
+    Event series = openSeries(1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    long dateId = agendaEventService.saveEventExceptionalOccurrence(seriesId, dates.get(1)).getId();
+    setAnswer(dateId, testuser2Identity, null, null, EventAttendeeResponse.ACCEPTED);
+    setAnswer(dateId, testuser3Identity, null, null, EventAttendeeResponse.WAITING);
+    assertNull(agendaEventService.getEventById(dateId).getCapacityReachedDate());
+    assertNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    BROADCASTS.clear();
+
+    patchAll(seriesId, CAPACITY, "2");
+
+    assertEquals(EventAttendeeResponse.ACCEPTED, responseOf(dateId, testuser3Identity));
+    assertNotNull(agendaEventService.getEventById(dateId).getCapacityReachedDate());
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+  }
+
+  /**
+   * A series' limit lowered by a full save to the Yes answers a date it
+   * stores holds marks the series silently as well as the date, the mark
+   * written once the save has reached the dates the series stores.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aSeriesLimitLoweredByAFullSaveToTheYesHeldOnADateItStoresIsMarkedSilently() throws Exception {
+    Event series = openSeries(3, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answerDate(seriesId, dates.get(1), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answerDate(seriesId, dates.get(1), testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    long dateId = agendaEventService.getExceptionalOccurrenceEvent(seriesId, dates.get(1)).getId();
+    BROADCASTS.clear();
+    Event toSave = agendaEventService.getEventById(seriesId);
+    toSave.setCapacity(2);
+
+    save(toSave, false);
+
+    assertEquals(2, capacityOf(dateId));
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+  }
+
+  /**
+   * A stored date holding the series' limit, through which the series was
+   * reported, given a limit of its own, leaves the dates the series reports
+   * (D21) and the series' mark standing: the series' limit stands, so the
+   * answer then filling one of its dates reports nothing, as after any seat
+   * freed and taken again.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aStoredDateGivenALimitOfItsOwnKeepsTheSeriesMark() throws Exception {
+    Event series = openSeries(1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answerDate(seriesId, dates.get(1), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    long dateId = agendaEventService.getExceptionalOccurrenceEvent(seriesId, dates.get(1)).getId();
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    BROADCASTS.clear();
+
+    patch(dateId, CAPACITY, "3");
+
+    assertNull(agendaEventService.getEventById(dateId).getCapacityReachedDate());
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+  }
+
+  /**
+   * A stored date joining the dates the series reports with a seat free, its
+   * limit of its own taken back, leaves the series' mark alone: a mark
+   * standing after a seat was freed on a date of the series keeps the series
+   * reported once while its limit stands, so the Yes taking the seat again
+   * reports nothing.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aStoredDateJoiningTheDatesTheSeriesReportsWithASeatFreeLeavesTheSeriesMarkAlone() throws Exception {
+    Event series = openSeries(2, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    long dateId = agendaEventService.saveEventExceptionalOccurrence(seriesId, dates.get(1)).getId();
+    patch(dateId, CAPACITY, "5");
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertEquals(1, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.DECLINED);
+    BROADCASTS.clear();
+
+    patch(dateId, CAPACITY, "2");
+
+    assertNull(agendaEventService.getEventById(dateId).getCapacityReachedDate());
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+  }
+
+  /**
+   * A stored date joining the dates the series reports with a seat free
+   * while the series is unmarked leaves it unmarked: the Yes then filling
+   * the date reports the series at that date (D7).
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aStoredDateJoiningTheDatesTheSeriesReportsWithASeatFreeLeavesTheSeriesUnmarked() throws Exception {
+    Event series = openSeries(2, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answerDate(seriesId, dates.get(1), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    long dateId = agendaEventService.getExceptionalOccurrenceEvent(seriesId, dates.get(1)).getId();
+    patch(dateId, CAPACITY, "3");
+    BROADCASTS.clear();
+
+    patch(dateId, CAPACITY, "2");
+
+    assertNull(agendaEventService.getEventById(dateId).getCapacityReachedDate());
+    assertNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+
+    answerDate(seriesId, dates.get(1), testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertEquals(1, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+    assertEquals(seriesId, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).get(0).source());
+    assertEquals(dates.get(1), broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).get(0).data());
+  }
+
+  /**
+   * A date over, given the series' limit while full, joins the dates the
+   * series reports but decides no seat any more: the series stays unmarked,
+   * and the answer then filling a date to come reports it.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aDateOverJoiningTheDatesTheSeriesReportsFullLeavesTheSeriesUnmarked() throws Exception {
+    Event series = pastSeries(2, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    long dateOverId = agendaEventService.saveEventExceptionalOccurrence(seriesId, dates.get(0)).getId();
+    Event dateOver = agendaEventService.getEventById(dateOverId);
+    dateOver.setCapacity(3);
+    agendaEventStorage.updateEvent(dateOver);
+    setAnswer(dateOverId, testuser2Identity, null, null, EventAttendeeResponse.ACCEPTED);
+    setAnswer(dateOverId, testuser3Identity, null, null, EventAttendeeResponse.ACCEPTED);
+    BROADCASTS.clear();
+
+    patch(dateOverId, CAPACITY, "2");
+
+    assertEquals(2, capacityOf(dateOverId));
+    assertNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertEquals(1, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+    assertEquals(seriesId, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).get(0).source());
+  }
+
+  /**
+   * A cancelled date full under the series' limit is not one the series'
+   * mark counts when the series' limit is written: the series stays
+   * unmarked, the cancelled date is marked on its own, silently, and the
+   * answers then filling a date the series carries report it once, the Yes
+   * given again on the cancelled date reporting nothing.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aCancelledDateFullIsNotCountedBySeriesMarkWrite() throws Exception {
+    Event series = openSeries(3, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    long cancelledId = cancelDate(seriesId, dates.get(1));
+    setAnswer(cancelledId, testuser2Identity, null, null, EventAttendeeResponse.ACCEPTED);
+    setAnswer(cancelledId, testuser3Identity, null, null, EventAttendeeResponse.ACCEPTED);
+    BROADCASTS.clear();
+
+    patchAll(seriesId, CAPACITY, "2");
+
+    assertEquals(2, capacityOf(cancelledId));
+    assertNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    assertNotNull(agendaEventService.getEventById(cancelledId).getCapacityReachedDate());
+    assertEquals(0, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertEquals(1, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+    assertEquals(seriesId, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).get(0).source());
+  }
+
+  /**
+   * A date over full under the series' limit is not one the series' mark
+   * counts when the series' limit is written: the series stays unmarked, and
+   * the answers then filling a date to come report it once.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aDateOverFullIsNotCountedBySeriesMarkWrite() throws Exception {
+    Event series = pastSeries(3, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    long dateOverId = agendaEventService.saveEventExceptionalOccurrence(seriesId, dates.get(0)).getId();
+    Event dateOver = agendaEventService.getEventById(dateOverId);
+    dateOver.setCapacity(2);
+    agendaEventStorage.updateEvent(dateOver);
+    setAnswer(dateOverId, testuser2Identity, null, null, EventAttendeeResponse.ACCEPTED);
+    setAnswer(dateOverId, testuser3Identity, null, null, EventAttendeeResponse.ACCEPTED);
+    BROADCASTS.clear();
+
+    patchAll(seriesId, CAPACITY, "2");
+
+    assertEquals(2, capacityOf(dateOverId));
+    assertNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertEquals(1, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+    assertEquals(seriesId, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).get(0).source());
+  }
+
+  /**
+   * A stored date whose limit of its own is set to the series' limit while
+   * full under it joins the dates the series reports (D21): the series' mark
+   * is written again from them, set silently, so that an answer then filling
+   * a date of the series reports nothing.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aStoredDateSetBackToTheSeriesLimitWhileFullMarksTheSeriesSilently() throws Exception {
+    Event series = openSeries(2, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answerDate(seriesId, dates.get(1), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    long dateId = agendaEventService.getExceptionalOccurrenceEvent(seriesId, dates.get(1)).getId();
+    patch(dateId, CAPACITY, "3");
+    answerDate(seriesId, dates.get(1), testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    BROADCASTS.clear();
+
+    patch(dateId, CAPACITY, "2");
+
+    assertNotNull(agendaEventService.getEventById(dateId).getCapacityReachedDate());
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+  }
+
+  /**
+   * A cancelled date holding the series' limit, confirmed again while full
+   * under it, joins the dates the series reports (D21) as a date set back to
+   * the series' limit does: the series is marked silently, so that an answer
+   * then filling a date of the series reports nothing.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aCancelledDateConfirmedAgainWhileFullMarksTheSeriesSilently() throws Exception {
+    Event series = openSeries(2, testuser2Identity, testuser3Identity, testuser4Identity, testuser5Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    long cancelledId = cancelDate(seriesId, dates.get(1));
+    setAnswer(cancelledId, testuser2Identity, null, null, EventAttendeeResponse.ACCEPTED);
+    setAnswer(cancelledId, testuser3Identity, null, null, EventAttendeeResponse.ACCEPTED);
+    assertNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    BROADCASTS.clear();
+
+    patch(cancelledId, "status", EventStatus.CONFIRMED.name());
+
+    assertEquals(2, capacityOf(cancelledId));
+    assertEquals(EventStatus.CONFIRMED, agendaEventService.getEventById(cancelledId).getStatus());
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+
+    answer(seriesId, testuser4Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser5Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+  }
+
+  /**
+   * A full save setting a stored date's limit of its own back to the series'
+   * limit while full marks the series silently, as a patch does.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aFullSaveSettingAStoredDateBackToTheSeriesLimitWhileFullMarksTheSeriesSilently() throws Exception {
+    Event series = openSeries(2, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answerDate(seriesId, dates.get(1), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    long dateId = agendaEventService.getExceptionalOccurrenceEvent(seriesId, dates.get(1)).getId();
+    patch(dateId, CAPACITY, "3");
+    answerDate(seriesId, dates.get(1), testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    BROADCASTS.clear();
+    Event toSave = agendaEventService.getEventById(dateId);
+    toSave.setCapacity(2);
+
+    save(toSave, false);
+
+    assertEquals(2, capacityOf(dateId));
+    assertNotNull(agendaEventService.getEventById(dateId).getCapacityReachedDate());
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+  }
+
+  /**
+   * A stored date whose limit of its own changes to another of its own stays
+   * out of the dates the series reports: the series' mark is left alone, so
+   * that a seat freed and taken again on a date of the series reports
+   * nothing while the series' limit stands.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aStoredDatesOwnLimitChangedLeavesTheSeriesMarkAlone() throws Exception {
+    Event series = openSeries(2, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    long dateId = agendaEventService.saveEventExceptionalOccurrence(seriesId, dates.get(1)).getId();
+    patch(dateId, CAPACITY, "5");
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertEquals(1, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.DECLINED);
+    BROADCASTS.clear();
+
+    patch(dateId, CAPACITY, "6");
+
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+  }
+
+  /**
+   * A stored date holding the series' limit, through which the series was
+   * reported, cancelled, leaves the dates the series reports (D21) as a limit
+   * of its own does, and the series' mark standing.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aStoredDateCancelledKeepsTheSeriesMark() throws Exception {
+    Event series = openSeries(1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answerDate(seriesId, dates.get(1), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    BROADCASTS.clear();
+
+    cancelDate(seriesId, dates.get(1));
+
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+  }
+
+  /**
+   * An answer a full save stores with a raised limit, the editor adding
+   * themselves with a Yes, reports the new limit it fills (D7): the mark of
+   * the old limit does not hide it.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void anAnswerSavedWithARaisedLimitReportsTheLimitItFills() throws Exception {
+    long eventId = openEvent(2, testuser2Identity, testuser3Identity).getId();
+    answer(eventId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(eventId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertNotNull(agendaEventService.getEventById(eventId).getCapacityReachedDate());
+    BROADCASTS.clear();
+    Event toSave = agendaEventService.getEventById(eventId);
+    toSave.setCapacity(3);
+    List<EventAttendee> attendees = new ArrayList<>(agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees());
+    attendees.add(new EventAttendee(0, eventId, id(testuser1Identity), EventAttendeeResponse.ACCEPTED));
+
+    agendaEventService.updateEvent(toSave,
+                                   attendees,
+                                   agendaEventConferenceService.getEventConferences(eventId),
+                                   agendaEventReminderService.getEventReminders(eventId),
+                                   null,
+                                   null,
+                                   false,
+                                   false,
+                                   id(testuser1Identity));
+
+    assertEquals(EventAttendeeResponse.ACCEPTED, responseOf(eventId, testuser1Identity));
+    assertEquals(1, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+    assertEquals(eventId, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).get(0).source());
+    assertNotNull(agendaEventService.getEventById(eventId).getCapacityReachedDate());
+  }
+
+  /**
+   * A limit written by a full save writes the mark from the answers, as a
+   * patch does, once the save has promoted the waiting list: raised to the
+   * seats it takes, the event stays marked and a seated attendee's Yes again
+   * reports nothing; raised above them, the mark is cleared.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aLimitWrittenByAFullSaveWritesTheReachedMarkFromTheAnswers() throws Exception {
+    long eventId = openEvent(1, testuser2Identity, testuser3Identity).getId();
+    answer(eventId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(eventId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertNotNull(agendaEventService.getEventById(eventId).getCapacityReachedDate());
+    BROADCASTS.clear();
     Event toSave = agendaEventService.getEventById(eventId);
     toSave.setCapacity(2);
 
+    save(toSave, false);
+
+    assertEquals(EventAttendeeResponse.ACCEPTED, responseOf(eventId, testuser3Identity));
+    assertNotNull(agendaEventService.getEventById(eventId).getCapacityReachedDate());
+    answer(eventId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+
+    toSave = agendaEventService.getEventById(eventId);
+    toSave.setCapacity(3);
     save(toSave, false);
 
     assertNull(agendaEventService.getEventById(eventId).getCapacityReachedDate());
