@@ -148,9 +148,12 @@ public class NotificationUtils {
                                                                                                            "EventCapacityReachedNotificationPlugin";
 
   /**
-   * The identifier of the event row whose pool of seats reached its capacity,
-   * handed to the capacity-reached notification (EXO-90320): a series, the
-   * row of one of its dates, or an event that is not recurring.
+   * The identifier of the event row whose mark reports a pool of seats that
+   * reached its capacity, handed to the capacity-reached notification
+   * (EXO-90320): a series, for a date it carries or a confirmed stored date
+   * holding its limit and not over; the row of a date whose limit is its
+   * own, of a cancelled date or of a date over; or an event that is not
+   * recurring.
    */
   public static final ArgumentLiteral<Long>                  CAPACITY_REACHED_EVENT_ID                     =
                                                                                        new ArgumentLiteral<>(Long.class,
@@ -555,18 +558,22 @@ public class NotificationUtils {
    * and, on a recurring event, the date that filled up, which its links open.
    *
    * @param notification the notification
-   * @param event the event whose pool of seats filled up: a series, the row
-   *          of one of its dates, or an event that is not recurring
+   * @param event the event whose mark reports the pool of seats that filled
+   *          up: a series, the row of a date whose limit is its own or that
+   *          is over, or an event that is not recurring
    * @param occurrenceId the id of the date that filled up on a recurring
    *          event, null otherwise
+   * @param title the title shown: the date's own when the date that filled
+   *          up is stored with one, else the event's
    * @param calendar the event's calendar
    */
   public static final void storeCapacityReachedParameters(NotificationInfo notification,
                                                           Event event,
                                                           ZonedDateTime occurrenceId,
+                                                          String title,
                                                           Calendar calendar) {
     notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
-                .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
+                .with(STORED_PARAMETER_EVENT_TITLE, title)
                 .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
                 .with(STORED_PARAMETER_EVENT_URL, getEventURL(event, occurrenceId))
                 .with(STORED_PARAMETER_WEB_EVENT_URL, getWebEventURL(event, occurrenceId));

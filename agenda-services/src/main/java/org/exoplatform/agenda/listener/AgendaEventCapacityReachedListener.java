@@ -32,8 +32,9 @@ import org.exoplatform.services.listener.Listener;
  * Tells the creator of an event and the managers of its space that an answer
  * filled its last seat, with the "Event capacity reached" notification
  * (EXO-90320). Glue only: the source is the identifier of the event row whose
- * pool of seats filled up, the data the date that filled up on a recurring
- * event. Asynchronous, as no decision on a seat waits for a notification.
+ * mark reports the pool of seats that filled up, a series for a date it
+ * carries, the data the date that filled up on a recurring event.
+ * Asynchronous, as no decision on a seat waits for a notification.
  */
 @Asynchronous
 public class AgendaEventCapacityReachedListener extends Listener<Long, ZonedDateTime> {
@@ -52,8 +53,9 @@ public class AgendaEventCapacityReachedListener extends Listener<Long, ZonedDate
   /**
    * Hands a pool of seats that filled up to the notification.
    *
-   * @param event the pool filled, whose source is the identifier of its event
-   *          row and whose data is the date filled on a recurring event
+   * @param event the pool filled, whose source is the identifier of the event
+   *          row whose mark reports it and whose data is the date filled on a
+   *          recurring event
    * @throws Exception when the dispatch fails
    */
   @Override
@@ -75,7 +77,8 @@ public class AgendaEventCapacityReachedListener extends Listener<Long, ZonedDate
    * Hands a pool of seats that filled up to the "Event capacity reached"
    * notification.
    *
-   * @param eventId the identifier of the event row whose pool filled up
+   * @param eventId the identifier of the event row whose mark reports the
+   *          pool filled
    * @param occurrenceId the date that filled up on a recurring event, null
    *          otherwise
    */
