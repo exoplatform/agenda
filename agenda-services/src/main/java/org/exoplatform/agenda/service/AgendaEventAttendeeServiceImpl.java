@@ -1761,6 +1761,83 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   }
 
   /**
+   * Writes the reached mark of a pool from the answers it holds, reporting
+   * nothing: after its limit changed and the waiting list took the seats the
+   * change gave, a limit written never reporting itself reached (D7). A pool
+   * full under its limit is marked, so that no Yes given again on it reports
+   * it; a pool with a seat free is cleared, so that the answer filling it
+   * does. Runs inside the decide step that wrote the limit, on a series once
+   * the dates it stores have decided their seats under it.
+   *
+   * @param poolId the identifier of the pool's event row, as stored
+   */
+  void writeCapacityReachedDate(long poolId) {
+    Event pool = eventStorage.getEventById(poolId);
+    boolean full = isFull(pool);
+    if (full && pool.getCapacityReachedDate() == null) {
+      eventStorage.saveCapacityReachedDate(poolId, ZonedDateTime.now(ZoneOffset.UTC));
+    } else if (!full && pool.getCapacityReachedDate() != null) {
+      eventStorage.saveCapacityReachedDate(poolId, null);
+    }
+  }
+
+  /**
+   * @param pool a stored row
+   * @return whether the Yes answers reach its limit at one of the dates its
+   *         mark reports: every row on the pool of one date; on a series, the
+   *         rows valid at one of its counted dates, or the rows of a stored
+   *         date it carries, confirmed, holding its limit and not over (D21)
+   */
+  private boolean isFull(Event pool) {
+    int capacity = SeatRule.capacityOf(pool);
+    if (capacity <= 0) {
+      return false;
+    }
+    List<EventAttendee> acceptedRows = attendeeStorage.getSeatRows(pool.getId(), EventAttendeeResponse.ACCEPTED);
+    if (pool.getRecurrence() == null) {
+      return SeatRule.acceptedAt(acceptedRows, null, 0) >= capacity;
+    }
+    List<Event> rows = eventStorage.getExceptionalOccurrences(pool.getId());
+    SeriesDates seriesDates = new SeriesDates(pool, () -> rows, ZonedDateTime.now(ZoneOffset.UTC));
+    boolean aCountedDateFull = SeatRule.stretches(acceptedRows, null, null)
+                                       .stream()
+                                       .map(stretch -> seriesDates.firstCountedDate(stretch.from(), stretch.until()))
+                                       .filter(Objects::nonNull)
+                                       .anyMatch(date -> SeatRule.acceptedAt(acceptedRows, date, 0) >= capacity);
+    return aCountedDateFull
+        || rows.stream()
+               .filter(row -> reportsThroughSeries(row, capacity) && decidesSeat(row, seriesDates))
+               .anyMatch(row -> SeatRule.acceptedAt(attendeeStorage.getSeatRows(row.getId(), EventAttendeeResponse.ACCEPTED),
+                                                    null,
+                                                    0) >= capacity);
+  }
+
+  /**
+   * After a stored date's write moved it into the dates its series reports
+   * (D21): full under the series' limit, and not over, it marks the series
+   * silently, a limit written never reporting itself reached (D7), so that
+   * an answer then filling a date of the series reports nothing, as it would
+   * had the series' limit been written. The series' mark is never cleared
+   * here: its limit stands, and a mark standing after a seat was freed keeps
+   * the series reported once while it does. Runs inside the decide step that
+   * wrote the date, under the series' lock.
+   *
+   * @param series the series, as stored
+   * @param row the date's row, as stored, holding the series' limit
+   */
+  void markSeriesReachedByDateJoined(Event series, Event row) {
+    if (series.getCapacityReachedDate() != null) {
+      return;
+    }
+    SeriesDates seriesDates = new SeriesDates(series,
+                                              () -> eventStorage.getExceptionalOccurrences(series.getId()),
+                                              ZonedDateTime.now(ZoneOffset.UTC));
+    if (decidesSeat(row, seriesDates) && isFull(row)) {
+      eventStorage.saveCapacityReachedDate(series.getId(), ZonedDateTime.now(ZoneOffset.UTC));
+    }
+  }
+
+  /**
    * Gives the free seats of a pool to its waiting attendees, in the order they
    * asked: earliest answer date first, then lowest row id. Runs inside the
    * decide step that freed the seat. A promotion is stored as a Yes of now,
