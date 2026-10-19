@@ -81,6 +81,8 @@ public class AgendaEventSplitTest extends BaseAgendaEventTest {
 
   private static final List<EventAttendee>           PROMOTIONS = Collections.synchronizedList(new ArrayList<>());
 
+  private static final List<Object>                  REACHED    = Collections.synchronizedList(new ArrayList<>());
+
   private static boolean                             listenersRegistered;
 
   /**
@@ -102,10 +104,17 @@ public class AgendaEventSplitTest extends BaseAgendaEventTest {
           PROMOTIONS.add(event.getData().attendee());
         }
       });
+      listenerService.addListener(Utils.POST_EVENT_CAPACITY_REACHED, new Listener<Object, Object>() {
+        @Override
+        public void onEvent(org.exoplatform.services.listener.Event<Object, Object> event) {
+          REACHED.add(event.getSource());
+        }
+      });
       listenersRegistered = true;
     }
     CREATIONS.clear();
     PROMOTIONS.clear();
+    REACHED.clear();
   }
 
   /**
@@ -115,6 +124,7 @@ public class AgendaEventSplitTest extends BaseAgendaEventTest {
   public void clearRecordings() {
     CREATIONS.clear();
     PROMOTIONS.clear();
+    REACHED.clear();
     RecordingStatementInspector.stop();
   }
 
@@ -850,6 +860,34 @@ public class AgendaEventSplitTest extends BaseAgendaEventTest {
         assertNull("change " + i, mark);
       }
     }
+  }
+
+  /**
+   * The continuation under a new limit over the same dates is marked from
+   * the answers carried over, once its waiting list took the seats the
+   * limit gives, reporting nothing: a limit raised to those seats leaves it
+   * full and marked, so that a Yes given again reports nothing (D7).
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void theContinuationUnderANewLimitIsMarkedFromTheAnswersCarriedOver() throws Exception {
+    Event series = series(4, 1, testuser2Identity, testuser3Identity);
+    List<ZonedDateTime> dates = dates(series);
+    answerAll(series.getId(), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answerAll(series.getId(), testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertEquals(EventAttendeeResponse.WAITING, responseAt(series.getId(), testuser3Identity, dates.get(1)));
+    REACHED.clear();
+
+    Event continuation = split(series, dates.get(1), testuser1Identity, edits -> edits.setCapacity(2), List.of(), List.of(), false, false);
+
+    assertEquals(EventAttendeeResponse.ACCEPTED, responseAt(continuation.getId(), testuser3Identity, dates.get(1)));
+    assertNotNull(agendaEventService.getEventById(continuation.getId()).getCapacityReachedDate());
+    assertTrue(REACHED.isEmpty());
+
+    answerAll(continuation.getId(), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertTrue(REACHED.isEmpty());
   }
 
   /**
