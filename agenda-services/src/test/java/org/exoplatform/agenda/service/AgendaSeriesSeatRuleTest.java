@@ -583,6 +583,240 @@ public class AgendaSeriesSeatRuleTest extends BaseAgendaEventTest {
   }
 
   /**
+   * The dates the reminder computing stores hold the series' limit and are
+   * dates the series carries: an answer filling them and the series reports
+   * once, through the series' mark, at the first date it fills (D21); the
+   * rows are marked too, and nothing reports a second time.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void anAnswerFillingTheSeriesAndTheDatesStoredWithItsLimitReportsOnce() throws Exception {
+    Event series = limitedSeries(1, 3, testuser2Identity, testuser3Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    Event secondDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(1));
+    Event thirdDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(2));
+    BROADCASTS.clear();
+
+    answer(series.getId(), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    Broadcast reached = only(Utils.POST_EVENT_CAPACITY_REACHED);
+    assertEquals(series.getId(), reached.source());
+    assertEquals(dates.get(0), reached.data());
+    assertNotNull(agendaEventStorage.getEventById(series.getId()).getCapacityReachedDate());
+    assertNotNull(agendaEventStorage.getEventById(secondDate.getId()).getCapacityReachedDate());
+    assertNotNull(agendaEventStorage.getEventById(thirdDate.getId()).getCapacityReachedDate());
+    BROADCASTS.clear();
+
+    answer(series.getId(), testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    answer(series.getId(), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+  }
+
+  /**
+   * A stored date holding the series' limit, filled by an answer to that
+   * date, is reported through the series, at that date; the answer then
+   * filling the dates the series carries itself reports nothing.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aStoredDateHoldingTheSeriesLimitIsReportedThroughTheSeries() throws Exception {
+    Event series = limitedSeries(1, 3, testuser2Identity, testuser3Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    Event secondDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(1));
+    BROADCASTS.clear();
+
+    agendaEventAttendeeService.sendEventResponse(series.getId(),
+                                                 dates.get(1),
+                                                 id(testuser2Identity),
+                                                 EventAttendeeResponse.ACCEPTED,
+                                                 true);
+
+    Broadcast reached = only(Utils.POST_EVENT_CAPACITY_REACHED);
+    assertEquals(series.getId(), reached.source());
+    assertEquals(dates.get(1), reached.data());
+    assertNotNull(agendaEventStorage.getEventById(series.getId()).getCapacityReachedDate());
+    assertNotNull(agendaEventStorage.getEventById(secondDate.getId()).getCapacityReachedDate());
+    BROADCASTS.clear();
+
+    answer(series.getId(), testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertTrue(rowsOf(series.getId(), testuser3Identity).stream()
+                                                        .allMatch(row -> row.getResponse() == EventAttendeeResponse.ACCEPTED));
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+  }
+
+  /**
+   * A stored date whose limit is its own is its own pool to report: the
+   * answer filling it reports the row, and the series reports its own dates
+   * separately.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aStoredDateWithALimitOfItsOwnReportsOnItsOwn() throws Exception {
+    Event series = limitedSeries(1, 3, testuser2Identity, testuser3Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    Event secondDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(1));
+    setCapacity(secondDate.getId(), 2);
+    BROADCASTS.clear();
+
+    agendaEventAttendeeService.sendEventResponse(series.getId(),
+                                                 dates.get(1),
+                                                 id(testuser2Identity),
+                                                 EventAttendeeResponse.ACCEPTED,
+                                                 true);
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+    agendaEventAttendeeService.sendEventResponse(series.getId(),
+                                                 dates.get(1),
+                                                 id(testuser3Identity),
+                                                 EventAttendeeResponse.ACCEPTED,
+                                                 true);
+
+    Broadcast reached = only(Utils.POST_EVENT_CAPACITY_REACHED);
+    assertEquals(secondDate.getId(), reached.source());
+    assertEquals(dates.get(1), reached.data());
+    assertNull(agendaEventStorage.getEventById(series.getId()).getCapacityReachedDate());
+    BROADCASTS.clear();
+
+    answer(series.getId(), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertEquals(series.getId(), only(Utils.POST_EVENT_CAPACITY_REACHED).source());
+  }
+
+  /**
+   * When the dates the answer fills are the next ones, stored by the
+   * reminder computing, and the series' first date left to it comes after
+   * them, the series is reported at that date of its own, the one it decides
+   * first.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void theSeriesIsReportedAtItsOwnFirstDateWhenTheAnswerFillsIt() throws Exception {
+    Event series = limitedSeries(1, 3, testuser2Identity, testuser3Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(1));
+    agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(0));
+    BROADCASTS.clear();
+
+    answer(series.getId(), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    Broadcast reached = only(Utils.POST_EVENT_CAPACITY_REACHED);
+    assertEquals(series.getId(), reached.source());
+    assertEquals(dates.get(2), reached.data());
+  }
+
+  /**
+   * With every date stored on a row of its own, the series has no date to
+   * decide: the first stored date the answer fills, by when it starts, is
+   * the one reported; the rows are stored in the reverse order, so that the
+   * start decides and not the row.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void theEarliestStoredDateFilledIsReportedWhenTheSeriesDecidesNone() throws Exception {
+    Event series = limitedSeries(1, 3, testuser2Identity, testuser3Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(2));
+    agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(1));
+    agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(0));
+    BROADCASTS.clear();
+
+    answer(series.getId(), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    Broadcast reached = only(Utils.POST_EVENT_CAPACITY_REACHED);
+    assertEquals(series.getId(), reached.source());
+    assertEquals(dates.get(0), reached.data());
+  }
+
+  /**
+   * An answer from a date fills the stored dates from it on, by when they
+   * start: the first of them is reported; the rows are stored in the reverse
+   * order, so that the start decides and not the row.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void anAnswerFromADateReportsTheEarliestStoredDateItFills() throws Exception {
+    Event series = limitedSeries(1, 3, testuser2Identity, testuser3Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(2));
+    agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(1));
+    BROADCASTS.clear();
+
+    answerFrom(series.getId(), dates.get(1), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    Broadcast reached = only(Utils.POST_EVENT_CAPACITY_REACHED);
+    assertEquals(series.getId(), reached.source());
+    assertEquals(dates.get(1), reached.data());
+  }
+
+  /**
+   * The stored dates are decided by when they start, a date moved at its own
+   * start: one moved before the others, filled by the same answer, is the
+   * one reported, at the occurrence id its row carries.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aStoredDateMovedBeforeTheOthersIsTheOneReported() throws Exception {
+    Event series = limitedSeries(1, 3, testuser2Identity, testuser3Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(0));
+    agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(1));
+    Event moved = agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(2));
+    moved.setStart(moved.getStart().minusDays(3));
+    moved.setEnd(moved.getEnd().minusDays(3));
+    // As a move through the service marks it
+    moved.getOccurrence().setDatesModified(true);
+    agendaEventStorage.updateEvent(moved);
+    BROADCASTS.clear();
+
+    answer(series.getId(), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    Broadcast reached = only(Utils.POST_EVENT_CAPACITY_REACHED);
+    assertEquals(series.getId(), reached.source());
+    assertEquals(dates.get(2), reached.data());
+  }
+
+  /**
+   * A date not moved is decided at its own date, not at the start its row
+   * stores, which is anchored on its id's UTC day and a day off where the
+   * series' time falls on another UTC day: in Los Angeles at 17:00, the
+   * first date, filled together with a second one moved an hour earlier on
+   * its own day, is the one reported.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aDateNotMovedIsDecidedAtItsOwnDateNotAtItsAnchoredStart() throws Exception {
+    ZoneId losAngeles = ZoneId.of("America/Los_Angeles");
+    ZonedDateTime start = LocalDate.now().plusDays(60).atTime(17, 0).atZone(losAngeles);
+    Event series = limitedSeries(start, 1, 3, testuser2Identity, testuser3Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(0));
+    agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(2));
+    Event moved = agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(1));
+    ZonedDateTime movedStart = dates.get(1).withZoneSameInstant(losAngeles).minusHours(1);
+    moved.setStart(movedStart);
+    moved.setEnd(movedStart.plusHours(1));
+    // As a move through the service marks it
+    moved.getOccurrence().setDatesModified(true);
+    agendaEventStorage.updateEvent(moved);
+    BROADCASTS.clear();
+
+    answer(series.getId(), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    Broadcast reached = only(Utils.POST_EVENT_CAPACITY_REACHED);
+    assertEquals(series.getId(), reached.source());
+    assertEquals(dates.get(0).toInstant(), ((ZonedDateTime) reached.data()).toInstant());
+  }
+
+  /**
    * On dates booked past the limit, a Yes again from an attendee who holds a
    * seat there keeps it: a Yes takes a free seat or keeps the one held.
    *

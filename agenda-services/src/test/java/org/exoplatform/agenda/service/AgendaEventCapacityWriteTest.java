@@ -1192,6 +1192,234 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
   }
 
   /**
+   * A cancelled date keeps its seats but is not one the series carries:
+   * filled, it reports on its own, the notification then dropping it, and
+   * leaves the series' mark to the dates the series carries.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aCancelledDateFilledReportsOnItsOwn() throws Exception {
+    Event series = openSeries(1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    long cancelledId = cancelDate(seriesId, dates.get(1));
+    assertEquals(1, capacityOf(cancelledId));
+    BROADCASTS.clear();
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    List<Broadcast> reached = broadcasts(Utils.POST_EVENT_CAPACITY_REACHED);
+    assertEquals(2, reached.size());
+    assertEquals(seriesId, reached.get(0).source());
+    assertEquals(dates.get(0), reached.get(0).data());
+    assertEquals(cancelledId, reached.get(1).source());
+    assertEquals(dates.get(1), reached.get(1).data());
+    assertNotNull(agendaEventService.getEventById(cancelledId).getCapacityReachedDate());
+  }
+
+  /**
+   * A date holding the series' limit, reported through the series and then
+   * moved on its own, starts its answers over, and the series' report over
+   * with them (D19): the answer filling it again reports the series again.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aMovedDateReportedThroughTheSeriesStartsTheSeriesReportOver() throws Exception {
+    Event series = openSeries(1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answerDate(seriesId, dates.get(1), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    long dateId = agendaEventService.getExceptionalOccurrenceEvent(seriesId, dates.get(1)).getId();
+    assertEquals(1, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+    assertEquals(seriesId, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).get(0).source());
+    BROADCASTS.clear();
+
+    Event date = agendaEventService.getEventById(dateId);
+    date.setStart(date.getStart().plusHours(2));
+    date.setEnd(date.getEnd().plusHours(2));
+    save(date, false);
+
+    assertEquals(EventAttendeeResponse.NEEDS_ACTION, responseOf(dateId, testuser2Identity));
+    assertNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    assertEquals(0, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+
+    answerDate(seriesId, dates.get(1), testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertEquals(EventAttendeeResponse.ACCEPTED, responseOf(dateId, testuser3Identity));
+    assertEquals(1, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+    assertEquals(seriesId, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).get(0).source());
+  }
+
+  /**
+   * A date whose limit is its own, moved on its own, starts its own report
+   * over and leaves the series' mark standing: it is not a date the series
+   * reports.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aMovedDateWithALimitOfItsOwnLeavesTheSeriesMark() throws Exception {
+    Event series = openSeries(1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    long dateId = agendaEventService.saveEventExceptionalOccurrence(seriesId, dates.get(1)).getId();
+    patch(dateId, CAPACITY, "2");
+    answerDate(seriesId, dates.get(0), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answerDate(seriesId, dates.get(1), testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    BROADCASTS.clear();
+
+    Event date = agendaEventService.getEventById(dateId);
+    date.setStart(date.getStart().plusHours(2));
+    date.setEnd(date.getEnd().plusHours(2));
+    save(date, false);
+
+    assertEquals(EventAttendeeResponse.NEEDS_ACTION, responseOf(dateId, testuser3Identity));
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    assertEquals(0, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+  }
+
+  /**
+   * A date holding the series' limit that nobody answered, moved on its own
+   * while the series is marked, starts the series' report over as well: the
+   * series' mark is what its answers starting over clear (D19), and the
+   * answer then filling the date reports the series.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aMovedDateNobodyAnsweredStartsTheSeriesReportOver() throws Exception {
+    Event series = openSeries(1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answerDate(seriesId, dates.get(0), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    long dateId = agendaEventService.saveEventExceptionalOccurrence(seriesId, dates.get(1)).getId();
+    assertNotEquals(EventAttendeeResponse.ACCEPTED, responseOf(dateId, testuser2Identity));
+    assertNotEquals(EventAttendeeResponse.ACCEPTED, responseOf(dateId, testuser3Identity));
+    BROADCASTS.clear();
+
+    Event date = agendaEventService.getEventById(dateId);
+    date.setStart(date.getStart().plusHours(2));
+    date.setEnd(date.getEnd().plusHours(2));
+    save(date, false);
+
+    assertNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    assertEquals(0, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+
+    answerDate(seriesId, dates.get(1), testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertEquals(1, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+    assertEquals(seriesId, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).get(0).source());
+  }
+
+  /**
+   * A Yes given on a stored date already over that holds the series' limit
+   * (the API accepts it, the UI does not offer it) decides a seat there and
+   * reports the date on its own, as a date the series does not report (D21):
+   * the series' mark stays clear, and the answer then filling the first date
+   * the series carries reports the series.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aYesOnADateOverHoldingTheSeriesLimitReportsTheDateOnItsOwn() throws Exception {
+    Event series = pastSeries(1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    BROADCASTS.clear();
+
+    answerDate(seriesId, dates.get(0), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+
+    long dateOverId = agendaEventService.getExceptionalOccurrenceEvent(seriesId, dates.get(0)).getId();
+    assertEquals(1, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+    assertEquals(dateOverId, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).get(0).source());
+    assertNotNull(agendaEventService.getEventById(dateOverId).getCapacityReachedDate());
+    assertNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertEquals(2, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+    assertEquals(seriesId, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).get(1).source());
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+  }
+
+  /**
+   * A stored date already over that holds the series' limit is not one the
+   * series reports (D21): its answers starting over, as they do when it is
+   * moved on its own, leave the series' mark standing, and the answer then
+   * filling a date the series carries reports nothing.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aDateOverMovedOnItsOwnLeavesTheSeriesMark() throws Exception {
+    Event series = pastSeries(1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answerDate(seriesId, dates.get(4), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    long dateOverId = agendaEventService.saveEventExceptionalOccurrence(seriesId, dates.get(0)).getId();
+    BROADCASTS.clear();
+
+    Event dateOver = agendaEventService.getEventById(dateOverId);
+    dateOver.setStart(dateOver.getStart().plusHours(2));
+    dateOver.setEnd(dateOver.getEnd().plusHours(2));
+    save(dateOver, false);
+
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+
+    answerDate(seriesId, dates.get(5), testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertTrue(broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).isEmpty());
+  }
+
+  /**
+   * A date holding the series' limit saved on its own for the first time, a
+   * row created for it with a title of its own, starts its answers over, the
+   * creation's broadcast resetting the row it takes over
+   * (AgendaReplyOnSaveListener), and the series' report with them (D19): the
+   * answer then filling the date reports the series.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aDateSavedOnItsOwnForTheFirstTimeStartsTheSeriesReportOver() throws Exception {
+    Event series = openSeries(LocalDate.now().plusDays(60), 3, 1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    answerDate(seriesId, dates.get(0), testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    assertNull(agendaEventService.getExceptionalOccurrenceEvent(seriesId, dates.get(1)));
+    BROADCASTS.clear();
+
+    Event date = agendaEventService.getEventOccurrence(seriesId, dates.get(1), ZoneOffset.UTC, id(testuser1Identity));
+    date.setId(0);
+    date.setSummary("A title of its own");
+    long dateId = agendaEventService.createEvent(date,
+                                                 Collections.emptyList(),
+                                                 null,
+                                                 null,
+                                                 null,
+                                                 null,
+                                                 false,
+                                                 id(testuser1Identity))
+                                    .getId();
+
+    assertEquals(1, capacityOf(dateId));
+    assertNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    assertEquals(0, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+
+    answerDate(seriesId, dates.get(1), testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertEquals(EventAttendeeResponse.ACCEPTED, responseOf(dateId, testuser3Identity));
+    assertEquals(1, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+    assertEquals(seriesId, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).get(0).source());
+  }
+
+  /**
    * A raised series' limit that reaches the waiting list of its first date,
    * individually modified and cancelled, reports the promotion from the
    * series' first date that is not cancelled.
