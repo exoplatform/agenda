@@ -467,16 +467,23 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     EventResponseOutcome outcome = answerSeries(series, fromDate, identityId, response, broadcast);
 
     // Apply modification on the rows of the dates answered as well: those
-    // designating the date answered from, or a later one, read at once
+    // designating the date answered from, or a later one, read at once, in
+    // the order the seat rule ranks the dates
     Event ownRow = null;
     EventAttendeeResponse responseOnOwnRow = null;
     Event earliestWaitingRow = null;
-    List<Event> occurrences = eventStorage.getExceptionalOccurrences(eventId);
-    SeriesDates seriesDates = new SeriesDates(series, () -> occurrences, ZonedDateTime.now(ZoneOffset.UTC));
+    List<Event> occurrences = rowsByStart(eventId);
+    ZonedDateTime decidedAt = ZonedDateTime.now(ZoneOffset.UTC);
+    SeriesDates seriesDates = new SeriesDates(series, () -> occurrences, decidedAt);
     for (Event occurrence : occurrences) {
       if (isOnOrAfterSeriesDate(series, occurrenceDateOf(occurrence), fromDate)
           && isEventAttendee(occurrence.getId(), identityId)) {
-        EventAttendee propagated = saveEventAttendee(occurrence, identityId, response, false, decidesSeat(occurrence, seriesDates));
+        EventAttendee propagated = saveEventAttendee(occurrence,
+                                                     identityId,
+                                                     response,
+                                                     false,
+                                                     decidesSeat(occurrence, seriesDates),
+                                                     decidedAt);
         earliestWaitingRow = earliestWaiting(earliestWaitingRow, occurrence, propagated);
         // The date answered from has a row of its own, a pool deciding alone:
         // the answer stored at that date is the one its row stores, the first
@@ -641,16 +648,22 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     Event earliestWaitingRow = null;
 
     // Apply modification on exceptional occurrences as well, deciding no seat
-    // on a date over
+    // on a date over, in the order the seat rule ranks the dates. When the
+    // series' own dates did not fill and its mark is clear, the first stored
+    // date the series reports (confirmed, holding its limit, not over) that
+    // the answer fills in that order, its own mark clear, is the one reported
     if (event.getRecurrence() != null) {
-      SeriesDates seriesDates = new SeriesDates(event,
-                                                () -> eventStorage.getExceptionalOccurrences(eventId),
-                                                ZonedDateTime.now(ZoneOffset.UTC));
-      List<Long> exceptionalOccurenceEventIds = eventStorage.getExceptionalOccurenceIds(eventId);
-      for (long exceptionalOccurenceEventId : exceptionalOccurenceEventIds) {
-        if (isEventAttendee(exceptionalOccurenceEventId, identityId)) {
-          Event occurrence = eventStorage.getEventById(exceptionalOccurenceEventId);
-          EventAttendee propagated = saveEventAttendee(occurrence, identityId, response, false, decidesSeat(occurrence, seriesDates));
+      List<Event> occurrences = rowsByStart(eventId);
+      ZonedDateTime decidedAt = ZonedDateTime.now(ZoneOffset.UTC);
+      SeriesDates seriesDates = new SeriesDates(event, () -> occurrences, decidedAt);
+      for (Event occurrence : occurrences) {
+        if (isEventAttendee(occurrence.getId(), identityId)) {
+          EventAttendee propagated = saveEventAttendee(occurrence,
+                                                       identityId,
+                                                       response,
+                                                       false,
+                                                       decidesSeat(occurrence, seriesDates),
+                                                       decidedAt);
           earliestWaitingRow = earliestWaiting(earliestWaitingRow, occurrence, propagated);
         }
       }
@@ -667,6 +680,24 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   private static boolean decidesSeat(Event occurrence, SeriesDates seriesDates) {
     return occurrence.getOccurrence() == null || occurrence.getOccurrence().getId() == null
         || !seriesDates.isOver(occurrence);
+  }
+
+  /**
+   * @param seriesId the identifier of a series
+   * @return the rows of its dates, in the order the seat rule ranks the dates
+   *         ({@link #startOfDate(Event)}, the ranking the answer's outcome
+   *         uses too): a date moved at its own start, a date not moved at its
+   *         id, the time its series had when the row was stored; never at the
+   *         start the row stores, anchored on its id's UTC day and a day off
+   *         its date where the series' time falls on another UTC day; a row
+   *         with no date last
+   */
+  private List<Event> rowsByStart(long seriesId) {
+    return eventStorage.getExceptionalOccurrences(seriesId)
+                       .stream()
+                       .sorted(Comparator.comparing(this::startOfDate,
+                                                    Comparator.nullsLast(Comparator.comparing(ZonedDateTime::toInstant))))
+                       .collect(Collectors.toList());
   }
 
   /**
@@ -911,12 +942,13 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   }
 
   /**
-   * Whether an attendee not kept holds an answer on a pool, or the pool is
-   * marked as having reached its capacity: what
-   * {@link #resetPoolResponses(Event, Set)} starts over.
+   * Whether an attendee not kept holds an answer on a pool, the pool is
+   * marked as having reached its capacity, or the series whose mark reports
+   * it is: what {@link #resetPoolResponses(Event, Set)} starts over.
    */
   private boolean poolHasResponsesToReset(Event pool, Set<Long> keptIdentityIds) {
     return pool.getCapacityReachedDate() != null
+        || markedSeriesReportedThrough(pool) != null
         || attendeeStorage.getEventAttendees(pool.getId())
                           .getEventAttendees()
                           .stream()
@@ -954,6 +986,31 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (pool.getCapacityReachedDate() != null) {
       eventStorage.saveCapacityReachedDate(eventId, null);
     }
+    // The series' report starts over too when the answers of a date it
+    // reports (confirmed, holding its limit, not over) start over (D19, D21),
+    // under the series' lock the step holds
+    Event markedSeries = markedSeriesReportedThrough(pool);
+    if (markedSeries != null) {
+      eventStorage.saveCapacityReachedDate(markedSeries.getId(), null);
+    }
+  }
+
+  /**
+   * The series whose standing mark reports a stored date: the date's series,
+   * marked, while the date is one the series reports (D21): confirmed,
+   * holding the series' limit and not over.
+   *
+   * @param pool a stored row
+   * @return that series, null for a row the series' mark does not report or
+   *         whose series is not marked
+   */
+  private Event markedSeriesReportedThrough(Event pool) {
+    if (pool.getParentId() <= 0) {
+      return null;
+    }
+    Event series = eventStorage.getEventById(pool.getParentId());
+    return series != null && series.getCapacityReachedDate() != null
+        && reportedByTheSeries(pool, series, ZonedDateTime.now(ZoneOffset.UTC)) ? series : null;
   }
 
   /**
@@ -1301,7 +1358,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     if (pool.getRecurrence() != null) {
       return answerSeries(pool, fromDate, identityId, requested, userResponseSent);
     }
-    EventAttendee stored = saveEventAttendee(pool, identityId, requested, userResponseSent, true);
+    EventAttendee stored = saveEventAttendee(pool, identityId, requested, userResponseSent, true, ZonedDateTime.now(ZoneOffset.UTC));
     Event waitingRow = earliestWaiting(null, pool, stored);
     return new EventResponseOutcome(stored.getResponse(), waitingRow == null ? null : occurrenceDateOf(waitingRow));
   }
@@ -1516,9 +1573,9 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * seat given up, seated rows merged), the waiting list is promoted in the
    * same transaction while seats are free. An answer stored as a Yes that
    * leaves the pool full while it is not marked marks it (see
-   * {@link #markCapacityReached(Event)}). On a pool that decides no seat, the
-   * answer is stored as with no limit, a place on the waiting list asked
-   * becoming a Yes, and nobody is promoted.
+   * {@link #markCapacityReached(Event, ZonedDateTime)}). On a pool that
+   * decides no seat, the answer is stored as with no limit, a place on the
+   * waiting list asked becoming a Yes, and nobody is promoted.
    *
    * @param pool the stored row answered, as read under the lock
    * @param identityId the attendee's identity identifier
@@ -1526,13 +1583,16 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * @param userResponseSent whether the attendee sent it, reported as such
    * @param decidesSeat whether the answer decides a seat on the pool: not on
    *          the row of a date over that an answer to the series is copied to
+   * @param decidedAt the instant the answer is decided at: whether a date is
+   *          over is read at that instant by the seat and by the report alike
    * @return the attendee row stored
    */
   private EventAttendee saveEventAttendee(Event pool,
                                           long identityId,
                                           EventAttendeeResponse requested,
                                           boolean userResponseSent,
-                                          boolean decidesSeat) {
+                                          boolean decidesSeat,
+                                          ZonedDateTime decidedAt) {
     long eventId = pool.getId();
     EventAttendeeList eventAttendees = attendeeStorage.getEventAttendees(eventId, identityId);
     EventAttendee attendee = eventAttendees.getEventAttendee(identityId, null);
@@ -1579,7 +1639,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       promoteWaitingAttendees(eventId);
     }
     if (decidesSeat && response == EventAttendeeResponse.ACCEPTED) {
-      markCapacityReached(pool);
+      markCapacityReached(pool, decidedAt);
     }
     return attendee;
   }
@@ -1620,11 +1680,18 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * event that reports it: the answer filling its last seat, or, after a
    * reset that cleared the mark while the answers it kept still fill the
    * pool, a Yes given again by an attendee holding one of those seats. A
-   * promotion does not mark the pool it fills.
+   * promotion does not mark the pool it fills. The row of a date holding the
+   * limit of its series is one of the dates the series carries (D21): it is
+   * reported through the series' mark, once with them, at the date it is,
+   * and not at all when a date of the series was reported before. A date
+   * whose limit is its own, or that is cancelled or over, reports on its
+   * own.
    *
    * @param pool the stored row answered
+   * @param decidedAt the instant the answer was decided at, which tells
+   *          whether the date is over as the seat decision read it
    */
-  private void markCapacityReached(Event pool) {
+  private void markCapacityReached(Event pool, ZonedDateTime decidedAt) {
     int capacity = SeatRule.capacityOf(pool);
     if (capacity <= 0 || pool.getCapacityReachedDate() != null) {
       return;
@@ -1636,7 +1703,61 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     ZonedDateTime capacityReachedDate = ZonedDateTime.now(ZoneOffset.UTC);
     eventStorage.saveCapacityReachedDate(pool.getId(), capacityReachedDate);
     pool.setCapacityReachedDate(capacityReachedDate);
-    Utils.broadcastEvent(listenerService, Utils.POST_EVENT_CAPACITY_REACHED, pool.getId(), occurrenceDateOf(pool));
+    Event reporter = reporterOf(pool, decidedAt);
+    if (reporter != pool) {
+      if (reporter.getCapacityReachedDate() != null) {
+        return;
+      }
+      eventStorage.saveCapacityReachedDate(reporter.getId(), capacityReachedDate);
+    }
+    Utils.broadcastEvent(listenerService, Utils.POST_EVENT_CAPACITY_REACHED, reporter.getId(), occurrenceDateOf(pool));
+  }
+
+  /**
+   * @param pool a full pool of one date
+   * @param decidedAt the instant the answer was decided at
+   * @return the row whose mark reports it: its series, when the pool is the
+   *         row of a date the series reports (D21), confirmed, holding the
+   *         series' limit and not over at that instant, read under the
+   *         series' lock the step holds; else the pool itself
+   */
+  private Event reporterOf(Event pool, ZonedDateTime decidedAt) {
+    if (pool.getParentId() <= 0 || pool.getStatus() != EventStatus.CONFIRMED) {
+      return pool;
+    }
+    Event series = eventStorage.getEventById(pool.getParentId());
+    return series != null && reportedByTheSeries(pool, series, decidedAt) ? series : pool;
+  }
+
+  /**
+   * Whether a stored date is one its series reports (D21), the dates the
+   * series' mark is written from: confirmed, holding the series' limit and
+   * not over at the instant given, the one the caller read the dates at, so
+   * that a seat decided on a date and the report of that date agree on
+   * whether it is over.
+   *
+   * @param row the stored row of a date of a series
+   * @param series its series, as stored
+   * @param at the instant the date is over at, or not
+   * @return whether the series' mark reports the row
+   */
+  private boolean reportedByTheSeries(Event row, Event series, ZonedDateTime at) {
+    SeriesDates seriesDates = new SeriesDates(series, () -> eventStorage.getExceptionalOccurrences(series.getId()), at);
+    return reportsThroughSeries(row, SeatRule.capacityOf(series)) && decidesSeat(row, seriesDates);
+  }
+
+  /**
+   * The status and limit part of the predicate of the dates a series reports,
+   * shared by every site that reads or writes the series' mark; a date over
+   * is left out by {@link #decidesSeat(Event, SeriesDates)} at every site.
+   *
+   * @param row the stored row of a date of a series
+   * @param seriesCapacity the series' limit
+   * @return whether the date is one the series carries and reports (D21) by
+   *         its status and limit: a confirmed date holding the series' limit
+   */
+  static boolean reportsThroughSeries(Event row, int seriesCapacity) {
+    return row.getStatus() == EventStatus.CONFIRMED && SeatRule.capacityOf(row) == seriesCapacity;
   }
 
   /**
