@@ -388,7 +388,8 @@ public interface AgendaEventAttendeeService {
    * place on the waiting list included, on the event and, for a series, on
    * the rows of its dates. A reset frees no seat: nobody is promoted, and no
    * answer is reported as sent by its attendee. The pools forget that they
-   * reached their capacity.
+   * reached their capacity, and so does the series through which a date
+   * holding the series' limit reports.
    *
    * @param eventId Technical identifier of {@link Event}
    * @param keptIdentityIds identities whose answer is kept, typically the

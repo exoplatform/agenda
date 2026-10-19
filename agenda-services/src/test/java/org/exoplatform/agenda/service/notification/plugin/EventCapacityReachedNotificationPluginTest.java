@@ -140,6 +140,38 @@ public class EventCapacityReachedNotificationPluginTest extends BaseAgendaEventT
   }
 
   /**
+   * On a series, a date stored with a title of its own is named by it; a
+   * date without one is named by the series.
+   */
+  @Test
+  public void testOnASeriesADateWithATitleOfItsOwnIsNamedByIt() throws Exception {
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    Event series = spaceEvent(creatorId, true);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    Event date = agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(2));
+    date.setSummary("The date's own title");
+    agendaEventService.updateEvent(date,
+                                   agendaEventAttendeeService.getEventAttendees(date.getId()).getEventAttendees(),
+                                   null,
+                                   null,
+                                   null,
+                                   REMOTE_EVENT,
+                                   false,
+                                   creatorId);
+
+    NotificationInfo notification = notify(series.getId(), dates.get(2));
+
+    assertNotNull(notification);
+    assertEquals("The date's own title", notification.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_TITLE));
+    assertEquals(String.valueOf(series.getId()), notification.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_ID));
+
+    NotificationInfo other = notify(series.getId(), dates.get(1));
+
+    assertNotNull(other);
+    assertEquals(series.getSummary(), other.getValueOwnerParameter(NotificationUtils.STORED_PARAMETER_EVENT_TITLE));
+  }
+
+  /**
    * An event no longer confirmed when the notification is built has no
    * seats to tell about.
    */
