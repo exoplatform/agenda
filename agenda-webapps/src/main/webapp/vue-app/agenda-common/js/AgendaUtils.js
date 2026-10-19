@@ -4,7 +4,7 @@ export const USER_TIMEZONE_ID = new window.Intl.DateTimeFormat().resolvedOptions
 export const TIMEZONES = [];
 export const MINIMUM_TIME_INTERVAL = 30;
 export const MINIMUM_TIME_INTERVAL_MS = MINIMUM_TIME_INTERVAL * 60 * 1000;
-// Same palette as the space settings' calendar color picker (AgendaSpaceAdministration.vue)
+// The swatches of agenda's color pickers, for events and calendars
 export const EVENT_COLOR_SWATCHES = [
   ['#FF0000', '#319ab3', '#f97575'],
   ['#98cc81', '#4273c8', '#cea6ac'],

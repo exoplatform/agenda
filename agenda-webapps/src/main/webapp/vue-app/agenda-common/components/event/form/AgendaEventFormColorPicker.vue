@@ -20,52 +20,17 @@
 
 -->
 <template>
-  <v-menu
-    ref="menu"
-    v-model="menu"
-    :close-on-content-click="false"
-    :content-class="eventColorMenuId"
-    :disabled="!hasCalendarOwner"
-    bottom
-    left>
-    <template #activator="{ on, attrs }">
-      <div
-        v-if="hasCalendarOwner"
-        :id="eventColorMenuId"
-        class="d-flex align-center event-color-activator"
-        v-bind="attrs"
-        v-on="on">
-        <v-card
-          :color="eventColor"
-          height="20"
-          width="20"
-          flat
-          class="event-color-swatch" />
-        <div class="ms-2">{{ eventColor }}</div>
-      </div>
-      <div v-else class="text-light-color">
-        {{ $t('agenda.label.selectSpaceToChooseColor') }}
-      </div>
-    </template>
-    <v-card>
-      <v-color-picker
-        v-model="newEventColor"
-        :swatches="$agendaUtils.EVENT_COLOR_SWATCHES"
-        class="ma-2"
-        mode="hexa"
-        show-swatches
-        flat />
-      <v-card-actions>
-        <v-spacer />
-        <v-btn class="btn ms-2" @click="closeMenu">
-          {{ $t('agenda.button.cancel') }}
-        </v-btn>
-        <v-btn class="btn btn-primary ms-2" @click="applyColor">
-          {{ $t('agenda.button.apply') }}
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-menu>
+  <!-- The event takes its calendar's color until another one is picked: that color is the picker's placeholder -->
+  <color-picker
+    v-if="hasCalendarOwner"
+    :value="event.color"
+    :placeholder="calendarEventColor"
+    :swatches="$agendaUtils.EVENT_COLOR_SWATCHES"
+    opaque
+    @input="$set(event, 'color', $event)" />
+  <div v-else class="text-light-color">
+    {{ $t('agenda.label.selectSpaceToChooseColor') }}
+  </div>
 </template>
 
 <script>
@@ -81,8 +46,6 @@ export default {
     },
   },
   data: () => ({
-    menu: false,
-    newEventColor: null,
     calendarColor: null,
     calendarColorResolved: false,
   }),
@@ -93,9 +56,8 @@ export default {
     // The default color of the palette is displayed only once it's known that no
     // calendar color has to be displayed, else it would be displayed first and
     // replaced afterwards by the effective color
-    eventColor() {
-      return this.event.color
-        || (this.event.calendar && this.event.calendar.color)
+    calendarEventColor() {
+      return (this.event.calendar && this.event.calendar.color)
         || this.calendarColor
         || (this.calendarColorResolved && this.defaultEventColor)
         || null;
@@ -119,16 +81,8 @@ export default {
                                              && calendar.owner.remoteId === owner.remoteId
                                              && calendar.owner.providerId === owner.providerId) || null;
     },
-    eventColorMenuId() {
-      return `eventColorMenu${this._uid}`;
-    },
   },
   watch: {
-    menu(opened) {
-      if (opened) {
-        this.newEventColor = this.eventColor || this.defaultEventColor;
-      }
-    },
     calendarOwner: {
       immediate: true,
       handler() {
@@ -184,13 +138,6 @@ export default {
             this.calendarColorResolved = true;
           }
         });
-    },
-    applyColor() {
-      this.$set(this.event, 'color', this.newEventColor);
-      this.menu = false;
-    },
-    closeMenu() {
-      this.menu = false;
     },
   },
 };

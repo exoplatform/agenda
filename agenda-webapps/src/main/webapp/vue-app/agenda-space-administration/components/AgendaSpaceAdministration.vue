@@ -33,52 +33,13 @@
               </v-list-item-title>
             </v-list-item-content>
             <v-list-item-action>
-              <v-list-item-action
-                :id="calendarColourMenuId"
-                class="me-1 my-auto">
-                <v-menu
-                  ref="menu"
-                  v-model="menu"
-                  :close-on-content-click="false"
-                  :content-class="calendarColourMenuId"
-                  bottom
-                  left>
-                  <template #activator="{ on, attrs }">
-                    <v-card
-                      :color="calendarColor"
-                      height="30"
-                      width="30"
-                      v-bind="attrs"
-                      v-on="on" />
-                    <div class="my-auto ms-2">{{ calendarColor }}</div>
-                  </template>
-                  <v-card>
-                    <v-color-picker
-                      v-model="newCalendarColor"
-                      class="ma-2"
-                      :swatches="swatches"
-                      mode="hexa"
-                      show-swatches 
-                      flat />
-                    <v-card-actions>
-                      <v-spacer />
-                      <v-btn
-                        :disabled="saving"
-                        class="btn ms-2"
-                        @click="closeMenu">
-                        {{ $t('agenda.button.cancel') }}
-                      </v-btn>
-                      <v-btn
-                        :loading="saving"
-                        :disabled="saving"
-                        class="btn btn-primary ms-2"
-                        @click="applyColor">
-                        {{ $t('agenda.button.apply') }}
-                      </v-btn>
-                    </v-card-actions>
-                  </v-card>
-                </v-menu>
-              </v-list-item-action>
+              <!-- A color picked is shown and saved at once -->
+              <color-picker
+                :value="calendarColor"
+                :swatches="$agendaUtils.EVENT_COLOR_SWATCHES"
+                :disabled="saving"
+                opaque
+                @input="saveColor" />
             </v-list-item-action>
           </v-list-item>
           <!--
@@ -131,26 +92,14 @@
 export default {
   data: () => ({
     calendarColor: null,
-    newCalendarColor: null,
     calendar: {},
     currentSpace: null,
     subscriptionsCount: 0,
     saving: false,
-    menu: false,
-    swatches: [
-      ['#FF0000', '#319ab3', '#f97575'],
-      ['#98cc81', '#4273c8', '#cea6ac'],
-      ['#bc99e7', '#9ee4f5', '#774ea9'],
-      ['#ffa500', '#bed67e', '#0E100F'],
-      ['#ffaacc', '#0000AA', '#000055'],
-    ],
   }),
   computed: {
     calendarOwnerId() {
       return Number(this.calendar?.owner?.id);
-    },
-    calendarColourMenuId() {
-      return `settingsMenu${this.calendarOwnerId}`;
     },
     /**
      * Whether the user is a real manager of the space, the server's own answer
@@ -180,12 +129,6 @@ export default {
     this.$root.$on('agenda-space-subscriptions-changed', this.countSubscriptions);
     this.$root.$on('agenda-space-subscriptions-removed', this.countSubscriptions);
     this.getCalendar();
-    $(document).on('click', (e) => {
-      if (e.target && !$(e.target).parents(`.${this.calendarColourMenuId}`).length) {
-        this.newCalendarColor = this.calendarColor;
-        this.menu = false;
-      }
-    });
   },
   beforeDestroy() {
     this.$root.$off('agenda-space-subscriptions-changed', this.countSubscriptions);
@@ -237,25 +180,33 @@ export default {
           .then(data => {
             this.calendar = data && data.calendars && data.calendars.length && data.calendars[0] || null;
             this.calendarColor = this.calendar.color;
-            this.newCalendarColor = this.calendar.color;
           });
       }
     },
-    applyColor() {
+    /**
+     * Shows and saves the space's calendar with the color picked; a cancelled
+     * or unchanged choice saves nothing, whatever its case, and a failure shows
+     * the stored color again with an error.
+     *
+     * @param {String} color the color picked
+     * @returns {void}
+     */
+    saveColor(color) {
+      const storedColor = this.calendarColor;
+      if (!color || color.toUpperCase() === (storedColor || '').toUpperCase()) {
+        return;
+      }
       const calendarToSave = JSON.parse(JSON.stringify(this.calendar));
-      calendarToSave.color = this.newCalendarColor;
+      calendarToSave.color = color;
+      this.calendarColor = color;
       this.saving = true;
       this.$calendarService.saveCalendar(calendarToSave)
-        .then(() => {
-          this.calendar.color = this.newCalendarColor;
-          this.calendarColor = this.newCalendarColor;
-          this.closeMenu();
+        .then(() => this.calendar.color = color)
+        .catch(() => {
+          this.calendarColor = storedColor;
+          this.$root.$emit('alert-message', this.$t('agenda.calendarSave.error'), 'error');
         })
         .finally(() => this.saving = false);
-    },
-    closeMenu() {
-      this.newCalendarColor = this.calendarColor;
-      this.menu = false;
     },
   },
 };

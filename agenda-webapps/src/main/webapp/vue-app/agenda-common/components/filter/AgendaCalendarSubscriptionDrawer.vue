@@ -32,8 +32,7 @@
     :loading="busy"
     :autofocus="false"
     class="agendaCalendarSubscriptionDrawer"
-    right
-    @closed="colorMenu = false">
+    right>
     <template slot="title">
       {{ title }}
     </template>
@@ -105,52 +104,12 @@
           {{ $t('agenda.calendar.color') }}
         </v-label>
         <div v-if="!isSpace" class="d-flex align-center mt-2 agenda-calendar-subscription-color">
-          <v-menu
-            v-model="colorMenu"
-            :close-on-content-click="false"
-            bottom
-            left>
-            <template #activator="{ on, attrs }">
-              <div
-                class="d-flex align-center"
-                v-bind="attrs"
-                v-on="on">
-                <v-card
-                  v-if="color"
-                  :color="color"
-                  height="24"
-                  width="24"
-                  flat />
-                <v-card
-                  v-else
-                  class="d-flex align-center justify-center"
-                  height="24"
-                  width="24"
-                  outlined>
-                  <v-icon size="14">fa-palette</v-icon>
-                </v-card>
-                <div class="ms-2">{{ color || $t('agenda.calendar.colorAuto') }}</div>
-              </div>
-            </template>
-            <v-card>
-              <v-color-picker
-                v-model="newColor"
-                :swatches="swatches"
-                class="ma-2"
-                mode="hexa"
-                show-swatches
-                flat />
-              <v-card-actions>
-                <v-spacer />
-                <v-btn class="btn ms-2" @click="colorMenu = false">
-                  {{ $t('agenda.button.cancel') }}
-                </v-btn>
-                <v-btn class="btn btn-primary ms-2" @click="applyColor">
-                  {{ $t('agenda.button.apply') }}
-                </v-btn>
-              </v-card-actions>
-            </v-card>
-          </v-menu>
+          <!-- A subscription accepts #RRGGBB only -->
+          <color-picker
+            v-model="color"
+            :label="color ? null : $t('agenda.calendar.colorAuto')"
+            :swatches="swatches"
+            opaque />
         </div>
       </form>
     </template>
@@ -183,8 +142,6 @@ export default {
     url: '',
     name: '',
     color: null,
-    colorMenu: false,
-    newColor: null,
     nameTouched: false,
     state: 'idle',
     errorCode: null,
@@ -256,19 +213,6 @@ export default {
       return this.$agendaUtils && this.$agendaUtils.EVENT_COLOR_SWATCHES || [];
     },
   },
-  watch: {
-    /**
-     * Seeds the picker with the current colour each time it opens.
-     *
-     * @param {Boolean} opened whether the colour menu just opened
-     * @returns {void}
-     */
-    colorMenu(opened) {
-      if (opened) {
-        this.newColor = this.color || this.swatches.length && this.swatches[0][0] || '#08a554';
-      }
-    },
-  },
   created() {
     this.$root.$on('agenda-calendar-subscription-drawer-open', this.open);
   },
@@ -293,7 +237,6 @@ export default {
       this.nameTouched = !!subscription;
       this.state = 'idle';
       this.errorCode = null;
-      this.colorMenu = false;
       this.$refs.subscriptionDrawer.open();
     },
     /**
@@ -314,15 +257,6 @@ export default {
         this.state = 'idle';
       }
       this.errorCode = null;
-    },
-    /**
-     * Applies the colour picked.
-     *
-     * @returns {void}
-     */
-    applyColor() {
-      this.color = this.newColor;
-      this.colorMenu = false;
     },
     /**
      * Asks the server to read the link, and names the calendar after it unless

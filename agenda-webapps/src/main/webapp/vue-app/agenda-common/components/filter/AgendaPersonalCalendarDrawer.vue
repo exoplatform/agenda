@@ -68,53 +68,11 @@
           {{ $t('agenda.calendar.color') }}
         </v-label>
         <div class="d-flex align-center mt-2">
-          <v-menu
-            ref="colorMenu"
-            v-model="colorMenu"
-            :close-on-content-click="false"
-            bottom
-            left>
-            <template #activator="{ on, attrs }">
-              <div
-                class="d-flex align-center"
-                v-bind="attrs"
-                v-on="on">
-                <v-card
-                  v-if="calendar.color"
-                  :color="calendar.color"
-                  height="24"
-                  width="24"
-                  flat />
-                <v-card
-                  v-else
-                  class="d-flex align-center justify-center"
-                  height="24"
-                  width="24"
-                  outlined>
-                  <v-icon size="14">fa-palette</v-icon>
-                </v-card>
-                <div class="ms-2">{{ calendar.color || $t('agenda.calendar.colorAuto') }}</div>
-              </div>
-            </template>
-            <v-card>
-              <v-color-picker
-                v-model="newColor"
-                :swatches="$agendaUtils.EVENT_COLOR_SWATCHES"
-                class="ma-2"
-                mode="hexa"
-                show-swatches
-                flat />
-              <v-card-actions>
-                <v-spacer />
-                <v-btn class="btn ms-2" @click="colorMenu = false">
-                  {{ $t('agenda.button.cancel') }}
-                </v-btn>
-                <v-btn class="btn btn-primary ms-2" @click="applyColor">
-                  {{ $t('agenda.button.apply') }}
-                </v-btn>
-              </v-card-actions>
-            </v-card>
-          </v-menu>
+          <color-picker
+            v-model="calendar.color"
+            :label="calendar.color ? null : $t('agenda.calendar.colorAuto')"
+            :swatches="$agendaUtils.EVENT_COLOR_SWATCHES"
+            opaque />
         </div>
       </form>
     </template>
@@ -149,8 +107,6 @@ export default {
       description: '',
       color: null,
     },
-    colorMenu: false,
-    newColor: null,
     nameErrorKey: null,
     saving: false,
   }),
@@ -207,21 +163,6 @@ export default {
       return !!name || !!(this.sourceCalendar && this.sourceCalendar.system);
     },
   },
-  watch: {
-    /**
-     * Seeds the picker with the current color — or the first palette swatch
-     * when none is chosen yet — each time the color menu opens, so cancelling
-     * the menu never leaks a half-picked color into the form.
-     *
-     * @param {Boolean} opened true when the color menu just opened
-     * @returns {void}
-     */
-    colorMenu(opened) {
-      if (opened) {
-        this.newColor = this.calendar.color || this.$agendaUtils.EVENT_COLOR_SWATCHES[0][0];
-      }
-    },
-  },
   created() {
     this.$root.$on('agenda-personal-calendar-drawer-open', this.open);
   },
@@ -246,7 +187,6 @@ export default {
         color: calendar && calendar.color || null,
       };
       this.nameErrorKey = null;
-      this.colorMenu = false;
       this.$refs.personalCalendarDrawer.open();
     },
     /**
@@ -268,15 +208,6 @@ export default {
           this.$refs.nameInput.focus();
         }
       }, 200));
-    },
-    /**
-     * Applies the color chosen in the picker to the form and closes the
-     * picker menu. The color is only sent to the server on save.
-     * @returns {void}
-     */
-    applyColor() {
-      this.calendar.color = this.newColor;
-      this.colorMenu = false;
     },
     /**
      * Saves the calendar: a POST creating it or a PUT updating the edited
