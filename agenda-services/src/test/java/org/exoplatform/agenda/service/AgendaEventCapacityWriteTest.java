@@ -2574,6 +2574,243 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
   }
 
   /**
+   * A date of a series moved by its first save alone, the form's "this
+   * occurrence only" on a date without a row of its own, is a moved date
+   * from that save on: read at its own dates, it decides its seats there once
+   * the date its rule gave it is over, instead of keeping every Yes copied.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aDateMovedByItsFirstSaveAloneDecidesItsSeatsAtItsOwnDates() throws Exception {
+    Event series = pastSeries(1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    Event date = agendaEventService.getEventOccurrence(seriesId, occurrenceIds(series).get(0), ZoneOffset.UTC, id(testuser1Identity));
+    date.setId(0);
+    date.setStart(date.getStart().plusDays(8));
+    date.setEnd(date.getEnd().plusDays(8));
+    long dateId = createAlone(date);
+    assertTrue(agendaEventService.getEventById(dateId).getOccurrence().isDatesModified());
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertEquals(EventAttendeeResponse.ACCEPTED, responseOf(dateId, testuser2Identity));
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(dateId, testuser3Identity));
+  }
+
+  /**
+   * A date of a series saved alone for the first time at the dates its series
+   * gives it carries no mark of moved dates, so a change of the series still
+   * carries it along.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aDateSavedAloneAtItsSeriesDatesIsNotMarkedMoved() throws Exception {
+    Event series = openSeries(1, testuser2Identity);
+    Event date = agendaEventService.getEventOccurrence(series.getId(), occurrenceIds(series).get(1), ZoneOffset.UTC, id(testuser1Identity));
+    date.setId(0);
+    date.setSummary("The second date, named");
+    long dateId = createAlone(date);
+
+    assertFalse(agendaEventService.getEventById(dateId).getOccurrence().isDatesModified());
+  }
+
+  /**
+   * The dates a series gives a date are read from its rule in the series'
+   * zone, not from the UTC day of the date's identifier: on a series whose
+   * local start falls on another UTC day, a date saved alone for the first
+   * time at the dates its series gives it carries no mark of moved dates
+   * either.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aDateSavedAloneAtItsSeriesDatesOnAnotherUtcDayIsNotMarkedMoved() throws Exception {
+    LocalDate day = LocalDate.now().plusDays(60);
+    for (ZonedDateTime start : List.of(day.atTime(8, 30).atZone(ZoneId.of("Asia/Tokyo")),
+                                       day.atTime(20, 30).atZone(ZoneId.of("America/New_York")))) {
+      Event series = openSeries(start, false, 3, 1, testuser2Identity);
+      Event date = agendaEventService.getEventOccurrence(series.getId(), occurrenceIds(series).get(1), ZoneOffset.UTC, id(testuser1Identity));
+      date.setId(0);
+      date.setSummary("The second date, named");
+      long dateId = createAlone(date);
+
+      assertFalse(start.getZone().getId(), agendaEventService.getEventById(dateId).getOccurrence().isDatesModified());
+    }
+  }
+
+  /**
+   * A date of a daily series posted on a day its rule does not give (a form
+   * opened before the series' days changed, or the API) is read, unmarked, at
+   * the series' time of day on that day: it is marked when the dates posted
+   * differ from that, so that it decides its seats at its own dates.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aDateMovedByItsFirstSaveAloneOnADayTheRuleDoesNotGiveIsMarkedMoved() throws Exception {
+    Event series = pastSeries(1, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    ZonedDateTime firstDate = occurrenceIds(series).get(0);
+    Event date = agendaEventService.getEventById(seriesId).clone();
+    date.setId(0);
+    date.setParentId(seriesId);
+    date.setRecurrence(null);
+    date.setOccurrence(new EventOccurrence(firstDate.minusDays(5)));
+    date.setStart(firstDate.plusDays(8));
+    date.setEnd(firstDate.plusDays(8).plusHours(1));
+    long dateId = createAlone(date);
+    assertTrue(agendaEventService.getEventById(dateId).getOccurrence().isDatesModified());
+
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+
+    assertEquals(EventAttendeeResponse.ACCEPTED, responseOf(dateId, testuser2Identity));
+    assertEquals(EventAttendeeResponse.WAITING, responseOf(dateId, testuser3Identity));
+  }
+
+  /**
+   * A date posted under an identifier its series' rule gives no date for, at
+   * the dates an unmarked row is read at, is left unmarked: the series' time
+   * of day on the identifier's day on a daily series (a day the rule does not
+   * give); its identifier for the series' length on a series with several
+   * dates a day (any instant that is none of its dates), where a date posted
+   * elsewhere is marked.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aDatePostedWhereAnUnmarkedRowIsReadUnderAnIdentifierTheRuleDoesNotGiveIsNotMarkedMoved() throws Exception {
+    Event daily = pastSeries(1, testuser2Identity);
+    ZonedDateTime dayTheRuleDoesNotGive = occurrenceIds(daily).get(0).minusDays(5);
+    Event atSeriesTime = dateOf(daily, dayTheRuleDoesNotGive, dayTheRuleDoesNotGive);
+    assertFalse(agendaEventService.getEventById(createAlone(atSeriesTime)).getOccurrence().isDatesModified());
+
+    Event hourly = openHourlySeries(LocalDate.now().plusDays(60).atTime(8, 0).atZone(ZoneOffset.UTC), 3, 1, testuser2Identity);
+    // The dates are listed once: the listing drops a day's computed dates once
+    // one of them has a row (isSameOccurrenceDate reads the UTC day)
+    ZonedDateTime firstHourlyDate = occurrenceIds(hourly).get(0);
+    ZonedDateTime betweenTwoDates = firstHourlyDate.plusMinutes(30);
+    Event atItsIdentifier = dateOf(hourly, betweenTwoDates, betweenTwoDates);
+    assertFalse(agendaEventService.getEventById(createAlone(atItsIdentifier)).getOccurrence().isDatesModified());
+    Event elsewhere = dateOf(hourly, betweenTwoDates.plusHours(7), firstHourlyDate);
+    assertTrue(agendaEventService.getEventById(createAlone(elsewhere)).getOccurrence().isDatesModified());
+  }
+
+  /**
+   * A date of a series built as the form posts one, with the identifier given,
+   * starting at the start given for the series' length.
+   */
+  private Event dateOf(Event series, ZonedDateTime occurrenceId, ZonedDateTime start) throws Exception {
+    Event stored = agendaEventService.getEventById(series.getId());
+    Event date = stored.clone();
+    date.setId(0);
+    date.setParentId(series.getId());
+    date.setRecurrence(null);
+    date.setOccurrence(new EventOccurrence(occurrenceId));
+    date.setStart(start);
+    date.setEnd(start.plus(java.time.Duration.between(stored.getStart(), stored.getEnd())));
+    return date;
+  }
+
+  /**
+   * A date of an all-day series saved alone for the first time is marked
+   * moved only when its days change: posted as the form posts an all-day date
+   * (its first and last days at midnight UTC) with a title only, it is left
+   * unmarked, in New York and in Tokyo, over one day and over two; moved ten
+   * days, it is marked; posted on a day the rule does not give, all day
+   * there, it is left unmarked.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aDateOfAnAllDaySeriesSavedAloneIsMarkedMovedOnlyWhenItsDaysChange() throws Exception {
+    for (ZoneId zone : Arrays.asList(ZoneId.of("America/New_York"), ZoneId.of("Asia/Tokyo"))) {
+      for (int days = 1; days <= 2; days++) {
+        String where = zone.getId() + " over " + days;
+        Event series = openAllDaySeries(LocalDate.now().plusDays(60), zone, days, 1, testuser2Identity);
+        List<ZonedDateTime> dates = occurrenceIds(series);
+        LocalDate itsDay = Utils.getSeriesDate(series, dates.get(0));
+        long atItsDays = createAlone(allDayDateOf(series, dates.get(0), itsDay, itsDay.plusDays(days - 1L)));
+        assertFalse(where, agendaEventService.getEventById(atItsDays).getOccurrence().isDatesModified());
+        LocalDate tenDaysLater = Utils.getSeriesDate(series, dates.get(1)).plusDays(10);
+        long moved = createAlone(allDayDateOf(series, dates.get(1), tenDaysLater, tenDaysLater.plusDays(days - 1L)));
+        assertTrue(where, agendaEventService.getEventById(moved).getOccurrence().isDatesModified());
+        ZonedDateTime dayTheRuleDoesNotGive = dates.get(0).minusDays(5);
+        LocalDate thatDay = Utils.getSeriesDate(series, dayTheRuleDoesNotGive);
+        long allDayThere = createAlone(allDayDateOf(series, dayTheRuleDoesNotGive, thatDay, thatDay.plusDays(days - 1L)));
+        assertFalse(where, agendaEventService.getEventById(allDayThere).getOccurrence().isDatesModified());
+      }
+    }
+  }
+
+  /**
+   * An open all-day series of the zone given, from the day given over the
+   * days given, with a capacity, as the form creates one: its days at midnight
+   * UTC.
+   */
+  private Event openAllDaySeries(LocalDate firstDay, ZoneId zone, int days, int capacity, Identity... attendees) throws Exception {
+    ZonedDateTime start = firstDay.atStartOfDay(ZoneOffset.UTC);
+    Event event = newEventInstance(start, start.plusDays(days - 1L), true);
+    event.setTimeZoneId(zone);
+    event.getRecurrence().setUntil(null);
+    event.getRecurrence().setCount(4);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(true);
+    event.setCapacity(capacity);
+    return createEvent(event, id(testuser1Identity), attendees);
+  }
+
+  /**
+   * A date of an all-day series built as the REST layer builds a posted
+   * all-day date: its first and last days at midnight UTC, with a title of
+   * its own.
+   */
+  private Event allDayDateOf(Event series, ZonedDateTime occurrenceId, LocalDate firstDay, LocalDate lastDay) {
+    Event stored = agendaEventService.getEventById(series.getId());
+    Event date = stored.clone();
+    date.setId(0);
+    date.setParentId(series.getId());
+    date.setRecurrence(null);
+    date.setOccurrence(new EventOccurrence(occurrenceId));
+    date.setStart(firstDay.atStartOfDay(ZoneOffset.UTC));
+    date.setEnd(lastDay.atStartOfDay(ZoneOffset.UTC));
+    date.setSummary("named");
+    return date;
+  }
+
+  /**
+   * A date moved by its first save alone keeps its dates when its series
+   * moves: the propagation reads the mark the save set.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aDateMovedByItsFirstSaveAloneKeepsItsDatesWhenTheSeriesMoves() throws Exception {
+    Event series = openSeries(1, testuser2Identity);
+    Event date = agendaEventService.getEventOccurrence(series.getId(), occurrenceIds(series).get(1), ZoneOffset.UTC, id(testuser1Identity));
+    date.setId(0);
+    ZonedDateTime movedStart = date.getStart().plusHours(3);
+    date.setStart(movedStart);
+    date.setEnd(movedStart.plusHours(1));
+    long dateId = createAlone(date);
+
+    Event movedSeries = agendaEventService.getEventById(series.getId());
+    movedSeries.setStart(movedSeries.getStart().plusHours(1));
+    movedSeries.setEnd(movedSeries.getEnd().plusHours(1));
+    save(movedSeries, false);
+
+    assertEquals(movedStart.toInstant(), agendaEventService.getEventById(dateId).getStart().toInstant());
+  }
+
+  /** Creates a date of a series on its own row, as the form's "this occurrence only" does. */
+  private long createAlone(Event date) throws Exception {
+    return agendaEventService.createEvent(date, Collections.emptyList(), null, null, null, null, false, id(testuser1Identity)).getId();
+  }
+
+  /**
    * An event of no series in the space's calendar, starting in sixty days,
    * open, with the limit given: not created yet.
    */
