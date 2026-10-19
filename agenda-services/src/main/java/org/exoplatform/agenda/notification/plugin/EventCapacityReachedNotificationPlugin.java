@@ -21,6 +21,7 @@ import static org.exoplatform.agenda.util.NotificationUtils.EVENT_OCCURRENCE_ID;
 import static org.exoplatform.agenda.util.NotificationUtils.getSpaceManagersByOwnerId;
 import static org.exoplatform.agenda.util.NotificationUtils.storeCapacityReachedParameters;
 
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -48,10 +49,13 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 /**
  * "Event capacity reached": tells the creator of an event and the managers of
  * its space that an answer filled its last seat (EXO-90320). It is sent once
- * per pool of seats: a series for the dates it carries, the row of a date for
- * that date, an event that is not recurring for itself. On a recurring event,
- * its links open the date that filled up, which the report names: a stored
- * date's own date, or the first date the series carries to fill.
+ * per mark of a reached limit: a series for the dates it carries, the stored
+ * dates holding its limit and not over included (D21); the row of a date
+ * whose limit is its own, or of a date over, for that date; an event that is
+ * not recurring, for itself. A cancelled date reports on its own and is not
+ * told: the row reported must be confirmed. On a recurring event, its links
+ * open the date that filled up, which the report names: a stored date's own
+ * date, or the first date the series carries to fill.
  */
 public class EventCapacityReachedNotificationPlugin extends BaseNotificationPlugin {
 
@@ -123,8 +127,29 @@ public class EventCapacityReachedNotificationPlugin extends BaseNotificationPlug
     NotificationInfo notification = NotificationInfo.instance();
     notification.key(getId());
     notification.to(new ArrayList<>(recipients));
-    storeCapacityReachedParameters(notification, event, ctx.value(EVENT_OCCURRENCE_ID), calendar);
+    ZonedDateTime occurrenceId = ctx.value(EVENT_OCCURRENCE_ID);
+    storeCapacityReachedParameters(notification, event, occurrenceId, titleOf(event, occurrenceId), calendar);
     return notification.end();
+  }
+
+  /**
+   * What the notification names: the date that filled up, by its own title
+   * when it is stored with one, else the event.
+   *
+   * @param event the event whose mark reports the pool of seats that filled
+   *          up
+   * @param occurrenceId the id of the date that filled up on a recurring
+   *          event, null otherwise
+   * @return the title shown
+   */
+  String titleOf(Event event, ZonedDateTime occurrenceId) {
+    if (occurrenceId != null && event.getRecurrence() != null) {
+      Event date = eventService.getExceptionalOccurrenceEvent(event.getId(), occurrenceId);
+      if (date != null && StringUtils.isNotBlank(date.getSummary())) {
+        return date.getSummary();
+      }
+    }
+    return event.getSummary();
   }
 
   /**
