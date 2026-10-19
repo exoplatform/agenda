@@ -140,12 +140,15 @@ public class Utils {
   public static final String            POST_EVENT_ATTENDEE_PROMOTED   = "exo.agenda.event.attendee.promoted";
 
   /**
-   * An answer stored as a Yes left a pool of one date full while it was not
-   * marked as having reached its capacity: the answer filling its last seat,
-   * or, after a reset that cleared the mark while the answers it kept still
-   * fill the pool, a Yes given again by an attendee holding one of those
-   * seats. Source, the identifier of the pool's event row; data, the
-   * occurrence id of the date filled, null on an event of no series.
+   * An answer stored as a Yes filled the seats of a date while their pool was
+   * not marked as having reached its capacity: the answer filling the last
+   * seat, or, after a reset that cleared the mark while the answers it kept
+   * still fill the pool, a Yes given again by an attendee holding one of
+   * those seats. Source, the identifier of the event row whose mark reports
+   * the pool: the pool's own row, or the series' row for the stored row of a
+   * confirmed date holding the series' limit and not over, which the series
+   * reports once with the dates it carries (D21); data, the occurrence id of
+   * the date filled, null on an event of no series.
    */
   public static final String            POST_EVENT_CAPACITY_REACHED    = "exo.agenda.event.capacity.reached";
 
