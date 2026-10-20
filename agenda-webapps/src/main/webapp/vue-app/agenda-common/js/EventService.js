@@ -717,6 +717,33 @@ export function generateICS(eventId, timeZoneId) {
   });
 }
 
+/**
+ * Downloads the participant list of a date of an event as a CSV file. The
+ * server writes the file and checks the right to export it; the browser
+ * follows a plain link to it and saves it under the name the server gives.
+ *
+ * @param {Number} eventId the event, the series or the row of a date
+ * @param {String} occurrenceId occurrence id of a date of the series that has
+ *          no row of its own, null otherwise
+ * @param {String} timeZoneId the user's zone, dating the file name
+ * @returns {void}
+ */
+export function exportEventAttendees(eventId, occurrenceId, timeZoneId) {
+  const params = new URLSearchParams();
+  if (occurrenceId) {
+    params.append('occurrenceId', occurrenceId);
+  }
+  if (timeZoneId) {
+    params.append('timeZoneId', timeZoneId);
+  }
+  const link = document.createElement('a');
+  link.href = `/agenda/rest/events/${eventId}/attendees/export?${params.toString()}`;
+  link.setAttribute('download', '');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
 export function deleteContent(contentId, delay) {
   return fetch(`/content/rest/contents/${contentId}?type=article&delay=${delay || 0}`, {
     credentials: 'include',

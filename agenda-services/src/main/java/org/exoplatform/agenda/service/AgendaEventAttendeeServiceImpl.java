@@ -18,6 +18,8 @@ package org.exoplatform.agenda.service;
 
 import static org.exoplatform.agenda.util.NotificationUtils.*;
 
+import java.text.Collator;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -36,6 +38,7 @@ import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
+import org.exoplatform.agenda.util.AttendeesCsv;
 import org.exoplatform.agenda.util.DecideContext;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.api.notification.NotificationContext;
@@ -48,8 +51,12 @@ import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.core.profileproperty.ProfilePropertyService;
+import org.exoplatform.social.core.profileproperty.model.ProfilePropertySetting;
+import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.web.security.codec.CodecInitializer;
 import org.exoplatform.web.security.security.TokenServiceInitializationException;
@@ -68,6 +75,38 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * carries no expiry of its own and is bounded against the event instead.
    */
   private static final int           EXPIRY_TOKEN_PART    = 3;
+
+  /** The refusal of an export on a date poll, which has no participant list. */
+  private static final String        EXPORT_DATE_POLL           = "agenda.export.datePoll";
+
+  private static final String        EXPORT_HEADER_NAME         = "agenda.export.header.name";
+
+  private static final String        EXPORT_HEADER_EMAIL        = "agenda.export.header.email";
+
+  private static final String        EXPORT_HEADER_ANSWER       = "agenda.export.header.answer";
+
+  private static final String        EXPORT_HIDDEN              = "agenda.export.hidden";
+
+  private static final String        EXPORT_ANSWER_YES          = "agenda.export.answer.yes";
+
+  private static final String        EXPORT_ANSWER_NO           = "agenda.export.answer.no";
+
+  private static final String        EXPORT_ANSWER_MAYBE        = "agenda.export.answer.maybe";
+
+  private static final String        EXPORT_ANSWER_WAITING_LIST = "agenda.export.answer.waitingList";
+
+  private static final String        EXPORT_ANSWER_NO_ANSWER    = "agenda.export.answer.noAnswer";
+
+  /** Every label of the export, read once per file in the user's locale. */
+  private static final List<String>  EXPORT_LABEL_KEYS          = List.of(EXPORT_HEADER_NAME,
+                                                                          EXPORT_HEADER_EMAIL,
+                                                                          EXPORT_HEADER_ANSWER,
+                                                                          EXPORT_HIDDEN,
+                                                                          EXPORT_ANSWER_YES,
+                                                                          EXPORT_ANSWER_NO,
+                                                                          EXPORT_ANSWER_MAYBE,
+                                                                          EXPORT_ANSWER_WAITING_LIST,
+                                                                          EXPORT_ANSWER_NO_ANSWER);
 
   private AgendaEventAttendeeStorage attendeeStorage;
 
@@ -88,6 +127,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   private DecideSteps                decideSteps;
 
   private AgendaEventService         agendaEventService;
+
+  private ProfilePropertyService     profilePropertyService;
 
   public AgendaEventAttendeeServiceImpl(AgendaEventAttendeeStorage attendeeStorage,
                                         AgendaEventStorage eventStorage,
@@ -341,6 +382,201 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       }
     }
     return new EventSeatCounts(acceptedCount, waitingRows.size(), waitingListPosition);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public EventAttendeesExport exportEventAttendees(long eventId,
+                                                   ZonedDateTime occurrenceId,
+                                                   long identityId,
+                                                   Locale locale,
+                                                   ZoneId zoneId) throws ObjectNotFoundException, IllegalAccessException {
+    return exportEventAttendees(eventId,
+                                occurrenceId,
+                                identityId,
+                                locale == null ? Locale.ENGLISH : locale,
+                                LocalDate.now(zoneId == null ? ZoneOffset.UTC : zoneId));
+  }
+
+  /**
+   * Exports the participant list of a date, the file dated with the day given.
+   *
+   * @param exportDay the day of the export in the user's zone
+   * @see #exportEventAttendees(long, ZonedDateTime, long, Locale, ZoneId)
+   */
+  EventAttendeesExport exportEventAttendees(long eventId,
+                                            ZonedDateTime occurrenceId,
+                                            long identityId,
+                                            Locale locale,
+                                            LocalDate exportDay) throws ObjectNotFoundException, IllegalAccessException {
+    Event event = getExistingEvent(eventId);
+    // The date served, as the event page serves it: the row of the date when
+    // it has one, else the series at the date
+    Event served = event;
+    ZonedDateTime computedDate = null;
+    if (event.getRecurrence() != null && occurrenceId != null) {
+      ZonedDateTime date = Utils.getOccurrenceId(event.isAllDay(), occurrenceId, event.getTimeZoneId());
+      Event dateRow = eventStorage.findExceptionalOccurrence(event, date);
+      if (dateRow == null) {
+        computedDate = date;
+      } else {
+        served = dateRow;
+      }
+    }
+    if (served.getStatus() == EventStatus.CANCELLED) {
+      // A cancelled date is a date removed from its series
+      throw new ObjectNotFoundException("Date " + occurrenceId + " of event " + eventId + " was cancelled");
+    }
+    if (!getAgendaEventService().canUpdateEvent(served, identityId)) {
+      throw new IllegalAccessException("User " + identityId + " may not export the participants of event " + served.getId());
+    }
+    if (served.getStatus() != EventStatus.CONFIRMED) {
+      throw new IllegalArgumentException(EXPORT_DATE_POLL);
+    }
+
+    Map<Long, Identity> identities = new HashMap<>();
+    Map<Long, String> names = new HashMap<>();
+    List<EventAttendee> attendees = new ArrayList<>();
+    for (EventAttendee attendee : exportedAttendees(served, computedDate)) {
+      Identity identity = identityManager.getIdentity(attendee.getIdentityId());
+      if (identity != null) {
+        identities.put(attendee.getIdentityId(), identity);
+        names.put(attendee.getIdentityId(), exportedName(identity));
+        attendees.add(attendee);
+      }
+    }
+    attendees.sort(drawerOrder(served.getCreatorId(), names, locale));
+
+    ProfilePropertySetting emailSetting = getEmailSetting();
+    boolean withEmail = emailSetting != null && emailSetting.isActive() && emailSetting.isVisible();
+    Map<String, String> labels = new HashMap<>();
+    for (String key : EXPORT_LABEL_KEYS) {
+      labels.put(key, exportLabel(locale, key));
+    }
+    List<List<String>> lines = new ArrayList<>(attendees.size() + 1);
+    lines.add(withEmail ? List.of(labels.get(EXPORT_HEADER_NAME), labels.get(EXPORT_HEADER_EMAIL), labels.get(EXPORT_HEADER_ANSWER))
+                        : List.of(labels.get(EXPORT_HEADER_NAME), labels.get(EXPORT_HEADER_ANSWER)));
+    for (EventAttendee attendee : attendees) {
+      Identity identity = identities.get(attendee.getIdentityId());
+      String answer = labels.get(exportedAnswerKey(identity, attendee.getResponse()));
+      lines.add(withEmail ? List.of(names.get(attendee.getIdentityId()),
+                                    exportedEmail(identity, attendee.getIdentityId(), emailSetting, labels.get(EXPORT_HIDDEN)),
+                                    answer)
+                          : List.of(names.get(attendee.getIdentityId()), answer));
+    }
+    return new EventAttendeesExport(AttendeesCsv.fileName(exportDay, served.getSummary()), AttendeesCsv.write(lines));
+  }
+
+  /**
+   * @param locale the locale of the user who exports
+   * @param key the key of a label of the export
+   * @return the label in the Agenda bundle, the key when it holds none
+   */
+  String exportLabel(Locale locale, String key) {
+    return Utils.getResourceBundleLabel(locale, key);
+  }
+
+  /**
+   * @param served the event, the series or the row of a date served
+   * @param computedDate the date of the series served, when it has no row of
+   *          its own
+   * @return the rows the participants drawer lists for the date served
+   * @throws ObjectNotFoundException when the event was deleted meanwhile
+   */
+  private List<EventAttendee> exportedAttendees(Event served, ZonedDateTime computedDate) throws ObjectNotFoundException {
+    if (served.getRecurrence() == null) {
+      // An event of no series, or the row of a date, read at its date
+      ZonedDateTime rowDate = served.getOccurrence() == null ? null : served.getOccurrence().getId();
+      return attendeeStorage.getEventAttendees(served.getId()).getEventAttendees(rowDate);
+    } else if (computedDate == null) {
+      return getSeriesAttendees(served.getId());
+    } else {
+      return attendeeStorage.getEventAttendees(served.getId()).getEventAttendees(computedDate);
+    }
+  }
+
+  /**
+   * @return the order of the participants drawer: the creator first, then by
+   *         name, the waiting list last in the order its people asked
+   */
+  private static Comparator<EventAttendee> drawerOrder(long creatorId, Map<Long, String> names, Locale locale) {
+    Comparator<ZonedDateTime> askedFirst = Comparator.nullsLast(Comparator.naturalOrder());
+    Comparator<EventAttendee> waitingOrder = (attendee1, attendee2) -> isWaiting(attendee1) ? askedFirst.compare(attendee1.getResponseDate(),
+                                                                                                                 attendee2.getResponseDate())
+                                                                                            : 0;
+    return Comparator.comparing((EventAttendee attendee) -> attendee.getIdentityId() != creatorId)
+                     .thenComparing(AgendaEventAttendeeServiceImpl::isWaiting)
+                     .thenComparing(waitingOrder)
+                     .thenComparing(attendee -> names.get(attendee.getIdentityId()), Collator.getInstance(locale));
+  }
+
+  private static boolean isWaiting(EventAttendee attendee) {
+    return attendee.getResponse() == EventAttendeeResponse.WAITING;
+  }
+
+  /**
+   * @return a space's name, a guest's address, a user's full name
+   */
+  private String exportedName(Identity identity) {
+    if (identity.isSpace()) {
+      Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
+      if (space != null && StringUtils.isNotBlank(space.getDisplayName())) {
+        return space.getDisplayName();
+      }
+    } else if (isGuest(identity)) {
+      return identity.getRemoteId();
+    }
+    Profile profile = identity.getProfile();
+    String fullName = profile == null ? null : profile.getFullName();
+    return StringUtils.isBlank(fullName) ? identity.getRemoteId() : fullName;
+  }
+
+  /**
+   * @return nothing for a space, a guest's address, Hidden for a user who hid
+   *         their email, else the user's email
+   */
+  private String exportedEmail(Identity identity, long identityId, ProfilePropertySetting emailSetting, String hidden) {
+    if (identity.isSpace()) {
+      return "";
+    } else if (isGuest(identity)) {
+      return identity.getRemoteId();
+    } else if (getProfilePropertyService().getHiddenProfilePropertyIds(identityId).contains(emailSetting.getId())) {
+      return hidden;
+    }
+    Profile profile = identity.getProfile();
+    return profile == null ? "" : StringUtils.defaultString(profile.getEmail());
+  }
+
+  /**
+   * @return the key labelling the answer exported: No answer for a space
+   *         invited as a whole
+   */
+  private static String exportedAnswerKey(Identity identity, EventAttendeeResponse response) {
+    if (identity.isSpace() || response == null) {
+      return EXPORT_ANSWER_NO_ANSWER;
+    }
+    return switch (response) {
+    case ACCEPTED -> EXPORT_ANSWER_YES;
+    case DECLINED -> EXPORT_ANSWER_NO;
+    case TENTATIVE -> EXPORT_ANSWER_MAYBE;
+    case WAITING -> EXPORT_ANSWER_WAITING_LIST;
+    default -> EXPORT_ANSWER_NO_ANSWER;
+    };
+  }
+
+  private static boolean isGuest(Identity identity) {
+    return AgendaGuestUserIdentityProvider.NAME.equals(identity.getProviderId());
+  }
+
+  /**
+   * @return the setting of the email profile property, null when the platform
+   *         has none
+   */
+  private ProfilePropertySetting getEmailSetting() {
+    ProfilePropertyService service = getProfilePropertyService();
+    return service == null ? null : service.getProfileSettingByName(Profile.EMAIL);
   }
 
   /**
@@ -1995,6 +2231,13 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       agendaEventService = ExoContainerContext.getService(AgendaEventService.class);
     }
     return agendaEventService;
+  }
+
+  private ProfilePropertyService getProfilePropertyService() {
+    if (profilePropertyService == null) {
+      profilePropertyService = ExoContainerContext.getService(ProfilePropertyService.class);
+    }
+    return profilePropertyService;
   }
 
   private void dispatch(NotificationContext ctx, String... pluginId) {
