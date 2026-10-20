@@ -354,9 +354,11 @@ export default {
       return this.capacityBackup > 0 || this.event.capacity > 0;
     },
     openDrawer(responseFilter) {
-      // A reopen waits for the save the last close started: the state taken
-      // below is then the stored one, which the export reads and a failed save
-      // puts back, rather than the changes still on their way
+      // A reopen waits for the save the last close started, and for the read
+      // of the answers that follows it: the state taken below is then the one
+      // the server read back (unless that best-effort read failed), which the
+      // export reads and a failed save puts back, rather than the changes
+      // still on their way
       (this.drawerSave || Promise.resolve()).then(() => {
         // The drawer edits the event in place — the list and the padlock alike —
         // so the state to come back to, when the organiser cancels the scope
@@ -480,13 +482,14 @@ export default {
       // A standalone event, or a series displayed as itself: nothing to ask.
       // A changed list is a full save, which carries the limit too. A limit
       // changed alone is patched, as the padlock is (see patchOpen): a full
-      // save would tell every attendee the event changed. A new limit may
-      // have given seats, read back
+      // save would tell every attendee the event changed. Either one may give
+      // seats on the server — a new limit, or a Yes removed from the list —
+      // so the answers are read back, as the drawer and the export show them
       const write = listChanged
         ? confirmed => this.$eventService.updateEvent(this.event, confirmed)
         : confirmed => this.$eventService.updateEventFields({id: this.event.id}, {capacity: this.event.capacity || 0}, true, false, confirmed);
       this.drawerSave = this.$refs.closeConfirm.writeConfirmingClose(write, false)
-        .then(() => capacityChanged && this.refreshDisplayedEvent())
+        .then(() => this.refreshDisplayedEvent())
         .catch(error => {
           this.restoreDrawerState();
           this.changeFailed(error);
