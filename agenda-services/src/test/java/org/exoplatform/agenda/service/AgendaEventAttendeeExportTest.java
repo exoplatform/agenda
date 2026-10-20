@@ -423,6 +423,59 @@ public class AgendaEventAttendeeExportTest extends BaseAgendaEventTest {
   }
 
   /**
+   * A date of an all-day series with no row of its own lists the answers valid
+   * from that date, whether its id is the date written as a UTC midnight or
+   * the zone's midnight: an answer's range starts at the UTC midnight, which
+   * the zone's midnight precedes east of UTC.
+   *
+   * @throws Exception when the series or the answer cannot be stored
+   */
+  @Test
+  public void aComputedDateOfAnAllDaySeriesListsTheAnswersRangedFromIt() throws Exception {
+    for (ZoneId zone : List.of(ZoneId.of("America/New_York"), ZoneId.of("Asia/Tokyo"))) {
+      Event series = allDaySeries(zone, testuser2Identity);
+      List<ZonedDateTime> dates = occurrenceIds(series);
+      agendaEventAttendeeService.sendUpcomingEventResponse(series.getId(),
+                                                           dates.get(1),
+                                                           id(testuser2Identity),
+                                                           EventAttendeeResponse.ACCEPTED);
+      ZonedDateTime zoneMidnight = dates.get(1).toLocalDate().atStartOfDay(zone).withZoneSameInstant(ZoneOffset.UTC);
+
+      List<List<String>> accepted = List.of(HEADER, row(testuser2Identity, YES));
+      assertEquals(zone + ", the date written as a UTC midnight",
+                   accepted,
+                   lines(export(series.getId(), dates.get(1), testuser1Identity)));
+      assertEquals(zone + ", the zone's midnight", accepted, lines(export(series.getId(), zoneMidnight, testuser1Identity)));
+      assertEquals(zone + ", the date before",
+                   List.of(HEADER, row(testuser2Identity, NO_ANSWER)),
+                   lines(export(series.getId(), dates.get(0), testuser1Identity)));
+    }
+  }
+
+  /**
+   * A space is named as the drawer names it, by its display name: its profile
+   * keeps its former name once a space with an avatar of its own is renamed.
+   *
+   * @throws Exception when the event cannot be created
+   */
+  @Test
+  public void aSpaceIsNamedByItsDisplayNameRatherThanItsProfile() throws Exception {
+    Profile profile = identityManager.getProfile(spaceIdentity);
+    String fullName = profile.getFullName();
+    profile.setProperty(Profile.FULL_NAME, "Former space name");
+    identityManager.updateProfile(profile);
+    try {
+      Event event = spaceEvent(false, spaceIdentity);
+
+      assertEquals(List.of(HEADER, List.of(space.getDisplayName(), "", NO_ANSWER)),
+                   lines(export(event.getId(), null, testuser1Identity)));
+    } finally {
+      profile.setProperty(Profile.FULL_NAME, fullName);
+      identityManager.updateProfile(profile);
+    }
+  }
+
+  /**
    * The file is dated with the day of the export in the user's zone: two
    * zones twenty-five hours apart never share a day, and one of them never
    * shares UTC's.
