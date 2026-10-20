@@ -23,7 +23,7 @@ package org.exoplatform.agenda.model;
  *
  * @param attendee the attendee's row holding the first date promoted, as
  *          stored after the promotion: on the row of a series, its
- *          {@link EventAttendee#getFromOccurrenceId()} is that date; on the
+ *          {@code fromOccurrenceId} is that date; on the
  *          row of a date, the date is the row's
  * @param otherDates the number of dates promoted after the first one, 0 on an
  *          event that is not recurring
