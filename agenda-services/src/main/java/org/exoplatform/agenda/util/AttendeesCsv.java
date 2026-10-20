@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 public final class AttendeesCsv {
 
   /** Starts the file, so that a spreadsheet reads it as UTF-8. */
-  public static final String  BYTE_ORDER_MARK  = "﻿";
+  public static final String  BYTE_ORDER_MARK  = "\uFEFF";
 
   /** Ends each line of the file. */
   public static final String  LINE_SEPARATOR   = "\r\n";

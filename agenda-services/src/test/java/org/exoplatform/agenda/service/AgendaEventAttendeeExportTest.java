@@ -299,7 +299,8 @@ public class AgendaEventAttendeeExportTest extends BaseAgendaEventTest {
   }
 
   /**
-   * A date poll has no participant list to export, even for its creator.
+   * A date poll is not exported, even by its creator: only a confirmed
+   * event's list is (D13).
    *
    * @throws Exception when the poll cannot be created
    */
