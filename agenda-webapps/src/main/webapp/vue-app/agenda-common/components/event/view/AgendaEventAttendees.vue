@@ -78,6 +78,7 @@
       :event="event"
       :editable="canEdit"
       :exportable="canExport"
+      :export-disabled="listUnsaved"
       @export="exportAttendees"
       @toggle-open="toggleOpen"
       @change-capacity="changeCapacity"
@@ -129,6 +130,17 @@ export default {
      */
     canExport() {
       return this.canEdit && this.event.status === 'CONFIRMED';
+    },
+    /**
+     * The file is built from the stored list, and the drawer saves its changes
+     * when it closes: while this visit holds unsaved additions or removals, the
+     * export waits, so that the file is always the list the drawer shows.
+     *
+     * @returns {Boolean} whether the drawer changed the participant list since
+     *          it was opened, and has not saved it yet
+     */
+    listUnsaved() {
+      return this.attendeesSnapshot !== null && this.attendeesChanged();
     },
     /**
      * @returns {Boolean} whether the page displays one date of a series rather
@@ -346,9 +358,9 @@ export default {
       this.$refs.attendeesDrawer.open(responseFilter);
     },
     /**
-     * Downloads the participant list as stored. The drawer saves its changes
-     * when it closes, so a participant added during this visit is not in the
-     * file until then.
+     * Downloads the participant list as stored, which is the list the drawer
+     * shows: the export waits while the visit holds unsaved changes (see
+     * listUnsaved).
      *
      * @returns {void}
      */
