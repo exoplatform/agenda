@@ -38,7 +38,7 @@ class AttendeesCsvTest {
   void theFileIsUtf8WithAByteOrderMarkCommasAndCrlf() {
     String csv = AttendeesCsv.write(List.of(List.of("Name", "Answer"), List.of("Jane Doe", "Yes")));
 
-    assertEquals("﻿\"Name\",\"Answer\"\r\n\"Jane Doe\",\"Yes\"\r\n", csv);
+    assertEquals("\uFEFF\"Name\",\"Answer\"\r\n\"Jane Doe\",\"Yes\"\r\n", csv);
   }
 
   /**
