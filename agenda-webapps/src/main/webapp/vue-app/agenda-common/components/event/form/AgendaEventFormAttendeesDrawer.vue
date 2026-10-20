@@ -10,15 +10,27 @@
     <!--
       The export of the list (eXIP 7.3.0.21, US05), in the drawer's header as
       the design places it. Only the host knows whether the list it shows is
-      a stored one that may be exported: the drawer renders and emits.
+      a stored one that may be exported: the drawer renders and emits. The
+      tooltip hangs on a wrapper, since a disabled button takes no pointer
+      event.
     -->
     <template v-if="exportable" slot="titleIcons">
-      <v-btn
-        icon
-        :title="$t('agenda.label.exportParticipants')"
-        @click="$emit('export')">
-        <v-icon size="20" class="icon-default-color">fas fa-download</v-icon>
-      </v-btn>
+      <v-tooltip bottom>
+        <template #activator="{ on, attrs }">
+          <div
+            v-bind="attrs"
+            v-on="on">
+            <v-btn
+              icon
+              :disabled="exportDisabled"
+              :aria-label="exportLabel"
+              @click="$emit('export')">
+              <v-icon size="20" class="icon-default-color">fas fa-download</v-icon>
+            </v-btn>
+          </div>
+        </template>
+        <span>{{ exportLabel }}</span>
+      </v-tooltip>
     </template>
     <template slot="content">
       <div class="pa-4">
@@ -223,6 +235,15 @@ export default {
       type: Boolean,
       default: false,
     },
+    /**
+     * Whether the export waits for the list to be saved: the file is built
+     * from the stored list, so while the visit holds unsaved additions or
+     * removals it would not be the list the drawer shows.
+     */
+    exportDisabled: {
+      type: Boolean,
+      default: false,
+    },
   },
   data() {
     return {
@@ -234,6 +255,9 @@ export default {
     };
   },
   computed: {
+    exportLabel() {
+      return this.exportDisabled ? this.$t('agenda.label.exportAfterSave') : this.$t('agenda.label.exportParticipants');
+    },
     isSpaceCalendarEvent() {
       const owner = this.event && this.event.calendar && this.event.calendar.owner;
       return !!(owner && (owner.providerId === 'space' || !!owner.space));
