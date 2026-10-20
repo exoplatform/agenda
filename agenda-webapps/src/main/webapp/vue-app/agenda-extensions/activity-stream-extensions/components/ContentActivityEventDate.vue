@@ -57,7 +57,7 @@ export default {
       return this.activity.news?.parameters?.eventId;
     },
     eventStartDate() {
-      return this.event?.start && new Date(this.event.start);
+      return this.event?.start && this.$agendaUtils.toDate(this.event.start);
     }
   },
   methods: {
