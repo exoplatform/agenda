@@ -16,8 +16,10 @@
 */
 package org.exoplatform.agenda.service;
 
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
@@ -326,6 +328,51 @@ public interface AgendaEventAttendeeService {
    *           exists
    */
   EventSeatCounts getSeatCounts(long eventId, ZonedDateTime occurrenceId, long identityId) throws ObjectNotFoundException;
+
+  /**
+   * Exports the participant list of one date of an event as a CSV file, the
+   * rows the participants drawer shows for that date, in its order.
+   * <ul>
+   * <li>The date's list: on a date with its own row, that row's attendees; on
+   * a date of a series with no row of its own, the series' attendees valid at
+   * that date; with no date on a series, its attendees as a whole (see
+   * {@link #getSeriesAttendees(long)}); on an event of no series, its
+   * attendees.</li>
+   * <li>The order: the event's creator first, then by name in the collation
+   * of the locale, the waiting list last in the order its people asked.</li>
+   * <li>One row per attendee, with their name, their email and their answer.
+   * A space invited as a whole is named after the space, has no email and
+   * answers No answer; an external guest is named after their address. The
+   * email column exists only while the platform displays the email profile
+   * property, and a user who hid theirs reads Hidden there.</li>
+   * <li>The header and the answers are labelled in the locale; every cell is
+   * quoted, and a cell starting with a character a spreadsheet would read as
+   * a formula is neutralised.</li>
+   * <li>The file is named after the day of the export in the zone and the
+   * event's title.</li>
+   * </ul>
+   *
+   * @param eventId Technical identifier of the event, of a series, or of the
+   *          row of one of its dates
+   * @param occurrenceId the occurrence id of a date of the series, or null
+   * @param identityId {@link Identity} technical identifier of the user who
+   *          exports, who must be allowed to update the date served (see
+   *          {@code AgendaEventService#canUpdateEvent})
+   * @param locale the user's locale, labelling the header and the answers
+   * @param zoneId the user's time zone, dating the file name
+   * @return the file
+   * @throws ObjectNotFoundException when the event doesn't exist, or the date
+   *           was cancelled
+   * @throws IllegalAccessException when the user may not update the date
+   *           served
+   * @throws IllegalArgumentException with the message
+   *           {@code agenda.export.datePoll} when the event is a date poll
+   */
+  EventAttendeesExport exportEventAttendees(long eventId,
+                                            ZonedDateTime occurrenceId,
+                                            long identityId,
+                                            Locale locale,
+                                            ZoneId zoneId) throws ObjectNotFoundException, IllegalAccessException;
 
   /**
    * @param eventId Technical identifier of {@link Event}
