@@ -104,12 +104,15 @@
           {{ $t('agenda.calendar.color') }}
         </v-label>
         <div v-if="!isSpace" class="d-flex align-center mt-2 agenda-calendar-subscription-color">
-          <!-- A subscription accepts #RRGGBB only -->
-          <color-picker
-            v-model="color"
-            :label="color ? null : $t('agenda.calendar.colorAuto')"
-            :swatches="swatches"
-            opaque />
+          <!-- A subscription accepts #RRGGBB only. As wide as the picker: its code stays next to its swatch -->
+          <div class="text-start">
+            <color-picker
+              v-model="color"
+              :label="color ? null : $t('agenda.calendar.colorAuto')"
+              :aria-label="$t('agenda.calendar.color')"
+              :swatches="swatches"
+              opaque />
+          </div>
         </div>
       </form>
     </template>

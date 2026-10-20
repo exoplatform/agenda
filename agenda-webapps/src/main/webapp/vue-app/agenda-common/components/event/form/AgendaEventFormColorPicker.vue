@@ -20,16 +20,20 @@
 
 -->
 <template>
-  <!-- The event takes its calendar's color until another one is picked: that color is the picker's placeholder -->
-  <color-picker
-    v-if="hasCalendarOwner"
-    :value="event.color"
-    :placeholder="calendarEventColor"
-    :swatches="$agendaUtils.EVENT_COLOR_SWATCHES"
-    opaque
-    @input="$set(event, 'color', $event)" />
-  <div v-else class="text-light-color">
-    {{ $t('agenda.label.selectSpaceToChooseColor') }}
+  <!-- As wide as its content, in the forms' rows and columns: the picker's code stays next to its swatch -->
+  <div class="width-fit-content text-start">
+    <!-- The event takes its calendar's color until another one is picked: that color is the picker's placeholder -->
+    <color-picker
+      v-if="hasCalendarOwner"
+      :value="event.color"
+      :placeholder="calendarEventColor"
+      :aria-label="$t('agenda.label.eventColor')"
+      :swatches="$agendaUtils.EVENT_COLOR_SWATCHES"
+      opaque
+      @input="$set(event, 'color', $event)" />
+    <div v-else class="text-light-color">
+      {{ $t('agenda.label.selectSpaceToChooseColor') }}
+    </div>
   </div>
 </template>
 

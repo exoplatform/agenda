@@ -36,6 +36,7 @@
               <!-- A color picked is shown and saved at once -->
               <color-picker
                 :value="calendarColor"
+                :aria-label="$t('agenda.space.settings.eventColor')"
                 :swatches="$agendaUtils.EVENT_COLOR_SWATCHES"
                 :disabled="saving"
                 opaque
@@ -184,8 +185,8 @@ export default {
       }
     },
     /**
-     * Shows and saves the space's calendar with the color picked; a cancelled
-     * or unchanged choice saves nothing, whatever its case, and a failure shows
+     * Shows and saves the space's calendar with the color picked, which the
+     * picker emits only when it differs from the stored one; a failure shows
      * the stored color again with an error.
      *
      * @param {String} color the color picked
@@ -193,9 +194,6 @@ export default {
      */
     saveColor(color) {
       const storedColor = this.calendarColor;
-      if (!color || color.toUpperCase() === (storedColor || '').toUpperCase()) {
-        return;
-      }
       const calendarToSave = JSON.parse(JSON.stringify(this.calendar));
       calendarToSave.color = color;
       this.calendarColor = color;

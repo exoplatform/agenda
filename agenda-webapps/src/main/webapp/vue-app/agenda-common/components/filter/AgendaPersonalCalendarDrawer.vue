@@ -68,11 +68,15 @@
           {{ $t('agenda.calendar.color') }}
         </v-label>
         <div class="d-flex align-center mt-2">
-          <color-picker
-            v-model="calendar.color"
-            :label="calendar.color ? null : $t('agenda.calendar.colorAuto')"
-            :swatches="$agendaUtils.EVENT_COLOR_SWATCHES"
-            opaque />
+          <!-- As wide as the picker: its code stays next to its swatch -->
+          <div class="text-start">
+            <color-picker
+              v-model="calendar.color"
+              :label="calendar.color ? null : $t('agenda.calendar.colorAuto')"
+              :aria-label="$t('agenda.calendar.color')"
+              :swatches="$agendaUtils.EVENT_COLOR_SWATCHES"
+              opaque />
+          </div>
         </div>
       </form>
     </template>
