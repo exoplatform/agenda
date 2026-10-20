@@ -77,6 +77,8 @@
       ref="attendeesDrawer"
       :event="event"
       :editable="canEdit"
+      :exportable="canExport"
+      @export="exportAttendees"
       @toggle-open="toggleOpen"
       @change-capacity="changeCapacity"
       @closed="saveDrawerChangesIfEditable" />
@@ -117,6 +119,16 @@ export default {
   computed: {
     canEdit() {
       return !!(this.event && this.event.acl && this.event.acl.canEdit);
+    },
+    /**
+     * The export of the participant list (eXIP 7.3.0.21, US05): for whoever
+     * may edit a confirmed event, and absent from a date poll. The server
+     * checks the same right again.
+     *
+     * @returns {Boolean} whether the drawer offers the export
+     */
+    canExport() {
+      return this.canEdit && this.event.status === 'CONFIRMED';
     },
     /**
      * @returns {Boolean} whether the page displays one date of a series rather
@@ -332,6 +344,20 @@ export default {
       // popup or when the save fails, has to be kept before anything touches it
       this.rememberDrawerState();
       this.$refs.attendeesDrawer.open(responseFilter);
+    },
+    /**
+     * Downloads the participant list as stored. The drawer saves its changes
+     * when it closes, so a participant added during this visit is not in the
+     * file until then.
+     *
+     * @returns {void}
+     */
+    exportAttendees() {
+      // A date of a series that has no row of its own is its series, at that date
+      const computedOccurrence = !this.event.id && this.event.parent && this.event.occurrence;
+      const eventId = computedOccurrence ? this.event.parent.id : this.event.id;
+      const occurrenceId = computedOccurrence ? this.event.occurrence.id : null;
+      this.$eventService.exportEventAttendees(eventId, occurrenceId, this.$agendaUtils.USER_TIMEZONE_ID);
     },
     /**
      * Takes the event as the reference point for what follows: what "changed"

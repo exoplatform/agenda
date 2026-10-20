@@ -7,6 +7,19 @@
     <template slot="title">
       {{ $t('agenda.label.participants') }}
     </template>
+    <!--
+      The export of the list (eXIP 7.3.0.21, US05), in the drawer's header as
+      the design places it. Only the host knows whether the list it shows is
+      a stored one that may be exported: the drawer renders and emits.
+    -->
+    <template v-if="exportable" slot="titleIcons">
+      <v-btn
+        icon
+        :title="$t('agenda.label.exportParticipants')"
+        @click="$emit('export')">
+        <v-icon size="20" class="icon-default-color">fas fa-download</v-icon>
+      </v-btn>
+    </template>
     <template slot="content">
       <div class="pa-4">
         <!--
@@ -200,6 +213,15 @@ export default {
     editable: {
       type: Boolean,
       default: true,
+    },
+    /**
+     * Whether the header offers the export of the list: the event page sets
+     * it for whoever may edit a confirmed event; the forms, whose list is not
+     * saved yet, never do.
+     */
+    exportable: {
+      type: Boolean,
+      default: false,
     },
   },
   data() {
