@@ -134,8 +134,9 @@ export default {
     /**
      * The file is built from the stored list, and the drawer saves its changes
      * when it closes: while this visit holds unsaved additions or removals, the
-     * export waits, and a reopen waits for the save its close started (see
-     * openDrawer), so that the file is the list the drawer shows.
+     * export waits. On an event or a series displayed as itself, a reopen
+     * also waits for the save its close started and for the read of the
+     * answers that follows it (see openDrawer).
      *
      * @returns {Boolean} whether the drawer changed the participant list since
      *          it was opened, and has not saved it yet
@@ -239,6 +240,8 @@ export default {
       attendeesBackup: null,
       // The save a close started, while it runs: a reopen waits for it
       drawerSave: null,
+      // The reads of the stored event issued, the latest one landing alone
+      readCount: 0,
       openBackup: false,
       togglingOpen: false,
       scopedChangePending: false,
@@ -355,10 +358,9 @@ export default {
     },
     openDrawer(responseFilter) {
       // A reopen waits for the save the last close started, and for the read
-      // of the answers that follows it: the state taken below is then the one
-      // the server read back (unless that best-effort read failed), which the
-      // export reads and a failed save puts back, rather than the changes
-      // still on their way
+      // of the answers that follows it: the state taken below, which the
+      // export compares with and a failed save puts back, is then not the
+      // changes still on their way
       (this.drawerSave || Promise.resolve()).then(() => {
         // The drawer edits the event in place — the list and the padlock alike —
         // so the state to come back to, when the organiser cancels the scope
@@ -368,9 +370,8 @@ export default {
       });
     },
     /**
-     * Downloads the participant list as stored, which is the list the drawer
-     * shows: the export waits while the visit holds unsaved changes (see
-     * listUnsaved).
+     * Downloads the participant list as stored; the export waits while the
+     * drawer holds unsaved changes (see listUnsaved).
      *
      * @returns {void}
      */
@@ -558,16 +559,19 @@ export default {
      * page has no way of deducing which. Best effort: the change is already
      * saved, so a failed read is not a failed save and says nothing.
      *
-     * @returns {Promise} resolved once the page shows the stored state, or once
-     *          the read has failed
+     * @returns {Promise} resolved once the read has landed, has been dropped
+     *          for a later one, or has failed
      */
     refreshDisplayedEvent() {
+      // Only the latest read this section issued lands: a save's and a
+      // closing's may overlap, each issued once its write was stored
+      const read = ++this.readCount;
       const reloadPromise = this.event.occurrence && this.event.occurrence.id
         ? this.$eventService.getEventOccurrence(this.event.parent.id, this.event.occurrence.id, 'all,parentAll')
         : this.$eventService.getEventById(this.event.id, 'all,parentAll');
       return reloadPromise
         .then(storedEvent => {
-          if (!storedEvent) {
+          if (!storedEvent || read !== this.readCount) {
             return;
           }
           this.$set(this.event, 'open', storedEvent.open);
