@@ -65,7 +65,7 @@ class AgendaEventAttendeeRestTest {
 
   private static final String         FILE_NAME = "20261020_Réunion d'équipe_participants list.csv";
 
-  private static final String         CONTENT   = "﻿\"Nom\",\"Réponse\"\r\n\"Jane Doe\",\"Oui\"\r\n";
+  private static final String         CONTENT   = "\uFEFF\"Nom\",\"Réponse\"\r\n\"Jane Doe\",\"Oui\"\r\n";
 
   private AgendaEventAttendeeService service;
 
