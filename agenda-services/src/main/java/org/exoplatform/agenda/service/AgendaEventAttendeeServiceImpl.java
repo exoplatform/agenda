@@ -76,7 +76,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    */
   private static final int           EXPIRY_TOKEN_PART    = 3;
 
-  /** The refusal of an export on a date poll, which has no participant list. */
+  /** The refusal of an export on a date poll: only a confirmed event's list is exported (D13). */
   private static final String        EXPORT_DATE_POLL           = "agenda.export.datePoll";
 
   private static final String        EXPORT_HEADER_NAME         = "agenda.export.header.name";
