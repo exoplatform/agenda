@@ -134,7 +134,8 @@ export default {
     /**
      * The file is built from the stored list, and the drawer saves its changes
      * when it closes: while this visit holds unsaved additions or removals, the
-     * export waits, so that the file is always the list the drawer shows.
+     * export waits, and a reopen waits for the save its close started (see
+     * openDrawer), so that the file is the list the drawer shows.
      *
      * @returns {Boolean} whether the drawer changed the participant list since
      *          it was opened, and has not saved it yet
@@ -236,6 +237,8 @@ export default {
     return {
       attendeesSnapshot: null,
       attendeesBackup: null,
+      // The save a close started, while it runs: a reopen waits for it
+      drawerSave: null,
       openBackup: false,
       togglingOpen: false,
       scopedChangePending: false,
@@ -351,11 +354,16 @@ export default {
       return this.capacityBackup > 0 || this.event.capacity > 0;
     },
     openDrawer(responseFilter) {
-      // The drawer edits the event in place — the list and the padlock alike —
-      // so the state to come back to, when the organiser cancels the scope
-      // popup or when the save fails, has to be kept before anything touches it
-      this.rememberDrawerState();
-      this.$refs.attendeesDrawer.open(responseFilter);
+      // A reopen waits for the save the last close started: the state taken
+      // below is then the stored one, which the export reads and a failed save
+      // puts back, rather than the changes still on their way
+      (this.drawerSave || Promise.resolve()).then(() => {
+        // The drawer edits the event in place — the list and the padlock alike —
+        // so the state to come back to, when the organiser cancels the scope
+        // popup or when the save fails, has to be kept before anything touches it
+        this.rememberDrawerState();
+        this.$refs.attendeesDrawer.open(responseFilter);
+      });
     },
     /**
      * Downloads the participant list as stored, which is the list the drawer
@@ -477,12 +485,13 @@ export default {
       const write = listChanged
         ? confirmed => this.$eventService.updateEvent(this.event, confirmed)
         : confirmed => this.$eventService.updateEventFields({id: this.event.id}, {capacity: this.event.capacity || 0}, true, false, confirmed);
-      this.$refs.closeConfirm.writeConfirmingClose(write, false)
+      this.drawerSave = this.$refs.closeConfirm.writeConfirmingClose(write, false)
         .then(() => capacityChanged && this.refreshDisplayedEvent())
         .catch(error => {
           this.restoreDrawerState();
           this.changeFailed(error);
-        });
+        })
+        .finally(() => this.drawerSave = null);
     },
     /**
      * @param {Object} eventToSave the event as the organiser left it — the
