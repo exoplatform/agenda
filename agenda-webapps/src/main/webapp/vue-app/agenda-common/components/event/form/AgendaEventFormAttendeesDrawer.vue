@@ -346,7 +346,7 @@ export default {
         {value: 'TENTATIVE', icon: 'fas fa-question-circle', label: this.$t('agenda.tentative'), title: this.$t('agenda.filter.title.tentative'), color: null, colorClass: 'primary--text'},
         {value: 'DECLINED', icon: 'fas fa-times-circle', label: this.$t('agenda.declined'), title: this.$t('agenda.filter.title.declined'), color: null, colorClass: 'error-color'},
         {value: 'NEEDS_ACTION', icon: 'fas fa-info-circle', label: this.$t('agenda.needs_action'), title: this.$t('agenda.filter.title.needs.action'), color: 'grey', colorClass: null},
-        {value: 'WAITING', icon: 'fas fa-info-circle', label: this.$t('agenda.waiting'), title: this.$t('agenda.filter.title.waiting'), color: null, colorClass: 'info--text'},
+        {value: 'WAITING', icon: 'fas fa-info-circle', label: this.$t('agenda.waiting'), title: this.$t('agenda.filter.title.waiting'), color: null, colorClass: 'warning--text'},
       ];
     },
     activeStatusOption() {

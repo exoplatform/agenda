@@ -55,7 +55,7 @@
           v-if="waitingResponsesCount"
           :content="waitingResponsesCount"
           :value="waitingResponsesCount"
-          color="warning-color-background"
+          color="info-color-background"
           offset-x="13"
           offset-y="12"
           class="me-8">
@@ -64,7 +64,7 @@
             small
             :title="$t('agenda.filter.button.title.waiting')"
             @click="openDrawer('WAITING')">
-            <v-icon size="20" class="info--text">fas fa-info-circle</v-icon>
+            <v-icon size="20" class="warning--text">fas fa-info-circle</v-icon>
           </v-btn>
         </v-badge>
       </div>

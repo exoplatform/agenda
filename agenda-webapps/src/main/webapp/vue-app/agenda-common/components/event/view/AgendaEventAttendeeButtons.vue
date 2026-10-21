@@ -7,7 +7,7 @@
       <v-btn
         :loading="savingResponse === seatResponse"
         :disabled="savingResponse"
-        :class="eventResponse === seatResponse && 'btn-primary'"
+        :class="seatButtonClass"
         :value="seatResponse"
         class="btn border-radius"
         @click="changeResponse(seatResponse)">
@@ -84,6 +84,17 @@ export default {
     },
     seatResponse() {
       return this.waits ? 'WAITING' : 'ACCEPTED';
+    },
+    /**
+     * @returns {String} the chosen look of the seat answer: orange for a
+     *          viewer on the waiting list, as the waiting answer reads
+     *          everywhere else, the primary colour for a Yes
+     */
+    seatButtonClass() {
+      if (this.eventResponse !== this.seatResponse) {
+        return null;
+      }
+      return this.waits ? 'waiting-response-selected' : 'btn-primary';
     },
   },
   methods: {
