@@ -39,9 +39,6 @@
         ref="responseConfirmDialog"
         :event="event" />
     </div>
-    <span v-if="capacityLine" class="caption text-sub-title ms-auto mt-1">
-      {{ capacityLine }}
-    </span>
   </div>
 </template>
 
@@ -87,16 +84,6 @@ export default {
     },
     seatResponse() {
       return this.waits ? 'WAITING' : 'ACCEPTED';
-    },
-    /**
-     * @returns {String} the place of a waiting viewer in the line, otherwise
-     *          the limit of an event that has one
-     */
-    capacityLine() {
-      if (this.eventResponse === 'WAITING' && this.event.waitingListPosition) {
-        return this.$t('agenda.capacity.waitingPosition', {0: this.event.waitingListPosition});
-      }
-      return this.event.capacity > 0 && this.$t('agenda.capacity.indicator', {0: this.event.capacity}) || '';
     },
   },
   methods: {
