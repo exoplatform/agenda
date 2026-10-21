@@ -1,7 +1,7 @@
 <template>
   <div class="d-flex flex-column">
     <div class="d-flex align-center">
-      <span class="text-color subtitle-2 me-auto">{{ $t('agenda.capacity.label') }}</span>
+      <span class="text-color subtitle-2 font-weight-bold me-auto">{{ $t('agenda.capacity.label') }}</span>
       <v-btn
         :disabled="!value"
         :title="$t('agenda.capacity.decrease')"
@@ -19,7 +19,10 @@
         <v-icon size="16" class="icon-default-color">fas fa-plus</v-icon>
       </v-btn>
     </div>
-    <span v-if="atMinimum" class="caption text-sub-title">{{ $t('agenda.capacity.minimumHint') }}</span>
+    <div v-if="atMinimum" class="d-flex align-center caption text-sub-title">
+      <v-icon size="14" class="info--text me-1">fas fa-info-circle</v-icon>
+      <span>{{ $t('agenda.capacity.minimumHint') }}</span>
+    </div>
   </div>
 </template>
 
