@@ -243,6 +243,9 @@ export default {
       // The reads of the stored event issued, the latest one landing alone
       readCount: 0,
       openBackup: false,
+      // Whether the organiser confirmed, at the padlock, that this visit closes
+      // a date of a series with its limit
+      closeConfirmed: false,
       togglingOpen: false,
       scopedChangePending: false,
       // What the pending question is about. Set per gesture rather than fixed,
@@ -264,11 +267,15 @@ export default {
      * nothing to ask and the flag is patched on the spot; the page is updated
      * only once the server accepted.
      *
-     * On one date of a series the click only marks the drawer, exactly as
+     * On one date of a series the click marks the drawer, exactly as
      * adding a participant does: since US06 the flag is a property of each
      * date, so it needs the same scope question — and asking it here, while the
      * organiser is still editing, would ask twice for one visit. The question
      * is raised once, when the drawer closes, over everything that changed.
+     *
+     * The warning of a closing with a limit is not that question: it is asked
+     * at the click on both paths, so that a cancel leaves the drawer open on
+     * the event as it was.
      *
      * @returns {void}
      */
@@ -276,28 +283,37 @@ export default {
       if (!this.event || this.togglingOpen || this.scopedChangePending) {
         return;
       }
+      if (!this.isOccurrence && !this.event.id) {
+        return;
+      }
       const open = !this.event.open;
-      if (this.isOccurrence) {
-        this.$set(this.event, 'open', open);
-        if (open) {
-          this.clearInvitePermission();
-        }
-        return;
-      }
-      const eventId = this.event.id;
-      if (!eventId) {
-        return;
-      }
       // Locking an open event with a limit removes it and confirms its waiting
       // list: asked first (D15). A limit the stepper shows before the drawer
       // closes counts too, since the closing removes it as well
       if (!open && this.hasLimit()) {
         this.$refs.closeConfirm.confirm()
-          .then(() => this.patchOpen(eventId, open, true))
+          .then(() => this.applyOpen(open, true))
           .catch(() => null);
         return;
       }
-      this.patchOpen(eventId, open, false);
+      this.applyOpen(open, false);
+    },
+    /**
+     * @param {Boolean} open the padlock's new state
+     * @param {Boolean} confirmClose whether the organiser confirmed the closing
+     * @returns {void}
+     */
+    applyOpen(open, confirmClose) {
+      if (!this.isOccurrence) {
+        this.patchOpen(this.event.id, open, confirmClose);
+        return;
+      }
+      this.$set(this.event, 'open', open);
+      // Carried by the scope question the drawer's close asks
+      this.closeConfirmed = confirmClose;
+      if (open) {
+        this.clearInvitePermission();
+      }
     },
     /**
      * @param {Number} eventId the event patched, standalone or a series
@@ -395,6 +411,7 @@ export default {
       this.attendeesBackup = JSON.parse(JSON.stringify(attendees));
       this.openBackup = !!(this.event && this.event.open);
       this.capacityBackup = this.event && this.event.capacity || 0;
+      this.closeConfirmed = false;
     },
     /**
      * @returns {Boolean} whether the drawer changed the limit since it was
@@ -444,8 +461,9 @@ export default {
       if (this.scopedChangePending) {
         // Defence in depth: a question is already waiting for an answer, and a
         // second one here would replace the event it holds. No path raises one
-        // while the drawer is open today — the padlock only marks the drawer —
-        // so this guards a coupling, not a case that occurs
+        // while the drawer is open today — the padlock asks at most the closing
+        // warning, which is not this question, and marks the drawer — so this
+        // guards a coupling, not a case that occurs
         return;
       }
       const listChanged = this.attendeesChanged();
@@ -470,14 +488,9 @@ export default {
         }
         const delta = listChanged ? this.attendeesDelta() : null;
         // Locking a date with a limit removes it and confirms its waiting
-        // list: asked first (D15), whichever scope comes next
-        if (padlockChanged && !this.event.open && this.capacityBackup > 0) {
-          this.$refs.closeConfirm.confirm()
-            .then(() => this.askScope(eventToSave, fields, delta, true))
-            .catch(() => this.restoreDrawerState());
-          return;
-        }
-        this.askScope(eventToSave, fields, delta, false);
+        // list (D15): confirmed at the padlock (see toggleOpen) and carried to
+        // whichever scope comes next
+        this.askScope(eventToSave, fields, delta, padlockChanged && !this.event.open && this.closeConfirmed);
         return;
       }
       // A standalone event, or a series displayed as itself: nothing to ask.
@@ -608,6 +621,7 @@ export default {
         this.$set(this.event, 'attendees', JSON.parse(JSON.stringify(this.attendeesBackup)));
         this.$set(this.event, 'open', this.openBackup);
         this.$set(this.event, 'capacity', this.capacityBackup);
+        this.closeConfirmed = false;
       }
     },
     /**
