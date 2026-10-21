@@ -116,7 +116,7 @@ export default {
       case 'ACCEPTED': return 'success-color';
       case 'TENTATIVE': return 'primary--text';
       case 'DECLINED': return 'error-color';
-      case 'WAITING': return 'info--text';
+      case 'WAITING': return 'warning--text';
       default: return null;
       }
     },
