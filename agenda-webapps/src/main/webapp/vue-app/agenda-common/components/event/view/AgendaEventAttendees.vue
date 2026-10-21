@@ -1,78 +1,84 @@
 <template>
-  <div class="d-flex align-center full-width">
-    <v-icon size="20" class="icon-default-color me-2 flex-shrink-0">fas fa-users</v-icon>
-    <div class="d-flex align-center ms-6 flex-grow-1 attendee-status-badges">
-      <v-badge
-        v-if="acceptedResponsesCount"
-        :content="acceptedResponsesCount"
-        :value="acceptedResponsesCount"
-        offset-x="13"
-        color="warning-color-background"
-        offset-y="12"
-        class="me-8">
-        <v-btn
-          icon
-          small
-          :title="$t('agenda.filter.button.title.accepted')"
-          @click="openDrawer('ACCEPTED')">
-          <v-icon size="20" class="success-color">fas fa-check-circle</v-icon>
-        </v-btn>
-      </v-badge>
-      <v-badge
-        v-if="tentativeResponsesCount"
-        :content="tentativeResponsesCount"
-        :value="tentativeResponsesCount"
-        color="warning-color-background"
-        offset-x="13"
-        offset-y="12"
-        class="me-8">
-        <v-btn
-          icon
-          small
-          :title="$t('agenda.filter.button.title.tentative')"
-          @click="openDrawer('TENTATIVE')">
-          <v-icon size="20" class="primary--text">fas fa-question-circle</v-icon>
-        </v-btn>
-      </v-badge>
-      <v-badge
-        v-if="refusedResponsesCount"
-        :content="refusedResponsesCount"
-        :value="refusedResponsesCount"
-        color="warning-color-background"
-        offset-x="13"
-        offset-y="12"
-        class="me-8">
-        <v-btn
-          icon
-          small
-          :title="$t('agenda.filter.button.title.declined')"
-          @click="openDrawer('DECLINED')">
-          <v-icon size="20" class="error-color">fas fa-times-circle</v-icon>
-        </v-btn>
-      </v-badge>
-      <v-badge
-        v-if="waitingResponsesCount"
-        :content="waitingResponsesCount"
-        :value="waitingResponsesCount"
-        color="warning-color-background"
-        offset-x="13"
-        offset-y="12"
-        class="me-8">
-        <v-btn
-          icon
-          small
-          :title="$t('agenda.filter.button.title.waiting')"
-          @click="openDrawer('WAITING')">
-          <v-icon size="20" class="info--text">fas fa-info-circle</v-icon>
-        </v-btn>
-      </v-badge>
+  <div class="d-flex flex-column full-width">
+    <div class="d-flex align-center full-width">
+      <v-icon size="20" class="icon-default-color me-2 flex-shrink-0">fas fa-users</v-icon>
+      <div class="d-flex align-center ms-6 flex-grow-1 attendee-status-badges">
+        <v-badge
+          v-if="acceptedResponsesCount"
+          :content="acceptedResponsesCount"
+          :value="acceptedResponsesCount"
+          offset-x="13"
+          color="warning-color-background"
+          offset-y="12"
+          class="me-8">
+          <v-btn
+            icon
+            small
+            :title="$t('agenda.filter.button.title.accepted')"
+            @click="openDrawer('ACCEPTED')">
+            <v-icon size="20" class="success-color">fas fa-check-circle</v-icon>
+          </v-btn>
+        </v-badge>
+        <v-badge
+          v-if="tentativeResponsesCount"
+          :content="tentativeResponsesCount"
+          :value="tentativeResponsesCount"
+          color="warning-color-background"
+          offset-x="13"
+          offset-y="12"
+          class="me-8">
+          <v-btn
+            icon
+            small
+            :title="$t('agenda.filter.button.title.tentative')"
+            @click="openDrawer('TENTATIVE')">
+            <v-icon size="20" class="primary--text">fas fa-question-circle</v-icon>
+          </v-btn>
+        </v-badge>
+        <v-badge
+          v-if="refusedResponsesCount"
+          :content="refusedResponsesCount"
+          :value="refusedResponsesCount"
+          color="warning-color-background"
+          offset-x="13"
+          offset-y="12"
+          class="me-8">
+          <v-btn
+            icon
+            small
+            :title="$t('agenda.filter.button.title.declined')"
+            @click="openDrawer('DECLINED')">
+            <v-icon size="20" class="error-color">fas fa-times-circle</v-icon>
+          </v-btn>
+        </v-badge>
+        <v-badge
+          v-if="waitingResponsesCount"
+          :content="waitingResponsesCount"
+          :value="waitingResponsesCount"
+          color="warning-color-background"
+          offset-x="13"
+          offset-y="12"
+          class="me-8">
+          <v-btn
+            icon
+            small
+            :title="$t('agenda.filter.button.title.waiting')"
+            @click="openDrawer('WAITING')">
+            <v-icon size="20" class="info--text">fas fa-info-circle</v-icon>
+          </v-btn>
+        </v-badge>
+      </div>
+      <agenda-event-attendees-avatars
+        v-if="displayedAttendees.length"
+        :attendees="displayedAttendees"
+        :max="3"
+        :size="32"
+        @open="openDrawer" />
     </div>
-    <agenda-event-attendees-avatars
-      v-if="displayedAttendees.length"
-      :attendees="displayedAttendees"
-      :max="3"
-      :size="32"
-      @open="openDrawer" />
+    <div v-if="capacityIndicator" class="d-flex align-center mt-3">
+      <v-icon size="18" class="warning--text me-2 flex-shrink-0">{{ showsWaitingPosition ? 'fas fa-info-circle' : 'fas fa-user-lock' }}</v-icon>
+      <span class="text-color">{{ capacityIndicator }}</span>
+    </div>
     <agenda-event-form-attendees-drawer
       ref="attendeesDrawer"
       :event="event"
@@ -120,6 +126,30 @@ export default {
   computed: {
     canEdit() {
       return !!(this.event && this.event.acl && this.event.acl.canEdit);
+    },
+    /**
+     * The limit of an event that has one, shown with its participants to
+     * whoever sees them; a viewer on the waiting list reads their place in
+     * the line instead
+     *
+     * @returns {String} the line, empty without a limit
+     */
+    capacityIndicator() {
+      const capacity = this.event && this.event.capacity || 0;
+      if (!capacity) {
+        return '';
+      }
+      if (this.showsWaitingPosition) {
+        return this.$t('agenda.capacity.waitingPosition', {0: this.event.waitingListPosition});
+      }
+      return capacity === 1 ? this.$t('agenda.capacity.indicatorOne') : this.$t('agenda.capacity.indicator', {0: capacity});
+    },
+    showsWaitingPosition() {
+      return this.viewerResponse === 'WAITING' && !!(this.event && this.event.waitingListPosition);
+    },
+    viewerResponse() {
+      const viewer = this.event && this.event.attendees && this.event.attendees.find(attendee => attendee.identity && Number(attendee.identity.id) === Number(eXo.env.portal.userIdentityId));
+      return viewer && viewer.response || null;
     },
     /**
      * The export of the participant list (eXIP 7.3.0.21, US05): for whoever
@@ -590,6 +620,8 @@ export default {
           this.$set(this.event, 'open', storedEvent.open);
           this.$set(this.event, 'capacity', storedEvent.capacity);
           this.$set(this.event, 'acceptedCount', storedEvent.acceptedCount);
+          // A change of the limit or of the participants moves the line
+          this.$set(this.event, 'waitingListPosition', storedEvent.waitingListPosition);
           this.$set(this.event, 'attendees', storedEvent.attendees || []);
           if (this.event.parent && storedEvent.parent) {
             this.$set(this.event.parent, 'open', storedEvent.parent.open);
