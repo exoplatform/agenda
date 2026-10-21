@@ -411,6 +411,18 @@
     padding: 0;
     line-height: 14px;
   }
+  /* The chosen "Waiting List" answer, filled orange. Held on hover and focus,
+     where the platform's .btn rule turns any button's text dark, which the
+     white--text helper cannot outweigh; disabled while an answer is saved,
+     it reads like an answer not chosen */
+  .v-application .v-btn.btn.waiting-response-selected:not(.v-btn--disabled) {
+    &, &:hover, &:focus {
+      background-color: @warningColor !important;
+      border-color: @warningColor !important;
+      color: @btnPrimaryColor !important;
+    }
+    font-weight: bold !important;
+  }
 
   .event-form-mobile {
     max-height: 100%;
