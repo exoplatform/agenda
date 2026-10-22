@@ -277,6 +277,9 @@ export default {
       // a date of a series with its limit
       closeConfirmed: false,
       togglingOpen: false,
+      // The padlock's write while it runs, with the read a closing makes: a
+      // close of the drawer meanwhile saves once it ended
+      openWrite: null,
       scopedChangePending: false,
       // What the pending question is about. Set per gesture rather than fixed,
       // because a wider scope writes exactly these fields onto the series: a
@@ -493,11 +496,21 @@ export default {
       // would refuse the opening alone
       const fields = open ? {open, allowAttendeeToInvite: false} : {open};
       const write = confirmed => this.$eventService.updateEventFields({id: eventId}, fields, true, false, confirmed);
-      this.$refs.closeConfirm.writeConfirmingClose(write, confirmClose)
+      const patchedEvent = this.event;
+      this.openWrite = this.$refs.closeConfirm.writeConfirmingClose(write, confirmClose)
         .then(() => {
+          if (this.eventKey(this.event) !== this.eventKey(patchedEvent)) {
+            // The page shows another event by now, whose padlock this is not
+            return;
+          }
           this.$set(this.event, 'open', open);
           if (open) {
             this.clearInvitePermission();
+          } else {
+            // A closing removes the limit (D15), whether the read below
+            // lands or not: the drawer's close has none left to save
+            this.$set(this.event, 'capacity', 0);
+            this.capacityBackup = 0;
           }
           // Stored, so it is the drawer's new reference point. Without this the
           // close would read a changed padlock and full-save the event a second
@@ -507,12 +520,13 @@ export default {
           this.openBackup = open;
           // A closing removed the limit and confirmed the waiting list
           if (!open && hadLimit) {
-            return this.refreshDisplayedEvent();
+            return this.refreshDisplayedEvent(false, true);
           }
         })
         .catch(this.changeFailed)
         .finally(() => {
           this.togglingOpen = false;
+          this.openWrite = null;
           this.settleLiveRead();
         });
     },
@@ -552,12 +566,89 @@ export default {
      * elsewhere during the visit is read once nothing of the page's own is on
      * its way.
      *
+     * A padlock's write still on its way is waited for, with the read a
+     * closing makes: a save started before would carry the padlock and the
+     * limit as they were before it (EXO-90310). A reopen waits for that save
+     * as well.
+     *
      * @returns {void}
      */
     drawerClosed() {
       this.drawerVisit = false;
+      if (this.openWrite) {
+        // Kept as a delta, applied once the wait ended to the event shown
+        // then: the page replaces it with a read of its own once the
+        // organiser answered. And saved through the dialog the page has now:
+        // a page closed meanwhile has none left by then
+        const editedEvent = this.event;
+        const unsavedList = this.attendeesChanged() ? this.attendeesDelta() : null;
+        const unsavedCapacity = this.capacityChanged() ? this.event.capacity || 0 : null;
+        const closeConfirm = this.$refs.closeConfirm;
+        this.drawerSave = this.openWrite.then(() => {
+          this.drawerSave = null;
+          if (this.eventKey(this.event) !== this.eventKey(editedEvent)) {
+            this.settleLiveRead();
+            return this.saveChangesOfEventLeft(editedEvent.id, unsavedList, unsavedCapacity, closeConfirm);
+          }
+          if (unsavedList) {
+            this.$set(this.event, 'attendees', this.$agendaUtils.withAttendeesDelta(this.event.attendees, unsavedList));
+          }
+          // A closing removed the limit, unless it failed
+          if (unsavedCapacity !== null && this.event.open) {
+            this.$set(this.event, 'capacity', unsavedCapacity);
+          }
+          this.saveDrawerChangesIfEditable(closeConfirm);
+          this.settleLiveRead();
+          return this.drawerSave;
+        });
+        return;
+      }
       this.saveDrawerChangesIfEditable();
       this.settleLiveRead();
+    },
+    /**
+     * Saves what the drawer changed on an event the page left while the
+     * padlock's write ran, read again as that write left it: the people added
+     * and removed, and the limit while the event is still open, the write
+     * having failed. The padlock itself is stored, or its failure was told; a
+     * closing removes the limit, and an opening shows the limit once stored,
+     * after the drawer was left.
+     *
+     * As the drawer's own close does, a limit changed alone is patched: a
+     * full save would tell every attendee the event changed.
+     *
+     * @param {Number} eventId the event the drawer changed, on its own or a
+     *          series shown as itself
+     * @param {Object} attendeesDelta what the drawer did to its list, or null
+     * @param {Number} capacity the limit the drawer set, or null
+     * @param {Object} closeConfirm the dialog that asks to confirm a closing
+     * @returns {Promise} resolved once saved, or once a failure was told
+     */
+    saveChangesOfEventLeft(eventId, attendeesDelta, capacity, closeConfirm) {
+      if (!attendeesDelta && capacity === null) {
+        return Promise.resolve();
+      }
+      return this.$eventService.getEventById(eventId, 'all,parentAll')
+        .then(storedEvent => {
+          const capacityKept = capacity !== null && storedEvent.open;
+          if (!attendeesDelta && !capacityKept) {
+            return;
+          }
+          const eventToSave = {
+            ...storedEvent,
+            // Sent as read, an all-day day would be the day before, west of
+            // UTC (see AgendaUtils#toDate)
+            start: this.$agendaUtils.toDate(storedEvent.start),
+            end: this.$agendaUtils.toDate(storedEvent.end),
+            attendees: this.$agendaUtils.withAttendeesDelta(storedEvent.attendees, attendeesDelta),
+            capacity: capacityKept ? capacity : storedEvent.capacity,
+          };
+          const write = attendeesDelta
+            ? confirmed => this.$eventService.updateEvent(eventToSave, confirmed)
+            : confirmed => this.$eventService.updateEventFields({id: eventId}, {capacity}, true, false, confirmed);
+          return closeConfirm.writeConfirmingClose(write, false);
+        })
+        .catch(this.changeFailed);
     },
     /**
      * Downloads the participant list as stored; the export waits while the
@@ -632,7 +723,12 @@ export default {
     attendeesDelta() {
       return this.$agendaUtils.attendeesDelta(this.attendeesBackup, this.event && this.event.attendees);
     },
-    saveDrawerChangesIfEditable() {
+    /**
+     * @param {Object} closeConfirm the dialog that asks to confirm a closing,
+     *          the page's own unless given (see drawerClosed)
+     * @returns {void}
+     */
+    saveDrawerChangesIfEditable(closeConfirm = this.$refs.closeConfirm) {
       if (!this.canEdit || !this.event) {
         return;
       }
@@ -680,7 +776,7 @@ export default {
       const write = listChanged
         ? confirmed => this.$eventService.updateEvent(this.event, confirmed)
         : confirmed => this.$eventService.updateEventFields({id: this.event.id}, {capacity: this.event.capacity || 0}, true, false, confirmed);
-      this.drawerSave = this.$refs.closeConfirm.writeConfirmingClose(write, false)
+      this.drawerSave = closeConfirm.writeConfirmingClose(write, false)
         .then(() => this.refreshDisplayedEvent())
         .catch(error => {
           this.restoreDrawerState();
@@ -755,10 +851,14 @@ export default {
      *
      * @param {Boolean} live whether the read follows a seat given elsewhere
      *          rather than a write of this page (see readSeatGivenElsewhere)
+     * @param {Boolean} keepsDrawerList whether the people the drawer, still
+     *          open, added or removed, not saved yet, stay on the list read:
+     *          the read a closing makes from the padlock. A drawer left before
+     *          it lands saves them once it did (see drawerClosed)
      * @returns {Promise} resolved once the read has landed, has been dropped
      *          for a later one, or has failed
      */
-    refreshDisplayedEvent(live) {
+    refreshDisplayedEvent(live, keepsDrawerList) {
       if (!this.event) {
         return Promise.resolve();
       }
@@ -782,7 +882,7 @@ export default {
             // made once the viewer answered: this one, issued before, would
             // put the previous answer back, and that read may predate what
             // this one was made for. It is made again on the event shown
-            return this.refreshDisplayedEvent(live);
+            return this.refreshDisplayedEvent(live, keepsDrawerList);
           }
           if (live && this.pageChanging()) {
             // The organiser changed the drawer, or started saving it, while
@@ -791,6 +891,11 @@ export default {
             this.liveReadPending = true;
             return;
           }
+          // The people the organiser added or removed in the drawer, still
+          // open while the padlock closed the event, are not saved yet: they
+          // go back on the list read (EXO-90310)
+          const unsavedList = keepsDrawerList && this.drawerHoldsChanges() && this.attendeesChanged()
+            ? this.attendeesDelta() : null;
           this.$set(this.event, 'open', storedEvent.open);
           this.$set(this.event, 'capacity', storedEvent.capacity);
           this.$set(this.event, 'acceptedCount', storedEvent.acceptedCount);
@@ -806,6 +911,11 @@ export default {
           // see a difference and ask the same question again. Re-taking the
           // reference point on what the server stored closes that race
           this.rememberDrawerState();
+          if (unsavedList) {
+            // After the reference point, so that the drawer's close still
+            // saves them
+            this.$set(this.event, 'attendees', this.$agendaUtils.withAttendeesDelta(this.event.attendees, unsavedList));
+          }
         })
         .catch(() => this.$root.$emit('agenda-refresh'))
         .finally(() => {
