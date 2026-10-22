@@ -16,7 +16,6 @@
 */
 package org.exoplatform.agenda.service;
 
-import java.text.ParseException;
 import java.time.*;
 import java.util.*;
 import java.util.Map.Entry;
@@ -50,8 +49,6 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.metadata.MetadataService;
 import org.exoplatform.social.metadata.model.MetadataItem;
 import org.exoplatform.social.metadata.model.MetadataObject;
-
-import net.fortuna.ical4j.model.Recur;
 
 import static org.exoplatform.agenda.util.Utils.*;
 import static org.exoplatform.agenda.util.Utils.EVENT_METADATA_KEY;
@@ -1775,12 +1772,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     EventRecurrence recurrence = edits.getRecurrence() == null ? series.getRecurrence().clone()
                                                                : edits.getRecurrence().clone();
-    if (recurrence.getUntil() != null && recurrence.getUntil().equals(series.getRecurrence().getUntil())) {
-      // An end the change keeps is the one the stored rule states: the
-      // series read back holds it in the server's zone, a day later for a
-      // series behind it
-      recurrence.setUntil(lastDayOf(series));
-    }
     if (recurrence.getFrequency() == null) {
       throw new AgendaException(AgendaExceptionType.EVENT_RECURRENCE_FREQUENCY_MANDATORY);
     }
@@ -1893,23 +1884,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    */
   private static LocalDate dayIn(Event event, ZoneId zone) {
     return event.isAllDay() ? event.getStart().toLocalDate() : event.getStart().withZoneSameInstant(zone).toLocalDate();
-  }
-
-  /**
-   * @return the last day of a series ending on a day, as its stored rule
-   *         states it, in the series' zone
-   */
-  private static LocalDate lastDayOf(Event series) {
-    EventRecurrence recurrence = series.getRecurrence();
-    if (StringUtils.isBlank(recurrence.getRrule())) {
-      return recurrence.getUntil();
-    }
-    try {
-      Date until = new Recur(recurrence.getRrule()).getUntil();
-      return until == null ? recurrence.getUntil() : until.toInstant().atZone(zoneOf(series)).toLocalDate();
-    } catch (ParseException e) {
-      throw new IllegalStateException("Error parsing the rule of event " + series.getId(), e);
-    }
   }
 
   /**
