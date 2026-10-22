@@ -1,6 +1,7 @@
 package org.exoplatform.agenda.listener;
 
-import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.model.EventAttendeePromotion;
@@ -18,7 +19,8 @@ import org.exoplatform.social.core.manager.IdentityManager;
  * event to transmit modifications to the end user himself via WebSocket. This
  * will allow to update listed events when the response changed switch filters
  * used to display event in UI. It also tells an attendee promoted from the
- * waiting list, whose event data is the promotion.
+ * waiting list, whose event data is the promotion, and the event's creator,
+ * whose page then shows the seat given.
  */
 @Asynchronous
 public class AgendaWebSocketEventReplyListener extends Listener<EventAttendee, Object> {
@@ -64,9 +66,17 @@ public class AgendaWebSocketEventReplyListener extends Listener<EventAttendee, O
       socketMessage.addParam("eventId", eventId);
       socketMessage.addParam("calendarId", calendarId);
 
-      Identity identity = identityManager.getIdentity(String.valueOf(userIdentityId));
-      String username = identity.getRemoteId();
-      agendaWebSocketService.sendMessage(socketMessage, Collections.singleton(username));
+      Set<String> recipients = new HashSet<>();
+      recipients.add(identityManager.getIdentity(userIdentityId).getRemoteId());
+      if (promotion != null) {
+        // The organiser's page shows the participant list, which a seat freed
+        // elsewhere has just changed (EXO-91879): it reads it again
+        Identity creator = identityManager.getIdentity(agendaEvent.getCreatorId());
+        if (creator != null) {
+          recipients.add(creator.getRemoteId());
+        }
+      }
+      agendaWebSocketService.sendMessage(socketMessage, recipients);
     } finally {
       RequestLifeCycle.end();
     }
