@@ -42,6 +42,10 @@ export default {
       const calendarId = eventModifications.calendarId;
       const eventId = eventModifications.eventId;
 
+      // The event page reads its event again on what concerns it, whatever
+      // calendar the grid below shows
+      this.$root.$emit('agenda-event-live-update', wsEventName, eventId);
+
       if (this.currentCalendar && this.currentCalendar.id !== calendarId) {
         return;
       }
