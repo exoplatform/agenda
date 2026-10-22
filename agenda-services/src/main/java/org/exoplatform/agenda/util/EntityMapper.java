@@ -409,11 +409,7 @@ public class EntityMapper {
     recurrence.setInterval(recur.getInterval());
     recurrence.setCount(recur.getCount() > 0 ? recur.getCount() : 0);
     if (recur.getUntil() != null) {
-      LocalDate untilDate = recur.getUntil()
-                                 .toInstant()
-                                 .atZone(ZoneId.systemDefault())
-                                 .toLocalDate();
-      recurrence.setUntil(untilDate);
+      recurrence.setUntil(untilDay(recur.getUntil(), eventTimeZoneId));
     }
 
     if (recur.getSecondList() != null && !recur.getSecondList().isEmpty()) {
@@ -462,6 +458,28 @@ public class EntityMapper {
       recurrence.setBySetPos(setPos);
     }
     return recurrence;
+  }
+
+  /**
+   * The last day of a series, as its stored rule states it. The rule writes
+   * the last second of that day in the event's zone, as a UTC time (see
+   * Utils#getICalendarRecur): read in that zone, since in the server's a
+   * series behind it would end a day later. Some earlier versions stored it
+   * as a floating time, which ical4j reads in the JVM's zone: its local fields
+   * are what was written. ical4j keeps a DATE value at UTC midnight.
+   *
+   * @param until the UNTIL of the stored rule
+   * @param eventZoneId the event's zone, null for UTC
+   * @return the last day of the series
+   */
+  private static LocalDate untilDay(Date until, ZoneId eventZoneId) {
+    Instant instant = Instant.ofEpochMilli(until.getTime());
+    if (!(until instanceof DateTime dateTime)) {
+      return instant.atZone(ZoneOffset.UTC).toLocalDate();
+    } else if (!dateTime.isUtc() && dateTime.getTimeZone() == null) {
+      return LocalDateTime.ofInstant(instant, ZoneId.systemDefault()).toLocalDate();
+    }
+    return instant.atZone(eventZoneId == null ? ZoneOffset.UTC : eventZoneId).toLocalDate();
   }
 
   public static EventRecurrenceEntity toEntity(Event event, EventRecurrence recurrence) {
