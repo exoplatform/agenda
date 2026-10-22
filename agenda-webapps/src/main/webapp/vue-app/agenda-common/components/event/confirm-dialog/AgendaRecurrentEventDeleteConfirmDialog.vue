@@ -109,6 +109,11 @@ export default {
             return this.deleteRecurrentEvent();
           } else {
             parentRecurrentEvent.recurrence.until = this.$agendaUtils.toRFC3339(untilDate);
+            // Written as the forms write them: an all-day day sent as read is
+            // taken for midnight UTC, the day before west of UTC (see
+            // AgendaUtils#toDate)
+            parentRecurrentEvent.start = this.$agendaUtils.toRFC3339(this.$agendaUtils.toDate(parentRecurrentEvent.start));
+            parentRecurrentEvent.end = this.$agendaUtils.toRFC3339(this.$agendaUtils.toDate(parentRecurrentEvent.end));
             return this.$eventService.updateEvent(parentRecurrentEvent)
               .then((updatedEvent) => {
                 this.$root.$emit('agenda-event-deleted', updatedEvent, true);
