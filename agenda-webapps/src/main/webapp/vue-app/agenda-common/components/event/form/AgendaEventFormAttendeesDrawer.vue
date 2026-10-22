@@ -590,20 +590,26 @@ export default {
       this.showFilterBar = false;
       this.filterText = '';
       this.responseFilter = responseFilter || 'ALL';
-      this.rememberSeats();
+      // In the event form, the changes of every visit are saved together with
+      // the form: the seats are measured against the event as it was loaded.
+      // The event page, which saves at each close, takes them again itself
+      if (!this.seatReference || this.seatReference.event !== this.event) {
+        this.rememberSeats();
+      }
       this.$refs.attendeesDrawer.open();
       this.$nextTick(() => this.$refs.invitedAttendeeAutoComplete && this.$refs.invitedAttendeeAutoComplete.focus());
     },
     /**
      * Takes the seats as they stand as the reference the drawer's changes are
-     * measured against: when it opens, and when its host has read the event
-     * again.
+     * measured against: when it first opens on an event, and when its host
+     * has saved the changes or read the event again.
      *
      * @returns {void}
      */
     rememberSeats() {
       const attendees = this.event && this.event.attendees || [];
       this.seatReference = {
+        event: this.event,
         acceptedCount: this.acceptedCount,
         capacity: this.capacity,
         open: this.isOpenEvent,
