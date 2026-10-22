@@ -88,7 +88,7 @@
       @export="exportAttendees"
       @toggle-open="toggleOpen"
       @change-capacity="changeCapacity"
-      @closed="saveDrawerChangesIfEditable" />
+      @closed="drawerClosed" />
     <agenda-capacity-close-confirm-dialog ref="closeConfirm" />
     <!--
       The scope popup of the event form, reused as it stands: a change made from
@@ -287,9 +287,12 @@ export default {
       // And what it did to the participant list, as a delta: a wider scope
       // applies it to a list that is not the one the drawer edited
       scopeAttendeesDelta: null,
-      // A seat given elsewhere while the drawer held changes: read once it
-      // closes, if no save of its own reads the answers back
+      // A seat given elsewhere that no read issued since covers
       liveReadPending: false,
+      // The reads of the stored event on their way
+      readsInFlight: 0,
+      // Whether the drawer is open, between its opening and its close
+      drawerVisit: false,
       // Whether a seat was given elsewhere since the page last replaced the
       // event it shows
       seatGivenSinceShown: false,
@@ -327,10 +330,9 @@ export default {
      * participant list and in the drawer when it is open. The message names
      * the event row or its series, so a date of the series reads itself again.
      *
-     * While the drawer holds changes of its own, or a write of this page is on
-     * its way, reading the event would replace what the organiser is doing:
-     * the read waits. A save reads the answers back anyway; a close that saves
-     * nothing, a cancelled scope question and a failed save read them then.
+     * The seat is marked to read and read when nothing of the page's own is
+     * on its way (see settleLiveRead): seats given one after the other, as
+     * when a limit is lifted, cost one read more, not one each.
      *
      * @param {String} wsEventName the name of the event the server sent
      * @param {Number} eventId the event or the series it names
@@ -345,11 +347,31 @@ export default {
       this.readSeatsLive();
     },
     readSeatsLive() {
-      if (this.drawerSave || this.scopedChangePending || this.togglingOpen || this.drawerHoldsChanges()) {
-        this.liveReadPending = true;
+      this.liveReadPending = true;
+      this.settleLiveRead();
+    },
+    /**
+     * Reads a seat given elsewhere once nothing of the page's own is on its
+     * way: an editor's drawer open with changes, which a read would replace,
+     * until it closes; a write, whose own read follows, until it ends; a
+     * read, which may predate the seat, until it lands.
+     *
+     * @returns {void}
+     */
+    settleLiveRead() {
+      if (!this.liveReadPending || this.readsInFlight || this.pageChanging()) {
         return;
       }
       this.refreshDisplayedEvent(true);
+    },
+    /**
+     * @returns {Boolean} whether the page is changing the event: an editor's
+     *          drawer open with changes, or a write on its way. A read of a
+     *          seat given elsewhere would replace those changes, issued or
+     *          landing meanwhile
+     */
+    pageChanging() {
+      return !!this.drawerSave || this.scopedChangePending || this.togglingOpen || this.drawerHoldsChanges();
     },
     /**
      * @param {Number} eventId an event or a series
@@ -387,11 +409,13 @@ export default {
       return `${event.parent.id}@${event.allDay ? date.slice(0, 10) : date}`;
     },
     /**
-     * @returns {Boolean} whether the drawer changed the list, the padlock or
-     *          the limit since it was opened
+     * @returns {Boolean} whether the drawer is open on changes of an editor's
+     *          to the list, the padlock or the limit. A viewer who cannot edit
+     *          changes nothing there, and once the drawer is closed, its
+     *          reference point no longer means anything to measure against
      */
     drawerHoldsChanges() {
-      return this.attendeesSnapshot !== null
+      return this.drawerVisit && this.canEdit && this.attendeesSnapshot !== null
         && (this.attendeesChanged() || this.openChanged() || this.capacityChanged());
     },
     /**
@@ -487,7 +511,10 @@ export default {
           }
         })
         .catch(this.changeFailed)
-        .finally(() => this.togglingOpen = false);
+        .finally(() => {
+          this.togglingOpen = false;
+          this.settleLiveRead();
+        });
     },
     /**
      * The limit is applied with the rest of the drawer's changes, when it
@@ -516,8 +543,21 @@ export default {
         // so the state to come back to, when the organiser cancels the scope
         // popup or when the save fails, has to be kept before anything touches it
         this.rememberDrawerState();
+        this.drawerVisit = true;
         this.$refs.attendeesDrawer.open(responseFilter);
       });
+    },
+    /**
+     * The drawer's changes are saved, for whoever may edit, and a seat given
+     * elsewhere during the visit is read once nothing of the page's own is on
+     * its way.
+     *
+     * @returns {void}
+     */
+    drawerClosed() {
+      this.drawerVisit = false;
+      this.saveDrawerChangesIfEditable();
+      this.settleLiveRead();
     },
     /**
      * Downloads the participant list as stored; the export waits while the
@@ -608,10 +648,6 @@ export default {
       const padlockChanged = this.openChanged();
       const capacityChanged = this.capacityChanged();
       if (!listChanged && !padlockChanged && !capacityChanged) {
-        if (this.liveReadPending) {
-          // A seat given elsewhere while the drawer held changes it gave up
-          this.refreshDisplayedEvent(true);
-        }
         return;
       }
       if (this.isOccurrence) {
@@ -650,7 +686,10 @@ export default {
           this.restoreDrawerState();
           this.changeFailed(error);
         })
-        .finally(() => this.drawerSave = null);
+        .finally(() => {
+          this.drawerSave = null;
+          this.settleLiveRead();
+        });
     },
     /**
      * @param {Object} eventToSave the event as the organiser left it — the
@@ -727,7 +766,9 @@ export default {
       // closing's may overlap, each issued once its write was stored
       const read = ++this.readCount;
       const displayedEvent = this.event;
+      // It covers every seat given before it is issued
       this.liveReadPending = false;
+      this.readsInFlight++;
       const reloadPromise = this.event.occurrence && this.event.occurrence.id
         ? this.$eventService.getEventOccurrence(this.event.parent.id, this.event.occurrence.id, 'all,parentAll')
         : this.$eventService.getEventById(this.event.id, 'all,parentAll');
@@ -743,9 +784,10 @@ export default {
             // this one was made for. It is made again on the event shown
             return this.refreshDisplayedEvent(live);
           }
-          if (live && this.drawerHoldsChanges()) {
-            // The organiser changed the drawer while the read was on its
-            // way: it would replace those changes, so it waits for them
+          if (live && this.pageChanging()) {
+            // The organiser changed the drawer, or started saving it, while
+            // the read was on its way: it would replace those changes, so it
+            // waits for them
             this.liveReadPending = true;
             return;
           }
@@ -765,7 +807,13 @@ export default {
           // reference point on what the server stored closes that race
           this.rememberDrawerState();
         })
-        .catch(() => this.$root.$emit('agenda-refresh'));
+        .catch(() => this.$root.$emit('agenda-refresh'))
+        .finally(() => {
+          // A seat given elsewhere while it was on its way may be missing
+          // from what it read
+          this.readsInFlight--;
+          this.settleLiveRead();
+        });
     },
     /**
      * The popup closed without the organiser choosing a scope: whatever the
@@ -787,11 +835,8 @@ export default {
         this.$set(this.event, 'capacity', this.capacityBackup);
         this.closeConfirmed = false;
       }
-      if (this.liveReadPending) {
-        // The changes the read waited for are given up: the seat given
-        // elsewhere is read now
-        this.refreshDisplayedEvent(true);
-      }
+      // The changes a seat given elsewhere waited for are given up
+      this.settleLiveRead();
     },
     /**
      * The server refuses with a message code (a stale page: the event was moved
