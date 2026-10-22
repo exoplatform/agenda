@@ -94,8 +94,11 @@ public class RestEntityBuilder {
       ZonedDateTime untilDate = AgendaDateUtils.parseRFC3339ToZonedDateTime(recurrenceEntity.getUntil(),
                                                                             eventZoneId,
                                                                             false);
+      // The last day of the series is the day of its last second in the zone
+      // the client wrote it in, as a read writes it: the day it falls on in
+      // UTC is the next one, west of UTC
       recurrence = new EventRecurrence(recurrenceEntity.getId(),
-                                       untilDate == null ? null : untilDate.withZoneSameInstant(ZoneOffset.UTC).toLocalDate(),
+                                       untilDate == null ? null : untilDate.toLocalDate(),
                                        recurrenceEntity.getCount(),
                                        recurrenceEntity.getType(),
                                        recurrenceEntity.getFrequency(),
