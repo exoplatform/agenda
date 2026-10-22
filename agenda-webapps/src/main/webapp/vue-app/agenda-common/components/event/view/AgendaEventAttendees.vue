@@ -287,9 +287,62 @@ export default {
       // And what it did to the participant list, as a delta: a wider scope
       // applies it to a list that is not the one the drawer edited
       scopeAttendeesDelta: null,
+      // A seat given elsewhere while the drawer held changes: read once it
+      // closes, if no save of its own reads the answers back
+      liveReadPending: false,
     };
   },
+  created() {
+    this.$root.$on('agenda-event-live-update', this.readSeatGivenElsewhere);
+  },
+  beforeDestroy() {
+    this.$root.$off('agenda-event-live-update', this.readSeatGivenElsewhere);
+  },
   methods: {
+    /**
+     * A seat given from the waiting list, whoever freed it, shows on the page
+     * of the event without a refresh (EXO-91879): to the person promoted, as
+     * their answer and the limit line, and to the organiser, in the
+     * participant list and in the drawer when it is open. The message names
+     * the event row or its series, so a date of the series reads itself again.
+     *
+     * While the drawer holds changes of its own, or a write of this page is on
+     * its way, reading the event would replace what the organiser is doing:
+     * the read waits. A save reads the answers back anyway; a close that saves
+     * nothing, a cancelled scope question and a failed save read them then.
+     *
+     * @param {String} wsEventName the name of the event the server sent
+     * @param {Number} eventId the event or the series it names
+     * @returns {void}
+     */
+    readSeatGivenElsewhere(wsEventName, eventId) {
+      if (wsEventName !== 'exo.agenda.event.attendee.promoted' || !this.displaysEvent(eventId)) {
+        return;
+      }
+      if (this.drawerSave || this.scopedChangePending || this.togglingOpen || this.drawerHoldsChanges()) {
+        this.liveReadPending = true;
+        return;
+      }
+      this.refreshDisplayedEvent();
+    },
+    /**
+     * @param {Number} eventId an event or a series
+     * @returns {Boolean} whether the page displays that event, or a date of
+     *          that series
+     */
+    displaysEvent(eventId) {
+      const id = Number(eventId);
+      return !!(this.event && id
+        && (Number(this.event.id) === id || this.event.parent && Number(this.event.parent.id) === id));
+    },
+    /**
+     * @returns {Boolean} whether the drawer changed the list, the padlock or
+     *          the limit since it was opened
+     */
+    drawerHoldsChanges() {
+      return this.attendeesSnapshot !== null
+        && (this.attendeesChanged() || this.openChanged() || this.capacityChanged());
+    },
     /**
      * Opens or locks the event from the detail page.
      *
@@ -442,6 +495,10 @@ export default {
       this.openBackup = !!(this.event && this.event.open);
       this.capacityBackup = this.event && this.event.capacity || 0;
       this.closeConfirmed = false;
+      // And the drawer's, for the seats its changes would give
+      if (this.$refs.attendeesDrawer) {
+        this.$refs.attendeesDrawer.rememberSeats();
+      }
     },
     /**
      * @returns {Boolean} whether the drawer changed the limit since it was
@@ -500,6 +557,10 @@ export default {
       const padlockChanged = this.openChanged();
       const capacityChanged = this.capacityChanged();
       if (!listChanged && !padlockChanged && !capacityChanged) {
+        if (this.liveReadPending) {
+          // A seat given elsewhere while the drawer held changes it gave up
+          this.refreshDisplayedEvent();
+        }
         return;
       }
       if (this.isOccurrence) {
@@ -609,6 +670,7 @@ export default {
       // Only the latest read this section issued lands: a save's and a
       // closing's may overlap, each issued once its write was stored
       const read = ++this.readCount;
+      this.liveReadPending = false;
       const reloadPromise = this.event.occurrence && this.event.occurrence.id
         ? this.$eventService.getEventOccurrence(this.event.parent.id, this.event.occurrence.id, 'all,parentAll')
         : this.$eventService.getEventById(this.event.id, 'all,parentAll');
@@ -654,6 +716,11 @@ export default {
         this.$set(this.event, 'open', this.openBackup);
         this.$set(this.event, 'capacity', this.capacityBackup);
         this.closeConfirmed = false;
+      }
+      if (this.liveReadPending) {
+        // The changes the read waited for are given up: the seat given
+        // elsewhere is read now
+        this.refreshDisplayedEvent();
       }
     },
     /**

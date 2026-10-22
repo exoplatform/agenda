@@ -252,6 +252,9 @@ export default {
       showFilterBar: false,
       filterText: '',
       responseFilter: 'ALL',
+      // The seats as the drawer found them, which its changes are measured
+      // against (see seatsGivenByChanges)
+      seatReference: null,
     };
   },
   computed: {
@@ -394,8 +397,42 @@ export default {
       }
       return attendees;
     },
-    sortedAttendees() {
+    /**
+     * The people on the waiting list that the drawer's changes give a seat
+     * to, before they are saved (EXO-91879): a Yes removed from the list, the
+     * limit raised or set to no limit, the date closed. The server gives
+     * those seats when the changes are saved, in the order the people asked,
+     * as here, and the answers it reads back then replace this. A series
+     * displayed as itself counts its seats date by date: nobody is shown
+     * seated there.
+     *
+     * @returns {Set} the participant keys of the people shown with a seat
+     */
+    seatsGivenByChanges() {
+      const reference = this.seatReference;
       const attendees = this.event && this.event.attendees || [];
+      const waiting = attendees.filter(attendee => attendee.response === 'WAITING');
+      if (!reference || !waiting.length || (this.event.recurrence && !this.event.parent)) {
+        return new Set();
+      }
+      const keys = new Set(attendees.map(this.$agendaUtils.participantKey));
+      const seatsFreed = reference.seatedKeys.filter(key => !keys.has(key)).length;
+      if (!seatsFreed && this.capacity === reference.capacity && this.isOpenEvent === reference.open) {
+        return new Set();
+      }
+      // Closing the event or removing its limit seats the whole list
+      const limit = this.isOpenEvent && this.capacity || 0;
+      const seats = limit ? limit - (reference.acceptedCount - seatsFreed) : waiting.length;
+      return new Set(waiting
+        .sort((a1, a2) => (new Date(a1.responseDate).getTime() - new Date(a2.responseDate).getTime())
+          || ((a1.id || 0) - (a2.id || 0)))
+        .slice(0, Math.max(seats, 0))
+        .map(this.$agendaUtils.participantKey));
+    },
+    sortedAttendees() {
+      const seatsGiven = this.seatsGivenByChanges;
+      const attendees = (this.event && this.event.attendees || [])
+        .map(attendee => (seatsGiven.has(this.$agendaUtils.participantKey(attendee)) ? {...attendee, response: 'ACCEPTED'} : attendee));
       if (!attendees.length) {
         return [];
       }
@@ -553,8 +590,25 @@ export default {
       this.showFilterBar = false;
       this.filterText = '';
       this.responseFilter = responseFilter || 'ALL';
+      this.rememberSeats();
       this.$refs.attendeesDrawer.open();
       this.$nextTick(() => this.$refs.invitedAttendeeAutoComplete && this.$refs.invitedAttendeeAutoComplete.focus());
+    },
+    /**
+     * Takes the seats as they stand as the reference the drawer's changes are
+     * measured against: when it opens, and when its host has read the event
+     * again.
+     *
+     * @returns {void}
+     */
+    rememberSeats() {
+      const attendees = this.event && this.event.attendees || [];
+      this.seatReference = {
+        acceptedCount: this.acceptedCount,
+        capacity: this.capacity,
+        open: this.isOpenEvent,
+        seatedKeys: attendees.filter(attendee => attendee.response === 'ACCEPTED').map(this.$agendaUtils.participantKey),
+      };
     },
     loadMore() {
       this.displayedCount += PAGE_SIZE;
