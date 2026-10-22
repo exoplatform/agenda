@@ -323,7 +323,7 @@ export default {
         this.liveReadPending = true;
         return;
       }
-      this.refreshDisplayedEvent();
+      this.refreshDisplayedEvent(true);
     },
     /**
      * @param {Number} eventId an event or a series
@@ -559,7 +559,7 @@ export default {
       if (!listChanged && !padlockChanged && !capacityChanged) {
         if (this.liveReadPending) {
           // A seat given elsewhere while the drawer held changes it gave up
-          this.refreshDisplayedEvent();
+          this.refreshDisplayedEvent(true);
         }
         return;
       }
@@ -663,13 +663,19 @@ export default {
      * page has no way of deducing which. Best effort: the change is already
      * saved, so a failed read is not a failed save and says nothing.
      *
+     * @param {Boolean} live whether the read follows a seat given elsewhere
+     *          rather than a write of this page (see readSeatGivenElsewhere)
      * @returns {Promise} resolved once the read has landed, has been dropped
      *          for a later one, or has failed
      */
-    refreshDisplayedEvent() {
+    refreshDisplayedEvent(live) {
+      if (!this.event) {
+        return Promise.resolve();
+      }
       // Only the latest read this section issued lands: a save's and a
       // closing's may overlap, each issued once its write was stored
       const read = ++this.readCount;
+      const displayedEvent = this.event;
       this.liveReadPending = false;
       const reloadPromise = this.event.occurrence && this.event.occurrence.id
         ? this.$eventService.getEventOccurrence(this.event.parent.id, this.event.occurrence.id, 'all,parentAll')
@@ -677,6 +683,19 @@ export default {
       return reloadPromise
         .then(storedEvent => {
           if (!storedEvent || read !== this.readCount) {
+            return;
+          }
+          if (displayedEvent !== this.event) {
+            // The page replaced the event it shows, with a read of its own
+            // made once the viewer answered: this one, issued before, would
+            // put the previous answer back. A seat given elsewhere may have
+            // come after that read, so it is read again on the event shown
+            return live ? this.refreshDisplayedEvent(true) : null;
+          }
+          if (live && this.drawerHoldsChanges()) {
+            // The organiser changed the drawer while the read was on its
+            // way: it would replace those changes, so it waits for them
+            this.liveReadPending = true;
             return;
           }
           this.$set(this.event, 'open', storedEvent.open);
@@ -720,7 +739,7 @@ export default {
       if (this.liveReadPending) {
         // The changes the read waited for are given up: the seat given
         // elsewhere is read now
-        this.refreshDisplayedEvent();
+        this.refreshDisplayedEvent(true);
       }
     },
     /**
