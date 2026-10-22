@@ -22,7 +22,7 @@
         @keypress="acceptDigitsOnly"
         @keydown.enter.prevent="$event.target.blur()"
         @input="keepDigits"
-        @change="applyTyped">
+        @blur="applyTyped">
       <v-btn
         :title="$t('agenda.capacity.increase')"
         icon
@@ -117,6 +117,15 @@ export default {
       }
       this.typedValue = digits;
     },
+    /**
+     * Applied when the field is left, Enter included, rather than on its
+     * change: a field left untouched, or edited back to what it held, fires
+     * no change, and would keep its typing state — the steps then counting
+     * from a value the field no longer shows.
+     *
+     * @param {Event} event the blur of the field
+     * @returns {void}
+     */
     applyTyped(event) {
       const typed = parseInt(event.target.value, 10) || 0;
       const capacity = typed && Math.max(typed, this.minimum);
