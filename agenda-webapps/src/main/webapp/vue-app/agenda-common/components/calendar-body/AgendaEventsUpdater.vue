@@ -32,6 +32,9 @@ export default {
     },
   },
   created() {
+    // The retrievals on their way, by event id: true when another message
+    // came for that event meanwhile
+    this.retrievals = {};
     this.$agendaWebSocket.initCometd(this.settings.cometdContextName, this.settings.cometdToken, this.handleAgendaUpdates);
   },
   methods: {
@@ -78,6 +81,10 @@ export default {
      * the selection holds numbers while the REST payload carries strings, so
      * a raw indexOf would silently drop every event of a selected space.
      *
+     * Messages for one event while its retrieval is on its way, as when a
+     * lifted limit seats a whole waiting list, one message per person, make
+     * one retrieval more once it lands, not one each.
+     *
      * @param {Number} eventId technical identifier of the event to retrieve
      * @returns {void}
      */
@@ -85,6 +92,11 @@ export default {
       if (this.ownerIds === false) {
         return;
       }
+      if (eventId in this.retrievals) {
+        this.retrievals[eventId] = true;
+        return;
+      }
+      this.retrievals[eventId] = false;
       this.$eventService.getEventById(eventId, 'all')
         .then(updatedEvent => {
           if (!updatedEvent) {
@@ -103,6 +115,13 @@ export default {
           } else {
             // Update, add or hide event
             this.updateEventsView(updatedEvent);
+          }
+        })
+        .finally(() => {
+          const messagedMeanwhile = this.retrievals[eventId];
+          delete this.retrievals[eventId];
+          if (messagedMeanwhile) {
+            this.retrieveAndAddEvent(eventId);
           }
         });
     },
