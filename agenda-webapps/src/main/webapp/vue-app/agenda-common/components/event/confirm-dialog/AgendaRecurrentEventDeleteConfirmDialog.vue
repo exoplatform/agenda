@@ -109,6 +109,9 @@ export default {
             return this.deleteRecurrentEvent();
           } else {
             parentRecurrentEvent.recurrence.until = this.$agendaUtils.toRFC3339(untilDate);
+            // A series ending after a number of dates ends there, not on that
+            // day: the number would keep the dates deleted
+            parentRecurrentEvent.recurrence.count = 0;
             // Written as the forms write them: an all-day day sent as read is
             // taken for midnight UTC, the day before west of UTC (see
             // AgendaUtils#toDate)
