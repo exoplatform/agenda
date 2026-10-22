@@ -305,6 +305,11 @@ export default {
         return this.$eventService.getEventById(this.event.parent.id, 'all')
           .then(storedSeries => {
             const seriesToSave = JSON.parse(JSON.stringify(storedSeries));
+            // Written as the forms write them: an all-day day sent as read is
+            // taken for midnight UTC, the day before west of UTC (see
+            // AgendaUtils#toDate)
+            seriesToSave.start = this.$agendaUtils.toRFC3339(this.$agendaUtils.toDate(storedSeries.start));
+            seriesToSave.end = this.$agendaUtils.toRFC3339(this.$agendaUtils.toDate(storedSeries.end));
             this.changedFields.forEach(field => {
               seriesToSave[field] = this.event[field];
             });
