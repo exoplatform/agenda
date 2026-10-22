@@ -307,11 +307,8 @@ export default {
      * @returns {void}
      */
     event(event, previousEvent) {
-      const sameEvent = event && previousEvent
-        && event.id === previousEvent.id
-        && (event.occurrence && event.occurrence.id) === (previousEvent.occurrence && previousEvent.occurrence.id);
-      if (sameEvent && this.seatGivenSinceShown) {
-        this.refreshDisplayedEvent(true);
+      if (event && previousEvent && this.seatGivenSinceShown && this.eventKey(event) === this.eventKey(previousEvent)) {
+        this.readSeatsLive();
       }
       this.seatGivenSinceShown = false;
     },
@@ -337,13 +334,17 @@ export default {
      *
      * @param {String} wsEventName the name of the event the server sent
      * @param {Number} eventId the event or the series it names
+     * @param {Number} calendarId the calendar of that event
      * @returns {void}
      */
-    readSeatGivenElsewhere(wsEventName, eventId) {
-      if (wsEventName !== 'exo.agenda.event.attendee.promoted' || !this.displaysEvent(eventId)) {
+    readSeatGivenElsewhere(wsEventName, eventId, calendarId) {
+      if (wsEventName !== 'exo.agenda.event.attendee.promoted' || !this.displaysEvent(eventId, calendarId)) {
         return;
       }
       this.seatGivenSinceShown = true;
+      this.readSeatsLive();
+    },
+    readSeatsLive() {
       if (this.drawerSave || this.scopedChangePending || this.togglingOpen || this.drawerHoldsChanges()) {
         this.liveReadPending = true;
         return;
@@ -352,13 +353,38 @@ export default {
     },
     /**
      * @param {Number} eventId an event or a series
+     * @param {Number} calendarId the calendar of that event
      * @returns {Boolean} whether the page displays that event, or a date of
-     *          that series
+     *          that series. A date with no row of its own gets one when it is
+     *          first answered, under an id the page does not know until it
+     *          reads the date again: for such a date, the calendar decides
      */
-    displaysEvent(eventId) {
+    displaysEvent(eventId, calendarId) {
       const id = Number(eventId);
-      return !!(this.event && id
-        && (Number(this.event.id) === id || this.event.parent && Number(this.event.parent.id) === id));
+      if (!this.event || !id) {
+        return false;
+      }
+      if (Number(this.event.id) === id || this.event.parent && Number(this.event.parent.id) === id) {
+        return true;
+      }
+      return !Number(this.event.id) && !!this.event.parent
+        && !!calendarId && Number(this.event.calendar && this.event.calendar.id) === Number(calendarId);
+    },
+    /**
+     * @param {Object} event an event the page shows
+     * @returns {String} what identifies it across the page's reads: a date
+     *          of a series by its series and its date, since its row id
+     *          appears once the date is first answered. An all-day date by
+     *          its day only: computed on a zone's skipped midnight, it and the
+     *          row it gets differ by the hour, which the server ignores too. A
+     *          timed date keeps its instant, as its row does
+     */
+    eventKey(event) {
+      if (!event.parent || !event.occurrence || !event.occurrence.id) {
+        return `${event.id}`;
+      }
+      const date = String(event.occurrence.id);
+      return `${event.parent.id}@${event.allDay ? date.slice(0, 10) : date}`;
     },
     /**
      * @returns {Boolean} whether the drawer changed the list, the padlock or
