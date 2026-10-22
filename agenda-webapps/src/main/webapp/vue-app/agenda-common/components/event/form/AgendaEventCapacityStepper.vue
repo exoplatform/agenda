@@ -10,6 +10,11 @@
         @click="decrease">
         <v-icon size="16" class="icon-default-color">fas fa-minus</v-icon>
       </v-btn>
+      <!--
+        The platform's reset gives every text input 270px and a 40px height:
+        width-auto and height-auto let its size, the length of what it shows,
+        decide instead.
+      -->
       <input
         :value="displayedValue"
         :size="Math.max(displayedValue.length, 2)"
@@ -17,7 +22,7 @@
         maxlength="9"
         inputmode="numeric"
         type="text"
-        class="text-color text-center pa-0 ma-0 mx-2"
+        class="text-color text-center width-auto height-auto pa-0 ma-0 mx-2"
         @focus="startTyping"
         @keypress="acceptDigitsOnly"
         @keydown.enter.prevent="$event.target.blur()"
