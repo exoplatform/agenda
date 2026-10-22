@@ -43,30 +43,35 @@ import org.exoplatform.agenda.util.Utils;
 public class AgendaWebSocketEventReplyListenerTest extends BaseAgendaEventTest {
 
   /**
-   * The calendar of an attendee who answered is told about their answer.
+   * The calendar of an attendee who answered is told about their answer, and
+   * only them: the event's creator is told of a seat given, not of an answer.
    *
    * @throws Exception when the event cannot be created
    */
   @Test
-  public void testAnAnswerIsToldToTheAttendee() throws Exception {
+  public void testAnAnswerIsToldToTheAttendeeAlone() throws Exception {
     Event event = singleEvent();
     EventAttendee answered = new EventAttendee(0, event.getId(), id(), EventAttendeeResponse.ACCEPTED);
 
-    assertToldToTheAttendee(Utils.POST_EVENT_RESPONSE_SENT, answered, event);
+    assertTold(Utils.POST_EVENT_RESPONSE_SENT, answered, event, event.getId(), Set.of(testuser2Identity.getRemoteId()));
   }
 
   /**
    * The calendar of an attendee promoted from the waiting list is told about
    * their seat: the event's data is the promotion, not the attendee's row.
+   * The event's creator is told too, so that the participant list their page
+   * shows gives the seat without being reopened (EXO-91879).
    *
    * @throws Exception when the event cannot be created
    */
   @Test
-  public void testAPromotionIsToldToThePromotedAttendee() throws Exception {
+  public void testAPromotionIsToldToThePromotedAttendeeAndTheCreator() throws Exception {
     Event event = singleEvent();
     EventAttendee promoted = new EventAttendee(0, event.getId(), id(), EventAttendeeResponse.ACCEPTED);
 
-    assertToldToTheAttendee(Utils.POST_EVENT_ATTENDEE_PROMOTED, new EventAttendeePromotion(promoted, 2, false), event);
+    assertToldToTheAttendeeAndTheCreator(Utils.POST_EVENT_ATTENDEE_PROMOTED,
+                                         new EventAttendeePromotion(promoted, 2, false),
+                                         event);
   }
 
   /**
@@ -82,36 +87,56 @@ public class AgendaWebSocketEventReplyListenerTest extends BaseAgendaEventTest {
     Event date = storedDate(series);
     EventAttendee promoted = new EventAttendee(0, date.getId(), id(), EventAttendeeResponse.ACCEPTED);
 
-    assertToldToTheAttendee(Utils.POST_EVENT_ATTENDEE_PROMOTED,
-                            new EventAttendeePromotion(promoted, 2, false),
-                            date,
-                            series.getId());
-    assertToldToTheAttendee(Utils.POST_EVENT_ATTENDEE_PROMOTED,
-                            new EventAttendeePromotion(promoted, 0, true),
-                            date,
-                            series.getId());
+    assertToldToTheAttendeeAndTheCreator(Utils.POST_EVENT_ATTENDEE_PROMOTED,
+                                         new EventAttendeePromotion(promoted, 2, false),
+                                         date,
+                                         series.getId());
+    assertToldToTheAttendeeAndTheCreator(Utils.POST_EVENT_ATTENDEE_PROMOTED,
+                                         new EventAttendeePromotion(promoted, 0, true),
+                                         date,
+                                         series.getId());
   }
 
   /**
    * A promotion on a date a series stores, and on it alone, names that date,
-   * which the page refreshes in place.
+   * which the page refreshes in place. The creator told is the date's, which
+   * is its series' own.
    *
    * @throws Exception when the series cannot be created
    */
   @Test
   public void testAPromotionOnAStoredDateAloneNamesThatDate() throws Exception {
-    Event date = storedDate(series());
+    Event series = series();
+    Event date = storedDate(series);
+    assertEquals(series.getCreatorId(), date.getCreatorId());
     EventAttendee promoted = new EventAttendee(0, date.getId(), id(), EventAttendeeResponse.ACCEPTED);
 
-    assertToldToTheAttendee(Utils.POST_EVENT_ATTENDEE_PROMOTED, new EventAttendeePromotion(promoted, 0, false), date);
+    assertToldToTheAttendeeAndTheCreator(Utils.POST_EVENT_ATTENDEE_PROMOTED,
+                                         new EventAttendeePromotion(promoted, 0, false),
+                                         date);
   }
 
-  private void assertToldToTheAttendee(String eventName, Object data, Event event) throws Exception {
-    assertToldToTheAttendee(eventName, data, event, event.getId());
+  private void assertToldToTheAttendeeAndTheCreator(String eventName, Object data, Event event) throws Exception {
+    assertToldToTheAttendeeAndTheCreator(eventName, data, event, event.getId());
+  }
+
+  private void assertToldToTheAttendeeAndTheCreator(String eventName,
+                                                    Object data,
+                                                    Event event,
+                                                    long namedEventId) throws Exception {
+    assertTold(eventName,
+               data,
+               event,
+               namedEventId,
+               Set.of(testuser2Identity.getRemoteId(), testuser1Identity.getRemoteId()));
   }
 
   @SuppressWarnings("unchecked")
-  private void assertToldToTheAttendee(String eventName, Object data, Event event, long namedEventId) throws Exception {
+  private void assertTold(String eventName,
+                          Object data,
+                          Event event,
+                          long namedEventId,
+                          Set<String> recipientsTold) throws Exception {
     AgendaWebSocketService webSocketService = mock(AgendaWebSocketService.class);
     AgendaWebSocketEventReplyListener listener = new AgendaWebSocketEventReplyListener(container,
                                                                                        agendaEventService,
@@ -124,7 +149,7 @@ public class AgendaWebSocketEventReplyListenerTest extends BaseAgendaEventTest {
     ArgumentCaptor<WebSocketMessage> message = ArgumentCaptor.forClass(WebSocketMessage.class);
     ArgumentCaptor<Collection<String>> recipients = ArgumentCaptor.forClass(Collection.class);
     verify(webSocketService, times(1)).sendMessage(message.capture(), recipients.capture());
-    assertEquals(Set.of(testuser2Identity.getRemoteId()), Set.copyOf(recipients.getValue()));
+    assertEquals(recipientsTold, Set.copyOf(recipients.getValue()));
     assertEquals(eventName, FieldUtils.readField(message.getValue(), "wsEventName", true));
     Map<String, Object> params = (Map<String, Object>) FieldUtils.readField(message.getValue(), "params", true);
     assertEquals(namedEventId, params.get("eventId"));
