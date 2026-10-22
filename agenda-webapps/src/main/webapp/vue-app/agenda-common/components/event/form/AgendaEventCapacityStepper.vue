@@ -13,7 +13,8 @@
       <!--
         The platform's reset gives every text input 270px and a 40px height:
         width-auto and height-auto let its size, the length of what it shows,
-        decide instead.
+        decide instead. Escape closes the drawer from the document, after the
+        field: the field is left first, for the drawer to save the value typed.
       -->
       <input
         :value="displayedValue"
@@ -26,6 +27,7 @@
         @focus="startTyping"
         @keypress="acceptDigitsOnly"
         @keydown.enter.prevent="$event.target.blur()"
+        @keydown.esc="$event.target.blur()"
         @input="keepDigits"
         @blur="applyTyped">
       <v-btn
