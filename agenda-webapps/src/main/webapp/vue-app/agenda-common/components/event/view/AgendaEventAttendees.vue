@@ -290,7 +290,31 @@ export default {
       // A seat given elsewhere while the drawer held changes: read once it
       // closes, if no save of its own reads the answers back
       liveReadPending: false,
+      // Whether a seat was given elsewhere since the page last replaced the
+      // event it shows
+      seatGivenSinceShown: false,
     };
+  },
+  watch: {
+    /**
+     * The page replaces the event it shows with a read of its own once the
+     * viewer answered, a read no ordering ties to this section's: issued
+     * before a seat given elsewhere and served after, it would show the
+     * event without that seat. Read again when a seat was given meanwhile.
+     *
+     * @param {Object} event the event now shown
+     * @param {Object} previousEvent the event shown before
+     * @returns {void}
+     */
+    event(event, previousEvent) {
+      const sameEvent = event && previousEvent
+        && event.id === previousEvent.id
+        && (event.occurrence && event.occurrence.id) === (previousEvent.occurrence && previousEvent.occurrence.id);
+      if (sameEvent && this.seatGivenSinceShown) {
+        this.refreshDisplayedEvent(true);
+      }
+      this.seatGivenSinceShown = false;
+    },
   },
   created() {
     this.$root.$on('agenda-event-live-update', this.readSeatGivenElsewhere);
@@ -319,6 +343,7 @@ export default {
       if (wsEventName !== 'exo.agenda.event.attendee.promoted' || !this.displaysEvent(eventId)) {
         return;
       }
+      this.seatGivenSinceShown = true;
       if (this.drawerSave || this.scopedChangePending || this.togglingOpen || this.drawerHoldsChanges()) {
         this.liveReadPending = true;
         return;
@@ -688,9 +713,9 @@ export default {
           if (displayedEvent !== this.event) {
             // The page replaced the event it shows, with a read of its own
             // made once the viewer answered: this one, issued before, would
-            // put the previous answer back. A seat given elsewhere may have
-            // come after that read, so it is read again on the event shown
-            return live ? this.refreshDisplayedEvent(true) : null;
+            // put the previous answer back, and that read may predate what
+            // this one was made for. It is made again on the event shown
+            return this.refreshDisplayedEvent(live);
           }
           if (live && this.drawerHoldsChanges()) {
             // The organiser changed the drawer while the read was on its
