@@ -635,11 +635,7 @@ export default {
             return;
           }
           const eventToSave = {
-            ...storedEvent,
-            // Sent as read, an all-day day would be the day before, west of
-            // UTC (see AgendaUtils#toDate)
-            start: this.$agendaUtils.toDate(storedEvent.start),
-            end: this.$agendaUtils.toDate(storedEvent.end),
+            ...this.eventWithDatesToSave(storedEvent),
             attendees: this.$agendaUtils.withAttendeesDelta(storedEvent.attendees, attendeesDelta),
             capacity: capacityKept ? capacity : storedEvent.capacity,
           };
@@ -724,6 +720,19 @@ export default {
       return this.$agendaUtils.attendeesDelta(this.attendeesBackup, this.event && this.event.attendees);
     },
     /**
+     * @param {Object} event an event as the server returned it
+     * @returns {Object} a copy to save, its dates written as the forms write
+     *          them: an all-day day sent as read is taken for midnight UTC,
+     *          the day before west of UTC (see AgendaUtils#toDate)
+     */
+    eventWithDatesToSave(event) {
+      return {
+        ...event,
+        start: this.$agendaUtils.toRFC3339(this.$agendaUtils.toDate(event.start)),
+        end: this.$agendaUtils.toRFC3339(this.$agendaUtils.toDate(event.end)),
+      };
+    },
+    /**
      * @param {Object} closeConfirm the dialog that asks to confirm a closing,
      *          the page's own unless given (see drawerClosed)
      * @returns {void}
@@ -753,7 +762,7 @@ export default {
         // own list instead of replacing it with this date's — someone removed
         // from this date alone is still on the series. Invitations follow an
         // invitation, not a padlock.
-        const eventToSave = JSON.parse(JSON.stringify(this.event));
+        const eventToSave = JSON.parse(JSON.stringify(this.eventWithDatesToSave(this.event)));
         eventToSave.sendInvitation = listChanged;
         // Opening travels with the invite permission it clears (see toggleOpen)
         const fields = padlockChanged ? (this.event.open ? ['open', 'allowAttendeeToInvite'] : ['open']) : [];
@@ -774,7 +783,7 @@ export default {
       // seats on the server — a new limit, or a Yes removed from the list —
       // so the answers are read back, as the drawer and the export show them
       const write = listChanged
-        ? confirmed => this.$eventService.updateEvent(this.event, confirmed)
+        ? confirmed => this.$eventService.updateEvent(this.eventWithDatesToSave(this.event), confirmed)
         : confirmed => this.$eventService.updateEventFields({id: this.event.id}, {capacity: this.event.capacity || 0}, true, false, confirmed);
       this.drawerSave = closeConfirm.writeConfirmingClose(write, false)
         .then(() => this.refreshDisplayedEvent())
