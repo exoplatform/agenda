@@ -277,8 +277,9 @@ export default {
       // a date of a series with its limit
       closeConfirmed: false,
       togglingOpen: false,
-      // The padlock's write while it runs, with the read a closing makes: a
-      // close of the drawer meanwhile saves once it ended
+      // The padlock's change while it runs: the answer to its closing warning,
+      // then, on an event of its own, its write with the read a closing makes.
+      // A close of the drawer meanwhile saves once it ended (see drawerClosed)
       openWrite: null,
       scopedChangePending: false,
       // What the pending question is about. Set per gesture rather than fixed,
@@ -320,10 +321,21 @@ export default {
     },
   },
   created() {
+    this.pageClosed = false;
     this.$root.$on('agenda-event-live-update', this.readSeatGivenElsewhere);
   },
   beforeDestroy() {
     this.$root.$off('agenda-event-live-update', this.readSeatGivenElsewhere);
+    // Read by what waited for the padlock's change, answered below
+    this.pageClosed = true;
+    if (this.openWrite) {
+      // A warning the padlock's change waits for goes with the page (Escape
+      // closes the event's page): nobody can answer it any more, so it is
+      // answered no and the drawer's close waiting for it goes on (see
+      // drawerClosed). One asked by another write stays unanswered: what
+      // follows its answer needs the page
+      this.$refs.closeConfirm.settle(false);
+    }
   },
   methods: {
     /**
@@ -441,7 +453,7 @@ export default {
      * @returns {void}
      */
     toggleOpen() {
-      if (!this.event || this.togglingOpen || this.scopedChangePending) {
+      if (!this.event || this.togglingOpen || this.scopedChangePending || this.openWrite) {
         return;
       }
       if (!this.isOccurrence && !this.event.id) {
@@ -452,9 +464,21 @@ export default {
       // list: asked first (D15). A limit the stepper shows before the drawer
       // closes counts too, since the closing removes it as well
       if (!open && this.hasLimit()) {
-        this.$refs.closeConfirm.confirm()
-          .then(() => this.applyOpen(open, true))
-          .catch(() => null);
+        // The drawer's close button can close it behind the warning: that
+        // close waits for the answer, and on a standalone event for the write
+        // the answer starts, as for a padlock's write (see drawerClosed)
+        const pending = this.$refs.closeConfirm.confirm()
+          .then(() => {
+            this.applyOpen(open, true);
+            return this.isOccurrence ? null : this.openWrite;
+          })
+          .catch(() => null)
+          .finally(() => {
+            if (this.openWrite === pending) {
+              this.openWrite = null;
+            }
+          });
+        this.openWrite = pending;
         return;
       }
       this.applyOpen(open, false);
@@ -551,8 +575,12 @@ export default {
       // A reopen waits for the save the last close started, and for the read
       // of the answers that follows it: the state taken below, which the
       // export compares with and a failed save puts back, is then not the
-      // changes still on their way
+      // changes still on their way. A page closed meanwhile has no drawer left
+      // to open
       (this.drawerSave || Promise.resolve()).then(() => {
+        if (this.pageClosed) {
+          return;
+        }
         // The drawer edits the event in place — the list and the padlock alike —
         // so the state to come back to, when the organiser cancels the scope
         // popup or when the save fails, has to be kept before anything touches it
@@ -568,8 +596,9 @@ export default {
      *
      * A padlock's write still on its way is waited for, with the read a
      * closing makes: a save started before would carry the padlock and the
-     * limit as they were before it (EXO-90310). A reopen waits for that save
-     * as well.
+     * limit as they were before it (EXO-90310). So is the answer to the
+     * closing warning, which the padlock's change waits for. A reopen waits
+     * for that save as well.
      *
      * @returns {void}
      */
@@ -586,6 +615,10 @@ export default {
         const closeConfirm = this.$refs.closeConfirm;
         this.drawerSave = this.openWrite.then(() => {
           this.drawerSave = null;
+          if (this.pageClosed && this.isOccurrence) {
+            // The scope question a date's changes need left with the page
+            return null;
+          }
           if (this.eventKey(this.event) !== this.eventKey(editedEvent)) {
             this.settleLiveRead();
             return this.saveChangesOfEventLeft(editedEvent.id, unsavedList, unsavedCapacity, closeConfirm);
