@@ -365,6 +365,37 @@ public class AgendaSeriesSeatRuleTest extends BaseAgendaEventTest {
   }
 
   /**
+   * A member of the space who was not invited answers Yes to every date of
+   * an open series whose first two dates are stored on their own rows, as the
+   * reminders store the next days of a confirmed series: they wait on the
+   * stored date already full, are seated on the other one and on the dates
+   * of the series, and the answer reports the date they wait on (EXO-91877).
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aSelfRegistrationToEveryDateWaitsOnAFullStoredDateAndIsSeatedOnAFreeOne() throws Exception {
+    Event series = openLimitedSeries(1, 3, testuser2Identity);
+    List<ZonedDateTime> dates = occurrenceIds(series);
+    Event fullDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(0));
+    Event freeDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(1));
+    agendaEventAttendeeService.sendEventResponse(series.getId(), dates.get(0), id(testuser2Identity), EventAttendeeResponse.ACCEPTED, true);
+    assertEquals(EventAttendeeResponse.ACCEPTED, responseOn(fullDate.getId(), testuser2Identity));
+    BROADCASTS.clear();
+
+    EventResponseOutcome outcome = agendaEventAttendeeService.sendEventResponse(series.getId(),
+                                                                                null,
+                                                                                id(testuser3Identity),
+                                                                                EventAttendeeResponse.ACCEPTED,
+                                                                                true);
+
+    assertRows(fullDate.getId(), testuser3Identity, row(null, null, EventAttendeeResponse.WAITING));
+    assertRows(freeDate.getId(), testuser3Identity, row(null, null, EventAttendeeResponse.ACCEPTED));
+    assertRows(series.getId(), testuser3Identity, row(null, null, EventAttendeeResponse.ACCEPTED));
+    assertEquals("the date left waiting is reported", dates.get(0), outcome.firstWaitingOccurrenceId());
+  }
+
+  /**
    * A promotion that gives seats on the dates before a full date and after it
    * counts the dates with a seat only, the full date not among them.
    *
@@ -1410,6 +1441,23 @@ public class AgendaSeriesSeatRuleTest extends BaseAgendaEventTest {
    */
   private Event limitedSeries(int capacity, int count, Identity... attendees) throws Exception {
     return limitedSeries(LocalDate.now().plusDays(60).atTime(9, 0).atZone(ZoneOffset.UTC), capacity, count, attendees);
+  }
+
+  /**
+   * A daily series of the space's calendar, open to its members, at 09:00
+   * UTC starting in sixty days, with a count and the capacity given.
+   */
+  private Event openLimitedSeries(int capacity, int count, Identity... attendees) throws Exception {
+    ZonedDateTime start = LocalDate.now().plusDays(60).atTime(9, 0).atZone(ZoneOffset.UTC);
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(true);
+    event.setTimeZoneId(start.getZone());
+    event.getRecurrence().setUntil(null);
+    event.getRecurrence().setCount(count);
+    Event created = createEvent(event, id(testuser1Identity), attendees);
+    setCapacity(created.getId(), capacity);
+    return created;
   }
 
   /**
