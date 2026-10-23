@@ -7,7 +7,7 @@
     :cancel-label="$t('agenda.button.cancel')"
     persistent
     @ok="settle(true)"
-    @dialog-closed="settle(false)" />
+    @dialog-closed="closed" />
 </template>
 
 <script>
@@ -31,6 +31,10 @@ export default {
       return new Promise((resolve, reject) => {
         this.pending = {resolve, reject};
         this.$refs.dialog.open();
+        // Above the participants drawer the padlock is in, and above the
+        // scope question a save of a series asks it from. On the next tick:
+        // the content is rendered by the flush the opening queues
+        this.$nextTick(() => this.$agendaUtils.raiseAboveOverlays(this.$refs.dialog.$refs.dialog, 1));
       });
     },
     /**
@@ -50,6 +54,10 @@ export default {
         }
         throw error;
       });
+    },
+    closed() {
+      this.$agendaUtils.lowerToSkin(this.$refs.dialog.$refs.dialog);
+      this.settle(false);
     },
     settle(confirmed) {
       const pending = this.pending;
