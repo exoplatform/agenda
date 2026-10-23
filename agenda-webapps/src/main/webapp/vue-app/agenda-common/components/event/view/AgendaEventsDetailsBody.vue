@@ -92,10 +92,7 @@
             <div class="d-flex align-center">
               <v-btn
                 v-if="isPast"
-                class="event-conference-rejoin text-none px-1 me-2"
-                color="primary"
-                small
-                text
+                class="event-conference-rejoin btn border-radius me-2"
                 @click="openConferenceLink">
                 {{ $t('agenda.button.rejoinMeeting') }}
               </v-btn>
