@@ -7,7 +7,7 @@
     :cancel-label="$t('agenda.button.cancel')"
     persistent
     @ok="settle(true)"
-    @dialog-closed="settle(false)" />
+    @dialog-closed="closed" />
 </template>
 
 <script>
@@ -21,6 +21,10 @@ const CLOSE_NEEDS_CONFIRMATION = 'agenda.capacity.closeNeedsConfirmation';
 export default {
   created() {
     this.pending = null;
+    this.destroyed = false;
+  },
+  beforeDestroy() {
+    this.destroyed = true;
   },
   methods: {
     /**
@@ -30,7 +34,17 @@ export default {
     confirm() {
       return new Promise((resolve, reject) => {
         this.pending = {resolve, reject};
+        if (this.destroyed) {
+          // Asked once its page is gone, by a refusal that came back after
+          // Escape closed the event's page: nobody can answer it any more
+          this.settle(false);
+          return;
+        }
         this.$refs.dialog.open();
+        // Above the participants drawer the padlock is in, and above the
+        // scope question a save of a series asks it from. On the next tick:
+        // the content is rendered by the flush the opening queues
+        this.$nextTick(() => this.$agendaUtils.raiseAboveOverlays(this.$refs.dialog.$refs.dialog, 1));
       });
     },
     /**
@@ -50,6 +64,10 @@ export default {
         }
         throw error;
       });
+    },
+    closed() {
+      this.$agendaUtils.lowerToSkin(this.$refs.dialog.$refs.dialog);
+      this.settle(false);
     },
     settle(confirmed) {
       const pending = this.pending;

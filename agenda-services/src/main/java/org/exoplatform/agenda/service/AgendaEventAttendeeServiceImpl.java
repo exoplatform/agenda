@@ -700,11 +700,13 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     // identifier the occurrence list gives an all-day date the clocks start
     // past midnight is past the UTC midnight that row carries
     ZonedDateTime fromDate = Utils.getOccurrenceId(series.isAllDay(), occurrenceId, series.getTimeZoneId());
+    // Read before the answer rewrites their rows on the series
+    EventAttendeeList seriesAttendees = getEventAttendees(eventId);
     EventResponseOutcome outcome = answerSeries(series, fromDate, identityId, response, broadcast);
 
     // Apply modification on the rows of the dates answered as well: those
-    // designating the date answered from, or a later one, read at once, in
-    // the order the seat rule ranks the dates
+    // designating the date answered from, or a later one, that the answer
+    // reaches, read at once, in the order the seat rule ranks the dates
     Event ownRow = null;
     EventAttendeeResponse responseOnOwnRow = null;
     Event earliestWaitingRow = null;
@@ -713,7 +715,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     SeriesDates seriesDates = new SeriesDates(series, () -> occurrences, decidedAt);
     for (Event occurrence : occurrences) {
       if (isOnOrAfterSeriesDate(series, occurrenceDateOf(occurrence), fromDate)
-          && isEventAttendee(occurrence.getId(), identityId)) {
+          && reachesDate(occurrence, identityId, seriesAttendees, seriesDates)) {
         EventAttendee propagated = saveEventAttendee(occurrence,
                                                      identityId,
                                                      response,
@@ -880,20 +882,23 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
                                                   EventAttendeeResponse response,
                                                   boolean broadcast) {
     Event event = eventStorage.getEventById(eventId);
+    // Read before the answer rewrites their rows on the series
+    EventAttendeeList seriesAttendees = event.getRecurrence() == null ? null : getEventAttendees(eventId);
     EventResponseOutcome outcome = answerPool(event, null, identityId, response, broadcast);
     Event earliestWaitingRow = null;
 
-    // Apply modification on exceptional occurrences as well, deciding no seat
-    // on a date over, in the order the seat rule ranks the dates. When the
-    // series' own dates did not fill and its mark is clear, the first stored
-    // date the series reports (confirmed, holding its limit, not over) that
-    // the answer fills in that order, its own mark clear, is the one reported
+    // Apply modification on the exceptional occurrences the answer reaches as
+    // well, deciding no seat on a date over, in the order the seat rule ranks
+    // the dates. When the series' own dates did not fill and its mark is
+    // clear, the first stored date the series reports (confirmed, holding its
+    // limit, not over) that the answer fills in that order, its own mark
+    // clear, is the one reported
     if (event.getRecurrence() != null) {
       List<Event> occurrences = rowsByStart(eventId);
       ZonedDateTime decidedAt = ZonedDateTime.now(ZoneOffset.UTC);
       SeriesDates seriesDates = new SeriesDates(event, () -> occurrences, decidedAt);
       for (Event occurrence : occurrences) {
-        if (isEventAttendee(occurrence.getId(), identityId)) {
+        if (reachesDate(occurrence, identityId, seriesAttendees, seriesDates)) {
           EventAttendee propagated = saveEventAttendee(occurrence,
                                                        identityId,
                                                        response,
@@ -905,6 +910,44 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       }
     }
     return new EventResponseOutcome(outcome.response(), firstWaiting(event, outcome.firstWaitingOccurrenceId(), earliestWaitingRow));
+  }
+
+  /**
+   * @param occurrence the row of a date of a series answered as a whole or
+   *          from one date on
+   * @param identityId the identity answering
+   * @param seriesAttendees the series' rows as they were before the answer
+   * @param seriesDates the dates of that series
+   * @return whether the answer is copied to that row: where they are one of
+   *         its attendees; where the series did not carry them at that date,
+   *         also when they may answer that date themselves and it is not
+   *         over, as they join the dates with no row, which show the series'
+   *         list. The rows the reminders store for the days of a confirmed
+   *         series are such dates for whoever answers the series after them;
+   *         a date over keeps the list it was held with. Somebody the series
+   *         carried at that date and the row does not stays off it, as after
+   *         the organiser removed them from it (eXIP 7.3.0.20 D6): other
+   *         histories leave the same state, such as an answer given while the
+   *         date was locked or an invitation written on the series alone, and
+   *         nothing tells them apart.
+   *         Somebody the series did not carry, removed from a date they had
+   *         answered alone, joins it again as a newcomer does, for the same
+   *         reason
+   */
+  private boolean reachesDate(Event occurrence, long identityId, EventAttendeeList seriesAttendees, SeriesDates seriesDates) {
+    if (isEventAttendee(occurrence.getId(), identityId)) {
+      return true;
+    }
+    ZonedDateTime occurrenceId = occurrenceDateOf(occurrence);
+    if (occurrenceId == null || seriesDates.isOver(occurrence)) {
+      return false;
+    }
+    List<EventAttendee> carriedAtDate = seriesAttendees.getEventAttendees()
+                                                       .stream()
+                                                       .filter(attendee -> SeatRule.coversDate(attendee, occurrenceId))
+                                                       .toList();
+    return !Utils.isEventAttendee(identityManager, spaceService, identityId, carriedAtDate)
+        && mayRegisterOn(occurrence, identityId);
   }
 
   /**
@@ -1510,9 +1553,17 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     // The attendee half stays per event: on an exceptional occurrence, its own
     // attendee list. Resolving it to the series would let a participant removed
     // from one occurrence answer on it even on a locked series (US05)
-    if (isEventAttendee(event.getId(), identityId)) {
-      return true;
-    }
+    return isEventAttendee(event.getId(), identityId) || mayRegisterOn(event, identityId);
+  }
+
+  /**
+   * @param event {@link Event} as stored
+   * @param identityId an identity that is not one of its attendees
+   * @return whether they may answer it all the same: the half of
+   *         {@link #canRespondToEvent(Event, long)} that does not read the
+   *         attendees, an open event of a calendar they can access
+   */
+  private boolean mayRegisterOn(Event event, long identityId) {
     if (!isOpen(event)) {
       return false;
     }
