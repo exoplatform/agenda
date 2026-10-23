@@ -43,20 +43,6 @@
 </template>
 
 <script>
-// One step above the platform stacking scale, whose planes are named in
-// platform-ui: drawer 1035, modal backdrop 1040, modal 1050, snackbar 1060. A
-// scope question is blocking, so it is painted over all of them.
-//
-// Why a fixed plane rather than the skin rule meant to do this: that rule reads
-// `z-index: var(--allPagesZindexModal, 1050) !important` and, where the custom
-// property is declared EMPTY, a var() does not fall back — the substitution is
-// invalid at computed-value time and the whole declaration is dropped,
-// !important included: the popup then keeps z-index 3 while its own veil is
-// painted over it. Measuring the screen at open time is no alternative:
-// Vuetify creates that veil in a requestAnimationFrame, so there is nothing
-// to measure when the popup opens.
-const ABOVE_STACKING_SCALE = 1070;
-
 export default {
   props: {
     /**
@@ -410,12 +396,7 @@ export default {
         event.stopPropagation();
       }
 
-      const content = this.$refs.dialog && this.$refs.dialog.$refs.content;
-      if (content) {
-        // Given back to the skin: the next opening measures the drawers as they
-        // are then, and a value left behind would outlive the reason for it
-        content.style.removeProperty('z-index');
-      }
+      this.$agendaUtils.lowerToSkin(this.$refs.dialog);
       this.dialog = false;
     },
     /**
@@ -436,26 +417,9 @@ export default {
       this.formAttendeesDelta = formAttendeesDelta || null;
       this.confirmClose = !!confirmClose;
       this.dialog = true;
-      this.$nextTick(this.raiseAboveOverlays);
-    },
-    /**
-     * Paints the popup above the platform stacking scale.
-     *
-     * No CSS rule of ours can do it: content-class lands on the inner .v-dialog
-     * while the z-index sits on .v-dialog__content, which carries no class we
-     * control. An inline value with important is the one step above a skin
-     * rule. The reasoning behind the constant is on its declaration.
-     *
-     * Its own veil is deliberately left where Vuetify puts it: it keeps dimming
-     * the page, below the answer instead of over it.
-     *
-     * @returns {void}
-     */
-    raiseAboveOverlays() {
-      const content = this.$refs.dialog && this.$refs.dialog.$refs.content;
-      if (content) {
-        content.style.setProperty('z-index', String(ABOVE_STACKING_SCALE), 'important');
-      }
+      // A scope question is blocking: above the drawer it is asked from. On
+      // the next tick: the content is rendered by the flush the opening queues
+      this.$nextTick(() => this.$agendaUtils.raiseAboveOverlays(this.$refs.dialog));
     },
   },
 };
