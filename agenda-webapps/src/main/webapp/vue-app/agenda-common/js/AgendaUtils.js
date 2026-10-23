@@ -288,6 +288,64 @@ export function announcePartlyWaiting(vm, seriesId, firstWaitingOccurrenceId) {
     }),
   }}));
 }
+
+// One step above the platform stacking scale, whose planes are named in
+// platform-ui: drawer 1035, modal backdrop 1040, modal 1050, snackbar 1060 —
+// the plane a drawer takes when it opens over a dialog, as the participants
+// drawer does over the event's page. A blocking question is painted over all
+// of them.
+//
+// Why a fixed plane rather than the skin rule meant to do this: that rule reads
+// `z-index: var(--allPagesZindexModal, 1050) !important` and, where the custom
+// property is declared EMPTY, a var() does not fall back — the substitution is
+// invalid at computed-value time and the whole declaration is dropped,
+// !important included: the popup then keeps z-index 3 while its own veil is
+// painted over it. Measuring the screen at open time is no alternative:
+// Vuetify creates that veil in a requestAnimationFrame, so there is nothing
+// to measure when the popup opens.
+const ABOVE_STACKING_SCALE = 1070;
+
+/**
+ * Paints a popup above the platform stacking scale, once it is open.
+ *
+ * No CSS rule can do it: content-class lands on the inner .v-dialog while the
+ * z-index sits on .v-dialog__content, which carries no class of ours. An
+ * inline value with important is the one step above a skin rule.
+ *
+ * Its own veil is deliberately left where Vuetify puts it: it keeps dimming
+ * the page, below the question instead of over it.
+ *
+ * Known limit: Vuetify keeps the focus in a dialog only while the plane it
+ * computed at the opening is the highest on the screen, and this plane is
+ * higher. Raised over the event's page, the popup lets a keyboard user Tab
+ * out to the drawer behind it.
+ *
+ * @param {Object} dialog the v-dialog of the popup
+ * @param {Number} step how many planes above the scale: one for a question
+ *        that can be asked from another raised one, else none
+ * @returns {void}
+ */
+export function raiseAboveOverlays(dialog, step) {
+  const content = dialog && dialog.$refs.content;
+  if (content) {
+    content.style.setProperty('z-index', String(ABOVE_STACKING_SCALE + (step || 0)), 'important');
+  }
+}
+
+/**
+ * Gives a popup raised by raiseAboveOverlays back to the skin: the next
+ * opening raises it again, and a value left behind would outlive the reason
+ * for it.
+ *
+ * @param {Object} dialog the v-dialog of the popup
+ * @returns {void}
+ */
+export function lowerToSkin(dialog) {
+  const content = dialog && dialog.$refs.content;
+  if (content) {
+    content.style.removeProperty('z-index');
+  }
+}
 export function convertDates(event) {
   event.startDate = event.start && toDate(event.start) || null;
   event.endDate = event.end && toDate(event.end) || null;
