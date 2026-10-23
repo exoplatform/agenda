@@ -767,7 +767,7 @@
     {
       "name": "get_event_conference",
       "title": "Get event conference link",
-      "description": "Return the web-conference (e.g. Jitsi) link attached to an event, if any.",
+      "description": "Return the web-conference (e.g. Jitsi) link attached to an event, if any. To list the recordings of that meeting, pass its url to get_meeting_recordings.",
       "input_schema": {
         "type": "object",
         "properties": {
