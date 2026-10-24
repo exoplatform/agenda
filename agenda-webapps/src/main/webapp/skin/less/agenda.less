@@ -299,8 +299,10 @@
       padding-bottom: 16px !important;
     }
 
+    /* the field sits on the form's toolbar and shows the toolbar's colour,
+       the drawers and popups background colour of the theme settings */
     .agenda-time-zone .v-input__slot {
-      background: white !important;
+      background: transparent !important;
     }
 
     .space-suggester {
@@ -1122,6 +1124,15 @@
     min-width: 0;
   }
 
+  /* Full agenda: the calendar card starts at the panel's top edge. The panel
+     column is rendered only where the left panel is available (v-if on
+     leftPanelAvailable: not in a space agenda), and only hidden when
+     collapsed (v-show), so the grid keeps its place when the panel toggles.
+     !important beats the card's own pa-5 utility (EXO-91400) */
+  .agenda-left-panel-column + .agenda-body-column > .application-body {
+    padding-top: 0 !important;
+  }
+
   .agenda-left-panel {
     height: 100%;
     /* same background as the v-card hosting the calendar body */
@@ -1273,6 +1284,102 @@
   .v-application--is-rtl .agenda-left-panel {
     border-right: none;
     border-left: 1px solid #e1e8ee;
+  }
+}
+
+/* The application background configured in the theme settings is painted by
+   the platform on the portlet frame, or on an element carrying
+   .application-background-color or .application-layout-style, which also
+   clears the cards and sheets inside .application-body. The calendar grid
+   (Vuetify's light theme) and the left panel paint their own white over it:
+   cleared under the same three selectors as the platform's, so an agenda
+   without the layout background keeps its white surfaces and dark labels
+   (EXO-91399, EXO-91392) */
+.application-background-color .agenda-application,
+.application-layout-style .agenda-application,
+.PORTLET-FRAGMENT:not(.no-layout-style):not(.no-layout-background-color) .agenda-application {
+  .theme--light.v-calendar-daily,
+  .theme--light.v-calendar-weekly,
+  .agenda-left-panel {
+    background-color: transparent;
+  }
+
+  /* the grid's labels follow the theme's text colours, readable on a dark
+     application background as well: Vuetify's light theme fixes them to
+     #000 and #424242. The days outside the month keep their fixed grey
+     background, and so their dark labels */
+  .theme--light.v-calendar-weekly .v-calendar-weekly__head-weekday:not(.v-outside),
+  .theme--light.v-calendar-weekly .v-calendar-weekly__day:not(.v-outside),
+  .theme--light.v-calendar-daily .v-calendar-daily_head-day {
+    color: @textColor;
+  }
+
+  /* a date is a v-btn with its own text colour; today's button, coloured,
+     keeps it: Vuetify gives the other dates the 'transparent' class */
+  .v-calendar-weekly__day:not(.v-outside) .v-calendar-weekly__day-label .v-btn.transparent,
+  .v-calendar-daily_head-day-label .v-btn.transparent {
+    color: @textColor;
+  }
+
+  /* past days keep the colour of the other days, as agenda's own
+     !important rules on .v-past do without the application background */
+  .v-calendar-weekly .v-calendar-weekly__head-weekday.v-past:not(.v-outside),
+  .v-calendar-daily_head-day.v-past .v-calendar-daily_head-weekday {
+    color: @textColor !important;
+  }
+
+  .theme--light.v-calendar-daily .v-calendar-daily__interval-text {
+    color: @textSubtitleColor;
+  }
+
+  /* the left panel's month calendar: weekday initials, and the dates other
+     than the selected one and today, which keep their primary colour */
+  .agenda-left-panel-mini-calendar {
+    .v-date-picker-table th {
+      color: @textSubtitleColor;
+    }
+
+    .v-date-picker-table--date .v-btn:not(.v-btn--active):not(.v-date-picker-table__current) {
+      color: @textColor;
+    }
+  }
+}
+
+/* The event dialog carries the platform's layout-drawer class, which paints
+   the drawers and popups background configured in the theme settings on the
+   dialog and on the cards, sheets and inputs inside it. The cards filling the
+   dialog (the form's, the details', and the date poll's nested in the
+   details') would cover the dialog's background image with the background
+   colour alone, as the platform's confirm dialog avoids with a transparent
+   card. The form's stepper, which this Vuetify does not render as a sheet,
+   and the date step's calendar grid paint their own white over it (Vuetify's
+   light theme) (EXO-91394) */
+.agendaEventDialog.layout-drawer {
+  > .v-card,
+  .v-card.event-poll-details {
+    background-color: transparent !important;
+  }
+  .theme--light.v-stepper,
+  .theme--light.v-calendar-daily {
+    background-color: transparent;
+  }
+
+  /* the grid's labels follow the drawers and popups text colours, which the
+     layout-drawer class sets as the base text colours: Vuetify's light theme
+     fixes them to #000 and #424242, unreadable on a dark background */
+  .theme--light.v-calendar-daily .v-calendar-daily_head-day,
+  .v-calendar-daily_head-day-label .v-btn.transparent {
+    color: @textColor;
+  }
+
+  /* past days keep the colour of the other days, as agenda's own
+     !important rule on .v-past does on a white grid */
+  .v-calendar-daily_head-day.v-past .v-calendar-daily_head-weekday {
+    color: @textColor !important;
+  }
+
+  .theme--light.v-calendar-daily .v-calendar-daily__intervals-body .v-calendar-daily__interval-text {
+    color: @textSubtitleColor;
   }
 }
 
