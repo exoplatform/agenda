@@ -2,6 +2,7 @@
   <v-dialog
     ref="dialog"
     v-model="dialog"
+    :persistent="busy"
     content-class="uiPopup"
     width="300">
     <v-card class="elevation-12">
@@ -9,7 +10,7 @@
         <a
           class="uiIconClose pull-right"
           aria-hidden="true"
-          @click="close"></a>
+          @click="dismiss"></a>
         <span class="ignore-vuetify-classes PopupTitle popupTitle text-title text-truncate">
           {{ $t('agenda.confirmSaveRecurrentEventTitle') }}
         </span>
@@ -23,15 +24,15 @@
       </v-card-text>
       <v-card-actions class="d-flex flex-wrap justify-center center">
         <button
-          :disabled="loading"
-          :loading="loading"
+          :disabled="busy"
+          :loading="busy"
           class="ignore-vuetify-classes btn me-2 mb-1"
-          @click="close">
+          @click="dismiss">
           {{ $t('agenda.button.cancel') }}
         </button>
         <button
-          :disabled="loading"
-          :loading="loading"
+          :disabled="busy"
+          :loading="busy"
           class="ignore-vuetify-classes btn-primary ms-2 mb-1"
           @click="saveRecurrentEventChoice">
           {{ $t('agenda.button.save') }}
@@ -89,6 +90,25 @@ export default {
       type: Object,
       default: null,
     },
+    /**
+     * Whether the host is writing the answer it was given: the popup stays
+     * open, answering nothing more, until the host closes it or the write
+     * fails.
+     */
+    saving: {
+      type: Boolean,
+      default: false,
+    },
+    /**
+     * What the host does before "this and upcoming events" announces the
+     * series it created, an announcement that closes the event page. It
+     * returns a promise, which the announcement waits for. Null when the
+     * host has nothing open that the page's close would leave behind.
+     */
+    beforePageClose: {
+      type: Function,
+      default: null,
+    },
   },
   data: () => ({
     event: null,
@@ -99,6 +119,19 @@ export default {
     loading: false,
     dialog: false,
   }),
+  computed: {
+    /**
+     * An answer is on its way: read here first ("all events", "this and
+     * upcoming events") or written by the host. Answering again would write
+     * twice, and a dismissal would put back what the write is storing, or
+     * let a read finish onto the next question.
+     *
+     * @returns {Boolean} whether the popup answers nothing more for now
+     */
+    busy() {
+      return this.loading || this.saving;
+    },
+  },
   watch: {
     dialog() {
       if (this.dialog) {
@@ -110,7 +143,7 @@ export default {
   },
   created() {
     $(document).on('keydown', (event) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !this.busy) {
         this.dialog = false;
       }
     });
@@ -121,12 +154,34 @@ export default {
         eventObject.preventDefault();
         eventObject.stopPropagation();
       }
+      if (this.busy) {
+        return;
+      }
+      this.loading = true;
+      let work = null;
       if (this.recurrenceModificationType === 'single') {
-        this.saveOccurrenceEvent();
+        work = this.saveOccurrenceEvent();
       } else if (this.recurrenceModificationType === 'all') {
-        this.saveRecurrentEvent();
+        work = this.saveRecurrentEvent();
       } else if (this.recurrenceModificationType === 'upcoming') {
-        this.saveUpcomingEvents();
+        work = this.saveUpcomingEvents();
+      }
+      // The host's write, which the answer starts, is its own (see saving)
+      Promise.resolve(work).finally(() => {
+        this.loading = false;
+      });
+    },
+    /**
+     * The organiser's own close, from the cross, the cancel button or
+     * Escape: nothing while an answer is on its way (see busy), the host
+     * closing the popup once it is stored.
+     *
+     * @param {Event} event the click
+     * @returns {void}
+     */
+    dismiss(event) {
+      if (!this.busy) {
+        this.close(event);
       }
     },
     saveUpcomingEvents(eventObject) {
@@ -238,10 +293,10 @@ export default {
             sendInvitation,
             confirmClose,
             seriesFields), this.confirmClose)
-            .then(createdEvent => {
+            .then(createdEvent => Promise.resolve(this.beforePageClose && this.beforePageClose()).then(() => {
               this.close();
               this.$root.$emit('agenda-event-saved', createdEvent);
-            });
+            }));
         })
         // Reaches both calls of this scope, the read and the split. The other
         // two scopes are answered by their host's catch; this one does its own
