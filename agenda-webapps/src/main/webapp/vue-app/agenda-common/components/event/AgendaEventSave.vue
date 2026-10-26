@@ -2,6 +2,7 @@
   <div>
     <agenda-recurrent-event-save-confirm-dialog
       ref="recurrentEventConfirm"
+      :saving="saving"
       @save-event="save"
       @dialog-opened="$root.$emit('agenda-event-save-opened')"
       @dialog-closed="$root.$emit('agenda-event-save-cancel')" />
