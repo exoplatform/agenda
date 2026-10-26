@@ -485,8 +485,23 @@ export default {
         // The drawer's close button can close it behind the warning: that
         // close waits for the answer, and on a standalone event for the write
         // the answer starts, as for a padlock's write (see drawerClosed)
+        const askedOn = this.event;
         const pending = this.$refs.closeConfirm.confirm()
           .then(() => {
+            if (this.eventKey(this.event) !== this.eventKey(askedOn)) {
+              // The page shows another event by now ("View" on the message
+              // of an answer stays clickable above the warning): the answer
+              // is about the one it left, locked there when it is an event
+              // of its own or a series shown as itself, whose dates the lock
+              // reaches (see patchOpen). A date's lock needs the scope
+              // question, which cannot be asked any more, as its other
+              // changes (see drawerClosed)
+              if (this.isDateOfSeries(askedOn)) {
+                return null;
+              }
+              this.patchOpen(askedOn, open, true);
+              return this.openWrite;
+            }
             this.applyOpen(open, true);
             return this.isOccurrence ? null : this.openWrite;
           })
@@ -509,7 +524,7 @@ export default {
      */
     applyOpen(open, confirmClose) {
       if (!this.isOccurrence) {
-        this.patchOpen(this.event.id, open, confirmClose);
+        this.patchOpen(this.event, open, confirmClose);
         return;
       }
       const seatedBefore = this.$refs.attendeesDrawer.seatsGivenByChanges;
@@ -551,12 +566,13 @@ export default {
       this.saveDrawerNow();
     },
     /**
-     * @param {Number} eventId the event patched, standalone or a series
+     * @param {Object} patchedEvent the event patched, standalone or a series,
+     *          which the page may not show any more (see toggleOpen)
      * @param {Boolean} open the padlock's new state
      * @param {Boolean} confirmClose whether the organiser confirmed the closing
      * @returns {void}
      */
-    patchOpen(eventId, open, confirmClose) {
+    patchOpen(patchedEvent, open, confirmClose) {
       const hadLimit = this.hasLimit();
       this.togglingOpen = true;
       // updateAllOccurrences is true so that a series patched from its own page
@@ -569,13 +585,18 @@ export default {
       // and off keeps it on — the server accepts the two fields together and
       // would refuse the opening alone
       const fields = open ? {open, allowAttendeeToInvite: false} : {open};
-      const write = confirmed => this.$eventService.updateEventFields({id: eventId}, fields, true, false, confirmed);
-      const patchedEvent = this.event;
+      const write = confirmed => this.$eventService.updateEventFields({id: patchedEvent.id}, fields, true, false, confirmed);
       this.openWrite = this.$refs.closeConfirm.writeConfirmingClose(write, confirmClose)
         .then(() => {
           if (this.eventKey(this.event) !== this.eventKey(patchedEvent)) {
-            // The page shows another event by now, whose padlock this is not
-            return;
+            // The page shows another event by now, whose padlock this is
+            // not, unless it is a date of the series patched, which the
+            // patch reached: read again, once the drawer is closed. A read
+            // would replace the list the drawer edits on that date, its
+            // changes not saved yet: the date shows the padlock as it was
+            // until the page shows it again
+            const dateReached = this.event && this.event.parent && this.event.parent.id === patchedEvent.id;
+            return dateReached && !this.drawerVisit ? this.refreshDisplayedEvent() : null;
           }
           this.$set(this.event, 'open', open);
           if (open) {
@@ -787,13 +808,14 @@ export default {
         this.drawerSaveQueued = false;
         this.drawerSave = this.openWrite.then(() => {
           this.drawerSave = null;
-          if (this.pageClosed && this.isOccurrence) {
+          if (this.pageClosed && this.isDateOfSeries(editedEvent)) {
             // The scope question a date's changes need left with the page
             return null;
           }
           if (this.eventKey(this.event) !== this.eventKey(editedEvent)) {
             this.settleLiveRead();
-            return this.saveChangesOfEventLeft(editedEvent.id, unsavedList, unsavedCapacity, closeConfirm);
+            // A date's changes are given up, as in saveChangesLeft
+            return this.isDateOfSeries(editedEvent) ? null : this.saveChangesOfEventLeft(editedEvent.id, unsavedList, unsavedCapacity, closeConfirm);
           }
           if (unsavedList) {
             this.$set(this.event, 'attendees', this.$agendaUtils.withAttendeesDelta(this.event.attendees, unsavedList));
