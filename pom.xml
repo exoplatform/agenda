@@ -9,7 +9,7 @@
   </parent>
   <groupId>org.exoplatform.agenda</groupId>
   <artifactId>agenda-parent</artifactId>
-  <version>7.3.x-ai-contribution-SNAPSHOT</version>
+  <version>7.3.x-rtd-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>eXo Agenda - Parent POM</name>
   <description>eXo Agenda Addon</description>
@@ -27,10 +27,10 @@
   </scm>
   <properties>
     <!-- 3rd party libraries versions -->
-    <org.exoplatform.commons-exo.version>7.3.x-ai-contribution-SNAPSHOT</org.exoplatform.commons-exo.version>
-    <io.meeds.mcp-server.version>7.3.x-SNAPSHOT</io.meeds.mcp-server.version>
+    <org.exoplatform.commons-exo.version>7.3.x-rtd-SNAPSHOT</org.exoplatform.commons-exo.version>
+    <io.meeds.mcp-server.version>7.3.x-rtd-SNAPSHOT</io.meeds.mcp-server.version>
     <!-- The mail reader's calendar-invitation SPI agenda implements (EXO-90866); provided, never shipped -->
-    <addon.exo.email-connector.version>7.3.x-ai-contribution-SNAPSHOT</addon.exo.email-connector.version>
+    <addon.exo.email-connector.version>7.3.x-rtd-SNAPSHOT</addon.exo.email-connector.version>
 
     <!-- ical4j dependencies -->
     <org.mnode.ical4j.version>3.2.19</org.mnode.ical4j.version>
