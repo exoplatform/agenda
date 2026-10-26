@@ -289,8 +289,9 @@ export default {
      * One date of a series is not a case of its own any more: since US06 the
      * flag is a property of each date, and both hosts of this drawer ask the
      * organiser how far a change reaches — the form through the scope dialog
-     * of its own save, the event page through the same popup, asked once when
-     * the drawer closes, over everything the visit changed.
+     * of its own save, the event page through the same popup, asked over what
+     * the visit changed when the drawer closes, or when a removal or the date
+     * closed gives a seat from the waiting list.
      *
      * @returns {Boolean} whether the open-event padlock is rendered
      */
@@ -402,9 +403,14 @@ export default {
      * to, before they are saved (EXO-91879): a Yes removed from the list, the
      * limit raised or set to no limit, the date closed. The server gives
      * those seats when the changes are saved, in the order the people asked,
-     * as here, and the answers it reads back then replace this. A series
-     * displayed as itself counts its seats date by date: nobody is shown
-     * seated there.
+     * as here, and the answers it reads back then replace this. The event
+     * page saves at once a change that shows another person seated (see
+     * givesAnotherSeat): a removal, the date closed, and a limit raised on
+     * an event of its own. A limit removed, which seats the whole list, and
+     * a limit on a date wait for the close or for the next of those changes
+     * (see AgendaEventAttendees#changeCapacity). The event form saves with
+     * the form. A series displayed as itself counts its seats date by date:
+     * nobody is shown seated there.
      *
      * @returns {Set} the participant keys of the people shown with a seat
      */
@@ -600,6 +606,15 @@ export default {
       this.$nextTick(() => this.$refs.invitedAttendeeAutoComplete && this.$refs.invitedAttendeeAutoComplete.focus());
     },
     /**
+     * Closes the drawer as its own close button does, the closed event
+     * included.
+     *
+     * @returns {void}
+     */
+    close() {
+      this.$refs.attendeesDrawer.close();
+    },
+    /**
      * Takes the seats as they stand as the reference the drawer's changes are
      * measured against: when it first opens on an event, and when its host
      * has saved the changes or read the event again.
@@ -626,6 +641,15 @@ export default {
     closeFilterBar() {
       this.showFilterBar = false;
     },
+    /**
+     * A removal that shows another person from the waiting list seated is
+     * told to the host, with the participant removed and where it was, which
+     * decides when it is saved (EXO-91879): the event page saves it at once,
+     * for that person to get the seat at the same time.
+     *
+     * @param {Object} attendee the participant removed
+     * @returns {void}
+     */
     removeAttendee(attendee) {
       if (!this.event || !this.event.attendees) {
         return;
@@ -635,8 +659,27 @@ export default {
         && a.identity.providerId === attendee.identity.providerId
       );
       if (index >= 0) {
-        this.event.attendees.splice(index, 1);
+        const seatedBefore = this.seatsGivenByChanges;
+        const removed = this.event.attendees.splice(index, 1)[0];
+        if (this.givesAnotherSeat(seatedBefore)) {
+          this.$emit('seats-given', {attendee: removed, index});
+        }
       }
+    },
+    /**
+     * The seats the visit's changes give are counted from the drawer's
+     * opening, or from the last answers read: a change that shows nobody
+     * else seated, after one that did, is not a reason to save at once. The
+     * people compared, not their number: someone shown seated by a change
+     * already on its way to the server holds the seat there, and removing
+     * them gives it to the next person waiting.
+     *
+     * @param {Set} seatedBefore the people shown seated before the change
+     *          (see seatsGivenByChanges)
+     * @returns {Boolean} whether the change shows someone else seated
+     */
+    givesAnotherSeat(seatedBefore) {
+      return Array.from(this.seatsGivenByChanges).some(key => !seatedBefore.has(key));
     },
     checkGuestInvitation(evt) {
       const self = this;
