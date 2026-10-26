@@ -11,25 +11,30 @@
         <v-icon size="16" class="icon-default-color">fas fa-minus</v-icon>
       </v-btn>
       <!--
-        The platform's reset gives every text input 270px and a 40px height:
-        width-auto and height-auto let its size, the length of what it shows,
-        decide instead. Escape closes the drawer from the document, after the
-        field: the field is left first, for the drawer to save the value typed.
+        The field takes the room of the text it shows, as plain text would,
+        typed in or not (EXO-91878): an invisible copy of that text, in the
+        same font, sizes the wrapper, which the field covers. The platform's
+        skin gives every text input its own size, font, background and a shadow
+        on focus, which the classes take back. Escape closes the drawer from the
+        document, after the field: the field is left first, for the drawer to
+        save the value typed.
       -->
-      <input
-        :value="displayedValue"
-        :size="Math.max(displayedValue.length, 2)"
-        :aria-label="$t('agenda.capacity.label')"
-        maxlength="9"
-        inputmode="numeric"
-        type="text"
-        class="text-color text-center width-auto height-auto pa-0 ma-0 mx-2"
-        @focus="startTyping"
-        @keypress="acceptDigitsOnly"
-        @keydown.enter.prevent="$event.target.blur()"
-        @keydown.esc="$event.target.blur()"
-        @input="keepDigits"
-        @blur="applyTyped">
+      <span class="position-relative mx-2 text-no-wrap">
+        <span class="invisible text-body" aria-hidden="true">{{ sizingText }}</span>
+        <input
+          :value="displayedValue"
+          :aria-label="$t('agenda.capacity.label')"
+          maxlength="9"
+          inputmode="numeric"
+          type="text"
+          class="position-absolute l-0 t-0 full-width full-height text-body text-center transparent pa-0 ma-0 no-border no-box-shadow"
+          @focus="startTyping"
+          @keypress="acceptDigitsOnly"
+          @keydown.enter.prevent="$event.target.blur()"
+          @keydown.esc="$event.target.blur()"
+          @input="keepDigits"
+          @blur="applyTyped">
+      </span>
       <v-btn
         :title="$t('agenda.capacity.increase')"
         icon
@@ -84,6 +89,10 @@ export default {
         return this.typedValue;
       }
       return this.value ? String(this.value) : this.$t('agenda.capacity.noLimit');
+    },
+    // An empty field is no limit, and keeps the room of the label
+    sizingText() {
+      return this.displayedValue || this.$t('agenda.capacity.noLimit');
     },
   },
   methods: {
