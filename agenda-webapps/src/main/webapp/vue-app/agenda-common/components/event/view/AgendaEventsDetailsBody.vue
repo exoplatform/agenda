@@ -91,6 +91,13 @@
           <div class="d-flex flex-column flex-shrink-1 flex-grow-1">
             <div class="d-flex align-center">
               <v-btn
+                v-if="isPast"
+                class="event-conference-rejoin btn border-radius me-2"
+                @click="openConferenceLink">
+                {{ $t('agenda.button.rejoinMeeting') }}
+              </v-btn>
+              <v-btn
+                v-else
                 target="_blank"
                 class="btn btn-primary border-radius me-2"
                 @click="openConferenceLink">
@@ -112,6 +119,19 @@
             </span>
           </div>
         </div>
+        <!--
+          The extension point right after the conference block: an add-on
+          contributes what belongs to the event's meeting, such as its
+          recordings once it is over. Rendered whatever the conference, so the
+          contribution decides what an unknown provider or no conference shows.
+        -->
+        <extension-registry-components
+          :params="extensionParams"
+          name="AgendaEvent"
+          type="agenda-event-body"
+          parent-element="div"
+          element="div"
+          class="event-body-extensions" />
         <!--
           EXO-90373: an event a space subscribes to reads as the space's; this
           one line says which calendar it comes from, read-only.
@@ -353,6 +373,37 @@ export default {
       const modifier = this.event && this.event.modifier;
       const name = modifier && (modifier.profile && modifier.profile.fullname || modifier.fullname || modifier.remoteId);
       return name ? this.$t('agenda.event.lastChangedBy', {0: name}) : '';
+    },
+    /**
+     * Whether the occurrence shown is over: its end is past. The drawer holds
+     * one occurrence of a recurring event, with that occurrence's own dates,
+     * so this is per occurrence. An all-day event's end is a day without
+     * time, its last day: it is over once that day ends, in the user's zone.
+     *
+     * @returns {Boolean} true when the occurrence has ended
+     */
+    isPast() {
+      const end = this.event && (this.event.end || this.event.endDate);
+      const endDate = end && this.$agendaUtils.toDate(end);
+      if (!endDate || Number.isNaN(endDate.getTime())) {
+        return false;
+      }
+      const endTime = this.event.allDay
+        ? new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + 1).getTime()
+        : endDate.getTime();
+      return endTime <= Date.now();
+    },
+    /**
+     * The params handed to the components contributed after the conference
+     * block (extension app AgendaEvent, type agenda-event-body).
+     *
+     * @returns {Object} the event shown and whether it is over
+     */
+    extensionParams() {
+      return {
+        event: this.event,
+        isPast: this.isPast,
+      };
     },
     isRemoteEvent(){
       return this.event.type === 'remoteEvent';
