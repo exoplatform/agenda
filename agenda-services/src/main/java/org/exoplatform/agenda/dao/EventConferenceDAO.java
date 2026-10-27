@@ -51,4 +51,29 @@ public class EventConferenceDAO extends GenericDAOJPAImpl<EventConferenceEntity,
     return resultList == null ? Collections.emptyList() : resultList;
   }
 
+  /**
+   * Lists the meeting links of a given conference type that match a LIKE
+   * pattern, each with the series of the event holding it: the event itself
+   * when it is not an occurrence. A link a series copies onto its stored
+   * occurrences comes back once. The pattern escapes its
+   * wildcards with <code>!</code>, the one escape character every supported
+   * engine reads the same way (MySQL reads a backslash in a literal as an
+   * escape of its own).
+   *
+   * @param type conference type, the web conferencing provider type
+   * @param urlPattern LIKE pattern, wildcards of the searched text escaped
+   *          with <code>!</code>
+   * @param limit maximum number of rows to return
+   * @return distinct rows of { url, series or event id }, possibly empty
+   */
+  public List<Object[]> findByTypeAndUrlLike(String type, String urlPattern, int limit) {
+    TypedQuery<Object[]> query = getEntityManager().createNamedQuery("AgendaEventConference.findByTypeAndUrlLike",
+                                                                     Object[].class);
+    query.setParameter("type", type);
+    query.setParameter("url", urlPattern);
+    query.setMaxResults(limit);
+    List<Object[]> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
+  }
+
 }
