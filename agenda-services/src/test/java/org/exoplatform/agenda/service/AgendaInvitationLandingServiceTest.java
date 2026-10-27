@@ -37,9 +37,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.After;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventStatus;
+import org.exoplatform.agenda.exception.AgendaException;
+import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.AgendaUserSettings;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.Event;
@@ -419,6 +422,54 @@ public class AgendaInvitationLandingServiceTest extends BaseAgendaEventTest {
     assertEquals(EventStatus.CANCELLED, excluded.getStatus());
     assertEquals(EventAttendeeResponse.TENTATIVE,
                  agendaEventAttendeeService.getEventResponse(landed.eventId(), null, identityOf("testuser2")));
+  }
+
+  /**
+   * A newer revision agenda refuses to apply leaves the previous one whole: the
+   * dates its organiser cancelled stay cancelled, and the user is told the
+   * invitation was not taken.
+   */
+  @Test
+  public void testARefusedRevisionKeepsThePreviousExclusions() throws Exception {
+    String uid = uid();
+    LandedMailInvitation landed = land("testuser2", "REQUEST", uid, 0, EventAttendeeResponse.ACCEPTED,
+                                       ics("REQUEST", uid, 0, ORGANIZER, "Weekly",
+                                           "RRULE:FREQ=WEEKLY;COUNT=5\r\nEXDATE:20301022T090000Z\r\n"));
+    AgendaEventService refusing = Mockito.spy(agendaEventService);
+    Mockito.doThrow(new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND))
+           .when(refusing)
+           .updateEvent(Mockito.argThat(event -> event != null && event.getId() == landed.eventId()),
+                        Mockito.any(),
+                        Mockito.any(),
+                        Mockito.any(),
+                        Mockito.any(),
+                        Mockito.any(),
+                        Mockito.anyBoolean(),
+                        Mockito.anyLong());
+    AgendaInvitationLandingService refusingLanding = new AgendaInvitationLandingService(identityManager,
+                                                                                        agendaCalendarService,
+                                                                                        refusing,
+                                                                                        agendaEventAttendeeService,
+                                                                                        agendaEventReminderService,
+                                                                                        agendaEventConferenceService,
+                                                                                        agendaRemoteEventService,
+                                                                                        agendaUserSettingsService,
+                                                                                        container.getComponentInstanceOfType(MetadataService.class),
+                                                                                        agendaEventStorage);
+    restartTransaction();
+
+    assertThrows(IllegalArgumentException.class,
+                 () -> refusingLanding.land(new MailInvitation("testuser2", MAILBOX, "REQUEST", uid, null, 1, null,
+                                                               ics("REQUEST", uid, 1, ORGANIZER, "Weekly",
+                                                                   "RRULE:FREQ=WEEKLY;COUNT=5\r\nEXDATE:20301029T090000Z\r\n"))));
+
+    restartTransaction();
+    Event excluded = agendaEventService.getExceptionalOccurrenceEvent(landed.eventId(),
+                                                                      ZonedDateTime.of(2030, 10, 22, 9, 0, 0, 0, ZoneOffset.UTC));
+    assertNotNull("the date the organiser cancelled stays cancelled", excluded);
+    assertEquals(EventStatus.CANCELLED, excluded.getStatus());
+    assertNull(agendaEventService.getExceptionalOccurrenceEvent(landed.eventId(),
+                                                                ZonedDateTime.of(2030, 10, 29, 9, 0, 0, 0, ZoneOffset.UTC)));
   }
 
   /**
