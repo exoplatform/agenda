@@ -22,11 +22,16 @@
         <agenda-create-event-button
           :current-space="currentSpace"
           :can-create-event="canCreateEvent" />
+        <!-- left to Vuetify, the detached menu gets max(6, the field's
+             z-index, the other open menus) + 2 = 8, below a drawer hosting
+             the application (1035 and up): it is set above the drawers so
+             the calendar shows -->
         <date-picker
           v-if="$root.isMobile || $root.isTablet"
           v-model="periodStart"
           :attach="false"
-          class="agenda-header-date-picker z-index-two" />  
+          :z-index="2000"
+          class="agenda-header-date-picker z-index-two" />
         <agenda-period-selector
           v-else
           :period-title="periodTitle"
