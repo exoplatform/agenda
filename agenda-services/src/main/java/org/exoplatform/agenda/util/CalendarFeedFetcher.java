@@ -148,8 +148,8 @@ public class CalendarFeedFetcher {
 
   /**
    * Reads a link, conditionally when validators are given; a stored validator
-   * carrying a control character, which an earlier version kept, is not sent,
-   * and the read is then unconditional rather than refused.
+   * carrying a control character (a tab included), which an earlier version
+   * kept, is not sent, and the read is then unconditional.
    *
    * @param uri the URL, already normalized by the guard
    * @param etag the entity tag of the previous read, or null
@@ -185,10 +185,10 @@ public class CalendarFeedFetcher {
 
   /**
    * The value of a validator header, null when absent, blank, longer than the
-   * column that stores it, or carrying a control character: a validator cut
-   * short would never match again, a value over the column would make recording
-   * the refresh fail, and a control character would make the next read refuse
-   * it as a header value, so that every refresh of the link would fail.
+   * column that stores it, or carrying a control character (a tab included):
+   * a validator cut short would never match again, a value over the column
+   * would make recording the refresh fail, and agenda never stores or sends a
+   * validator carrying a control character.
    *
    * @param response the answer
    * @param name the header name
@@ -204,8 +204,9 @@ public class CalendarFeedFetcher {
   }
 
   /**
-   * A validator as it may go in a header: null when it carries a control
-   * character, which the platform's fetcher refuses in a header value.
+   * A validator as agenda stores and sends it: null when it carries a control
+   * character, a tab included. The platform's fetcher refuses any other control
+   * character in a header value but lets a tab through; agenda drops both.
    *
    * @param value the validator, or null
    * @return the value, or null

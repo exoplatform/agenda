@@ -305,9 +305,8 @@ class CalendarFeedFetcherTest {
   }
 
   /**
-   * A validator carrying a control character is not kept: sent back on the
-   * next read, it would be refused as a header value, and every refresh of the
-   * link would fail.
+   * A validator carrying a control character, here a tab, is not kept: agenda
+   * never stores or sends a validator carrying one, a tab included.
    *
    * @throws Exception when the read fails
    */
@@ -327,9 +326,8 @@ class CalendarFeedFetcherTest {
   }
 
   /**
-   * A validator stored with a control character, as an earlier version kept
-   * them, is not sent: the read is unconditional and succeeds, rather than
-   * refused before any request at every refresh of the link.
+   * A validator stored with a control character, here a tab, as an earlier
+   * version kept them, is not sent: the read is unconditional and succeeds.
    *
    * @throws Exception when the read fails
    */
