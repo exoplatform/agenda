@@ -4,7 +4,8 @@
     v-model="dialog"
     :persistent="busy"
     content-class="uiPopup"
-    width="300">
+    width="300"
+    @keydown="keepEscape">
     <v-card class="elevation-12">
       <div class="ignore-vuetify-classes popupHeader ClearFix">
         <a
@@ -118,6 +119,9 @@ export default {
     recurrenceModificationType: 'single',
     loading: false,
     dialog: false,
+    // Whether the key press being handled, if any, is the one the popup
+    // opened on (see open)
+    justOpened: false,
   }),
   computed: {
     /**
@@ -143,7 +147,10 @@ export default {
   },
   created() {
     $(document).on('keydown', (event) => {
-      if (event.key === 'Escape' && !this.busy) {
+      // Not the key the popup was opened on: Escape closing the drawer asks
+      // this question from the drawer's close, which runs between the
+      // document's listeners of that same key (see open)
+      if (event.key === 'Escape' && !this.busy && !this.justOpened) {
         this.dialog = false;
       }
     });
@@ -182,6 +189,21 @@ export default {
     dismiss(event) {
       if (!this.busy) {
         this.close(event);
+      }
+    },
+    /**
+     * Escape pressed in the popup closes the popup only, as the dialog
+     * itself does. If it reached the document, it would also close what the
+     * popup sits above: the participants drawer it is asked from during a
+     * visit (the drawers' overlay closes the drawer on that key, and the
+     * drawer's close asks the question again), or the event's dialog.
+     *
+     * @param {KeyboardEvent} event the key press, once the dialog handled it
+     * @returns {void}
+     */
+    keepEscape(event) {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
       }
     },
     saveUpcomingEvents(eventObject) {
@@ -472,6 +494,10 @@ export default {
       this.formAttendeesDelta = formAttendeesDelta || null;
       this.confirmClose = !!confirmClose;
       this.dialog = true;
+      // Until the task that opened it ends: the key press it was opened on
+      // is handled within that task, its later listeners included
+      this.justOpened = true;
+      window.setTimeout(() => this.justOpened = false);
       // A scope question is blocking: above the drawer it is asked from. On
       // the next tick: the content is rendered by the flush the opening queues
       this.$nextTick(() => this.$agendaUtils.raiseAboveOverlays(this.$refs.dialog));
