@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -155,7 +156,8 @@ class AgendaInvitationCalendarPluginTest {
                                                                 null,
                                                                 3,
                                                                 InvitationAnswer.TENTATIVE,
-                                                                "BEGIN:VCALENDAR"));
+                                                                "BEGIN:VCALENDAR",
+                                                                true));
 
     assertEquals(new LandedInvitation(42L, "http://x/portal/dw/agenda?eventId=42", false, false), landed);
     ArgumentCaptor<MailInvitation> captor = ArgumentCaptor.forClass(MailInvitation.class);
@@ -166,6 +168,11 @@ class AgendaInvitationCalendarPluginTest {
     assertEquals("uid-1", invitation.uid());
     assertEquals(3, invitation.sequence());
     assertEquals(EventAttendeeResponse.TENTATIVE, invitation.response());
+    assertTrue(invitation.fromOrganizer(), "the reader's verdict is carried");
+
+    plugin.land(new InvitationLanding(USER, "john@mail.example", "REQUEST", "uid-1", null, 3, null, "BEGIN:VCALENDAR"));
+    verify(landingService, times(2)).land(captor.capture());
+    assertFalse(captor.getValue().fromOrganizer(), "no verdict, no change to a held event");
   }
 
   /**
