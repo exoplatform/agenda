@@ -109,6 +109,11 @@ export default {
        * inherit the previous opening's answer, so both branches below set it.
        */
       openDateOptions: false,
+      // The platform's drawers already open when the dialog opened: one
+      // opened since is above it (see closeByEscape)
+      drawersBelow: [],
+      // Whether one was above it when Escape was last pressed
+      escapeForDrawer: false,
     };
   },
   computed: {
@@ -155,6 +160,7 @@ export default {
   watch: {
     dialog() {
       if (this.dialog) {
+        this.drawersBelow = this.openedDrawers();
         if (!this.mobileViewport) {
           $('body').addClass('hide-scroll');
         }
@@ -185,6 +191,7 @@ export default {
       }
     }
     $(document).on('keydown', this.closeByEscape);
+    document.addEventListener('keydown', this.noteDrawerAbove, true);
     this.$root.$on('agenda-event-form', (agendaEvent, displayTimeInForm, openDateOptions) => {
       this.isNew = agendaEvent.id ? !agendaEvent.id : !agendaEvent.parent || !agendaEvent.parent.id;
       if (this.isNew) {
@@ -258,10 +265,42 @@ export default {
     });
   },
   methods: {
+    /**
+     * Escape closes the dialog, unless a drawer opened from it was open when
+     * the key was pressed: the platform closes that drawer on the same key,
+     * and the dialog stays for the drawer to end its visit, the participant
+     * drawer saving its changes when it closes. Closing both would destroy
+     * the drawer before it saved, or the question it asks then.
+     *
+     * @param {KeyboardEvent} event the key pressed
+     * @returns {void}
+     */
     closeByEscape(event) {
-      if (event.key === 'Escape' && this.dialog) {
+      if (event.key === 'Escape' && this.dialog && !this.escapeForDrawer) {
         this.close(event);
       }
+    },
+    /**
+     * Notes, before any listener of the document handles the key, whether a
+     * drawer opened from the dialog is open. The platform's listener and this
+     * dialog's are not registered in a known order, and the drawer leaves the
+     * list of open drawers between the two, once the platform closed it (its
+     * watcher runs in the microtasks between listeners).
+     *
+     * @param {KeyboardEvent} event the key pressed, in the capture phase
+     * @returns {void}
+     */
+    noteDrawerAbove(event) {
+      if (event.key === 'Escape') {
+        this.escapeForDrawer = this.openedDrawers().some(drawer => !this.drawersBelow.includes(drawer));
+      }
+    },
+    /**
+     * @returns {Array} the platform's drawers open now, last opened last,
+     *          until each one's close has been handled
+     */
+    openedDrawers() {
+      return window.eXo && Array.isArray(window.eXo.openedDrawers) ? window.eXo.openedDrawers.slice() : [];
     },
     formInitialized() {
       this.originalEventString = JSON.stringify(this.event);
