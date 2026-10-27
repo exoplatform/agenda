@@ -155,6 +155,25 @@ class MailInvitationReaderTest {
   }
 
   /**
+   * The {@code EMAIL} parameter Apple Calendar writes on organiser and attendee
+   * lines is read without ical4j's validation of it, which needs commons-validator,
+   * a library the server does not ship: the parameter is never consulted, so even a
+   * value no validator accepts reads as the rest of the object. The organiser is
+   * read from the property's own address.
+   */
+  @Test
+  void readsAnEmailParameterWithoutValidatingIt() {
+    MailInvitationEvent read = MailInvitationReader.read(ics("METHOD:REQUEST\r\n",
+                                                             "SEQUENCE:1\r\n"
+                                                                 + "ORGANIZER;CN=Boss;EMAIL=not an address:mailto:boss@partner.example\r\n"
+                                                                 + "ATTENDEE;CN=Me;EMAIL=me@acme.example;PARTSTAT=NEEDS-ACTION:mailto:me@acme.example\r\n"),
+                                                         UID);
+
+    assertEquals("boss@partner.example", read.organizer());
+    assertEquals(1, read.sequence());
+  }
+
+  /**
    * Only a mail address is kept as one.
    */
   @Test
