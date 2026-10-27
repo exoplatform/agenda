@@ -238,6 +238,13 @@ public class AgendaInvitationLandingService {
   /**
    * Lands the invitation in the user's personal calendar: creates or updates
    * the event, answers it, or removes it, as the message and the click say.
+   * <p>
+   * Not atomic, as agenda's own event writes are not: a newer revision is
+   * written in steps -- the previous revision's exceptions dropped, the event
+   * updated, the new exceptions placed, the user's answer set -- each committed
+   * on its own. A failure past the first step leaves the steps already done in
+   * place: the revision applied with whatever answer agenda's update left on
+   * it, while the reader is told the calendar could not be updated.
    *
    * @param invitation the invitation, the user and what they asked
    * @return what was done, or null when the user cannot have a calendar here
