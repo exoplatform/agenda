@@ -26,11 +26,14 @@ import static org.junit.Assert.assertTrue;
 
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.After;
 import org.junit.Test;
@@ -43,8 +46,12 @@ import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.model.HeldMailInvitation;
 import org.exoplatform.agenda.model.LandedMailInvitation;
+import org.exoplatform.agenda.listener.AgendaEventReminderComputingListener;
+import org.exoplatform.agenda.model.AgendaEventModification;
 import org.exoplatform.agenda.model.MailInvitation;
+import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.services.listener.Listener;
 import org.exoplatform.social.metadata.MetadataService;
 
 /**
@@ -415,6 +422,55 @@ public class AgendaInvitationLandingServiceTest extends BaseAgendaEventTest {
   }
 
   /**
+   * A newer revision of a series keeps the occurrences of the next days that
+   * agenda's reminder listener materialises on every create and update of a
+   * confirmed series (pitfall: a confirmed recurring series already holds
+   * exceptional-occurrence rows for its next days): the occurrence and its
+   * reminders are still there after the revision, and an exclusion that falls
+   * on one of those days takes its row over, cancelled. The listener runs for
+   * real here, as the webapp registers it, on dates inside its window.
+   */
+  @Test
+  public void testANewerRevisionKeepsTheOccurrencesOfTheNextDays() throws Exception {
+    AtomicBoolean computing = new AtomicBoolean(true);
+    Listener<AgendaEventModification, Object> reminders = new Listener<AgendaEventModification, Object>() {
+      @Override
+      public void onEvent(org.exoplatform.services.listener.Event<AgendaEventModification, Object> event) throws Exception {
+        if (computing.get()) {
+          new AgendaEventReminderComputingListener().onEvent(event);
+        }
+      }
+    };
+    listenerService.addListener(Utils.POST_CREATE_AGENDA_EVENT_EVENT, reminders);
+    listenerService.addListener(Utils.POST_UPDATE_AGENDA_EVENT_EVENT, reminders);
+    try {
+      ZonedDateTime tomorrow = ZonedDateTime.now(ZoneOffset.UTC).plusDays(1).withHour(10).truncatedTo(ChronoUnit.HOURS);
+      ZonedDateTime afterTomorrow = tomorrow.plusDays(1);
+      String uid = uid();
+      String rule = "RRULE:FREQ=DAILY;COUNT=10\r\n";
+      LandedMailInvitation landed = land("testuser2", "REQUEST", uid, 0, EventAttendeeResponse.ACCEPTED,
+                                         startingAt(ics("REQUEST", uid, 0, ORGANIZER, "Daily", rule), tomorrow));
+      long user = identityOf("testuser2");
+      Event materialised = agendaEventService.getExceptionalOccurrenceEvent(landed.eventId(), tomorrow);
+      assertNotNull("the listener materialised tomorrow's occurrence", materialised);
+      int reminderCount = agendaEventReminderService.getEventReminders(materialised.getId(), user).size();
+
+      land("testuser2", "REQUEST", uid, 1, null,
+           startingAt(ics("REQUEST", uid, 1, ORGANIZER, "Daily", rule + "EXDATE:" + utc(afterTomorrow) + "\r\n"), tomorrow));
+
+      Event kept = agendaEventService.getExceptionalOccurrenceEvent(landed.eventId(), tomorrow);
+      assertNotNull("tomorrow's occurrence survives the newer revision", kept);
+      assertEquals(EventStatus.CONFIRMED, kept.getStatus());
+      assertEquals(reminderCount, agendaEventReminderService.getEventReminders(kept.getId(), user).size());
+      Event excluded = agendaEventService.getExceptionalOccurrenceEvent(landed.eventId(), afterTomorrow);
+      assertNotNull(excluded);
+      assertEquals(EventStatus.CANCELLED, excluded.getStatus());
+    } finally {
+      computing.set(false);
+    }
+  }
+
+  /**
    * A user with a remote calendar account connected to agenda, on an enabled
    * provider, is not agenda's: the connector shows the copy their mail server
    * filed, and an eXo copy beside it would be the meeting twice. The same
@@ -653,6 +709,21 @@ public class AgendaInvitationLandingServiceTest extends BaseAgendaEventTest {
    */
   private long identityOf(String username) {
     return Long.parseLong(identityManager.getOrCreateIdentity("organization", username).getId());
+  }
+
+  /**
+   * The object of {@link #ics}, its event starting at a given hour, an hour long.
+   */
+  private static String startingAt(String object, ZonedDateTime start) {
+    return object.replace("DTSTART:20301015T090000Z", "DTSTART:" + utc(start))
+                 .replace("DTEND:20301015T100000Z", "DTEND:" + utc(start.plusHours(1)));
+  }
+
+  /**
+   * An instant as an iCalendar UTC date-time.
+   */
+  private static String utc(ZonedDateTime instant) {
+    return DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'").format(instant.withZoneSameInstant(ZoneOffset.UTC));
   }
 
   /**

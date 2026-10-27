@@ -308,10 +308,13 @@ public class AgendaInvitationLandingService {
     }
     EventAttendeeResponse heldResponse = responseOf(held.getId(), userIdentityId);
     if (newer) {
-      update(held, read, userIdentityId);
       // The organiser's revision states all the series' exceptions, while
-      // agenda's own update of a series keeps the dates customised in it
+      // agenda's own update of a series keeps the dates customised in it: the
+      // previous revision's are dropped first. The update then has the reminder
+      // listener materialise the next days' occurrences, with their reminders,
+      // and the revision's exceptions take those rows over where they fall.
       agendaEventStorage.deleteExceptionalOccurences(held.getId());
+      update(held, read, userIdentityId);
       applyOccurrences(held.getId(), read, userIdentityId);
     }
     // The update may have reset the user's answer (agenda accepts on the
