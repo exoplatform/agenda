@@ -297,7 +297,11 @@ public class AgendaInvitationLandingService {
     Event held = heldEvent(userIdentityId, read.uid());
     List<String> addresses = addressesOf(identity, invitation.attendeeAddress());
     if (cancellation) {
-      return held == null ? nothingHeld(read, userIdentityId, "cancellation") : remove(held, read, addresses, userIdentityId);
+      if (held == null) {
+        return nothingHeld(read, userIdentityId, "cancellation");
+      }
+      refuseUnlessFromItsOrganiser(invitation, "cancellation");
+      return remove(held, read, addresses, userIdentityId);
     }
     if (read.cancelled()) {
       throw new IllegalArgumentException("The invitation " + read.uid() + " describes a cancelled event, which is not added");
@@ -321,6 +325,7 @@ public class AgendaInvitationLandingService {
     }
     EventAttendeeResponse heldResponse = responseOf(held.getId(), userIdentityId);
     if (newer) {
+      refuseUnlessFromItsOrganiser(invitation, "newer revision");
       // The update first: refused, it leaves the previous revision whole.
       update(held, read, userIdentityId);
       // The organiser's revision states all the series' exceptions, while
@@ -341,11 +346,32 @@ public class AgendaInvitationLandingService {
   }
 
   /**
+   * Refuses to change or remove an event the user holds on the strength of a
+   * mail the reader did not establish as its organiser's: the ORGANIZER line is
+   * the sender's own claim, and every attendee knows it. Applied whatever
+   * {@link #held} answered for the mail, a cancelled series it does not tell of
+   * included.
+   *
+   * @param invitation the invitation
+   * @param what what the mail would do, for the refusal
+   * @throws IllegalArgumentException when the mail is not from its organiser
+   */
+  private static void refuseUnlessFromItsOrganiser(MailInvitation invitation, String what) {
+    if (!invitation.fromOrganizer()) {
+      throw new IllegalArgumentException("The " + what + " of " + invitation.uid()
+          + " is not from its organiser's address; the event the user holds is left as it is");
+    }
+  }
+
+  /**
    * The event the user's personal calendar holds for an invitation, for the mail
    * reader to say so when the invitation is opened (EXO-90873): found by the
    * same lookup a landing makes — this user's key, an event they created in a
    * calendar they own — with the answer agenda holds for them and the SEQUENCE
-   * landed. Reads only, no round trip to a server. An event added without an
+   * landed. Reads only, no round trip to a server. What it answers never
+   * licenses a change: {@link #land} changes or removes an event the user holds
+   * only for a mail the reader established as its organiser's
+   * ({@link MailInvitation#fromOrganizer()}), whatever this answered. An event added without an
    * answer, whose line agenda still holds as its creator's ACCEPTED, is told
    * with no answer: an acceptance given later from the mail is then said by the
    * reader's own record of it, not by this.

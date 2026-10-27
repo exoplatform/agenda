@@ -225,6 +225,43 @@ public class AgendaInvitationLandingServiceTest extends BaseAgendaEventTest {
   }
 
   /**
+   * A mail the reader did not establish as its organiser's rewrites and removes
+   * no event the user holds, whatever its ORGANIZER line says: the newer
+   * revision and the cancellation are refused, the event left as it was. A first
+   * event is still added.
+   */
+  @Test
+  public void testAMailNotFromItsOrganiserChangesNoEventTheUserHolds() throws Exception {
+    String uid = uid();
+    LandedMailInvitation landed = land("testuser2", "REQUEST", uid, 1, EventAttendeeResponse.ACCEPTED, ics("REQUEST", uid, 1, ORGANIZER, "Sync", ""));
+
+    assertThrows(IllegalArgumentException.class,
+                 () -> unverified("REQUEST", uid, 2, ics("REQUEST", uid, 2, ORGANIZER, "Hijacked", "")));
+    assertThrows(IllegalArgumentException.class,
+                 () -> unverified("CANCEL", uid, 1, ics("CANCEL", uid, 1, ORGANIZER, "Sync", "")));
+
+    Event event = agendaEventService.getEventById(landed.eventId());
+    assertNotNull(event);
+    assertEquals("Sync", event.getSummary());
+
+    String first = uid();
+    LandedMailInvitation added = unverified("REQUEST", first, 0, ics("REQUEST", first, 0, ORGANIZER, "First", ""));
+    assertNotNull(agendaEventService.getEventById(added.eventId()));
+  }
+
+  /**
+   * Lands, for testuser2 with their mailbox, a mail the reader did not
+   * establish as its organiser's.
+   */
+  private LandedMailInvitation unverified(String method, String uid, int sequence, String object) {
+    if (!owners.contains(identityOf("testuser2"))) {
+      owners.add(identityOf("testuser2"));
+    }
+    restartTransaction();
+    return landingService().land(new MailInvitation("testuser2", MAILBOX, method, uid, null, sequence, null, object, false));
+  }
+
+  /**
    * An event whose kept organiser is the user's own address is theirs, and no
    * mail touches it.
    */
@@ -317,7 +354,7 @@ public class AgendaInvitationLandingServiceTest extends BaseAgendaEventTest {
     assertThrows(IllegalArgumentException.class,
                  () -> landingService().land(new MailInvitation("testuser2", MAILBOX, "REQUEST", uid, "20301015T090000Z", 0,
                                                                 EventAttendeeResponse.ACCEPTED,
-                                                                ics("REQUEST", uid, 0, ORGANIZER, "Sync", ""))));
+                                                                ics("REQUEST", uid, 0, ORGANIZER, "Sync", ""), true)));
     assertThrows(IllegalArgumentException.class,
                  () -> land("testuser2", "REQUEST", uid, 0, EventAttendeeResponse.ACCEPTED, ics("REQUEST", uid, 0, null, "Sync", "")));
     assertThrows(IllegalArgumentException.class,
@@ -461,7 +498,7 @@ public class AgendaInvitationLandingServiceTest extends BaseAgendaEventTest {
     assertThrows(IllegalArgumentException.class,
                  () -> refusingLanding.land(new MailInvitation("testuser2", MAILBOX, "REQUEST", uid, null, 1, null,
                                                                ics("REQUEST", uid, 1, ORGANIZER, "Weekly",
-                                                                   "RRULE:FREQ=WEEKLY;COUNT=5\r\nEXDATE:20301029T090000Z\r\n"))));
+                                                                   "RRULE:FREQ=WEEKLY;COUNT=5\r\nEXDATE:20301029T090000Z\r\n"), true)));
 
     restartTransaction();
     Event excluded = agendaEventService.getExceptionalOccurrenceEvent(landed.eventId(),
@@ -698,7 +735,8 @@ public class AgendaInvitationLandingServiceTest extends BaseAgendaEventTest {
   }
 
   /**
-   * Lands an invitation for a user with their mailbox address.
+   * Lands an invitation for a user with their mailbox address, from its
+   * organiser as the mail reader established it.
    */
   private LandedMailInvitation land(String username,
                                     String method,
@@ -733,7 +771,8 @@ public class AgendaInvitationLandingServiceTest extends BaseAgendaEventTest {
                                                     null,
                                                     sequence,
                                                     response,
-                                                    object));
+                                                    object,
+                                                    true));
   }
 
   /**

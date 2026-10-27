@@ -40,6 +40,10 @@ import org.exoplatform.agenda.constant.EventAttendeeResponse;
  * @param response the answer given, null when the user only asked to add or
  *          remove the event
  * @param icalendar the iCalendar object, as text
+ * @param fromOrganizer whether the mail reader established that the mail is
+ *          from the event's organiser (its From is the ORGANIZER's address
+ *          alone): without it, an event the user holds is never changed or
+ *          removed
  */
 public record MailInvitation(String username,
                              String attendeeAddress,
@@ -48,7 +52,8 @@ public record MailInvitation(String username,
                              String recurrenceId,
                              int sequence,
                              EventAttendeeResponse response,
-                             String icalendar) {
+                             String icalendar,
+                             boolean fromOrganizer) {
 
   /** The iTIP method by which an organiser calls an event off. */
   public static final String CANCEL = "CANCEL";

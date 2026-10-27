@@ -118,6 +118,6 @@ class AgendaInvitationLandingSettingsTest {
   void claimsNothingWhenTheSettingsCannotBeRead() {
     when(agendaUserSettingsService.getAgendaUserSettings(anyLong())).thenThrow(new IllegalStateException("settings down"));
     assertFalse(service.holdsCalendarFor("john"));
-    assertNull(service.land(new MailInvitation("john", null, "REQUEST", "uid-1", null, 0, EventAttendeeResponse.ACCEPTED, "not read")));
+    assertNull(service.land(new MailInvitation("john", null, "REQUEST", "uid-1", null, 0, EventAttendeeResponse.ACCEPTED, "not read", true)));
   }
 }
