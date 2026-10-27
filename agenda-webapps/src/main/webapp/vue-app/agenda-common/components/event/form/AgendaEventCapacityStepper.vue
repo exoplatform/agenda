@@ -17,7 +17,8 @@
         skin gives every text input its own size, font, background and a shadow
         on focus, which the classes take back. Escape closes the drawer from the
         document, after the field: the field is left first, for the drawer to
-        save the value typed.
+        save the value typed. The event's dialog leaves that key to the drawer
+        (see AgendaEventDialog#closeByEscape).
       -->
       <span class="position-relative mx-2 text-no-wrap">
         <span class="invisible text-body" aria-hidden="true">{{ sizingText }}</span>
