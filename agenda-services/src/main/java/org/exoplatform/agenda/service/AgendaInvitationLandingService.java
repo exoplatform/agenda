@@ -17,6 +17,7 @@
 package org.exoplatform.agenda.service;
 
 import java.time.Duration;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -240,11 +241,16 @@ public class AgendaInvitationLandingService {
    * the event, answers it, or removes it, as the message and the click say.
    * <p>
    * Not atomic, as agenda's own event writes are not: a newer revision is
-   * written in steps -- the previous revision's exceptions dropped, the event
-   * updated, the new exceptions placed, the user's answer set -- each committed
-   * on its own. A failure past the first step leaves the steps already done in
-   * place: the revision applied with whatever answer agenda's update left on
-   * it, while the reader is told the calendar could not be updated.
+   * written in steps -- the event updated, the previous revision's exceptions
+   * dropped and the next days' occurrences materialised again, the new
+   * exceptions placed, the user's answer set -- each committed on its own. When
+   * agenda refuses the update, nothing was written: the user keeps the previous
+   * revision whole, its cancelled and moved dates included. A failure past the
+   * update leaves the steps already done in place: the revision applied,
+   * without the exceptions not placed yet, with whatever answer agenda's update
+   * left on it, while the reader is told the calendar could not be updated. A
+   * date the revision cancels or moves and that cannot be placed is left out
+   * and logged, the rest of the series landed.
    *
    * @param invitation the invitation, the user and what they asked
    * @return what was done, or null when the user cannot have a calendar here
@@ -315,13 +321,16 @@ public class AgendaInvitationLandingService {
     }
     EventAttendeeResponse heldResponse = responseOf(held.getId(), userIdentityId);
     if (newer) {
+      // The update first: refused, it leaves the previous revision whole.
+      update(held, read, userIdentityId);
       // The organiser's revision states all the series' exceptions, while
       // agenda's own update of a series keeps the dates customised in it: the
-      // previous revision's are dropped first. The update then has the reminder
-      // listener materialise the next days' occurrences, with their reminders,
-      // and the revision's exceptions take those rows over where they fall.
-      agendaEventStorage.deleteExceptionalOccurences(held.getId());
-      update(held, read, userIdentityId);
+      // previous revision's are dropped, the next days' occurrences are
+      // materialised again with their reminders, as agenda's reminder listener
+      // does on every update, and the revision's exceptions take those rows
+      // over where they fall.
+      agendaEventStorage.deleteExceptionalOccurencesOfSavedSeries(held.getId());
+      materialiseNextDays(held.getId());
       applyOccurrences(held.getId(), read, userIdentityId);
     }
     // The update may have reset the user's answer (agenda accepts on the
@@ -766,6 +775,32 @@ public class AgendaInvitationLandingService {
     }
     for (MailInvitationEvent override : read.overrides()) {
       placeOccurrence(seriesId, override.occurrenceId(), override, userIdentityId);
+    }
+  }
+
+  /**
+   * Materialises the occurrences of a confirmed series over the next
+   * {@code exo.agenda.reminder.computing.period} days, with their reminders, as
+   * {@code AgendaEventReminderComputingListener} does when a series is saved:
+   * one exceptional-occurrence row per date, found again when it exists.
+   *
+   * @param seriesId the series in agenda
+   * @throws IllegalStateException when agenda refuses an occurrence
+   */
+  private void materialiseNextDays(long seriesId) {
+    Event series = agendaEventService.getEventById(seriesId);
+    if (series == null || series.getStatus() != EventStatus.CONFIRMED || series.getRecurrence() == null) {
+      return;
+    }
+    ZonedDateTime start = ZonedDateTime.now();
+    ZonedDateTime end = start.plusDays(agendaEventReminderService.getReminderComputingPeriod());
+    for (Event occurrence : agendaEventService.getEventOccurrencesInPeriod(series, start, end, ZoneId.systemDefault(), 0)) {
+      try {
+        agendaEventService.saveEventExceptionalOccurrence(seriesId, occurrence.getOccurrence().getId());
+      } catch (AgendaException e) {
+        throw new IllegalStateException("The occurrence " + occurrence.getOccurrence().getId() + " of series " + seriesId
+            + " could not be materialised", e);
+      }
     }
   }
 
