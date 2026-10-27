@@ -64,7 +64,7 @@ function createConference(event, conference) {
       const spaces = identities.filter(identity => identity && identity.providerId === 'space').map(identity => identity.remoteId);
       const {startDate, endDate, allDay} = getConferenceSchedule(event);
       return global.webConferencing.addCall({
-        title: event.title,
+        title: event.summary,
         owner: event.calendar.owner.id,
         ownerType: 'space_event',
         provider: conference.type,
@@ -99,7 +99,7 @@ function updateConference(event, conference) {
       const spaces = identities.filter(identity => identity && identity.providerId === 'space').map(identity => identity.remoteId);
       const {startDate, endDate, allDay} = getConferenceSchedule(event);
       return global.webConferencing.updateCall(callId, {
-        title: event.title,
+        title: event.summary,
         owner: event.calendar.owner.id,
         ownerType: 'space_event',
         provider: conference.type,
