@@ -28,6 +28,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
@@ -39,13 +40,18 @@ import org.exoplatform.agenda.model.EventRecurrence;
 import org.exoplatform.agenda.model.MailInvitationEvent;
 
 import net.fortuna.ical4j.data.CalendarBuilder;
+import net.fortuna.ical4j.data.CalendarParserFactory;
+import net.fortuna.ical4j.data.ContentHandlerContext;
+import net.fortuna.ical4j.data.DefaultParameterFactorySupplier;
 import net.fortuna.ical4j.data.ParserException;
 import net.fortuna.ical4j.model.Component;
 import net.fortuna.ical4j.model.Date;
 import net.fortuna.ical4j.model.DateTime;
 import net.fortuna.ical4j.model.Parameter;
+import net.fortuna.ical4j.model.ParameterFactory;
 import net.fortuna.ical4j.model.Property;
 import net.fortuna.ical4j.model.Recur;
+import net.fortuna.ical4j.model.TimeZoneRegistryFactory;
 import net.fortuna.ical4j.model.component.VEvent;
 import net.fortuna.ical4j.model.parameter.TzId;
 import net.fortuna.ical4j.model.property.DateProperty;
@@ -134,7 +140,7 @@ public final class MailInvitationReader {
     }
     net.fortuna.ical4j.model.Calendar calendar;
     try {
-      calendar = new CalendarBuilder().build(new StringReader(text));
+      calendar = builder().build(new StringReader(text));
     } catch (IOException | ParserException | RuntimeException e) {
       throw new IllegalArgumentException("The invitation cannot be read as iCalendar", e);
     }
@@ -516,5 +522,23 @@ public final class MailInvitationReader {
    */
   private static String valueOf(Property property) {
     return property == null ? null : property.getValue();
+  }
+
+  /**
+   * The parser of a sender's object: ical4j's defaults, but for the
+   * {@code EMAIL} parameter, read unchecked ({@link UncheckedEmailParameterFactory}).
+   *
+   * @return a builder for one object
+   */
+  private static CalendarBuilder builder() {
+    Supplier<List<ParameterFactory<?>>> parameters = () -> {
+      List<ParameterFactory<?>> factories = new ArrayList<>(new DefaultParameterFactorySupplier().get());
+      factories.removeIf(factory -> factory.supports(UncheckedEmailParameterFactory.EMAIL));
+      factories.add(new UncheckedEmailParameterFactory());
+      return factories;
+    };
+    return new CalendarBuilder(CalendarParserFactory.getInstance().get(),
+                               new ContentHandlerContext().withParameterFactorySupplier(parameters),
+                               TimeZoneRegistryFactory.getInstance().createRegistry());
   }
 }
