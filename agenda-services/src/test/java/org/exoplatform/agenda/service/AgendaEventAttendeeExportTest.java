@@ -720,7 +720,10 @@ public class AgendaEventAttendeeExportTest extends BaseAgendaEventTest {
 
   /**
    * Writes the instant an attendee's answer was stored, which orders the
-   * waiting list, so that the order does not depend on the clock.
+   * waiting list, so that the order does not depend on the clock, then goes
+   * on in another request: the persistence context of this one still holds
+   * the rows read before the write, with their former instants, which the
+   * export would read instead.
    */
   private void setResponseDate(long eventId, Identity identity, ZonedDateTime responseDate) {
     long rowId = attendeeStorage.getEventAttendees(eventId, id(identity)).getEventAttendees().get(0).getId();
@@ -728,6 +731,8 @@ public class AgendaEventAttendeeExportTest extends BaseAgendaEventTest {
                                                      .setParameter("date", Date.from(responseDate.toInstant()))
                                                      .setParameter("id", rowId)
                                                      .executeUpdate());
+    end();
+    begin();
   }
 
   private void inOtherTransaction(Consumer<EntityManager> write) {
