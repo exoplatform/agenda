@@ -5,6 +5,7 @@
     :persistent="busy"
     content-class="uiPopup"
     width="300"
+    eager
     @keydown="keepEscape">
     <v-card class="elevation-12">
       <div class="ignore-vuetify-classes popupHeader ClearFix">
@@ -197,6 +198,12 @@ export default {
      * popup sits above: the participants drawer it is asked from during a
      * visit (the drawers' overlay closes the drawer on that key, and the
      * drawer's close asks the question again), or the event's dialog.
+     *
+     * The dialog is eager so that the key is pressed in it: Vuetify focuses
+     * its content one tick after it opens, and on a lazy dialog's first
+     * opening that content is still in the dialog's hidden container then,
+     * moved out of it right after the focus, which leaves the focus, and the
+     * key, on the page.
      *
      * @param {KeyboardEvent} event the key press, once the dialog handled it
      * @returns {void}
@@ -499,7 +506,8 @@ export default {
       this.justOpened = true;
       window.setTimeout(() => this.justOpened = false);
       // A scope question is blocking: above the drawer it is asked from. On
-      // the next tick: the content is rendered by the flush the opening queues
+      // the next tick: the flush the opening queues writes the content's
+      // z-index, which would replace one set before it
       this.$nextTick(() => this.$agendaUtils.raiseAboveOverlays(this.$refs.dialog));
     },
   },
