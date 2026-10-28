@@ -799,10 +799,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   /**
    * Anchors the dates of one occurrence on the dates of its series: the
-   * occurrence keeps its own day and takes the series&#39; time of day and
-   * duration. Shared by the creation of an exceptional occurrence and by the
-   * propagation of a series change to the occurrences that did not customise
-   * their dates, so both compute the same instant for the same date.
+   * occurrence keeps its own day, in the series&#39; zone when timed, and takes
+   * the series&#39; time of day and duration, or keeps its own time on a series
+   * with several dates a day. Shared by the creation of an exceptional
+   * occurrence and by the propagation of a series change to the occurrences
+   * that did not customise their dates, so both compute the same instant for
+   * the same date.
    *
    * @param seriesEvent the recurrent parent, source of the time and duration
    * @param occurrenceEvent the occurrence whose dates are written
@@ -820,16 +822,39 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                              .withMonth(occurrenceStartTime.getMonthValue())
                              .withDayOfMonth(occurrenceStartTime.getDayOfMonth());
     } else {
-      ZonedDateTime startStartTime = start.withZoneSameInstant(seriesEvent.getTimeZoneId());
-      occurrenceStart = startStartTime.withYear(occurrenceId.getYear())
-                                      .withMonth(occurrenceId.getMonthValue())
-                                      .withDayOfMonth(occurrenceId.getDayOfMonth())
-                                      .withHour(startStartTime.getHour())
-                                      .withMinute(startStartTime.getMinute());
+      // Where an unmarked row of that identifier is read: the series' time of
+      // day on the identifier's day in the series' zone, never on its UTC
+      // day, which is another day where the series' local start falls on
+      // another UTC day. At an hour the zone skips or repeats that day, the
+      // date the rule gives instead, as the rule resolves it: read there
+      // only, since expanding the rule walks it from its first date, and a
+      // change of the series anchors every row it keeps
+      Event ruleDate = isAtAnOffsetChange(seriesEvent, occurrenceId) ? dateOfRule(seriesEvent, occurrenceId) : null;
+      occurrenceStart = (ruleDate == null ? dateReadUnmarked(seriesEvent, occurrenceId) : ruleDate).getStart();
     }
     occurrenceEvent.setStart(occurrenceStart);
     occurrenceEvent.setEnd(occurrenceStart.plusSeconds(diffInSeconds));
     adjustEventDatesForWrite(occurrenceEvent);
+  }
+
+  /**
+   * Whether the series' time of day falls, on the day of an identifier in the
+   * series' zone, in an hour that zone skips or repeats, where the instant of
+   * that time is the rule's to resolve. Never on a series with several dates
+   * a day, whose identifier is the instant of its date.
+   *
+   * @param series the timed series
+   * @param occurrenceId the date's identifier, normalised on the series
+   * @return whether the zone's offset changes at that time of that day
+   */
+  private boolean isAtAnOffsetChange(Event series, ZonedDateTime occurrenceId) {
+    if (Utils.hasSeveralDatesADay(series.getRecurrence())) {
+      return false;
+    }
+    ZoneId zone = series.getTimeZoneId() == null ? ZoneOffset.UTC : series.getTimeZoneId();
+    LocalDateTime time = Utils.getSeriesDate(series, occurrenceId)
+                              .atTime(series.getStart().withZoneSameInstant(zone).toLocalTime());
+    return zone.getRules().getTransition(time) != null;
   }
 
   /**
