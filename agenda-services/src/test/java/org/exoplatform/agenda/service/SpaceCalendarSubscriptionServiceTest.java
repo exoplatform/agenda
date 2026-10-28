@@ -84,6 +84,9 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.web.security.codec.AbstractCodec;
 import org.exoplatform.web.security.codec.CodecInitializer;
 
+import io.meeds.commons.http.SafeAddressGuard;
+import io.meeds.commons.http.SafeFetchPolicy;
+
 /**
  * Pins the rules of a space's calendar subscriptions (EXO-90373): only a real
  * manager of the space — a member holding the manager role — lists, checks,
@@ -186,7 +189,7 @@ class SpaceCalendarSubscriptionServiceTest {
     when(codecInitializer.getCodec()).thenReturn(codec);
     when(codec.encode(anyString())).thenAnswer(invocation -> "enc:" + invocation.getArgument(0));
     when(codec.decode(anyString())).thenAnswer(invocation -> ((String) invocation.getArgument(0)).substring(4));
-    when(fetcher.getGuard()).thenReturn(new CalendarAddressGuard(false, Set.of(80, 443, 8080, 8443)));
+    when(fetcher.getGuard()).thenReturn(new CalendarAddressGuard(new SafeAddressGuard(SafeFetchPolicy.builder().internalAddressesAllowed(false).allowedPorts(Set.of(80, 443, 8080, 8443)).build())));
     when(fetcher.fetch(any(), any(), any())).thenReturn(response(ics("X-WR-CALNAME:Holidays",
                                                                      vevent("a@test", "20261001T090000Z", "A"),
                                                                      vevent("b@test", "20261002T090000Z", "B"))));

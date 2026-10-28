@@ -385,7 +385,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
    */
   private String check(String url, Identity owner, long userIdentityId) {
     try {
-      URI uri = feedFetcher.getGuard().normalize(url);
+      URI uri = normalize(url);
       return readForUser(uri, userIdentityId, owner, clock.instant()).parsed().name();
     } catch (CalendarFeedException e) {
       throw new IllegalArgumentException(e.getCode());
@@ -423,7 +423,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
     ParsedCalendar parsed;
     String urlKey;
     try {
-      uri = feedFetcher.getGuard().normalize(url);
+      uri = normalize(url);
       urlKey = urlKey(ownerIdentityId, uri);
       if (subscriptionStorage.getByUrlKey(urlKey) != null) {
         throw new IllegalArgumentException(ALREADY_SUBSCRIBED);
@@ -508,7 +508,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
     ParsedCalendar parsed = null;
     if (StringUtils.isNotBlank(url)) {
       try {
-        URI uri = feedFetcher.getGuard().normalize(url);
+        URI uri = normalize(url);
         String key = urlKey(subscription.getOwnerIdentityId(), uri);
         if (!key.equals(subscription.getUrlKey())) {
           if (subscriptionStorage.getByUrlKey(key) != null) {
@@ -729,9 +729,19 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
       recordFailure(subscription, attempt, USER_DISABLED, now.plus(RETRY_AFTER_DEAD_END));
       return;
     }
-    URI uri = storedUri(subscription);
-    if (uri == null) {
+    String storedUrl = decrypt(subscription);
+    if (storedUrl == null) {
       recordFailure(subscription, attempt, URL_UNREADABLE, now.plus(RETRY_AFTER_DEAD_END));
+      return;
+    }
+    URI uri;
+    try {
+      // the deployment's current rules: an internal address literal, a port
+      // or a scheme no longer allowed is refused before any read, with its
+      // own reason
+      uri = normalize(storedUrl);
+    } catch (CalendarFeedException e) {
+      recordFailure(subscription, attempt, e.getCode(), now.plus(RETRY_AFTER_DEAD_END));
       return;
     }
     try {
@@ -1151,6 +1161,19 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
   }
 
   /**
+   * Reads a URL as typed, under the deployment's current rules; a link of this
+   * eXo is kept even when the platform's public domain is an internal address
+   * literal, since it is read in the process, never over the network.
+   *
+   * @param url the URL as typed
+   * @return the URL to read
+   * @throws CalendarFeedException with the reason it is refused
+   */
+  private URI normalize(String url) throws CalendarFeedException {
+    return feedFetcher.getGuard().normalize(url, uri -> ownFeedToken(uri) != null);
+  }
+
+  /**
    * The token of a link of this eXo: same host and port as the platform's public
    * domain, and the path of a published calendar's feed.
    *
@@ -1207,25 +1230,6 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
    */
   private ParsedCalendar parse(byte[] body, Instant now) throws CalendarFeedException {
     return CalendarFeedParser.parse(body, now.minus(Duration.ofDays(PAST_DAYS)), now.plus(Duration.ofDays(FUTURE_DAYS)), MAX_EVENTS);
-  }
-
-  /**
-   * The URL of a stored subscription, decrypted and checked again against the
-   * deployment's current rules.
-   *
-   * @param subscription the subscription
-   * @return the URL, or null when it cannot be decrypted or is no longer allowed
-   */
-  private URI storedUri(CalendarSubscription subscription) {
-    String url = decrypt(subscription);
-    if (url == null) {
-      return null;
-    }
-    try {
-      return feedFetcher.getGuard().normalize(url);
-    } catch (CalendarFeedException e) {
-      return null;
-    }
   }
 
   /**
