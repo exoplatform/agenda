@@ -249,7 +249,17 @@ function toRemovedAttendee(participantKey) {
   };
 }
 
-export function createEvent(event) {
+/**
+ * Creates an event, or saves one date of a series alone.
+ *
+ * @param {Object} event the event to create
+ * @param {Boolean} confirmClose whether the user confirmed that the save closes
+ *          a date of an open series with a limit, its waiting list then
+ *          confirmed: without it, such a save is refused with
+ *          agenda.capacity.closeNeedsConfirmation
+ * @returns {Promise} the event created, or the date saved
+ */
+export function createEvent(event, confirmClose) {
   if (!Object.prototype.hasOwnProperty.call(event, 'sendInvitation')) {
     event.sendInvitation = true;
   }
@@ -263,7 +273,7 @@ export function createEvent(event) {
     })
     .then(conferences => {
       event.conferences = conferences && conferences.filter(conference => !!conference);
-      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events`, {
+      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events?confirmClose=${!!confirmClose}`, {
         method: 'POST',
         credentials: 'include',
         headers: {

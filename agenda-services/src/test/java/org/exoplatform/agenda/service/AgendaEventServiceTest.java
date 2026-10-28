@@ -36,6 +36,7 @@ import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -5268,11 +5269,13 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   /**
    * Amending one date of a space series does not buy the move right
    * (EXO-90149). An attendee allowed to update the series may file an
-   * exceptional occurrence in the series' own calendar, and storing it makes
-   * them that occurrence's creator; the move right must still be read on the
-   * series, or that creator title would take the date out of the space for
-   * every member. The series' own creator keeps the move, though they are not
-   * the creator of the date somebody else amended.
+   * exceptional occurrence in the series' own calendar, which keeps the
+   * series' creator, the date's row being the series' copy at that date. On
+   * a row whose creator is the attendee, as a date saved alone was written
+   * before EXO-91879, the move right must still be read on the series, or
+   * that creator title would take the date out of the space for every
+   * member. The series' own creator keeps the move, though they are not the
+   * creator of the date somebody else amended.
    *
    * @throws Exception when a service call fails unexpectedly
    */
@@ -5296,12 +5299,18 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                                              0);
     assertTrue("The series must have several occurrences", occurrences.size() > 1);
 
-    // The attendee amends one date in place: allowed, and it makes them the
-    // creator of the stored occurrence
+    // The attendee amends one date in place: allowed, and the date keeps the
+    // series' creator
     Event amended = createEvent(newOccurrenceInstance(seriesId, occurrences.get(1), spaceCalendar.getId()), user2IdentityId);
-    assertEquals("The amendment must be stored as the attendee's own",
-                 user2IdentityId,
+    assertEquals("The amendment must keep the series' creator",
+                 user1IdentityId,
                  amended.getCreatorId());
+    // A row whose creator is the attendee, as a date saved alone was written
+    // before EXO-91879
+    Event storedAmendment = agendaEventStorage.getEventById(amended.getId());
+    storedAmendment.setCreatorId(user2IdentityId);
+    agendaEventStorage.updateEvent(storedAmendment);
+    assertEquals(user2IdentityId, agendaEventService.getEventById(amended.getId()).getCreatorId());
 
     Event asAttendee = agendaEventService.getEventById(amended.getId(), null, user2IdentityId).clone();
     assertFalse("Amending a date must not give the attendee the move right the series denies them",
@@ -5745,6 +5754,181 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   /**
+   * A date of a series filed alone into another calendar of its organiser's
+   * keeps the answers its attendees had there, as one saved in the series'
+   * calendar: its row is the series' copy at that date, which the save moves.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateOccurrenceInAnotherCalendarKeepsTheAnswers() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user3IdentityId = Long.parseLong(testuser3Identity.getId());
+
+    Event series = createEvent(newEventInstance(start, start.plusHours(1), false),
+                               user1IdentityId,
+                               testuser1Identity,
+                               testuser2Identity,
+                               testuser3Identity);
+    long seriesId = series.getId();
+    agendaEventAttendeeService.sendEventResponse(seriesId, user3IdentityId, EventAttendeeResponse.DECLINED);
+    Event occurrence = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                     start.minusDays(1),
+                                                                     start.plusDays(5),
+                                                                     series.getTimeZoneId(),
+                                                                     0)
+                                         .get(1);
+    org.exoplatform.agenda.model.Calendar secondCalendar = new org.exoplatform.agenda.model.Calendar(0,
+                                                                                                    user1IdentityId,
+                                                                                                    false,
+                                                                                                    null,
+                                                                                                    null,
+                                                                                                    null,
+                                                                                                    null,
+                                                                                                    null,
+                                                                                                    null);
+    secondCalendar.setName("Second calendar");
+    secondCalendar = agendaCalendarService.createCalendar(secondCalendar, testuser1Identity.getRemoteId());
+    try {
+      Event created = createEvent(newOccurrenceInstance(seriesId, occurrence, secondCalendar.getId()),
+                                  user1IdentityId,
+                                  testuser1Identity,
+                                  testuser2Identity,
+                                  testuser3Identity);
+
+      assertEquals(secondCalendar.getId(), agendaEventService.getEventById(created.getId()).getCalendarId());
+      assertEquals(EventAttendeeResponse.DECLINED,
+                   agendaEventAttendeeService.getEventAttendees(created.getId())
+                                             .getEventAttendee(user3IdentityId, null)
+                                             .getResponse());
+    } finally {
+      agendaCalendarService.deleteCalendarById(secondCalendar.getId());
+    }
+  }
+
+  /**
+   * One date of a series saved alone is written by the right its user holds
+   * on that date: an attendee allowed to update the series who attends from
+   * a later date only, as a member who answered from it once the space they
+   * attended through was removed, may save that later date alone, not an
+   * earlier one, which keeps no row of its own.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateOccurrenceBeforeTheAttendeeAttendsIsRefused() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user3IdentityId = Long.parseLong(testuser3Identity.getId());
+
+    Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+    seriesInstance.setCalendarId(spaceCalendar.getId());
+    seriesInstance.setAllowAttendeeToUpdate(true);
+    Event series = createEvent(seriesInstance, user1IdentityId, testuser1Identity, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                             start.minusDays(1),
+                                                                             start.plusDays(5),
+                                                                             series.getTimeZoneId(),
+                                                                             0);
+    ZonedDateTime firstDate = occurrences.get(0).getOccurrence().getId();
+    ZonedDateTime secondDate = occurrences.get(1).getOccurrence().getId();
+    // Attends from the second date only
+    agendaEventAttendeeService.sendUpcomingEventResponse(seriesId, secondDate, user3IdentityId, EventAttendeeResponse.ACCEPTED);
+    AgendaEventAttendeeStorage attendeeStorage = container.getComponentInstanceOfType(AgendaEventAttendeeStorage.class);
+    for (EventAttendee row : agendaEventAttendeeService.getEventAttendees(seriesId).getEventAttendees(user3IdentityId)) {
+      if (row.getFromOccurrenceId() == null) {
+        attendeeStorage.removeEventAttendee(row.getId());
+      }
+    }
+    assertNull(agendaEventAttendeeService.getEventAttendees(seriesId).getEventAttendee(user3IdentityId, firstDate));
+    assertTrue("The attendee must be allowed to update the series",
+               agendaEventService.getEventById(seriesId, null, user3IdentityId).getAcl().isCanEdit());
+
+    Event earlierDate = newOccurrenceInstance(seriesId, occurrences.get(0), spaceCalendar.getId());
+    earlierDate.setSummary("Renamed");
+    assertThrows(IllegalAccessException.class,
+                 () -> agendaEventService.createEvent(earlierDate,
+                                                      Collections.emptyList(),
+                                                      null,
+                                                      null,
+                                                      null,
+                                                      null,
+                                                      false,
+                                                      user3IdentityId));
+    assertNull("A refused date must keep no row of its own",
+               agendaEventService.getExceptionalOccurrenceEvent(seriesId, firstDate));
+
+    Event laterDate = newOccurrenceInstance(seriesId, occurrences.get(1), spaceCalendar.getId());
+    laterDate.setSummary("Renamed");
+    long savedId = agendaEventService.createEvent(laterDate,
+                                                  Collections.emptyList(),
+                                                  null,
+                                                  null,
+                                                  null,
+                                                  null,
+                                                  false,
+                                                  user3IdentityId)
+                                     .getId();
+    Event saved = agendaEventService.getEventById(savedId);
+    assertEquals("Renamed", saved.getSummary());
+    assertEquals(user1IdentityId, saved.getCreatorId());
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventAttendees(savedId).getEventAttendee(user3IdentityId, null).getResponse());
+  }
+
+  /**
+   * One date of a series with no row of its own cancelled alone, as "delete
+   * only this event" posts it, by an attendee allowed to update the series:
+   * the date's row is the series' copy, cancelled, which keeps the series'
+   * creator and the date's answers, and the series no longer gives that date
+   * while it keeps the others.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCancelOccurrenceWithoutItsRowKeepsItsAnswers() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+    long user3IdentityId = Long.parseLong(testuser3Identity.getId());
+
+    Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+    seriesInstance.setAllowAttendeeToUpdate(true);
+    Event series = createEvent(seriesInstance, user1IdentityId, testuser1Identity, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    agendaEventAttendeeService.sendEventResponse(seriesId, user3IdentityId, EventAttendeeResponse.DECLINED);
+    List<Event> before = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                        start.minusDays(1),
+                                                                        start.plusDays(5),
+                                                                        series.getTimeZoneId(),
+                                                                        0);
+    ZonedDateTime cancelledDate = before.get(1).getOccurrence().getId();
+    assertNull(agendaEventService.getExceptionalOccurrenceEvent(seriesId, cancelledDate));
+
+    Event toCancel = newOccurrenceInstance(seriesId, before.get(1), series.getCalendarId());
+    toCancel.setStatus(EventStatus.CANCELLED);
+    long cancelledId = createEvent(toCancel, user2IdentityId, testuser1Identity, testuser2Identity, testuser3Identity).getId();
+
+    Event cancelled = agendaEventService.getEventById(cancelledId);
+    assertEquals(EventStatus.CANCELLED, cancelled.getStatus());
+    assertEquals(user1IdentityId, cancelled.getCreatorId());
+    assertEquals(cancelledId, agendaEventService.getExceptionalOccurrenceEvent(seriesId, cancelledDate).getId());
+    assertEquals(EventAttendeeResponse.DECLINED,
+                 agendaEventAttendeeService.getEventAttendees(cancelledId).getEventAttendee(user3IdentityId, null).getResponse());
+    List<Event> after = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                       start.minusDays(1),
+                                                                       start.plusDays(5),
+                                                                       series.getTimeZoneId(),
+                                                                       0);
+    assertEquals(before.size() - 1, after.size());
+    assertTrue("The cancelled date must be gone",
+               after.stream().noneMatch(occurrence -> occurrence.getOccurrence() != null
+                   && occurrence.getOccurrence().getId().toInstant().equals(cancelledDate.toInstant())));
+  }
+
+  /**
    * Naming a parent is not the same as amending one date of it, and only the
    * second relaxes the creation right.
    * <p>
@@ -5813,14 +5997,16 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
   /**
    * An exceptional occurrence created with no attendee in the payload takes the
-   * ones its series carries for that date (EXO-90408).
+   * ones its series carries for that date (EXO-90408), with their answers.
    * <p>
    * This is the invariant {@code saveEventExceptionalOccurrence} already keeps
    * when it detaches a date of a series: an occurrence is the series on one
    * day, so the people invited to the series are invited to it. Without it the
    * row is an orphan — no attendee, hence absent from every attendee-keyed
    * listing, while the series' own expansion drops that date because an
-   * exceptional occurrence exists for it.
+   * exceptional occurrence exists for it. The row is that detachment itself,
+   * which the save then changes as it changes a date that already has one: at
+   * the series' dates, nobody's answer starts over.
    *
    * @throws Exception when a service call fails unexpectedly
    */
@@ -5842,6 +6028,13 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                                             series.getTimeZoneId(),
                                                                             0);
     assertTrue("The series must have several occurrences", occurrences.size() > 1);
+    agendaEventAttendeeService.sendEventResponse(seriesId, user3IdentityId, EventAttendeeResponse.DECLINED);
+    ZonedDateTime occurrenceId = occurrences.get(1).getOccurrence().getId();
+    Map<Long, EventAttendeeResponse> answersBefore = new HashMap<>();
+    for (long identityId : new long[] { user1IdentityId, user2IdentityId, user3IdentityId }) {
+      answersBefore.put(identityId, agendaEventAttendeeService.getEventResponse(seriesId, occurrenceId, identityId));
+    }
+    assertEquals(EventAttendeeResponse.DECLINED, answersBefore.get(user3IdentityId));
 
     // The payload names nobody: the web UI sends the occurrence it read, but a
     // client that sends only the dates is just as legitimate
@@ -5858,20 +6051,107 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                  Arrays.asList(user1IdentityId, user2IdentityId, user3IdentityId).stream().sorted().toList(),
                  inherited);
 
-    // And the state those copies end in, which is decided one frame later by
-    // AgendaReplyOnSaveListener on the creation event, not by the arguments
-    // this seeding passes: everyone is asked again, and the
-    // one who made the edit is on it
+    // And the state those copies end in, which no listener of the save starts
+    // over: every attendee keeps the answer they had on that date, the one
+    // who made the edit included
     List<EventAttendee> rows = agendaEventAttendeeService.getEventAttendees(created.getId()).getEventAttendees();
     for (EventAttendee row : rows) {
-      if (row.getIdentityId() == user2IdentityId) {
-        assertEquals("The attendee who edited the date is on it", EventAttendeeResponse.ACCEPTED, row.getResponse());
-      } else {
-        assertEquals("and everybody else is asked again for that date",
-                     EventAttendeeResponse.NEEDS_ACTION,
-                     row.getResponse());
-      }
+      assertEquals("Attendee " + row.getIdentityId() + " keeps their answer on that date",
+                   answersBefore.get(row.getIdentityId()),
+                   row.getResponse());
     }
+  }
+
+  /**
+   * One date of a series saved on its own for the first time, by an attendee
+   * allowed to update the series who did not create it, keeps the answers its
+   * attendees had there and takes none from the payload (EXO-87952): an
+   * answer posted for an attendee already listed is the stored one's, and an
+   * attendee the save adds is asked, whatever answer the payload gives them.
+   * The date keeps the series' creator, the save changing the series' copy at
+   * that date.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateOccurrenceKeepsTheAnswersAndTakesNoneFromThePayload() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+    long user3IdentityId = Long.parseLong(testuser3Identity.getId());
+    long user4IdentityId = Long.parseLong(testuser4Identity.getId());
+
+    Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+    seriesInstance.setAllowAttendeeToUpdate(true);
+    Event series = createEvent(seriesInstance, user1IdentityId, testuser1Identity, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    agendaEventAttendeeService.sendEventResponse(seriesId, user3IdentityId, EventAttendeeResponse.DECLINED);
+    Event occurrence = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                     start.minusDays(1),
+                                                                     start.plusDays(5),
+                                                                     series.getTimeZoneId(),
+                                                                     0)
+                                         .get(1);
+    ZonedDateTime occurrenceId = occurrence.getOccurrence().getId();
+    EventAttendeeResponse organiserAnswer = agendaEventAttendeeService.getEventResponse(seriesId, occurrenceId, user1IdentityId);
+    EventAttendeeResponse editorAnswer = agendaEventAttendeeService.getEventResponse(seriesId, occurrenceId, user2IdentityId);
+
+    Event date = newOccurrenceInstance(seriesId, occurrence, calendar.getId());
+    date.setSummary("A title of its own");
+    List<EventAttendee> posted = Arrays.asList(new EventAttendee(0, user1IdentityId, EventAttendeeResponse.DECLINED),
+                                               new EventAttendee(0, user2IdentityId, EventAttendeeResponse.ACCEPTED),
+                                               new EventAttendee(0, user3IdentityId, EventAttendeeResponse.ACCEPTED),
+                                               new EventAttendee(0, user4IdentityId, EventAttendeeResponse.ACCEPTED));
+    Event created = agendaEventService.createEvent(date, posted, null, null, null, null, false, user2IdentityId);
+
+    Event stored = agendaEventService.getEventById(created.getId());
+    assertEquals("A title of its own", stored.getSummary());
+    assertEquals("The date keeps the series' creator", user1IdentityId, stored.getCreatorId());
+    EventAttendeeList attendees = agendaEventAttendeeService.getEventAttendees(created.getId());
+    assertEquals(organiserAnswer, attendees.getEventAttendee(user1IdentityId, null).getResponse());
+    assertEquals(editorAnswer, attendees.getEventAttendee(user2IdentityId, null).getResponse());
+    assertEquals(EventAttendeeResponse.DECLINED, attendees.getEventAttendee(user3IdentityId, null).getResponse());
+    assertEquals("An attendee the save adds is asked",
+                 EventAttendeeResponse.NEEDS_ACTION,
+                 attendees.getEventAttendee(user4IdentityId, null).getResponse());
+  }
+
+  /**
+   * One date of a series saved on its own for the first time at other times
+   * asks every other attendee again, as a date that already has its row does
+   * when its times change, and the attendee who moved it is on it.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateOccurrenceAtOtherTimesAsksTheOtherAttendeesAgain() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+    long user3IdentityId = Long.parseLong(testuser3Identity.getId());
+
+    Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+    seriesInstance.setAllowAttendeeToUpdate(true);
+    Event series = createEvent(seriesInstance, user1IdentityId, testuser1Identity, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    agendaEventAttendeeService.sendEventResponse(seriesId, user3IdentityId, EventAttendeeResponse.ACCEPTED);
+    Event occurrence = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                     start.minusDays(1),
+                                                                     start.plusDays(5),
+                                                                     series.getTimeZoneId(),
+                                                                     0)
+                                         .get(1);
+
+    Event date = newOccurrenceInstance(seriesId, occurrence, calendar.getId());
+    date.setStart(occurrence.getStart().plusHours(2));
+    date.setEnd(occurrence.getEnd().plusHours(2));
+    Event created = createEvent(date, user2IdentityId, testuser1Identity, testuser2Identity, testuser3Identity);
+
+    EventAttendeeList attendees = agendaEventAttendeeService.getEventAttendees(created.getId());
+    assertEquals(EventAttendeeResponse.ACCEPTED, attendees.getEventAttendee(user2IdentityId, null).getResponse());
+    assertEquals(EventAttendeeResponse.NEEDS_ACTION, attendees.getEventAttendee(user1IdentityId, null).getResponse());
+    assertEquals(EventAttendeeResponse.NEEDS_ACTION, attendees.getEventAttendee(user3IdentityId, null).getResponse());
+    assertTrue(agendaEventService.getEventById(created.getId()).getOccurrence().isDatesModified());
   }
 
   /**
