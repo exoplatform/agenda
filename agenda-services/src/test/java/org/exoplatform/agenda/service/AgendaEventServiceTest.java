@@ -6251,6 +6251,72 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     return event;
   }
 
+  /**
+   * A date of a timed series detached on its own, as when somebody answers it
+   * alone, starts when its series gives it: on its own day in the series'
+   * zone where the series' local start falls on another UTC day, east or west
+   * of UTC, on a day its zone's offset changes at the series' time, the hour
+   * it repeats or the hour it skips, and at its own time on a series with
+   * several dates a day. Its row is the series' copy at that date, unmarked,
+   * which a second detachment finds again, and which a change of its series
+   * leaves at that date.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testSaveExceptionalOccurrenceStartsWhenItsSeriesGivesIt() throws Exception { // NOSONAR
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    LocalDate day = LocalDate.now().plusDays(60);
+    ZoneId newYork = ZoneId.of("America/New_York");
+    List<ZonedDateTime> starts = List.of(day.atTime(8, 30).atZone(ZoneId.of("Asia/Tokyo")),
+                                         day.atTime(20, 30).atZone(newYork),
+                                         // The second date on the night the clocks go back, then forward
+                                         LocalDate.of(2026, 10, 31).atTime(1, 30).atZone(newYork),
+                                         LocalDate.of(2027, 3, 13).atTime(2, 30).atZone(newYork),
+                                         day.atTime(9, 0).atZone(ZoneOffset.UTC));
+    for (ZonedDateTime start : starts) {
+      Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+      seriesInstance.setTimeZoneId(start.getZone());
+      if (start.getZone() == ZoneOffset.UTC) {
+        seriesInstance.getRecurrence().setFrequency(EventRecurrenceFrequency.HOURLY);
+        seriesInstance.getRecurrence().setUntil(null);
+        seriesInstance.getRecurrence().setCount(4);
+      }
+      Event series = createEvent(seriesInstance, user1IdentityId, testuser2Identity);
+      Event secondDate = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                        start.minusDays(1),
+                                                                        start.plusDays(5),
+                                                                        series.getTimeZoneId(),
+                                                                        0)
+                                           .get(1);
+
+      // Answered alone, the date gets its row, which carries that answer
+      agendaEventAttendeeService.sendEventResponse(series.getId(),
+                                                   secondDate.getOccurrence().getId(),
+                                                   Long.parseLong(testuser2Identity.getId()),
+                                                   EventAttendeeResponse.DECLINED,
+                                                   true);
+      Event row = agendaEventService.getExceptionalOccurrenceEvent(series.getId(), secondDate.getOccurrence().getId());
+
+      String zone = start.getZone().getId();
+      assertNotNull(zone, row);
+      assertEquals(zone, secondDate.getStart().toInstant(), row.getStart().toInstant());
+      assertEquals(zone, secondDate.getEnd().toInstant(), row.getEnd().toInstant());
+      assertFalse(zone, row.getOccurrence().isDatesModified());
+      assertEquals(zone,
+                   row.getId(),
+                   agendaEventService.saveEventExceptionalOccurrence(series.getId(), secondDate.getOccurrence().getId()).getId());
+
+      // A change of its series anchors its unmarked dates on the series again
+      agendaEventService.updateEventFields(series.getId(), getFields("summary", "Renamed"), true, false, user1IdentityId);
+
+      Event renamed = agendaEventService.getEventById(row.getId());
+      assertEquals(zone, "Renamed", renamed.getSummary());
+      assertEquals(zone, secondDate.getStart().toInstant(), renamed.getStart().toInstant());
+      assertFalse(zone, renamed.getOccurrence().isDatesModified());
+    }
+  }
+
   @Test
   public void testSaveAllDayExceptionalOccurrenceKeepsItsDateWestOfUtc() throws Exception { // NOSONAR
     checkAllDayExceptionalOccurrencesKeepTheirDates(ZoneId.of("America/New_York"));
