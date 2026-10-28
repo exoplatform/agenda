@@ -1242,16 +1242,16 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
   }
 
   /**
-   * A date of a series created with a limit of its own below the Yes answers
-   * the series holds there takes the series' attendees with their answers,
-   * which the creation's broadcast starts over, the creator's aside
-   * (AgendaReplyOnSaveListener): once created, the date holds no Yes its
-   * limit is below and nobody waits there.
+   * A date of a series given on its own, for the first time, a limit below
+   * the Yes answers the series holds there is refused, as on a date that has
+   * its row: the date's row is the series' copy at that date, answers
+   * included, which the save changes. The refusal leaves the date without a
+   * row and every Yes in place.
    *
-   * @throws Exception when the creation fails
+   * @throws Exception when a write fails otherwise
    */
   @Test
-  public void aDateCreatedWithALimitOfItsOwnStartsTheAnswersItTakesOver() throws Exception {
+  public void aDateGivenALimitOfItsOwnBelowItsYesAnswersIsRefused() throws Exception {
     Event series = openSeries(3, testuser2Identity, testuser3Identity, testuser4Identity);
     long seriesId = series.getId();
     for (Identity identity : List.of(testuser2Identity, testuser3Identity, testuser4Identity)) {
@@ -1262,18 +1262,12 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
     date.setId(0);
     date.setCapacity(1);
 
-    Event created = agendaEventService.createEvent(date,
-                                                   Collections.emptyList(),
-                                                   null,
-                                                   null,
-                                                   null,
-                                                   null,
-                                                   false,
-                                                   id(testuser1Identity));
+    assertCode("agenda.capacity.belowAccepted",
+               assertThrows(CapacityBelowAcceptedException.class, () -> createAlone(date)));
 
-    assertEquals(1, capacityOf(created.getId()));
+    assertNull(agendaEventService.getExceptionalOccurrenceEvent(seriesId, firstDate));
     for (Identity identity : List.of(testuser2Identity, testuser3Identity, testuser4Identity)) {
-      assertEquals(EventAttendeeResponse.NEEDS_ACTION, responseOf(created.getId(), identity));
+      assertEquals(EventAttendeeResponse.ACCEPTED, responseAt(seriesId, firstDate, identity));
     }
   }
 
@@ -1968,46 +1962,104 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
   }
 
   /**
-   * A date holding the series' limit saved on its own for the first time, a
-   * row created for it with a title of its own, starts its answers over, the
-   * creation's broadcast resetting the row it takes over
-   * (AgendaReplyOnSaveListener), and the series' report with them (D19): the
-   * answer then filling the date reports the series.
+   * A date holding the series' limit saved on its own for the first time,
+   * with a title of its own, keeps its answers and leaves the series' report
+   * as it was (D19): its row is the series' copy at that date, which reports
+   * nothing, and which the save changes.
    *
    * @throws Exception when a write fails
    */
   @Test
-  public void aDateSavedOnItsOwnForTheFirstTimeStartsTheSeriesReportOver() throws Exception {
+  public void aDateSavedOnItsOwnForTheFirstTimeKeepsItsAnswersAndTheSeriesReport() throws Exception {
     Event series = openSeries(LocalDate.now().plusDays(60), 3, 1, testuser2Identity, testuser3Identity);
     long seriesId = series.getId();
     List<ZonedDateTime> dates = occurrenceIds(series);
     answerDate(seriesId, dates.get(0), testuser2Identity, EventAttendeeResponse.ACCEPTED);
-    assertNotNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    assertEquals(EventAttendeeResponse.ACCEPTED, responseAt(seriesId, dates.get(1), testuser3Identity));
+    ZonedDateTime reported = agendaEventService.getEventById(seriesId).getCapacityReachedDate();
+    assertNotNull(reported);
     assertNull(agendaEventService.getExceptionalOccurrenceEvent(seriesId, dates.get(1)));
     BROADCASTS.clear();
 
     Event date = agendaEventService.getEventOccurrence(seriesId, dates.get(1), ZoneOffset.UTC, id(testuser1Identity));
     date.setId(0);
     date.setSummary("A title of its own");
-    long dateId = agendaEventService.createEvent(date,
-                                                 Collections.emptyList(),
-                                                 null,
-                                                 null,
-                                                 null,
-                                                 null,
-                                                 false,
-                                                 id(testuser1Identity))
-                                    .getId();
+    long savedId = createAlone(date);
 
-    assertEquals(1, capacityOf(dateId));
-    assertNull(agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+    assertEquals(1, capacityOf(savedId));
+    assertEquals(EventAttendeeResponse.ACCEPTED, responseOf(savedId, testuser3Identity));
+    assertEquals(reported, agendaEventService.getEventById(seriesId).getCapacityReachedDate());
     assertEquals(0, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
+  }
 
-    answerDate(seriesId, dates.get(1), testuser3Identity, EventAttendeeResponse.ACCEPTED);
+  /**
+   * A date of an open series closed on its own for the first time, by a
+   * manager of the space waiting for a seat there who did not create the
+   * series, as the participant list's padlock posts it, keeps the seat of
+   * the attendee seated there and, the closing confirmed, confirms the
+   * attendees waiting there, the manager among them (D15): the date's row is
+   * the series' copy at that date, its creator the series', which the save
+   * then changes as it changes a date that already has one. Unconfirmed, the
+   * closing is refused and leaves the date without a row, and the series'
+   * other dates keep their waiting list.
+   *
+   * @throws Exception when a write fails otherwise
+   */
+  @Test
+  public void aDateClosedAloneByAManagerKeepsItsSeatsAndConfirmsItsWaitingList() throws Exception {
+    spaceService.setManager(space, testuser2Identity.getRemoteId(), true);
+    Event series = openSeries(1, testuser3Identity, testuser2Identity, testuser4Identity);
+    long seriesId = series.getId();
+    answer(seriesId, testuser3Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    answer(seriesId, testuser4Identity, EventAttendeeResponse.ACCEPTED);
+    ZonedDateTime closedDate = occurrenceIds(series).get(1);
+    ZonedDateTime nextDate = occurrenceIds(series).get(2);
+    assertEquals(EventAttendeeResponse.WAITING, responseAt(seriesId, closedDate, testuser2Identity));
+    assertEquals(EventAttendeeResponse.WAITING, responseAt(seriesId, closedDate, testuser4Identity));
 
+    assertCode("agenda.capacity.closeNeedsConfirmation",
+               assertThrows(IllegalArgumentException.class, () -> closeAlone(seriesId, closedDate, testuser2Identity, false)));
+    assertNull(agendaEventService.getExceptionalOccurrenceEvent(seriesId, closedDate));
+    assertEquals(EventAttendeeResponse.WAITING, responseAt(seriesId, closedDate, testuser2Identity));
+
+    long dateId = closeAlone(seriesId, closedDate, testuser2Identity, true);
+
+    Event date = agendaEventService.getEventById(dateId);
+    assertEquals(id(testuser1Identity), date.getCreatorId());
+    assertNotEquals(Boolean.TRUE, date.getOpen());
     assertEquals(EventAttendeeResponse.ACCEPTED, responseOf(dateId, testuser3Identity));
-    assertEquals(1, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).size());
-    assertEquals(seriesId, broadcasts(Utils.POST_EVENT_CAPACITY_REACHED).get(0).source());
+    assertEquals(EventAttendeeResponse.ACCEPTED, responseOf(dateId, testuser2Identity));
+    assertEquals(EventAttendeeResponse.ACCEPTED, responseOf(dateId, testuser4Identity));
+    assertEquals(EventAttendeeResponse.WAITING, responseAt(seriesId, nextDate, testuser2Identity));
+    assertEquals(EventAttendeeResponse.WAITING, responseAt(seriesId, nextDate, testuser4Identity));
+  }
+
+  /**
+   * A date of an all-day series of a zone west of UTC saved on its own for
+   * the first time keeps its answers, on its own day: the row the save
+   * changes is the series' copy at that day, which a second save alone finds
+   * again.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void anAllDayDateSavedAloneWestOfUtcKeepsItsAnswersOnItsDay() throws Exception {
+    ZoneId newYork = ZoneId.of("America/New_York");
+    LocalDate firstDay = LocalDate.now(newYork).plusDays(60);
+    Event series = openAllDaySeries(firstDay, newYork, 1, 2, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    answer(seriesId, testuser2Identity, EventAttendeeResponse.ACCEPTED);
+    ZonedDateTime secondDate = occurrenceIds(series).get(1);
+    LocalDate secondDay = firstDay.plusDays(1);
+
+    long dateId = createAlone(allDayDateOf(series, secondDate, secondDay, secondDay));
+
+    assertEquals(secondDay, agendaEventService.getEventById(dateId).getOccurrence().getId().toLocalDate());
+    assertEquals(EventAttendeeResponse.ACCEPTED, responseOf(dateId, testuser2Identity));
+    assertEquals(EventAttendeeResponse.NEEDS_ACTION, responseOf(dateId, testuser3Identity));
+    assertEquals(dateId, createAlone(allDayDateOf(series, secondDate, secondDay, secondDay)));
   }
 
   /**
@@ -2808,6 +2860,28 @@ public class AgendaEventCapacityWriteTest extends BaseAgendaEventTest {
   /** Creates a date of a series on its own row, as the form's "this occurrence only" does. */
   private long createAlone(Event date) throws Exception {
     return agendaEventService.createEvent(date, Collections.emptyList(), null, null, null, null, false, id(testuser1Identity)).getId();
+  }
+
+  /**
+   * Closes a date of a series on its own, as the participant list's padlock
+   * posts it with "only this event": the date as read, with its attendees and
+   * their answers as read.
+   */
+  private long closeAlone(long seriesId, ZonedDateTime occurrenceId, Identity saver, boolean confirmClose) throws Exception {
+    Event date = agendaEventService.getEventOccurrence(seriesId, occurrenceId, ZoneOffset.UTC, id(saver));
+    date.setId(0);
+    date.setOpen(false);
+    List<EventAttendee> posted = agendaEventAttendeeService.getEventAttendees(seriesId)
+                                                           .getEventAttendees(occurrenceId)
+                                                           .stream()
+                                                           .map(row -> new EventAttendee(0, 0, row.getIdentityId(), row.getResponse()))
+                                                           .collect(Collectors.toList());
+    assertFalse("The date's attendees must be posted", posted.isEmpty());
+    return agendaEventService.createEvent(date, posted, null, null, null, null, false, confirmClose, id(saver)).getId();
+  }
+
+  private EventAttendeeResponse responseAt(long seriesId, ZonedDateTime occurrenceId, Identity identity) throws Exception {
+    return agendaEventAttendeeService.getEventResponse(seriesId, occurrenceId, id(identity));
   }
 
   /**
