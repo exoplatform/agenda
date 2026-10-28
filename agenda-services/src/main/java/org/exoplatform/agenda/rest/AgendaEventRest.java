@@ -748,6 +748,12 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                 "timeZoneId"
                               )
                               String timeZoneId,
+                              @Parameter(
+                                  description = "Whether the user confirmed closing the date of a series saved, while people are waiting for a seat"
+                              )
+                              @Schema(defaultValue = "false")
+                              @QueryParam("confirmClose")
+                              boolean confirmClose,
                               @Parameter(description = "Event object to create", required = true)
                               EventEntity eventEntity) {
     if (eventEntity == null) {
@@ -764,7 +770,8 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                       agendaEventService,
                                       eventEntity,
                                       userIdentityId,
-                                      timeZoneId);
+                                      timeZoneId,
+                                      confirmClose);
       return getEventById(event.getId(), "all", timeZoneId == null ? event.getTimeZoneId().getId() : timeZoneId, false);
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to create an event in calendar '{}'",

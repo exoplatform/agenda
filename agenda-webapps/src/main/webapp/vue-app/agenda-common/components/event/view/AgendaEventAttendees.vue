@@ -1132,7 +1132,8 @@ export default {
      * series, where the popup rightly treats it as "all events".
      *
      * A date the series had never materialised carries no id, so the change
-     * creates its row; every other case updates one.
+     * creates its row, which the server makes as the series' copy at that
+     * date before applying the change, as it updates one in every other case.
      *
      * @param {Object} eventToSave the event the popup built for the chosen
      *          scope — that date alone, or the series carrying it
@@ -1146,7 +1147,7 @@ export default {
       this.scopeWriting = true;
       const write = confirmed => (eventToSave.id
         ? this.$eventService.updateEvent(eventToSave, confirmed)
-        : this.$eventService.createEvent(eventToSave));
+        : this.$eventService.createEvent(eventToSave, confirmed));
       this.$refs.closeConfirm.writeConfirmingClose(write, this.scopeConfirmClose)
         .then(() => {
           // The change landed, so the list the drawer edited is the stored one

@@ -266,17 +266,84 @@ public interface AgendaEventService {
    *          remote connector
    * @param sendInvitation whether send invitation to attendees or not
    * @param userIdentityId user {@link Identity} identifier
-   * @return Created {@link Event} with technichal identifier
+   * @return Created {@link Event} with technichal identifier, or the date of
+   *         the series updated
    * @throws IllegalAccessException when user is not allowed to create event on
    *           calendar, or creates an exceptional occurrence of a recurring
-   *           event (a parent) that they aren't allowed to update
+   *           event (a parent) that they aren't allowed to update, or saves a
+   *           date of a series they may not update at that date, as an
+   *           attendee whose rows start after it
    * @throws AgendaException when the event attributes aren't valid, or when the
    *           parent event isn't found
    * @throws IllegalArgumentException with the message code
    *           {@code agenda.capacity.invalid} when the capacity asked is
-   *           negative; on a date of a series that got a row meanwhile, which
-   *           is then updated, the codes of
+   *           negative; on a date of a series saved as an update of its row,
+   *           the codes of
    *           {@link #updateEvent(Event, List, List, List, List, RemoteEvent, boolean, boolean, long)}
+   */
+  default Event createEvent(Event event,
+                            List<EventAttendee> attendees,
+                            List<EventConference> conferences,
+                            List<EventReminder> reminders,
+                            List<EventDateOption> dateOptions,
+                            RemoteEvent remoteEvent,
+                            boolean sendInvitation,
+                            long userIdentityId) throws IllegalAccessException, AgendaException {
+    return createEvent(event,
+                       attendees,
+                       conferences,
+                       reminders,
+                       dateOptions,
+                       remoteEvent,
+                       sendInvitation,
+                       false,
+                       userIdentityId);
+  }
+
+  /**
+   * Creates an event, as
+   * {@link #createEvent(Event, List, List, List, List, RemoteEvent, boolean, long)}
+   * does, once the user has confirmed closing it when the save closes a date
+   * of a series whose waiting list it would confirm.
+   * <p>
+   * One of a series' dates is saved as an update of its row, the row being
+   * created first as the series' copy at that date when it has none: its
+   * attendees keep their answers, their seats and their places on the
+   * waiting list, as on a date that already has its row, unless the save
+   * changes the date's times. Named by no attendee, the date keeps the ones
+   * the series has there. A date that has no row yet and that its series does
+   * not give, or that belongs to a series with several dates a day, is
+   * created as a new event instead.
+   *
+   * @param event {@link Event} to create
+   * @param attendees event attendees of type {@link EventAttendee}
+   * @param conferences event conferences of type {@link EventConference}
+   * @param reminders {@link List} of preferred user reminders of type
+   *          {@link EventReminder}
+   * @param dateOptions {@link List} of {@link EventDateOption} of corresponding
+   *          event
+   * @param remoteEvent {@link RemoteEvent} of synchronized event by user to
+   *          remote connector
+   * @param sendInvitation whether send invitation to attendees or not
+   * @param confirmClose whether the user confirmed that closing the date
+   *          removes its capacity limit and confirms its waiting list
+   * @param userIdentityId user {@link Identity} identifier
+   * @return Created {@link Event} with technichal identifier, or the date of
+   *         the series updated
+   * @throws IllegalAccessException when user is not allowed to create event on
+   *           calendar, or creates an exceptional occurrence of a recurring
+   *           event (a parent) that they aren't allowed to update, or saves a
+   *           date of a series they may not update at that date, as an
+   *           attendee whose rows start after it
+   * @throws AgendaException when the event attributes aren't valid, or when the
+   *           parent event isn't found
+   * @throws IllegalArgumentException with the message code
+   *           {@code agenda.capacity.invalid} when the capacity asked is
+   *           negative; on a date of a series saved as an update of its row,
+   *           the codes of
+   *           {@link #updateEvent(Event, List, List, List, List, RemoteEvent, boolean, boolean, long)},
+   *           {@code agenda.capacity.closeNeedsConfirmation} among them when
+   *           the save closes the date with a waiting list without confirmClose
    */
   Event createEvent(Event event,
                     List<EventAttendee> attendees,
@@ -285,6 +352,7 @@ public interface AgendaEventService {
                     List<EventDateOption> dateOptions,
                     RemoteEvent remoteEvent,
                     boolean sendInvitation,
+                    boolean confirmClose,
                     long userIdentityId) throws IllegalAccessException, AgendaException;
 
   /**
