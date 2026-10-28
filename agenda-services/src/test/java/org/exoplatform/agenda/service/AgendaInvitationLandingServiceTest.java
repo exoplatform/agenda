@@ -225,6 +225,32 @@ public class AgendaInvitationLandingServiceTest extends BaseAgendaEventTest {
   }
 
   /**
+   * The organiser is compared with its ASCII letters lower-cased only: an
+   * ORGANIZER matching the held event's once lower-cased beyond ASCII -- the
+   * Kelvin sign for {@code k}, {@code İ} for {@code i} -- is another organiser,
+   * whose revision and cancellation are refused.
+   */
+  @Test
+  public void testALookAlikeOrganiserIsAnotherOrganiser() throws Exception {
+    String organizer = "kim@partner.example";
+    String uid = uid();
+    LandedMailInvitation landed = land("testuser2", "REQUEST", uid, 0, EventAttendeeResponse.ACCEPTED, ics("REQUEST", uid, 0, organizer, "Sync", ""));
+    restartTransaction();
+
+    assertNotNull("ASCII case aside", landingService().held("testuser2", MAILBOX, uid, null, "KIM@partner.example"));
+    assertNull("the Kelvin sign is not k", landingService().held("testuser2", MAILBOX, uid, null, "\u212Aim@partner.example"));
+    assertNull("İ is not i", landingService().held("testuser2", MAILBOX, uid, null, "k\u0130m@partner.example"));
+    assertThrows(IllegalArgumentException.class,
+                 () -> land("testuser2", "REQUEST", uid, 5, null, ics("REQUEST", uid, 5, "\u212Aim@partner.example", "Hijacked", "")));
+    assertThrows(IllegalArgumentException.class,
+                 () -> land("testuser2", "CANCEL", uid, 5, null, ics("CANCEL", uid, 5, "k\u0130m@partner.example", "Sync", "")));
+
+    Event event = agendaEventService.getEventById(landed.eventId());
+    assertNotNull(event);
+    assertEquals("Sync", event.getSummary());
+  }
+
+  /**
    * A mail the reader did not establish as its organiser's rewrites and removes
    * no event the user holds, whatever its ORGANIZER line says: the newer
    * revision and the cancellation are refused, the event left as it was. A first

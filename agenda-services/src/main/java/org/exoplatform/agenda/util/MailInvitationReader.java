@@ -417,7 +417,7 @@ public final class MailInvitationReader {
 
   /**
    * The organiser's bare address, comparable: the {@code mailto:} scheme
-   * dropped, lower-cased.
+   * dropped, its ASCII letters lower-cased.
    *
    * @param event the component
    * @return the address, null when the component names none or names
@@ -435,8 +435,12 @@ public final class MailInvitationReader {
   }
 
   /**
-   * An address as a landing compares it: trimmed, lower-cased, refused when it
-   * does not look like a mail address.
+   * An address as a landing compares it: trimmed, its ASCII letters lower-cased
+   * and every other character kept, refused when it does not look like a mail
+   * address. A full lower-casing turns some non-ASCII letters into ASCII ones
+   * (the Kelvin sign into {@code k}), so a look-alike ORGANIZER would compare
+   * equal to the held event's: the mail reader folds the {@code From} it checks
+   * against the ORGANIZER the same way.
    *
    * @param address the address, may be null
    * @return the bare address, null when there is none
@@ -446,7 +450,11 @@ public final class MailInvitationReader {
     if (value == null || value.length() > MAX_ADDRESS || !ADDRESS.matcher(value).matches()) {
       return null;
     }
-    return value.toLowerCase(Locale.ROOT);
+    StringBuilder bare = new StringBuilder(value.length());
+    for (char character : value.toCharArray()) {
+      bare.append(character >= 'A' && character <= 'Z' ? (char) (character + ('a' - 'A')) : character);
+    }
+    return bare.toString();
   }
 
   /**
