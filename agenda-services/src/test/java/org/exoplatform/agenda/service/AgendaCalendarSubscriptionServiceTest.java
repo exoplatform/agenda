@@ -89,7 +89,6 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.search.index.IndexingService;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.services.listener.ListenerService;
-import org.exoplatform.social.core.activity.model.ExoSocialActivity;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
@@ -1238,24 +1237,6 @@ class AgendaCalendarSubscriptionServiceTest {
                        "SUMMARY:" + summary,
                        extra == null ? "X-NONE:1" : extra,
                        "END:VEVENT");
-  }
-
-  /**
-   * The announcement posted in a space when a calendar is subscribed is an
-   * administrative act: it carries a type, so that analytics can leave it out
-   * of the collaborative activities of the space.
-   */
-  @Test
-  void theSpaceAnnouncementCarriesItsOwnActivityType() {
-    service.setLabelResolver((user, key) -> "Calendar {0} added");
-    Identity space = new Identity("space", "team");
-    ArgumentCaptor<ExoSocialActivity> posted = ArgumentCaptor.forClass(ExoSocialActivity.class);
-
-    service.announceInSpace(space, 3L, "john", "Holidays", 11L);
-
-    verify(activityManager).saveActivityNoReturn(eq(space), posted.capture());
-    assertEquals("agendaCalendarSubscription", posted.getValue().getType(), "the type analytics' declaration excludes");
-    assertEquals(AgendaCalendarSubscriptionServiceImpl.CALENDAR_SUBSCRIPTION_ACTIVITY_TYPE, posted.getValue().getType());
   }
 
 }

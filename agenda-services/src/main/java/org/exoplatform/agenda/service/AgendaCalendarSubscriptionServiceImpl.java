@@ -1387,7 +1387,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
    * @param calendarName the name of the calendar added
    * @param subscriptionId technical identifier of the subscription, for the log
    */
-  void announceInSpace(Identity space, long creatorIdentityId, String username, String calendarName, long subscriptionId) {
+  private void announceInSpace(Identity space, long creatorIdentityId, String username, String calendarName, long subscriptionId) {
     if (activityManager == null) {
       return;
     }
