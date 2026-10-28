@@ -816,10 +816,10 @@ public class AgendaSeriesSeatRuleTest extends BaseAgendaEventTest {
 
   /**
    * A date not moved is decided at its own date, not at the start its row
-   * stores, which is anchored on its id's UTC day and a day off where the
-   * series' time falls on another UTC day: in Los Angeles at 17:00, the
-   * first date, filled together with a second one moved an hour earlier on
-   * its own day, is the one reported.
+   * stores: a row anchored on its identifier's UTC day, as rows were before
+   * EXO-91879, holds a day off where the series' time falls on another UTC
+   * day. In Los Angeles at 17:00, the first date, filled together with a
+   * second one moved an hour earlier on its own day, is the one reported.
    *
    * @throws Exception when an answer fails
    */
@@ -829,8 +829,14 @@ public class AgendaSeriesSeatRuleTest extends BaseAgendaEventTest {
     ZonedDateTime start = LocalDate.now().plusDays(60).atTime(17, 0).atZone(losAngeles);
     Event series = limitedSeries(start, 1, 3, testuser2Identity, testuser3Identity);
     List<ZonedDateTime> dates = occurrenceIds(series);
-    agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(0));
-    agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(2));
+    for (ZonedDateTime date : List.of(dates.get(0), dates.get(2))) {
+      // A row anchored on its identifier's UTC day, as before EXO-91879: a
+      // day off, unmarked
+      Event dayOff = agendaEventService.saveEventExceptionalOccurrence(series.getId(), date);
+      dayOff.setStart(dayOff.getStart().plusDays(1));
+      dayOff.setEnd(dayOff.getEnd().plusDays(1));
+      agendaEventStorage.updateEvent(dayOff);
+    }
     Event moved = agendaEventService.saveEventExceptionalOccurrence(series.getId(), dates.get(1));
     ZonedDateTime movedStart = dates.get(1).withZoneSameInstant(losAngeles).minusHours(1);
     moved.setStart(movedStart);
