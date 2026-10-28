@@ -40,9 +40,9 @@ public class AgendaSavedEventListener extends Listener<AgendaEventModification, 
 
   private static final String   EXO_AGENDA_EVENT_CREATED_EVENT_NAME = "exo.agenda.event.created";
 
-  private static final String   EVENT_UPDATED_OPERATION_NAME        = "eventUpdated";
+  public static final String    EVENT_UPDATED_OPERATION_NAME        = "eventUpdated";
 
-  private static final String   EVENT_CREATED_OPERATION_NAME        = "eventCreated";
+  public static final String    EVENT_CREATED_OPERATION_NAME        = "eventCreated";
 
   private AgendaCalendarService agendaCalendarService;
 

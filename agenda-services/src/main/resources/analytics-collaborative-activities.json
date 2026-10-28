@@ -1,0 +1,16 @@
+{
+  "modules": ["agenda"],
+  "operations": ["eventCreated", "eventUpdated", "eventResponse"],
+  "excludedActivityTypes": ["agendaCalendarSubscription"],
+  "labels": {
+    "counted": [
+      "agenda.collaborativeActivity.help.counted.createEvent",
+      "agenda.collaborativeActivity.help.counted.updateEvent",
+      "agenda.collaborativeActivity.help.counted.respondEvent"
+    ],
+    "notCounted": [
+      "agenda.collaborativeActivity.help.notCounted.subscribeCalendar",
+      "agenda.collaborativeActivity.help.notCounted.createDatePoll"
+    ]
+  }
+}

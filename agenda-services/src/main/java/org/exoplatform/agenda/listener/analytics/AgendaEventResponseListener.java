@@ -40,7 +40,7 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 @Asynchronous
 public class AgendaEventResponseListener  extends Listener<Long, Object> {
 
-  private static final String   EVENT_RESPONSE        = "eventResponse";
+  public static final String    EVENT_RESPONSE        = "eventResponse";
 
   private AgendaCalendarService agendaCalendarService;
 
