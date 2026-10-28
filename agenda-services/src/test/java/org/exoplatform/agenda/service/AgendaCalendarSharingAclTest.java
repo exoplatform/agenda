@@ -55,6 +55,7 @@ import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.model.AgendaEventSearchFilter;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.model.EventAttendeeList;
 import org.exoplatform.agenda.model.EventFilter;
 import org.exoplatform.agenda.model.EventOccurrence;
 import org.exoplatform.agenda.model.EventRecurrence;
@@ -755,7 +756,8 @@ class AgendaCalendarSharingAclTest {
   /**
    * An editor edits one date of the owner's series for real, through the write
    * the web UI makes: an exceptional occurrence filed into the owner's
-   * calendar, where the series is (EXO-90382). A viewer is still refused, and
+   * calendar, where the series is (EXO-90382), its row the series' copy at
+   * that date, which the save then updates. A viewer is still refused, and
    * so is a stranger — the update right on the series is the only thing that
    * branch asks for, so it is the only thing refusing them.
    * <p>
@@ -775,6 +777,15 @@ class AgendaCalendarSharingAclTest {
       return created;
     });
     when(eventStorage.getEventById(NEW_EVENT)).thenAnswer(invocation -> stored.get());
+    // The date's row is first the series' copy at that date, which the save
+    // then updates: the storage keeps what it is given, and the attendee
+    // service lists rows as the storage does, never null
+    when(eventStorage.updateEvent(any())).thenAnswer(invocation -> {
+      Event updated = invocation.<Event> getArgument(0).clone();
+      stored.set(updated);
+      return updated;
+    });
+    when(attendeeService.getEventAttendees(anyLong())).thenReturn(EventAttendeeList.EMPTY_ATTENDEE_LIST);
 
     // The message, not only the type: checkCanCreateEvent throws
     // IllegalAccessException twice over, and this pin's javadoc claims it is
@@ -1122,6 +1133,8 @@ class AgendaCalendarSharingAclTest {
     recurrence.setFrequency(EventRecurrenceFrequency.WEEKLY);
     recurrence.setInterval(1);
     recurrence.setByDay(List.of("TH"));
+    // As the storage reads it back: from its first date, with no end
+    recurrence.setOverallStart(event.getStart());
     event.setRecurrence(recurrence);
     return event;
   }

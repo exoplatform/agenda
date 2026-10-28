@@ -282,6 +282,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                            List<EventDateOption> dateOptions,
                            RemoteEvent remoteEvent,
                            boolean sendInvitation,
+                           boolean confirmClose,
                            long userIdentityId) throws IllegalAccessException, AgendaException {
     if (userIdentityId <= 0) {
       throw new IllegalArgumentException("userIdentityId is mandatory");
@@ -374,6 +375,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                                                                            eventDateOptions,
                                                                                                            remoteEvent,
                                                                                                            sendInvitation,
+                                                                                                           confirmClose,
                                                                                                            userIdentityId,
                                                                                                            calendar));
       } catch (ResolveAgainException e) {
@@ -400,6 +402,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                   List<EventDateOption> dateOptions,
                                   RemoteEvent remoteEvent,
                                   boolean sendInvitation,
+                                  boolean confirmClose,
                                   long userIdentityId,
                                   Calendar calendar) throws IllegalAccessException, AgendaException {
     // The date is matched with the series as locked: its zone and its all-day
@@ -412,6 +415,20 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                        event.getOccurrence().getId(),
                                                        lockedSeries.getTimeZoneId());
     Event existingOccurrence = agendaEventStorage.findExceptionalOccurrence(lockedSeries, occurrenceId);
+    if (existingOccurrence == null && isExceptionalOccurrenceOf(event, lockedSeries)) {
+      // One of the series' dates saved alone for the first time: its row is
+      // first the series' copy at that date, as when somebody answers that
+      // date alone, its attendees' answers, seats and waiting list included,
+      // and the save then changes it as it changes a date that already has
+      // one. Created by the save instead, the row would start every answer
+      // over but the saver's (AgendaReplyOnSaveListener), giving a waiting
+      // saver the seat of somebody seated there
+      existingOccurrence = findOrCreateEventExceptionalOccurrence(seriesId, occurrenceId);
+      if (attendees == null || attendees.isEmpty()) {
+        // Named by no attendee, the date keeps the ones the series has there
+        attendees = attendeeService.getEventAttendees(existingOccurrence.getId()).getEventAttendees();
+      }
+    }
     if (existingOccurrence == null) {
       markMovedWhenSavedAtOtherDates(lockedSeries, event, occurrenceId);
       return writeNewEvent(event,
@@ -426,10 +443,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                            lockedSeries);
     }
     event.setId(existingOccurrence.getId());
-    // A creation carries no closing confirmation: a row found here that the
-    // save would close with a waiting list is refused, as an update without
-    // the confirmation is
-    return updateEvent(event, attendees, conferences, reminders, dateOptions, remoteEvent, sendInvitation, false, userIdentityId);
+    return updateEvent(event, attendees, conferences, reminders, dateOptions, remoteEvent, sendInvitation, confirmClose, userIdentityId);
   }
 
   /**
@@ -562,10 +576,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // invariant (canBeOpen) is enforced here, not only by the UI hiding the
     // padlock: a date poll, a personal calendar event and an event whose
     // participants may modify it or invite are never open; asked together with
-    // such a permission, the flag yields and the permission is kept. This
-    // is also the path the form's "this occurrence only" takes — it posts the
-    // computed occurrence with its parent — so the padlock the organiser left
-    // on that date is what the new row carries, its own from then on (US06).
+    // such a permission, the flag yields and the permission is kept. The
+    // form's "this occurrence only" takes this path only for a date its series
+    // does not give, or a date of a series with several dates a day that has
+    // no row yet, which writeDateOfSeries cannot tell from the first: the
+    // padlock posted for that date is what the new row carries, its own from
+    // then on (US06).
     // The status read is the one checkAndComputeDateOptions just derived from
     // the date options.
     eventToCreate.setOpen(Boolean.TRUE.equals(event.getOpen())
@@ -741,11 +757,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * {@code ACCEPTED} for the one who is — the modifier's own copied answer no
    * more survives than anybody else's. That is the same end state an
    * occurrence whose payload names attendees already reaches, so the two doors
-   * agree — but it is the listener that decides it, not these arguments. The
-   * pins therefore assert that end state and name the listener; the two
-   * arguments themselves have no observable effect here, so nothing pins them,
-   * and a change to the listener would change this contract with the suite
-   * still green.
+   * agree — but it is the listener that decides it, not these arguments. Only
+   * a date the series does not give, or one of a series with several dates a
+   * day that has no row yet, comes here (see below), and no test pins that end
+   * state on it; the two arguments themselves have no observable
+   * effect here either, so a change to the listener would change this
+   * contract with the suite still green.
    * {@code resetResponses} is kept as
    * {@code status != CONFIRMED} to mirror the sibling; note the sibling reads
    * the <b>parent's</b> status, its event being a clone of it, while this path
@@ -759,11 +776,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * <b>not</b> the same set {@link #checkCanCreateEvent} relaxes the creation
    * right for, and deliberately so: the relaxation asks two further things —
    * the date must be one the series has, and it must not already be amended —
-   * and this is a <b>superset</b> of it. Everything it covers and the
-   * relaxation does not is a row a caller who <b>holds</b> the creation right
-   * has legitimately created: a second amendment of the same date, one filed
-   * into another calendar, one whose identifier the date check could not
-   * resolve. Each of those is an exceptional occurrence and each owes its
+   * and this is a <b>superset</b> of it. One of the series' dates never comes
+   * here, whatever calendar it is filed in and whether it has a row already:
+   * {@link #writeDateOfSeries} saves it on its row, the series' copy at that
+   * date when it has none, its answers kept. What still comes here and the
+   * relaxation does not cover is a row a caller who <b>holds</b> the creation
+   * right has legitimately created under an identifier the date check could
+   * not resolve: an exceptional occurrence all the same, which owes its
    * attendees; withholding them would leave the orphan this method exists to
    * prevent. An ordinary event created with no attendee is a legitimate event
    * with no attendee and is left exactly as it was.
@@ -4356,9 +4375,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * another user's personal calendar. Both update paths go through this
    * method: {@code updateEvent} and the {@code calendarId} field of
    * {@code updateEventFields}. An exceptional occurrence created through
-   * {@code createEvent} is checked by {@link #checkCanCreateEvent} instead,
+   * {@code createEvent} is checked by {@link #checkCanCreateEvent} first,
    * which asks the creation right and the move right only when that occurrence
-   * is filed into a calendar other than its series' (EXO-90382, EXO-90149).
+   * is filed into a calendar other than its series' (EXO-90382, EXO-90149);
+   * one of the series' dates is then saved as an update of its row, which
+   * comes through this method too.
    *
    * @param storedEvent the event as it is stored, carrying the calendar it is
    *          currently filed in

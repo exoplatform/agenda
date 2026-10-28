@@ -120,8 +120,9 @@ public class RestUtils {
                                         AgendaEventService agendaEventService,
                                         EventEntity eventEntity,
                                         long userIdentityId,
-                                        String timeZoneId) throws AgendaException,
-                                                           IllegalAccessException {
+                                        String timeZoneId,
+                                        boolean confirmClose) throws AgendaException,
+                                                              IllegalAccessException {
     checkCalendar(identityManager, agendaCalendarService, eventEntity);
 
     cleanupAttachedEntitiesIds(eventEntity);
@@ -169,6 +170,7 @@ public class RestUtils {
                                           dateOptions,
                                           remoteEvent,
                                           eventEntity.isSendInvitation(),
+                                          confirmClose,
                                           userIdentityId);
   }
 

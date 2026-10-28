@@ -17,6 +17,7 @@
 package org.exoplatform.agenda.rest;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import java.net.URI;
 import java.time.LocalDate;
@@ -88,7 +89,7 @@ public class AgendaEventCapacityRestTest extends BaseAgendaEventTest {
     toCreate.setId(0);
     toCreate.setCapacity(-1);
 
-    Response response = eventRest().createEvent("UTC", toCreate);
+    Response response = eventRest().createEvent("UTC", false, toCreate);
 
     assertBadRequest("agenda.capacity.invalid", response);
   }
@@ -137,6 +138,48 @@ public class AgendaEventCapacityRestTest extends BaseAgendaEventTest {
     assertEquals(Boolean.FALSE, agendaEventService.getEventById(eventId).getOpen());
     assertEquals(EventAttendeeResponse.ACCEPTED,
                  agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendee(id(testuser3Identity), null).getResponse());
+  }
+
+  /**
+   * A date of an open series closed on its own for the first time, as the
+   * participant list posts it, is a 400 carrying the code that asks for the
+   * user's confirmation while somebody waits for a seat there, and leaves the
+   * date without a row; confirmed, it is saved and the attendee waiting there
+   * is confirmed.
+   *
+   * @throws Exception when an answer fails
+   */
+  @Test
+  public void aDateClosedAloneIsABadRequestUntilTheUserConfirmsIt() throws Exception {
+    ZonedDateTime start = LocalDate.now(ZoneOffset.UTC).plusDays(60).atTime(9, 0).atZone(ZoneOffset.UTC);
+    Event series = newEventInstance(start, start.plusHours(1), false);
+    series.setTimeZoneId(ZoneOffset.UTC);
+    series.getRecurrence().setUntil(null);
+    series.getRecurrence().setCount(3);
+    series.setCalendarId(spaceCalendar.getId());
+    series.setOpen(true);
+    series.setCapacity(1);
+    long seriesId = createEvent(series, id(testuser1Identity), testuser2Identity, testuser3Identity).getId();
+    answer(seriesId, testuser2Identity);
+    answer(seriesId, testuser3Identity);
+    ZonedDateTime date = start.plusDays(1);
+
+    EventEntity toSave = dateEntityOf(seriesId, date);
+    toSave.setOpen(false);
+    assertBadRequest("agenda.capacity.closeNeedsConfirmation", eventRest().createEvent("UTC", false, toSave));
+    assertNull(agendaEventService.getExceptionalOccurrenceEvent(seriesId, date));
+
+    EventEntity confirmed = dateEntityOf(seriesId, date);
+    confirmed.setOpen(false);
+    Response response = eventRest().createEvent("UTC", true, confirmed);
+
+    assertEquals("unexpected status, body: " + response.getEntity(), 200, response.getStatus());
+    Event dateRow = agendaEventService.getExceptionalOccurrenceEvent(seriesId, date);
+    assertEquals(Boolean.FALSE, dateRow.getOpen());
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventAttendees(dateRow.getId())
+                                           .getEventAttendee(id(testuser3Identity), null)
+                                           .getResponse());
   }
 
   /**
@@ -241,6 +284,28 @@ public class AgendaEventCapacityRestTest extends BaseAgendaEventTest {
                                     null,
                                     ZoneOffset.UTC,
                                     List.of("all"));
+  }
+
+  /**
+   * The entity of a date of a series without a row of its own, as the event
+   * page reads it before saving that date alone.
+   */
+  private EventEntity dateEntityOf(long seriesId, ZonedDateTime occurrenceId) throws Exception {
+    Event date = agendaEventService.getEventOccurrence(seriesId, occurrenceId, ZoneOffset.UTC, id(testuser1Identity));
+    EventEntity entity = RestUtils.getEventEntity(identityManager,
+                                                  agendaCalendarService,
+                                                  agendaEventService,
+                                                  agendaRemoteEventService,
+                                                  agendaEventDatePollService,
+                                                  agendaEventReminderService,
+                                                  agendaEventConferenceService,
+                                                  agendaEventAttendeeService,
+                                                  date,
+                                                  occurrenceId,
+                                                  ZoneOffset.UTC,
+                                                  List.of("all"));
+    entity.setId(0);
+    return entity;
   }
 
   private static long id(Identity identity) {
