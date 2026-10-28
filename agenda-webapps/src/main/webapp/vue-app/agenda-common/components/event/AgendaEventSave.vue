@@ -98,7 +98,7 @@ export default {
           timeZoneId: this.$agendaUtils.USER_TIMEZONE_ID,
         }, !!eventToSave.recurrence, changeDatesOnly, confirmClose);
       }
-      return eventToSave.id ? this.$eventService.updateEvent(eventToSave, confirmClose) : this.$eventService.createEvent(eventToSave);
+      return eventToSave.id ? this.$eventService.updateEvent(eventToSave, confirmClose) : this.$eventService.createEvent(eventToSave, confirmClose);
     },
     saved(event) {
       this.$refs.recurrentEventConfirm.close();
