@@ -174,13 +174,20 @@ class MailInvitationReaderTest {
   }
 
   /**
-   * Only a mail address is kept as one.
+   * Only a mail address is kept as one, its ASCII letters lower-cased and every
+   * other character kept: the Kelvin sign is not {@code k}, nor {@code İ} an
+   * {@code i}.
    */
   @Test
   void keepsOnlyMailAddresses() {
     assertEquals("a@b.example", MailInvitationReader.bareAddress(" A@B.example "));
+    assertEquals("\u212Aim@partner.example", MailInvitationReader.bareAddress("\u212Aim@partner.example"));
+    assertEquals("k\u0130m@partner.example", MailInvitationReader.bareAddress("K\u0130M@partner.example"));
     assertNull(MailInvitationReader.bareAddress("not an address"));
     assertNull(MailInvitationReader.bareAddress(null));
+    assertEquals("\u212Aim@partner.example",
+                 MailInvitationReader.read(ics("METHOD:REQUEST\r\n", "ORGANIZER;CN=Kim:mailto:\u212AIM@partner.example\r\n"), UID).organizer(),
+                 "an ORGANIZER is read as written, its ASCII letters lower-cased");
   }
 
   /**
