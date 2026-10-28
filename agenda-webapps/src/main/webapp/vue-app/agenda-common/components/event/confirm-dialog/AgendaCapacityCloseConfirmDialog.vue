@@ -22,11 +22,30 @@ export default {
   created() {
     this.pending = null;
     this.destroyed = false;
+    document.addEventListener('keydown', this.keepEscape, true);
   },
   beforeDestroy() {
     this.destroyed = true;
+    document.removeEventListener('keydown', this.keepEscape, true);
   },
   methods: {
+    /**
+     * Escape answers nothing while the warning waits for its answer: the
+     * warning is persistent, and the key would otherwise close what it sits
+     * above, the event's dialog or the participants drawer, while the write
+     * waits on the answer. Stopped on the document before it goes on to the
+     * page's elements and to the document's listeners of the bubble phase,
+     * the event dialog's and the drawers overlay's among them, wherever the
+     * focus is: on the warning's first opening it is still on the page.
+     *
+     * @param {KeyboardEvent} event the key pressed, in the capture phase
+     * @returns {void}
+     */
+    keepEscape(event) {
+      if (event.key === 'Escape' && this.pending) {
+        event.stopPropagation();
+      }
+    },
     /**
      * @returns {Promise} resolved when the organiser confirms, rejected with
      *          null when they cancel
