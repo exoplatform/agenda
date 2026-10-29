@@ -159,6 +159,13 @@ class AgendaTimelinePortletTest {
   }
 
   @Test
+  void jsonNullValuesAreDropped() {
+    assertEquals("{\"selectedSpaces\":[]}",
+                 AgendaTimelinePortlet.normalizeSettings("{\"seeMoreUrl\":null,\"displayPending\":null,\"selectedSpaces\":[null]}"));
+    assertNull(AgendaTimelinePortlet.normalizeSettings("null"));
+  }
+
+  @Test
   void seeMoreUrlKeepsWebMailAndPhoneLinksOnly() {
     assertEquals("{\"seeMoreUrl\":\"/portal/s/1/agenda\"}", seeMoreUrl("/portal/s/1/agenda"));
     assertEquals("{\"seeMoreUrl\":\"http://example.org\"}", seeMoreUrl("http://example.org"));
