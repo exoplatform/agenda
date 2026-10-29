@@ -150,6 +150,15 @@ class AgendaTimelinePortletTest {
   }
 
   @Test
+  void itemsNumberIsKeptBetweenZeroAndHundred() {
+    assertEquals("{\"itemsNumber\":0}", AgendaTimelinePortlet.normalizeSettings("{\"itemsNumber\":0}"));
+    assertEquals("{\"itemsNumber\":100}", AgendaTimelinePortlet.normalizeSettings("{\"itemsNumber\":\"100\"}"));
+    assertEquals("{}", AgendaTimelinePortlet.normalizeSettings("{\"itemsNumber\":101}"));
+    assertEquals("{}", AgendaTimelinePortlet.normalizeSettings("{\"itemsNumber\":-1}"));
+    assertEquals("{}", AgendaTimelinePortlet.normalizeSettings("{\"itemsNumber\":\"101\"}"));
+  }
+
+  @Test
   void seeMoreUrlKeepsWebMailAndPhoneLinksOnly() {
     assertEquals("{\"seeMoreUrl\":\"/portal/s/1/agenda\"}", seeMoreUrl("/portal/s/1/agenda"));
     assertEquals("{\"seeMoreUrl\":\"http://example.org\"}", seeMoreUrl("http://example.org"));
@@ -186,13 +195,13 @@ class AgendaTimelinePortletTest {
   @Test
   void renderEscapesStoredSettingsForTheInlineScript() {
     RenderRequest request = renderRequest("""
-        {"selectedSpaces":[{"displayName":"</script><script>alert(1)</script>&\u2028"}]}""");
+        {"selectedSpaces":[{"displayName":"</script><script>alert(1)</script>&\u2028\u2029"}]}""");
 
     portlet.setViewRequestAttributes(SETTING_NAME, request, null);
 
     verify(request).setAttribute(AgendaTimelinePortlet.TIMELINE_SETTINGS,
                                  "{\"selectedSpaces\":[{\"displayName\":"
-                                     + "\"\\u003c/script\\u003e\\u003cscript\\u003ealert(1)\\u003c/script\\u003e\\u0026\\u2028\"}]}");
+                                     + "\"\\u003c/script\\u003e\\u003cscript\\u003ealert(1)\\u003c/script\\u003e\\u0026\\u2028\\u2029\"}]}");
   }
 
   @Test

@@ -29,8 +29,8 @@ import javax.portlet.*;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.fasterxml.jackson.core.json.JsonReadFeature;
-import com.fasterxml.jackson.databind.json.JsonMapper;
+import tools.jackson.core.json.JsonReadFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 import io.meeds.social.portlet.CMSPortlet;
 import io.meeds.social.translation.service.TranslationService;
@@ -42,12 +42,6 @@ import org.exoplatform.services.security.Identity;
 
 public class AgendaTimelinePortlet extends CMSPortlet {
 
-  private static final Log          LOG                   = ExoLogger.getLogger(AgendaTimelinePortlet.class);
-
-  private static final String       OBJECT_TYPE           = "agendaTimeline";
-
-  private static final String       HEADER_FIELD_NAME     = "headerTitle";
-
   static final String               SETTINGS_PREFERENCE   = "settings";
 
   /**
@@ -56,6 +50,12 @@ public class AgendaTimelinePortlet extends CMSPortlet {
    * the parent portlet copies every preference as a raw request attribute.
    */
   static final String               TIMELINE_SETTINGS     = "timelineSettings";
+
+  private static final Log          LOG                   = ExoLogger.getLogger(AgendaTimelinePortlet.class);
+
+  private static final String       OBJECT_TYPE           = "agendaTimeline";
+
+  private static final String       HEADER_FIELD_NAME     = "headerTitle";
 
   private static final String       EMPTY_SETTINGS        = "{}";
 
@@ -77,7 +77,9 @@ public class AgendaTimelinePortlet extends CMSPortlet {
 
   private static final Pattern      URL_IGNORED_CHARS     = Pattern.compile("[\\s\\p{Cntrl}]");
 
-  private static final Pattern      ITEMS_NUMBER_PATTERN  = Pattern.compile("\\d{1,9}");
+  private static final Pattern      ITEMS_NUMBER_PATTERN  = Pattern.compile("\\d{1,3}");
+
+  private static final int          MAX_ITEMS_NUMBER      = 100;
 
   // The default preference of portlet.xml quotes a value with single quotes
   private static final JsonMapper   JSON_MAPPER           = JsonMapper.builder()
@@ -207,13 +209,13 @@ public class AgendaTimelinePortlet extends CMSPortlet {
   }
 
   private static Integer normalizeItemsNumber(Object value) {
-    if (value instanceof Integer itemsNumber) {
-      return itemsNumber;
-    } else if (value instanceof String itemsNumber && ITEMS_NUMBER_PATTERN.matcher(itemsNumber).matches()) {
-      return Integer.valueOf(itemsNumber);
-    } else {
-      return null;
+    Integer itemsNumber = null;
+    if (value instanceof Integer number) {
+      itemsNumber = number;
+    } else if (value instanceof String number && ITEMS_NUMBER_PATTERN.matcher(number).matches()) {
+      itemsNumber = Integer.valueOf(number);
     }
+    return itemsNumber != null && itemsNumber >= 0 && itemsNumber <= MAX_ITEMS_NUMBER ? itemsNumber : null;
   }
 
   private boolean canEditCurrentInstance(PortletPreferences preferences) {

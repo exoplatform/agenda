@@ -111,7 +111,7 @@
               :key="mode.value"
               :outlined="!isSelectedDisplayMode(mode)"
               :class="isSelectedDisplayMode(mode) && 'primary-border-color primary-background-opacity-8'"
-              :aria-pressed="isSelectedDisplayMode(mode)"
+              :aria-pressed="String(isSelectedDisplayMode(mode))"
               width="50%"
               class="d-flex flex-column align-center justify-center border-box-sizing mx-1 pa-3"
               role="button"
@@ -145,7 +145,7 @@
             <div class="align-end">
               <number-input
                 v-model="timelineSettings.itemsNumber"
-                :min="0"
+                :min="1"
                 :max="100"
                 :step="1"
                 editable />
@@ -266,7 +266,7 @@ export default {
   }),
   computed: {
     disabled() {
-      return (this.timelineSettings.displaySeeMore && this.timelineSettings.seeMoreUrl !=='' && !this.isValidLink && (this.timelineSettings.agendaSource === 'selectedSpaces' ? this.timelineSettings.selectedSpaces.length > 0 : true) )  || !this.modified;
+      return (this.timelineSettings.displaySeeMore && this.timelineSettings.seeMoreUrl !=='' && !this.isValidLink) || !this.modified;
     },
     modified() {
       return JSON.stringify(this.timelineSettings) !== JSON.stringify(this.defaultTimelineSettings) || this.transUpdated;
@@ -289,7 +289,7 @@ export default {
     },
     isValidLink() {
       try {
-        return !!(this.timelineSettings.seeMoreUrl && this.timelineSettings.seeMoreUrl !=='' && this.$utils.toLinkUrl(this.timelineSettings.seeMoreUrl, {
+        return !!(this.timelineSettings.seeMoreUrl && this.timelineSettings.seeMoreUrl !=='' && this.hasAllowedLinkScheme(this.timelineSettings.seeMoreUrl) && this.$utils.toLinkUrl(this.timelineSettings.seeMoreUrl, {
           urls: true,
           email: true,
           phone: true,
@@ -378,6 +378,11 @@ export default {
     },
     close() {
       this.$refs.drawer.close();
+    },
+    hasAllowedLinkScheme(url) {
+      // At least as strict as the server, which empties a link with another scheme
+      const scheme = url.replace(/[\s\p{Cc}]/gu, '').toLowerCase().match(/^([a-z][a-z0-9+.-]*):/)?.[1];
+      return !scheme || ['http', 'https', 'mailto', 'tel'].includes(scheme);
     },
     isSelectedDisplayMode(mode) {
       return this.timelineSettings.displayMode === mode.value;
