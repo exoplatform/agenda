@@ -30,7 +30,7 @@
     <template v-if="drawer" #content>
       <div class="pa-5" flat>
         <div class="d-flex flex-column mb-1">
-          <div class="mb-3 text-header">{{ $t('agenda.timeline.settings.drawer.label.displayOptions') }}</div>
+          <div class="mb-3 text-header">{{ $t('agenda.timeline.settings.drawer.label.displayManagement') }}</div>
           <div class="font-weight-bold">{{ $t('agenda.timeline.settings.drawer.label.headerOptions') }}</div>
           <div class="d-flex my-2 align-center justify-space-between">
             <label class="v-label text-color align-start">
@@ -104,7 +104,40 @@
                 hide-details />
             </div>
           </div>  
-          <div class="pt-3 font-weight-bold">{{ $t('agenda.timeline.settings.drawer.label.timelineOptions') }}</div>
+          <div class="pt-3 font-weight-bold">{{ $t('agenda.timeline.settings.drawer.label.displayOptions') }}</div>
+          <div class="d-flex my-2 mx-n1">
+            <v-card
+              v-for="mode in displayModes"
+              :key="mode.value"
+              :outlined="!isSelectedDisplayMode(mode)"
+              :class="isSelectedDisplayMode(mode) && 'primary-border-color primary-background-opacity-8'"
+              :aria-pressed="isSelectedDisplayMode(mode)"
+              width="50%"
+              class="d-flex flex-column align-center justify-center border-box-sizing mx-1 pa-3"
+              role="button"
+              tabindex="0"
+              flat
+              @click="timelineSettings.displayMode = mode.value"
+              @keydown.enter.space.prevent="timelineSettings.displayMode = mode.value">
+              <div class="d-flex align-center">
+                <v-icon
+                  v-for="icon in mode.icons"
+                  :key="icon"
+                  :color="isSelectedDisplayMode(mode) ? 'primary' : null"
+                  class="mx-1"
+                  size="20">
+                  {{ icon }}
+                </v-icon>
+              </div>
+              <div
+                :class="isSelectedDisplayMode(mode) && 'font-weight-bold'"
+                class="mt-2">
+                {{ $t(mode.label) }}
+              </div>
+            </v-card>
+          </div>
+          <div class="text-subtitle mb-2">{{ $t(selectedDisplayMode.description) }}</div>
+          <div class="pt-3 font-weight-bold">{{ $t('agenda.timeline.settings.drawer.label.listOptions') }}</div>
           <div class="d-flex mb-2 align-center justify-space-between">
             <label class="v-label text-color align-start">
               {{ $t('agenda.timeline.settings.drawer.label.itemsNumber') }}
@@ -201,7 +234,8 @@ export default {
       displayPending: true,
       displayAddEvent: true,
       agendaFilter: 'allEvents',
-      itemsNumber: 10
+      itemsNumber: 10,
+      displayMode: 'dynamic'
     },
     defaultTimelineSettings: {
       selectedSpaces: [],
@@ -212,8 +246,23 @@ export default {
       displayPending: true,
       displayAddEvent: true,
       agendaFilter: 'allEvents',
-      itemsNumber: 10
+      itemsNumber: 10,
+      displayMode: 'dynamic'
     },
+    displayModes: [
+      {
+        value: 'dynamic',
+        label: 'agenda.timeline.settings.drawer.label.displayMode.dynamic',
+        description: 'agenda.timeline.settings.drawer.label.displayModeDescription.dynamic',
+        icons: ['fas fa-calendar-alt', 'fas fa-arrows-alt-h', 'fas fa-list'],
+      },
+      {
+        value: 'list',
+        label: 'agenda.timeline.settings.drawer.label.displayMode.list',
+        description: 'agenda.timeline.settings.drawer.label.displayModeDescription.list',
+        icons: ['fas fa-list'],
+      },
+    ],
   }),
   computed: {
     disabled() {
@@ -221,6 +270,9 @@ export default {
     },
     modified() {
       return JSON.stringify(this.timelineSettings) !== JSON.stringify(this.defaultTimelineSettings) || this.transUpdated;
+    },
+    selectedDisplayMode() {
+      return this.displayModes.find(mode => this.isSelectedDisplayMode(mode)) || this.displayModes[0];
     },
     showSuggester() {
       return this.timelineSettings.agendaSource === 'selectedSpaces';
@@ -311,6 +363,9 @@ export default {
       if (!this.timelineSettings.itemsNumber) {
         this.timelineSettings.itemsNumber = 10;
       }
+      if (this.timelineSettings.displayMode !== 'list') {
+        this.timelineSettings.displayMode = 'dynamic';
+      }
       if (!this.timelineSettings.agendaFilter) {
         if (eXo.env.portal.spaceId && !this.$root.standalone) {
           this.timelineSettings.agendaFilter = 'allEvents';
@@ -323,6 +378,9 @@ export default {
     },
     close() {
       this.$refs.drawer.close();
+    },
+    isSelectedDisplayMode(mode) {
+      return this.timelineSettings.displayMode === mode.value;
     },
     async save() {
       this.saving = true;

@@ -64,6 +64,9 @@ export function init(appId, canEdit, settings, settingsSaveUrl, settingName, hea
           return this.$vuetify.breakpoint.smAndDown;
         },
         isTimelineView() {
+          if (this.timelineSettings?.displayMode === 'list') {
+            return true;
+          }
           return this.isMobile ? true : this.bodyElementWidth < this.$vuetify.breakpoint.thresholds.sm;
         },
       },
