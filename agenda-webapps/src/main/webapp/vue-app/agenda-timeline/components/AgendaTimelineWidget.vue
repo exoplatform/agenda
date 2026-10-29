@@ -102,6 +102,10 @@ export default {
      * later one superseded is dropped.
      */
     storeRequestId: 0,
+    /**
+     * Incremented by each read of the remote accounts, for the same reason.
+     */
+    remoteRequestId: 0,
     ownerIds: [],
     connectors: [],
     displayedEvent: [],
@@ -554,24 +558,34 @@ export default {
      * horizon is invented and nothing is lost however far off the next
      * meeting is. One that cannot keeps its usual window.
      *
+     * Only the latest read is displayed, as for the local store: two period
+     * changes in a row start two reads that may answer in any order.
+     *
      * @returns {Promise} resolves once the remote events are in hand
      */
     async retrieveRemoteEvents() {
+      const requestId = ++this.remoteRequestId;
       if (this.connectorStatus !== 1) {
         this.remoteEvents = [];
         this.failedConnectors = [];
+        this.loadingRemote = false;
         return;
       }
       this.loadingRemote = true;
       try {
         const sources = await this.readRemoteEvents();
+        if (requestId !== this.remoteRequestId) {
+          return;
+        }
         this.remoteEvents = sources.events;
         this.failedConnectors = sources.failedConnectors;
         this.remoteEventsLoaded = true;
       } finally {
         // The page waits on this to stop showing itself as loading; leaving
         // it raised on a failed read is the defect this change is about.
-        this.loadingRemote = false;
+        if (requestId === this.remoteRequestId) {
+          this.loadingRemote = false;
+        }
       }
     },
     /**
