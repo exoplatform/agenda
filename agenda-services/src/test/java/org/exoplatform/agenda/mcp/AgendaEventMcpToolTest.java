@@ -55,6 +55,7 @@ import org.exoplatform.agenda.mcp.model.AgendaEventCollectionModel;
 import org.exoplatform.agenda.mcp.model.AgendaEventModel;
 import org.exoplatform.agenda.mcp.model.AvailabilityModel;
 import org.exoplatform.agenda.mcp.model.ConferenceModel;
+import org.exoplatform.agenda.mcp.model.ConflictsModel;
 import org.exoplatform.agenda.mcp.model.DatePollModel;
 import org.exoplatform.agenda.mcp.model.ScheduleConflictEventModel;
 import org.exoplatform.agenda.mcp.model.ScheduleConflictsModel;
@@ -1140,6 +1141,57 @@ class AgendaEventMcpToolTest {
     assertNull(tool.updateAgendaEvent(EVENT_ID, "Renewals", null, null, null, null, null, null, null, null, false).getConflicts());
     scopeUnreadable = false;
     assertNotNull(tool.updateAgendaEvent(EVENT_ID, "Renewals", null, null, null, null, null, null, null, null, false).getConflicts());
+  }
+
+  /**
+   * A space event created in a call limited to a space returns no conflicts
+   * report, which reads the caller's busy times in their own agendas, and
+   * neither does one whose call identity can't be read, which counts as
+   * limited; one created in a call that isn't limited returns the caller's
+   * busy slot.
+   * Mutants: the report kept under a scope, or dropped everywhere.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void aSpaceEventCreatedInACallLimitedToASpaceReportsNoConflicts() throws Exception {
+    when(userAcl.hasPermission(any(),
+                               eq(String.valueOf(SPACE_ID)),
+                               any(),
+                               any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
+    stubSpaceCalendarChain(SPACE_ID, SPACE_PRETTY_NAME, OWNER_IDENTITY_ID, CALENDAR_ID);
+    when(currentUserIdentityMock.getRemoteId()).thenReturn(USERNAME);
+    Event busyEvent = buildEvent(700L, 900L, START, END, EventStatus.CONFIRMED);
+    when(agendaEventService.getEvents(any(), eq(ZoneOffset.UTC), eq(USER_IDENTITY_ID))).thenReturn(List.of(busyEvent));
+    Event created = buildEvent(600L, CALENDAR_ID, START, END, EventStatus.CONFIRMED);
+    when(agendaEventService.createEvent(any(), any(), any(), any(), any(), any(), anyBoolean(), eq(USER_IDENTITY_ID)))
+                                                                                                                     .thenReturn(created);
+
+    scopeSpaceId = SPACE_ID;
+    assertNull(createSpaceEvent().getConflicts());
+    scopeSpaceId = null;
+    scopeUnreadable = true;
+    assertNull(createSpaceEvent().getConflicts());
+    scopeUnreadable = false;
+    ConflictsModel conflicts = createSpaceEvent().getConflicts();
+    assertNotNull(conflicts);
+    assertEquals(1, conflicts.getConflicts().size());
+  }
+
+  private AgendaEventModel createSpaceEvent() throws Exception {
+    return tool.createAgendaEvent(SPACE_ID,
+                                  "Kickoff",
+                                  null,
+                                  null,
+                                  "2026-07-20T09:00:00Z",
+                                  "2026-07-20T10:00:00Z",
+                                  null,
+                                  null,
+                                  null,
+                                  null,
+                                  null,
+                                  false,
+                                  null);
   }
 
   /**
