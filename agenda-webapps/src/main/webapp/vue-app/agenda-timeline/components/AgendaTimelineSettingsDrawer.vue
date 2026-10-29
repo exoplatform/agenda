@@ -407,11 +407,7 @@ export default {
         const formData = new FormData();
         formData.append('settings', JSON.stringify(this.timelineSettings));
         const urlParams = new URLSearchParams(formData).toString();
-        // The action URL comes from <portlet:actionURL> which XML-escapes it,
-        // thus its parameters are separated by '&amp;'. They have to be
-        // restored, else only the first portal parameter is readable server
-        // side and the portlet action is dropped without saving anything.
-        const response = await fetch(this.$root.settingsSaveUrl.replaceAll('&amp;', '&'), {
+        const response = await fetch(this.$root.settingsSaveUrl, {
           method: 'POST',
           credentials: 'include',
           headers: {
