@@ -105,37 +105,36 @@
             </div>
           </div>  
           <div class="pt-3 font-weight-bold">{{ $t('agenda.timeline.settings.drawer.label.displayOptions') }}</div>
-          <div class="d-flex my-2 mx-n1">
-            <v-card
+          <v-list-item-group
+            v-model="timelineSettings.displayMode"
+            color="primary"
+            class="d-flex my-2 mx-n1"
+            mandatory>
+            <v-list-item
               v-for="mode in displayModes"
               :key="mode.value"
-              :outlined="!isSelectedDisplayMode(mode)"
-              :class="isSelectedDisplayMode(mode) && 'primary-border-color primary-background-opacity-8'"
-              :aria-pressed="String(isSelectedDisplayMode(mode))"
-              width="50%"
-              class="d-flex flex-column align-center justify-center border-box-sizing mx-1 pa-3"
-              role="button"
-              tabindex="0"
-              flat
-              @click="timelineSettings.displayMode = mode.value"
-              @keydown.enter.space.prevent="timelineSettings.displayMode = mode.value">
-              <div class="d-flex align-center">
-                <v-icon
-                  v-for="icon in mode.icons"
-                  :key="icon"
-                  :color="isSelectedDisplayMode(mode) ? 'primary' : null"
-                  class="mx-1"
-                  size="20">
-                  {{ icon }}
-                </v-icon>
+              :value="mode.value"
+              :class="isSelectedDisplayMode(mode) && 'primary-border-color' || 'border-color'"
+              class="justify-center border-radius mx-1 pa-3">
+              <div class="d-flex flex-column align-center">
+                <div class="d-flex align-center">
+                  <v-icon
+                    v-for="icon in mode.icons"
+                    :key="icon"
+                    :color="isSelectedDisplayMode(mode) ? 'primary' : null"
+                    class="mx-1"
+                    size="20">
+                    {{ icon }}
+                  </v-icon>
+                </div>
+                <div
+                  :class="isSelectedDisplayMode(mode) && 'font-weight-bold'"
+                  class="mt-2">
+                  {{ $t(mode.label) }}
+                </div>
               </div>
-              <div
-                :class="isSelectedDisplayMode(mode) && 'font-weight-bold'"
-                class="mt-2">
-                {{ $t(mode.label) }}
-              </div>
-            </v-card>
-          </div>
+            </v-list-item>
+          </v-list-item-group>
           <div class="text-subtitle mb-2">{{ $t(selectedDisplayMode.description) }}</div>
           <div class="pt-3 font-weight-bold">{{ $t('agenda.timeline.settings.drawer.label.listOptions') }}</div>
           <div class="d-flex mb-2 align-center justify-space-between">
@@ -214,6 +213,21 @@
   </exo-drawer>
 </template>
 <script>
+// The settings of a timeline that never saved them, as its portlet
+// preferences declare them, plus the display mode
+const UNSAVED_SETTINGS = {
+  selectedSpaces: [],
+  agendaSource: '',
+  customHeader: false,
+  displaySeeMore: true,
+  seeMoreUrl: '',
+  displayPending: true,
+  displayAddEvent: true,
+  agendaFilter: '',
+  itemsNumber: 10,
+  displayMode: 'dynamic',
+};
+
 export default {
   data: () => ({
     drawer: false,
@@ -314,7 +328,12 @@ export default {
   },
   methods: {
     open() {
-      this.timelineSettings = JSON.parse(JSON.stringify(this.$root.timelineSettings));
+      // Every setting exists before the assignment, else Vue doesn't observe
+      // the ones the stored settings lack
+      this.timelineSettings = {
+        ...structuredClone(UNSAVED_SETTINGS),
+        ...JSON.parse(JSON.stringify(this.$root.timelineSettings)),
+      };
       if (this.timelineSettings.agendaSource === '') {
         if (eXo.env.portal.spaceId && !this.$root.standalone){
           this.timelineSettings.agendaSource = 'selectedSpaces';
@@ -354,17 +373,8 @@ export default {
           this.timelineSettings.seeMoreUrl = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/agenda`;
         }
       }
-      if (this.timelineSettings.displayPending !== false) {
-        this.timelineSettings.displayPending = true;
-      }
-      if (this.timelineSettings.displayAddEvent !== false) {
-        this.timelineSettings.displayAddEvent = true;
-      }
       if (!this.timelineSettings.itemsNumber) {
         this.timelineSettings.itemsNumber = 10;
-      }
-      if (this.timelineSettings.displayMode !== 'list') {
-        this.timelineSettings.displayMode = 'dynamic';
       }
       if (!this.timelineSettings.agendaFilter) {
         if (eXo.env.portal.spaceId && !this.$root.standalone) {
