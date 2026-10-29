@@ -320,7 +320,8 @@ public class AgendaEventMcpTool implements McpToolPlugin {
    * @param recurrenceCount the number of occurrences
    * @param failOnConflict whether an attendee's conflict aborts the creation
    * @param space the name of the space whose calendar receives the event, or null
-   * @return the created event, with its conflict report
+   * @return the created event, with its conflict report unless the call is
+   *         limited to a space
    * @throws IllegalAccessException when the caller may not write in the named space
    * @throws ObjectNotFoundException when the named space does not exist
    * @throws AgendaException when the event is invalid
@@ -392,7 +393,9 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                                                         true,
                                                         userIdentityId);
     AgendaEventModel model = toAgendaEventModel(createdEvent);
-    model.setConflicts(conflicts);
+    if (!isSpaceScoped()) {
+      model.setConflicts(conflicts);
+    }
     return model;
   }
 

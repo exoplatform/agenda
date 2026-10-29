@@ -71,7 +71,7 @@
     {
       "name": "create_agenda_event",
       "title": "Create an agenda event",
-      "description": "Create a new agenda event, in the user's personal calendar unless a space is given. To create it in a space calendar, provide either space_id or the space name via 'space'; with neither, the event goes to the user's own personal calendar.",
+      "description": "Create a new agenda event, in the user's personal calendar unless a space is given. To create it in a space calendar, provide either space_id or the space name via 'space'; with neither, the event goes to the user's own personal calendar. Returns the attendee conflict report for the event's window; in a run limited to a space, the conflict report is left out.",
       "input_schema": {
         "type": "object",
         "properties": {
