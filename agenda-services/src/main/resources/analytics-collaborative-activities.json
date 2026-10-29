@@ -3,10 +3,7 @@
   "operations": ["eventCreated", "eventUpdated", "eventResponse"],
   "excludedActivityTypes": ["agendaCalendarSubscription"],
   "labels": {
-    "counted": [
-      "agenda.collaborativeActivity.help.counted.createEvent",
-      "agenda.collaborativeActivity.help.counted.updateEvent",
-      "agenda.collaborativeActivity.help.counted.respondEvent"
-    ]
+    "title": "agenda.collaborativeActivity.help.title",
+    "counted": ["agenda.collaborativeActivity.help.counted"]
   }
 }

@@ -65,10 +65,8 @@ class CollaborativeActivityDeclarationTest {
     assertFalse(declaration.containsKey("browserOperations"));
 
     Map<String, Object> labels = (Map<String, Object>) declaration.get("labels");
-    assertEquals(List.of("agenda.collaborativeActivity.help.counted.createEvent",
-                         "agenda.collaborativeActivity.help.counted.updateEvent",
-                         "agenda.collaborativeActivity.help.counted.respondEvent"),
-                 labels.get("counted"));
+    assertEquals("agenda.collaborativeActivity.help.title", labels.get("title"));
+    assertEquals(List.of("agenda.collaborativeActivity.help.counted"), labels.get("counted"));
   }
 
 }
