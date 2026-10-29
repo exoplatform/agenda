@@ -51,6 +51,13 @@ public class AgendaTimelinePortlet extends CMSPortlet {
    */
   static final String               TIMELINE_SETTINGS     = "timelineSettings";
 
+  /**
+   * Render attribute holding the instance's setting name as a JSON string
+   * escaped for an inline script, the stored name being a preference any
+   * editor of the page can write.
+   */
+  static final String               TIMELINE_SETTING_NAME = "timelineSettingName";
+
   private static final Log          LOG                   = ExoLogger.getLogger(AgendaTimelinePortlet.class);
 
   private static final String       OBJECT_TYPE           = "agendaTimeline";
@@ -129,6 +136,7 @@ public class AgendaTimelinePortlet extends CMSPortlet {
   protected void setViewRequestAttributes(String name, RenderRequest request, RenderResponse response) {
     String settings = normalizeSettings(request.getPreferences().getValue(SETTINGS_PREFERENCE, null));
     request.setAttribute(TIMELINE_SETTINGS, toScriptValue(settings == null ? EMPTY_SETTINGS : settings));
+    request.setAttribute(TIMELINE_SETTING_NAME, toScriptValue(JSON_MAPPER.writeValueAsString(name)));
   }
 
   public TranslationService getTranslationService() {

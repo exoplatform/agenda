@@ -212,6 +212,16 @@ class AgendaTimelinePortletTest {
   }
 
   @Test
+  void renderEscapesTheSettingNameForTheInlineScript() {
+    RenderRequest request = renderRequest("{}");
+
+    portlet.setViewRequestAttributes("x'</script><script>alert(1)</script>\"\\\u2028", request, null);
+
+    verify(request).setAttribute(AgendaTimelinePortlet.TIMELINE_SETTING_NAME,
+                                 "\"x'\\u003c/script\\u003e\\u003cscript\\u003ealert(1)\\u003c/script\\u003e\\\"\\\\\\u2028\"");
+  }
+
+  @Test
   void renderReplacesStoredSettingsThatAreNotAJsonObject() {
     RenderRequest request = renderRequest("alert(document.cookie)");
 

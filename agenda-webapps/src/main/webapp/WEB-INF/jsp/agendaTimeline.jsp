@@ -29,7 +29,7 @@
   String domId = "AgendaTimelineApplication" + portletId;
   boolean canEdit = (boolean) request.getAttribute("canEdit");
   String settings = (String) request.getAttribute("timelineSettings");
-  String settingName = (String) request.getAttribute("settingName");
+  String settingName = (String) request.getAttribute("timelineSettingName");
   String headerTitle = (String) request.getAttribute("headerTitle");
   headerTitle = headerTitle == null ? null : String.format("'%s'", StringEscapeUtils.escapeEcmaScript(headerTitle));
 %>
@@ -38,7 +38,7 @@
 <div class="VuetifyApp">
   <div id="<%=domId%>">
     <script type="text/javascript">
-      require(['PORTLET/agenda/AgendaTimeline'], app => app.init('<%=domId%>', <%=canEdit%>, <%=settings%>, '<%=saveSettingsUrl%>', '<%=settingName%>', <%=headerTitle%>));
+      require(['PORTLET/agenda/AgendaTimeline'], app => app.init('<%=domId%>', <%=canEdit%>, <%=settings%>, '<%=saveSettingsUrl%>', <%=settingName%>, <%=headerTitle%>));
     </script>
   </div>
 </div>
