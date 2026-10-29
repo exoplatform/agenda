@@ -33,7 +33,9 @@ import javax.portlet.ActionResponse;
 import javax.portlet.PortletConfig;
 import javax.portlet.PortletException;
 import javax.portlet.PortletPreferences;
+import javax.portlet.PortletURL;
 import javax.portlet.RenderRequest;
+import javax.portlet.RenderResponse;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -204,7 +206,7 @@ class AgendaTimelinePortletTest {
     RenderRequest request = renderRequest("""
         {"selectedSpaces":[{"displayName":"</script><script>alert(1)</script>&\u2028\u2029"}]}""");
 
-    portlet.setViewRequestAttributes(SETTING_NAME, request, null);
+    portlet.setViewRequestAttributes(SETTING_NAME, request, renderResponse());
 
     verify(request).setAttribute(AgendaTimelinePortlet.TIMELINE_SETTINGS,
                                  "{\"selectedSpaces\":[{\"displayName\":"
@@ -215,17 +217,29 @@ class AgendaTimelinePortletTest {
   void renderEscapesTheSettingNameForTheInlineScript() {
     RenderRequest request = renderRequest("{}");
 
-    portlet.setViewRequestAttributes("x'</script><script>alert(1)</script>\"\\\u2028", request, null);
+    portlet.setViewRequestAttributes("x'</script><script>alert(1)</script>\"\\\u2028", request, renderResponse());
 
     verify(request).setAttribute(AgendaTimelinePortlet.TIMELINE_SETTING_NAME,
                                  "\"x'\\u003c/script\\u003e\\u003cscript\\u003ealert(1)\\u003c/script\\u003e\\\"\\\\\\u2028\"");
   }
 
   @Test
+  void renderEscapesTheSaveUrlForTheInlineScript() {
+    RenderRequest request = renderRequest("{}");
+
+    portlet.setViewRequestAttributes(SETTING_NAME,
+                                     request,
+                                     renderResponse("/portal/s/'-alert(1)-'/timeline?a=1&b=</script>"));
+
+    verify(request).setAttribute(AgendaTimelinePortlet.TIMELINE_SAVE_URL,
+                                 "\"/portal/s/'-alert(1)-'/timeline?a=1\\u0026b=\\u003c/script\\u003e\"");
+  }
+
+  @Test
   void renderReplacesStoredSettingsThatAreNotAJsonObject() {
     RenderRequest request = renderRequest("alert(document.cookie)");
 
-    portlet.setViewRequestAttributes(SETTING_NAME, request, null);
+    portlet.setViewRequestAttributes(SETTING_NAME, request, renderResponse());
 
     verify(request).setAttribute(AgendaTimelinePortlet.TIMELINE_SETTINGS, "{}");
   }
@@ -234,7 +248,7 @@ class AgendaTimelinePortletTest {
   void renderWithoutStoredSettings() {
     RenderRequest request = renderRequest(null);
 
-    portlet.setViewRequestAttributes(SETTING_NAME, request, null);
+    portlet.setViewRequestAttributes(SETTING_NAME, request, renderResponse());
 
     verify(request).setAttribute(AgendaTimelinePortlet.TIMELINE_SETTINGS, "{}");
     assertNull(AgendaTimelinePortlet.normalizeSettings(null));
@@ -253,6 +267,18 @@ class AgendaTimelinePortletTest {
     when(request.getPreferences()).thenReturn(preferences);
     when(request.getParameter("settings")).thenReturn(settings);
     return request;
+  }
+
+  private RenderResponse renderResponse() {
+    return renderResponse("/portal/s/1/timeline?portal:action=ProcessAction");
+  }
+
+  private RenderResponse renderResponse(String actionUrl) {
+    PortletURL url = mock(PortletURL.class);
+    when(url.toString()).thenReturn(actionUrl);
+    RenderResponse response = mock(RenderResponse.class);
+    when(response.createActionURL()).thenReturn(url);
+    return response;
   }
 
   private RenderRequest renderRequest(String settings) {

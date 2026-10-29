@@ -22,7 +22,6 @@
 
 <%@taglib uri="http://java.sun.com/portlet_2_0" prefix="portlet" %>
 <portlet:defineObjects />
-<portlet:actionURL var="saveSettingsUrl" />
 
 <%
   String portletId = (String) request.getAttribute("portletStorageId");
@@ -30,6 +29,7 @@
   boolean canEdit = (boolean) request.getAttribute("canEdit");
   String settings = (String) request.getAttribute("timelineSettings");
   String settingName = (String) request.getAttribute("timelineSettingName");
+  String saveSettingsUrl = (String) request.getAttribute("timelineSaveSettingsUrl");
   String headerTitle = (String) request.getAttribute("headerTitle");
   headerTitle = headerTitle == null ? null : String.format("'%s'", StringEscapeUtils.escapeEcmaScript(headerTitle));
 %>
@@ -38,7 +38,7 @@
 <div class="VuetifyApp">
   <div id="<%=domId%>">
     <script type="text/javascript">
-      require(['PORTLET/agenda/AgendaTimeline'], app => app.init('<%=domId%>', <%=canEdit%>, <%=settings%>, '<%=saveSettingsUrl%>', <%=settingName%>, <%=headerTitle%>));
+      require(['PORTLET/agenda/AgendaTimeline'], app => app.init('<%=domId%>', <%=canEdit%>, <%=settings%>, <%=saveSettingsUrl%>, <%=settingName%>, <%=headerTitle%>));
     </script>
   </div>
 </div>
