@@ -28,13 +28,10 @@
   String portletId = (String) request.getAttribute("portletStorageId");
   String domId = "AgendaTimelineApplication" + portletId;
   boolean canEdit = (boolean) request.getAttribute("canEdit");
-  Object settings = (String[]) request.getAttribute("settings");
+  String settings = (String) request.getAttribute("timelineSettings");
   String settingName = (String) request.getAttribute("settingName");
   String headerTitle = (String) request.getAttribute("headerTitle");
   headerTitle = headerTitle == null ? null : String.format("'%s'", StringEscapeUtils.escapeEcmaScript(headerTitle));
-  if (settings != null) {
-    settings = ((String[]) settings)[0];
-  }
 %>
 
 
