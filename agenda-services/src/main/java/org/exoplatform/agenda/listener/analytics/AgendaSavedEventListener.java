@@ -38,11 +38,11 @@ import org.exoplatform.social.core.space.spi.SpaceService;
 @Asynchronous
 public class AgendaSavedEventListener extends Listener<AgendaEventModification, Object> {
 
+  public static final String    EVENT_UPDATED_OPERATION_NAME        = "eventUpdated";
+
+  public static final String    EVENT_CREATED_OPERATION_NAME        = "eventCreated";
+
   private static final String   EXO_AGENDA_EVENT_CREATED_EVENT_NAME = "exo.agenda.event.created";
-
-  private static final String   EVENT_UPDATED_OPERATION_NAME        = "eventUpdated";
-
-  private static final String   EVENT_CREATED_OPERATION_NAME        = "eventCreated";
 
   private AgendaCalendarService agendaCalendarService;
 

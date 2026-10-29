@@ -406,6 +406,10 @@ class SpaceCalendarSubscriptionServiceTest {
     assertEquals("Added the calendar <b>Team &lt;holidays&gt;</b> to the agenda of this space.",
                  activity.getValue().getTitle(),
                  "named after the calendar, escaped");
+    assertEquals("agendaCalendarSubscription",
+                 activity.getValue().getType(),
+                 "the type analytics' collaborative activity declaration excludes");
+    assertEquals(AgendaCalendarSubscriptionServiceImpl.CALENDAR_SUBSCRIPTION_ACTIVITY_TYPE, activity.getValue().getType());
     assertEquals("john", created.getCreatorUsername());
   }
 
