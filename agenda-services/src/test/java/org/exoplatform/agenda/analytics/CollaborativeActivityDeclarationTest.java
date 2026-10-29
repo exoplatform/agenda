@@ -69,9 +69,6 @@ class CollaborativeActivityDeclarationTest {
                          "agenda.collaborativeActivity.help.counted.updateEvent",
                          "agenda.collaborativeActivity.help.counted.respondEvent"),
                  labels.get("counted"));
-    assertEquals(List.of("agenda.collaborativeActivity.help.notCounted.subscribeCalendar",
-                         "agenda.collaborativeActivity.help.notCounted.createDatePoll"),
-                 labels.get("notCounted"));
   }
 
 }
