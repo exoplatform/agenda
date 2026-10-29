@@ -97,6 +97,11 @@ export default {
      */
     loadingStore: false,
     loadingRemote: false,
+    /**
+     * Incremented by each read of the local store: the response of a read a
+     * later one superseded is dropped.
+     */
+    storeRequestId: 0,
     ownerIds: [],
     connectors: [],
     displayedEvent: [],
@@ -483,9 +488,14 @@ export default {
      * answered them, and this widget's source and filter are portlet
      * preferences a member cannot change, so they could not remove them.</p>
      *
+     * <p>Only the latest read is displayed: a settings save can start a read
+     * for the previous period before the period watcher starts the read of
+     * the new one, and the two may answer in any order.</p>
+     *
      * @returns {Promise} resolved when the events are displayed
      */
     retrieveEventsFromStore() {
+      const requestId = ++this.storeRequestId;
       this.loadingStore = true;
       let agendaFilter = this.$root.timelineSettings.agendaFilter;
       if (!agendaFilter) {
@@ -499,6 +509,9 @@ export default {
       const responseTypes = agendaFilter === 'acceptedEvents' ? ['ACCEPTED'] : ['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
       return this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, false), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences', null, null)
         .then(data => {
+          if (requestId !== this.storeRequestId) {
+            return;
+          }
           const events = data && data.events || [];
           events.forEach(event => {
             event.name = event.summary;
@@ -510,7 +523,9 @@ export default {
           console.error('Error retrieving events', error);
         }).finally(() => {
           this.initialized = true;
-          this.loadingStore = false;
+          if (requestId === this.storeRequestId) {
+            this.loadingStore = false;
+          }
         });
     },
     /**

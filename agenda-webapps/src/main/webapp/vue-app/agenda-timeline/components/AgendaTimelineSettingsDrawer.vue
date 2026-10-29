@@ -108,13 +108,13 @@
           <v-list-item-group
             v-model="timelineSettings.displayMode"
             color="primary"
-            class="d-flex my-2 mx-n1"
+            class="agenda-timeline-display-modes d-flex my-2 mx-n1"
             mandatory>
             <v-list-item
               v-for="mode in displayModes"
               :key="mode.value"
               :value="mode.value"
-              :class="isSelectedDisplayMode(mode) && 'primary-border-color' || 'border-color'"
+              :class="[`agenda-timeline-display-mode-${mode.value}`, isSelectedDisplayMode(mode) && 'primary-border-color' || 'border-color']"
               class="justify-center border-radius mx-1 pa-3">
               <div class="d-flex flex-column align-center">
                 <div class="d-flex align-center">
