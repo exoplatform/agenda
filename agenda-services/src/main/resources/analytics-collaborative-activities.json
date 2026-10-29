@@ -1,0 +1,9 @@
+{
+  "modules": ["agenda"],
+  "operations": ["eventCreated", "eventUpdated", "eventResponse"],
+  "excludedActivityTypes": ["agendaCalendarSubscription"],
+  "labels": {
+    "title": "agenda.collaborativeActivity.help.title",
+    "counted": ["agenda.collaborativeActivity.help.counted"]
+  }
+}
