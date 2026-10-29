@@ -166,6 +166,9 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
   /** Longest calendar name. */
   public static final int       MAX_NAME                = 200;
 
+  /** The stream activity type of the subscription announcement, excluded from the collaborative activities. */
+  public static final String    CALENDAR_SUBSCRIPTION_ACTIVITY_TYPE = "agendaCalendarSubscription";
+
   /** The user already subscribes to this URL. */
   public static final String    ALREADY_SUBSCRIBED      = CalendarFeedException.CODE_PREFIX + "alreadySubscribed";
 
@@ -1391,6 +1394,7 @@ public class AgendaCalendarSubscriptionServiceImpl implements AgendaCalendarSubs
     try {
       ExoSocialActivity activity = new ExoSocialActivityImpl();
       activity.setUserId(String.valueOf(creatorIdentityId));
+      activity.setType(CALENDAR_SUBSCRIPTION_ACTIVITY_TYPE);
       activity.setTitle(spaceActivityTitle(username, calendarName));
       activityManager.saveActivityNoReturn(space, activity);
     } catch (RuntimeException e) {
