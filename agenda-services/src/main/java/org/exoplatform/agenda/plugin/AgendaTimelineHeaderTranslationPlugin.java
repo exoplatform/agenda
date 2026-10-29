@@ -19,6 +19,10 @@ package org.exoplatform.agenda.plugin;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import org.exoplatform.portal.config.UserACL;
+import org.exoplatform.services.security.Identity;
+
+import io.meeds.social.cms.service.CMSService;
 import io.meeds.social.translation.plugin.TranslationPlugin;
 import io.meeds.social.translation.service.TranslationService;
 import jakarta.annotation.PostConstruct;
@@ -30,6 +34,12 @@ public class AgendaTimelineHeaderTranslationPlugin extends TranslationPlugin {
 
   @Autowired
   private TranslationService translationService;
+
+  @Autowired
+  private CMSService         cmsService;
+
+  @Autowired
+  private UserACL            userAcl;
 
   @PostConstruct
   public void init() {
@@ -48,7 +58,8 @@ public class AgendaTimelineHeaderTranslationPlugin extends TranslationPlugin {
 
   @Override
   public boolean hasEditPermission(String objectId, String username) {
-    return true;
+    Identity identity = userAcl.getUserIdentity(username);
+    return identity != null && cmsService.hasEditPermission(identity, AGENDA_TIMELINE_OBJECT_TYPE, objectId);
   }
 
   @Override
