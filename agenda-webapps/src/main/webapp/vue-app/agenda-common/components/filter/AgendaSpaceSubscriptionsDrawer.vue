@@ -54,60 +54,12 @@
           {{ $t(loadError) }}
         </p>
         <v-list class="pa-0" dense>
-          <v-list-item
+          <agenda-space-subscription-item
             v-for="subscription in subscriptions"
             :key="subscription.id"
-            class="px-0 agenda-space-subscription">
-            <v-list-item-content class="py-2">
-              <v-list-item-title :title="subscription.name" class="agenda-space-subscription-name">
-                <v-icon size="14" class="text-light-color me-2">fas fa-rss</v-icon>
-                {{ subscription.name }}
-              </v-list-item-title>
-              <v-list-item-subtitle class="agenda-space-subscription-added">
-                {{ addedLabel(subscription) }}
-              </v-list-item-subtitle>
-              <v-list-item-subtitle class="agenda-space-subscription-refreshed">
-                {{ refreshedLabel(subscription) }}
-              </v-list-item-subtitle>
-              <div
-                v-if="subscription.lastError"
-                class="warning--text text-wrap mt-1 agenda-space-subscription-warning"
-                role="alert">
-                <v-icon size="12" class="warning--text me-1">fas fa-exclamation-triangle</v-icon>
-                {{ warningLabel(subscription) }}
-              </div>
-            </v-list-item-content>
-            <v-list-item-action class="my-0 ms-2 agenda-calendar-actions">
-              <v-menu
-                :value="isRowMenuOpen(subscription.id)"
-                content-class="agendaCalendarRowMenu"
-                offset-y
-                left
-                @input="toggleRowMenu(subscription.id, $event)">
-                <template #activator="{ on, attrs }">
-                  <v-btn
-                    v-bind="attrs"
-                    :title="$t('agenda.calendar.actions')"
-                    icon
-                    x-small
-                    v-on="on">
-                    <v-icon size="14">fa-ellipsis-v</v-icon>
-                  </v-btn>
-                </template>
-                <v-list dense class="pa-0">
-                  <v-list-item
-                    :disabled="refreshingIds.includes(subscription.id)"
-                    class="agenda-space-subscription-refresh"
-                    @click="refresh(subscription)">
-                    <v-list-item-title>{{ $t('agenda.calendarSubscription.refresh') }}</v-list-item-title>
-                  </v-list-item>
-                  <v-list-item class="agenda-space-subscription-remove" @click="confirmRemove(subscription)">
-                    <v-list-item-title class="error--text">{{ $t('agenda.calendarSubscription.remove') }}</v-list-item-title>
-                  </v-list-item>
-                </v-list>
-              </v-menu>
-            </v-list-item-action>
-          </v-list-item>
+            :subscription="subscription"
+            @refreshed="replace"
+            @remove="confirmRemove(subscription)" />
         </v-list>
       </div>
       <exo-confirm-dialog
@@ -122,11 +74,9 @@
 </template>
 
 <script>
-import calendarRowMenuMixin from '../../js/CalendarRowMenuMixin.js';
-import {WITHDRAWN_CODE, errorMessageKey} from '../../js/CalendarSubscriptionService.js';
+import {errorMessageKey} from '../../js/CalendarSubscriptionService.js';
 
 export default {
-  mixins: [calendarRowMenuMixin],
   data: () => ({
     ownerId: null,
     spaceName: '',
@@ -134,7 +84,6 @@ export default {
     loading: false,
     loaded: false,
     loadError: null,
-    refreshingIds: [],
     toRemove: null,
   }),
   computed: {
@@ -213,123 +162,13 @@ export default {
       this.$root.$emit('agenda-calendar-subscription-drawer-open', null, {ownerId: this.ownerId, spaceName: this.spaceName});
     },
     /**
-     * A date as the user reads it.
+     * Shows a subscription as its refresh answered.
      *
-     * @param {Number} time epoch milliseconds
-     * @param {Boolean} withTime whether the hour is given too
-     * @returns {String} the date
+     * @param {Object} refreshed the row the refresh returned
+     * @returns {void}
      */
-    formatDate(time, withTime) {
-      const lang = window.eXo && eXo.env && eXo.env.portal && eXo.env.portal.language || 'en';
-      const options = withTime
-        ? {year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'}
-        : {year: 'numeric', month: 'short', day: 'numeric'};
-      return new Date(time).toLocaleString(lang, options);
-    },
-    /**
-     * @param {Object} subscription a row
-     * @returns {String} who added it and when
-     */
-    addedLabel(subscription) {
-      return this.$t('agenda.calendarSubscription.addedBy', {
-        0: subscription.creatorFullName || subscription.creatorUsername || '',
-        1: subscription.createdDate ? this.formatDate(subscription.createdDate, false) : '',
-      });
-    },
-    /**
-     * @param {Object} subscription a row
-     * @returns {String} when its feed was last imported, or that it never was
-     */
-    refreshedLabel(subscription) {
-      return subscription.lastSuccessDate
-        ? this.$t('agenda.calendarSubscription.lastRefresh', {0: this.formatDate(subscription.lastSuccessDate, true)})
-        : this.$t('agenda.calendarSubscription.neverRefreshed');
-    },
-    /**
-     * The warning of a subscription whose last refresh failed, in the words
-     * of the one thing the two cases do not share: what becomes of the events
-     * already imported (EXO-90402).
-     *
-     * Which failure, and whether anything was ever imported: the two questions
-     * the row can answer at the moment it is drawn, and between them they pick
-     * the sentence.
-     *
-     * `lastError` being {@link WITHDRAWN_CODE} is a link of this eXo that opens
-     * nothing: only the in-process branch of the refresh raises it, from this
-     * platform's own database, so it is eXo's own certain word that the
-     * publisher withdrew the link — and it is the only failure on which the
-     * imported events are removed, a week after the last refresh
-     * (`AgendaCalendarSubscriptionServiceImpl#isWithdrawnForLong`). Any other
-     * failure — an external ICS or webcal address that stopped answering, most
-     * of them — is retried for ever and purges nothing, so the warning says
-     * since when nothing has been imported and that the events stay as they
-     * are.
-     *
-     * A withdrawn link that never imported anything is the third state, and it
-     * is told apart because the cleanup does not reach it either: the purge is
-     * guarded on the digest of a read that succeeded
-     * (`refreshClaimed`, `getContentHash() != null`), which a subscription that
-     * never imported does not carry, so nothing is ever removed from it and it
-     * has nothing to remove. A cleanup is therefore never promised to it, and
-     * the row says so directly under its own "Not refreshed yet".
-     *
-     * What is deliberately not claimed, in any of the three, is that the events
-     * are on screen *now*. The purge runs once and the row then keeps its
-     * failure for good — `forgetContent` clears the validators and the digest
-     * and leaves the date, `recordFailure` re-arms the retry — so from a week
-     * after the last refresh onwards a withdrawn link sits there, for ever,
-     * with no events left. A sentence in the present tense would be false from
-     * that hour on, and no field on the row can tell that hour from the one
-     * before it. The rule is stated instead, which holds on both sides of it.
-     *
-     * The reason keeps its place at the head of the two sentences that carry
-     * one: a manager who is to act on the warning needs to know what the link
-     * answered, not only what happens to the events.
-     *
-     * Which date: the last successful refresh — the very one the row's own
-     * "Last refresh" line shows, so the two never disagree. Successful, not
-     * importing: a 304 and a body whose digest has not changed both record it
-     * and import nothing, which is why the sentence it dates says nothing has
-     * been *imported* since, and stays true either way.
-     *
-     * @param {Object} subscription a row
-     * @returns {String} the warning
-     */
-    warningLabel(subscription) {
-      if (subscription.lastError === WITHDRAWN_CODE) {
-        return subscription.lastSuccessDate
-          ? this.$t('agenda.calendarSubscription.withdrawn')
-          : this.$t('agenda.calendarSubscription.withdrawnNeverImported');
-      }
-      const reason = this.$t(errorMessageKey(subscription.lastError));
-      return subscription.lastSuccessDate
-        ? this.$t('agenda.calendarSubscription.stillImported', {0: reason, 1: this.formatDate(subscription.lastSuccessDate, true)})
-        : this.$t('agenda.calendarSubscription.neverImported', {0: reason});
-    },
-    /**
-     * Refreshes a subscription now; the row takes the answer, a failure of the
-     * link included, and the agenda reads the events again.
-     *
-     * @param {Object} subscription the row
-     * @returns {Promise} resolved once shown
-     */
-    refresh(subscription) {
-      if (this.refreshingIds.includes(subscription.id)) {
-        return Promise.resolve();
-      }
-      this.refreshingIds = this.refreshingIds.concat(subscription.id);
-      return this.$calendarSubscriptionService.refreshSubscription(subscription.id)
-        .then(refreshed => {
-          this.subscriptions = this.subscriptions.map(row => row.id === subscription.id && refreshed || row);
-          if (refreshed && refreshed.lastError) {
-            this.$root.$emit('alert-message', this.warningLabel(refreshed), 'warning');
-          } else {
-            this.$root.$emit('alert-message', this.$t('agenda.calendarSubscription.refreshed', {0: subscription.name}), 'success');
-          }
-          this.$root.$emit('agenda-refresh');
-        })
-        .catch(error => this.$root.$emit('alert-message', this.$t(errorMessageKey(error && error.message)), 'error'))
-        .finally(() => this.refreshingIds = this.refreshingIds.filter(id => id !== subscription.id));
+    replace(refreshed) {
+      this.subscriptions = this.subscriptions.map(row => row.id === refreshed.id && refreshed || row);
     },
     /**
      * Asks before removing.

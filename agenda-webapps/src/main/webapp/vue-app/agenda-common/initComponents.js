@@ -28,6 +28,7 @@ import AgendaCalendarLinkDrawer from './components/filter/AgendaCalendarLinkDraw
 import AgendaCalendarSubscriptionDrawer from './components/filter/AgendaCalendarSubscriptionDrawer.vue';
 import AgendaCalendarShareDrawer from './components/filter/AgendaCalendarShareDrawer.vue';
 import AgendaSpaceSubscriptionsDrawer from './components/filter/AgendaSpaceSubscriptionsDrawer.vue';
+import AgendaSpaceSubscriptionItem from './components/filter/AgendaSpaceSubscriptionItem.vue';
 import AgendaEventFormDestination from './components/event/form/AgendaEventFormDestination.vue';
 
 import AgendaPendingInvitationDrawer from './components/pending-date-polls/AgendaPendingInvitationDrawer.vue';
@@ -123,6 +124,7 @@ const components = {
   'agenda-calendar-subscription-drawer': AgendaCalendarSubscriptionDrawer,
   'agenda-calendar-share-drawer': AgendaCalendarShareDrawer,
   'agenda-space-subscriptions-drawer': AgendaSpaceSubscriptionsDrawer,
+  'agenda-space-subscription-item': AgendaSpaceSubscriptionItem,
   'agenda-event-form-destination': AgendaEventFormDestination,
   'agenda-create-event-button': AgendaCreateEventButton,
   'agenda-calendar-filter-button': AgendaCalendarFilterButton,
