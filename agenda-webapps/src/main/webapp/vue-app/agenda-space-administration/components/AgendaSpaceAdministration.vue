@@ -40,9 +40,9 @@
                 :style="swatchStyle(calendarColor, 12)"
                 class="d-inline-flex rounded-circle mx-1 agenda-space-settings-summary-color"
                 role="img"></span>
-              <template v-if="canManageSubscriptions">
+              <span v-if="canManageSubscriptions" class="agenda-space-subscriptions-count">
                 · {{ $t('agenda.space.settings.subscriptions.summary', {0: subscriptionsCount}) }}
-              </template>
+              </span>
             </v-list-item-subtitle>
           </v-list-item-content>
           <v-list-item-action>
