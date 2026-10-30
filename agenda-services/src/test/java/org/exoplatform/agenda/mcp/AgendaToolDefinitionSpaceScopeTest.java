@@ -302,6 +302,30 @@ class AgendaToolDefinitionSpaceScopeTest {
   }
 
   /**
+   * The tools that return a conflict report say that a run limited to a
+   * space gets none, in their own description and in the description of
+   * their conflict probe, as {@code AgendaEventMcpTool} leaves it out there.
+   *
+   * @throws Exception never, the definitions are shipped JSON
+   */
+  @Test
+  void theConflictReportIsSaidLeftOutOfALimitedRun() throws Exception {
+    Map<String, SimpleToolDefinition> shipped = shipped();
+    String leftOut = "a run limited to a space, the conflict report is left out";
+    for (String name : List.of("create_agenda_event", "update_agenda_event", "confirm_date_poll")) {
+      assertTrue(shipped.get(name).getDescription().contains(leftOut), name);
+    }
+    for (String name : List.of("create_agenda_event", "update_agenda_event")) {
+      String probe = MAPPER.readTree(shipped.get(name).inputSchema())
+                           .path("properties")
+                           .path("fail_on_conflict")
+                           .path("description")
+                           .asText();
+      assertTrue(probe.contains(leftOut), name);
+    }
+  }
+
+  /**
    * @param tool a tool declaring a space scope
    * @return its allowed arguments, empty when it names none
    */
