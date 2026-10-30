@@ -22,7 +22,8 @@
     away while the drawer is open (EXO-90239). Opened with a space as its second
     argument, it adds the calendar to that space (EXO-90373): no colour field,
     the space's colour is taken. The space settings mount it once too, since the
-    agenda application is not on that page.
+    agenda application is not on that page, and open it staged: Add checks the
+    link and hands the calendar back to their drawer, which subscribes on Save.
   -->
   <!-- :autofocus="false" is deliberate and stays: vuejs-accessibility/no-autofocus
     reports the attribute name whatever its value, so its warning here is a false
@@ -129,7 +130,7 @@
           :loading="state === 'saving'"
           class="btn btn-primary agenda-calendar-subscription-save"
           @click="save">
-          {{ isEdit ? $t('agenda.calendarSubscription.save') : $t('agenda.calendarSubscription.subscribe') }}
+          {{ saveLabel }}
         </v-btn>
       </div>
     </template>
@@ -149,6 +150,7 @@ export default {
     state: 'idle',
     errorCode: null,
     space: null,
+    staged: false,
   }),
   computed: {
     /**
@@ -180,6 +182,15 @@ export default {
      */
     title() {
       return this.isEdit ? this.$t('agenda.calendarSubscription.editTitle') : this.$t('agenda.calendarSubscription.subscribeTitle');
+    },
+    /**
+     * @returns {String} the label of the button that saves the drawer
+     */
+    saveLabel() {
+      if (this.isEdit) {
+        return this.$t('agenda.calendarSubscription.save');
+      }
+      return this.staged ? this.$t('agenda.space.settings.subscriptions.addStaged') : this.$t('agenda.calendarSubscription.subscribe');
     },
     /**
      * @returns {Boolean} whether a link was typed
@@ -229,10 +240,13 @@ export default {
      * @param {Object} subscription the subscription to edit, or nothing
      * @param {Object} space {ownerId, spaceName} to add the calendar to a space,
      *          or nothing for the user's agenda
+     * @param {Object} options {staged: true} to hand a new space calendar back
+     *          to the space settings drawer instead of subscribing at once
      * @returns {void}
      */
-    open(subscription, space) {
+    open(subscription, space, options) {
       this.space = space && space.ownerId ? space : null;
+      this.staged = !!(this.space && !subscription && options && options.staged);
       this.subscription = subscription || null;
       this.url = subscription && subscription.url || '';
       this.name = subscription && subscription.name || '';
@@ -304,6 +318,9 @@ export default {
       if (!this.canSave) {
         return Promise.resolve();
       }
+      if (this.staged) {
+        return this.stage();
+      }
       const values = {
         url: this.hasUrl ? this.url.trim() : null,
         name: this.name && this.name.trim() || null,
@@ -349,6 +366,28 @@ export default {
           this.state = 'idle';
           this.errorCode = error && error.message || null;
         });
+    },
+    /**
+     * Hands the calendar back to the space settings drawer once the server has
+     * read its link, which subscribes nothing: the subscription is created on
+     * that drawer's Save. A link the server refuses keeps this drawer open on
+     * its message, as a refused subscription does.
+     *
+     * @returns {Promise} resolved once handed back or refused
+     */
+    stage() {
+      const checked = this.state === 'checked' ? Promise.resolve() : this.check();
+      return checked.then(() => {
+        if (this.state !== 'checked') {
+          return;
+        }
+        this.$root.$emit('agenda-calendar-subscription-staged', {
+          ownerId: this.space.ownerId,
+          url: this.url.trim(),
+          name: this.name && this.name.trim() || null,
+        });
+        this.close();
+      });
     },
   },
 };
