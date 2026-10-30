@@ -16,16 +16,20 @@
  */
 
 import AgendaSpaceAdministration from './components/AgendaSpaceAdministration.vue';
+import AgendaSpaceSettingsDrawer from './components/AgendaSpaceSettingsDrawer.vue';
+import AgendaSpaceSettingsCalendars from './components/AgendaSpaceSettingsCalendars.vue';
 import AgendaCalendarSubscriptionDrawer from '../agenda-common/components/filter/AgendaCalendarSubscriptionDrawer.vue';
-import AgendaSpaceSubscriptionsDrawer from '../agenda-common/components/filter/AgendaSpaceSubscriptionsDrawer.vue';
+import AgendaSpaceSubscriptionItem from '../agenda-common/components/filter/AgendaSpaceSubscriptionItem.vue';
 
-// The drawers managing the calendars a space subscribes to (EXO-90373) are
+// The components managing the calendars a space subscribes to (EXO-90373) are
 // imported here rather than through a dependency on AgendaCommon, which would
 // load its whole chain on every space-settings page, for every viewer
 const components = {
   'agenda-space-administration': AgendaSpaceAdministration,
+  'agenda-space-settings-drawer': AgendaSpaceSettingsDrawer,
+  'agenda-space-settings-calendars': AgendaSpaceSettingsCalendars,
   'agenda-calendar-subscription-drawer': AgendaCalendarSubscriptionDrawer,
-  'agenda-space-subscriptions-drawer': AgendaSpaceSubscriptionsDrawer,
+  'agenda-space-subscription-item': AgendaSpaceSubscriptionItem,
 };
 
 for (const key in components) {
