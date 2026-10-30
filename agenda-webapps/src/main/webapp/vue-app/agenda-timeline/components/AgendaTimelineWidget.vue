@@ -97,6 +97,15 @@ export default {
      */
     loadingStore: false,
     loadingRemote: false,
+    /**
+     * Incremented by each read of the local store: the response of a read a
+     * later one superseded is dropped.
+     */
+    storeRequestId: 0,
+    /**
+     * Incremented by each read of the remote accounts, for the same reason.
+     */
+    remoteRequestId: 0,
     ownerIds: [],
     connectors: [],
     displayedEvent: [],
@@ -483,9 +492,14 @@ export default {
      * answered them, and this widget's source and filter are portlet
      * preferences a member cannot change, so they could not remove them.</p>
      *
+     * <p>Only the latest read is displayed: a settings save can start a read
+     * for the previous period before the period watcher starts the read of
+     * the new one, and the two may answer in any order.</p>
+     *
      * @returns {Promise} resolved when the events are displayed
      */
     retrieveEventsFromStore() {
+      const requestId = ++this.storeRequestId;
       this.loadingStore = true;
       let agendaFilter = this.$root.timelineSettings.agendaFilter;
       if (!agendaFilter) {
@@ -499,6 +513,9 @@ export default {
       const responseTypes = agendaFilter === 'acceptedEvents' ? ['ACCEPTED'] : ['ACCEPTED', 'NEEDS_ACTION', 'TENTATIVE'];
       return this.$eventService.getEvents(this.searchTerm, this.ownerIds, userIdentityId, this.$agendaUtils.toRFC3339(this.period.start, false), this.$agendaUtils.toRFC3339(this.period.end), this.limit, responseTypes, 'attendees,conferences', null, null)
         .then(data => {
+          if (requestId !== this.storeRequestId) {
+            return;
+          }
           const events = data && data.events || [];
           events.forEach(event => {
             event.name = event.summary;
@@ -510,7 +527,9 @@ export default {
           console.error('Error retrieving events', error);
         }).finally(() => {
           this.initialized = true;
-          this.loadingStore = false;
+          if (requestId === this.storeRequestId) {
+            this.loadingStore = false;
+          }
         });
     },
     /**
@@ -539,24 +558,34 @@ export default {
      * horizon is invented and nothing is lost however far off the next
      * meeting is. One that cannot keeps its usual window.
      *
+     * Only the latest read is displayed, as for the local store: two period
+     * changes in a row start two reads that may answer in any order.
+     *
      * @returns {Promise} resolves once the remote events are in hand
      */
     async retrieveRemoteEvents() {
+      const requestId = ++this.remoteRequestId;
       if (this.connectorStatus !== 1) {
         this.remoteEvents = [];
         this.failedConnectors = [];
+        this.loadingRemote = false;
         return;
       }
       this.loadingRemote = true;
       try {
         const sources = await this.readRemoteEvents();
+        if (requestId !== this.remoteRequestId) {
+          return;
+        }
         this.remoteEvents = sources.events;
         this.failedConnectors = sources.failedConnectors;
         this.remoteEventsLoaded = true;
       } finally {
         // The page waits on this to stop showing itself as loading; leaving
         // it raised on a failed read is the defect this change is about.
-        this.loadingRemote = false;
+        if (requestId === this.remoteRequestId) {
+          this.loadingRemote = false;
+        }
       }
     },
     /**

@@ -135,7 +135,7 @@ export default {
       return this.$root.timelineSettings.displaySeeMore !== false ;
     },
     displayPendingEvents() {
-      return this.$root.timelineSettings.displayPending;
+      return this.$root.timelineSettings.displayPending !== false;
     },
     addEventButtonTooltip() {
       if (!this.canCreateEvent) {
