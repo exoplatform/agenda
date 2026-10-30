@@ -31,6 +31,15 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
+      },
+      "space_scope": {
+        "space_arg": "space_id",
+        "when_absent": "use_scope",
+        "allowed_args": [
+          "start",
+          "end",
+          "limit"
+        ]
       }
     },
     {
@@ -53,12 +62,16 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
+      },
+      "space_scope": {
+        "object_arg": "event_id",
+        "resolver": "event"
       }
     },
     {
       "name": "create_agenda_event",
       "title": "Create an agenda event",
-      "description": "Create a new agenda event, in the user's personal calendar unless a space is given. To create it in a space calendar, provide either space_id or the space name via 'space'; with neither, the event goes to the user's own personal calendar.",
+      "description": "Create a new agenda event, in the user's personal calendar unless a space is given. To create it in a space calendar, provide either space_id or the space name via 'space'; with neither, the event goes to the user's own personal calendar. Returns the attendee conflict report for the event's window; in a run limited to a space, the conflict report is left out.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -115,7 +128,7 @@
           },
           "fail_on_conflict": {
             "type": "boolean",
-            "description": "When true, abort creation if any attendee known to be busy clashes with the window. Default false: create anyway and return the conflicts block. The conflicts block only covers attendees whose calendar the current user may read; the others are listed under not_disclosed and were not checked, so all_available means 'no clash was found', not 'everyone is free'."
+            "description": "When true, abort creation if any attendee known to be busy clashes with the window. Default false: create anyway and return the conflicts block; in a run limited to a space, the conflict report is left out and this argument can only be false. The conflicts block only covers attendees whose calendar the current user may read; the others are listed under not_disclosed and were not checked, so all_available means 'no clash was found', not 'everyone is free'."
           }
         },
         "required": [
@@ -130,12 +143,30 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
+      "space_scope": {
+        "space_arg": "space_id",
+        "allowed_args": [
+          "summary",
+          "description",
+          "location",
+          "start",
+          "end",
+          "recurrence_frequency",
+          "recurrence_interval",
+          "recurrence_until",
+          "recurrence_count"
+        ],
+        "false_only_args": [
+          "fail_on_conflict"
+        ],
+        "space_role": "redactor"
+      },
       "require_approval": true
     },
     {
       "name": "update_agenda_event",
       "title": "Update an agenda event",
-      "description": "Patch / update an agenda event (only provided optional fields are updated).",
+      "description": "Patch / update an agenda event (only provided optional fields are updated). Returns the attendee conflict report for the event's window; in a run limited to a space, the conflict report is left out.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -180,7 +211,7 @@
           },
           "fail_on_conflict": {
             "type": "boolean",
-            "description": "When true, abort the update if any attendee known to be busy clashes with the (new) window. Default false: update anyway and return the conflicts block. The conflicts block only covers attendees whose calendar the current user may read; the others are listed under not_disclosed and were not checked, so all_available means 'no clash was found', not 'everyone is free'."
+            "description": "When true, abort the update if any attendee known to be busy clashes with the (new) window. Default false: update anyway and return the conflicts block; in a run limited to a space, the conflict report is left out and this argument can only be false. The conflicts block only covers attendees whose calendar the current user may read; the others are listed under not_disclosed and were not checked, so all_available means 'no clash was found', not 'everyone is free'."
           }
         },
         "required": [
@@ -192,6 +223,25 @@
         "destructiveHint": true,
         "idempotentHint": true,
         "openWorldHint": false
+      },
+      "space_scope": {
+        "object_arg": "event_id",
+        "resolver": "event",
+        "allowed_args": [
+          "summary",
+          "description",
+          "location",
+          "start",
+          "end",
+          "recurrence_frequency",
+          "recurrence_interval",
+          "recurrence_until",
+          "recurrence_count"
+        ],
+        "false_only_args": [
+          "fail_on_conflict"
+        ],
+        "space_role": "redactor"
       },
       "require_approval": true
     },
@@ -216,6 +266,11 @@
         "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": false
+      },
+      "space_scope": {
+        "object_arg": "event_id",
+        "resolver": "event",
+        "space_role": "redactor"
       },
       "require_approval": true
     },
@@ -297,12 +352,20 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
+      "space_scope": {
+        "object_arg": "event_id",
+        "resolver": "event",
+        "allowed_args": [
+          "occurrence_id"
+        ],
+        "space_role": "redactor"
+      },
       "require_approval": true
     },
     {
       "name": "invite_space_to_agenda_event",
       "title": "Invite space members to an agenda event",
-      "description": "Invite space members to an agenda event",
+      "description": "Invite a space to an agenda event: its members receive the invitation, except those who already attend. In a run limited to a space, only that space can be invited.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -324,6 +387,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "event_id", "resolver": "event", "allowed_args": ["space_id"], "space_role": "redactor" },
       "require_approval": true
     },
     {
@@ -341,7 +405,7 @@
             "items": {
               "type": "string"
             },
-            "description": "List of attendee usernames to invite (the current user is added automatically)."
+            "description": "List of attendee usernames to invite. Only the newly invited ones receive the invitation. In a run limited to a space, each must be a member of that space."
           }
         },
         "required": [
@@ -355,6 +419,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "event_id", "resolver": "event", "allowed_args": ["attendee_usernames"], "space_role": "redactor" },
       "require_approval": true
     },
     {
@@ -410,6 +475,15 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
+      "space_scope": {
+        "space_arg": "space_id",
+        "allowed_args": [
+          "title",
+          "proposed_slots",
+          "description"
+        ],
+        "space_role": "redactor"
+      },
       "require_approval": true
     },
     {
@@ -464,12 +538,16 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
+      },
+      "space_scope": {
+        "object_arg": "event_id",
+        "resolver": "event"
       }
     },
     {
       "name": "confirm_date_poll",
       "title": "Confirm a date poll",
-      "description": "Pick the winning slot of a date poll: converts the poll into a confirmed event on that slot and returns the attendee conflict report for the confirmed window.",
+      "description": "Pick the winning slot of a date poll: converts the poll into a confirmed event on that slot and returns the attendee conflict report for the confirmed window. In a run limited to a space, the conflict report is left out.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -488,6 +566,7 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
+      "space_scope": { "object_arg": "date_option_id", "resolver": "event_date_option", "space_role": "redactor" },
       "require_approval": true
     },
     {
@@ -620,6 +699,10 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
+      },
+      "space_scope": {
+        "object_arg": "event_id",
+        "resolver": "event"
       }
     },
     {
@@ -707,6 +790,10 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
+      },
+      "space_scope": {
+        "object_arg": "event_id",
+        "resolver": "event"
       }
     },
     {
@@ -738,6 +825,15 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
+      },
+      "space_scope": {
+        "object_arg": "event_id",
+        "resolver": "event",
+        "allowed_args": [
+          "url",
+          "type"
+        ],
+        "space_role": "redactor"
       },
       "require_approval": true
     },
@@ -774,6 +870,15 @@
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false
+      },
+      "space_scope": {
+        "space_arg": "space_id",
+        "when_absent": "use_scope",
+        "allowed_args": [
+          "query",
+          "start",
+          "end"
+        ]
       }
     }
   ]
