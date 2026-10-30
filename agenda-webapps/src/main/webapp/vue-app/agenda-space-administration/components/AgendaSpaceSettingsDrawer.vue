@@ -78,6 +78,7 @@
       <div class="d-flex">
         <v-spacer />
         <v-btn
+          id="agendaSpaceSettingsCancel"
           :disabled="saving"
           class="btn me-2"
           @click="close">
