@@ -158,7 +158,8 @@
         ],
         "false_only_args": [
           "fail_on_conflict"
-        ]
+        ],
+        "space_role": "redactor"
       },
       "require_approval": true
     },
@@ -239,7 +240,8 @@
         ],
         "false_only_args": [
           "fail_on_conflict"
-        ]
+        ],
+        "space_role": "redactor"
       },
       "require_approval": true
     },
@@ -267,7 +269,8 @@
       },
       "space_scope": {
         "object_arg": "event_id",
-        "resolver": "event"
+        "resolver": "event",
+        "space_role": "redactor"
       },
       "require_approval": true
     },
@@ -354,7 +357,8 @@
         "resolver": "event",
         "allowed_args": [
           "occurrence_id"
-        ]
+        ],
+        "space_role": "redactor"
       },
       "require_approval": true
     },
@@ -383,7 +387,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "event_id", "resolver": "event", "allowed_args": ["space_id"] },
+      "space_scope": { "object_arg": "event_id", "resolver": "event", "allowed_args": ["space_id"], "space_role": "redactor" },
       "require_approval": true
     },
     {
@@ -415,7 +419,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "event_id", "resolver": "event", "allowed_args": ["attendee_usernames"] },
+      "space_scope": { "object_arg": "event_id", "resolver": "event", "allowed_args": ["attendee_usernames"], "space_role": "redactor" },
       "require_approval": true
     },
     {
@@ -477,7 +481,8 @@
           "title",
           "proposed_slots",
           "description"
-        ]
+        ],
+        "space_role": "redactor"
       },
       "require_approval": true
     },
@@ -561,7 +566,7 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "date_option_id", "resolver": "event_date_option" },
+      "space_scope": { "object_arg": "date_option_id", "resolver": "event_date_option", "space_role": "redactor" },
       "require_approval": true
     },
     {
@@ -827,7 +832,8 @@
         "allowed_args": [
           "url",
           "type"
-        ]
+        ],
+        "space_role": "redactor"
       },
       "require_approval": true
     },
