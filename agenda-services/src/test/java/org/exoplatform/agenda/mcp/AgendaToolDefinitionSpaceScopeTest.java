@@ -28,6 +28,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.net.URL;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -99,6 +100,17 @@ class AgendaToolDefinitionSpaceScopeTest {
                                                               "vote_date_poll");
 
   private static final ObjectMapper MAPPER           = new ObjectMapper();
+
+  /** The role each space-scoped write declares in {@code space_role}. */
+  private static final Map<String, String> SPACE_ROLES = Map.of("cancel_agenda_event", "redactor",
+                                                                "confirm_date_poll", "redactor",
+                                                                "create_agenda_event", "redactor",
+                                                                "create_date_poll", "redactor",
+                                                                "delete_agenda_event", "redactor",
+                                                                "invite_space_to_agenda_event", "redactor",
+                                                                "invite_users_to_agenda_event", "redactor",
+                                                                "set_event_conference", "redactor",
+                                                                "update_agenda_event", "redactor");
 
   /**
    * Exactly the expected tools declare a space scope, by the space argument
@@ -341,6 +353,43 @@ class AgendaToolDefinitionSpaceScopeTest {
     URL url = AgendaToolDefinitionSpaceScopeTest.class.getClassLoader().getResource("ai-tool-definitions.json");
     assertNotNull(url, "ai-tool-definitions.json is not on the classpath");
     return McpToolUtils.parseToolDefinitions(url).stream().collect(Collectors.toMap(SimpleToolDefinition::getName, tool -> tool));
+  }
+
+  /**
+   * Each space-scoped write declares in {@code space_role} the role the member
+   * who asks a digital worker for it must hold in the call's space
+   * (EXO-91405), and no space-scoped read declares one: an event or a date
+   * poll is created in a space calendar with the space's redact permission
+   * ({@code Utils#canCreateEvent}), and an event is then written by its
+   * creator, by an attendee it allows to, or by a manager of the space
+   * ({@code AgendaEventServiceImpl#writeRightOf}), so each of them is
+   * {@code redactor}, the creator and attendee rights staying the worker's
+   * own.
+   * Mutants: a write's role dropped or changed, or a read given one.
+   *
+   * @throws Exception when the shipped definitions can't be read
+   */
+  @Test
+  void spaceScopedWritesDeclareTheAskersSpaceRole() throws Exception {
+    Map<String, String> roles = new HashMap<>();
+    JsonNode definitions = MAPPER.readTree(AgendaToolDefinitionSpaceScopeTest.class.getClassLoader().getResource("ai-tool-definitions.json").openStream());
+    for (JsonNode tool : definitions.path("tools")) {
+      String name = tool.path("name").asText();
+      JsonNode scope = tool.path("space_scope");
+      if (!scope.isObject()) {
+        continue;
+      }
+      if (tool.path("annotations").path("readOnlyHint").asBoolean(false)) {
+        assertFalse(scope.has("space_role"), name);
+      } else {
+        assertTrue(scope.has("space_role"), name);
+        roles.put(name, scope.path("space_role").asText());
+        if (scope.path("space_admin").asBoolean(false)) {
+          assertEquals("manager", roles.get(name), name);
+        }
+      }
+    }
+    assertEquals(SPACE_ROLES, roles);
   }
 
 }
