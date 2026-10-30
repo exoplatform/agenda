@@ -8,6 +8,9 @@
   <artifactId>agenda-webapps</artifactId>
   <packaging>war</packaging>
   <name>eXo Agenda - Application</name>
+  <properties>
+    <exo.test.coverage.ratio>0.80</exo.test.coverage.ratio>
+  </properties>
   <dependencies>
     <dependency>
       <groupId>io.meeds.social</groupId>

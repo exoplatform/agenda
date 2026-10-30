@@ -30,7 +30,7 @@
     <template v-if="drawer" #content>
       <div class="pa-5" flat>
         <div class="d-flex flex-column mb-1">
-          <div class="mb-3 text-header">{{ $t('agenda.timeline.settings.drawer.label.displayOptions') }}</div>
+          <div class="mb-3 text-header">{{ $t('agenda.timeline.settings.drawer.label.displayManagement') }}</div>
           <div class="font-weight-bold">{{ $t('agenda.timeline.settings.drawer.label.headerOptions') }}</div>
           <div class="d-flex my-2 align-center justify-space-between">
             <label class="v-label text-color align-start">
@@ -104,7 +104,39 @@
                 hide-details />
             </div>
           </div>  
-          <div class="pt-3 font-weight-bold">{{ $t('agenda.timeline.settings.drawer.label.timelineOptions') }}</div>
+          <div class="pt-3 font-weight-bold">{{ $t('agenda.timeline.settings.drawer.label.displayOptions') }}</div>
+          <v-list-item-group
+            v-model="timelineSettings.displayMode"
+            color="primary"
+            class="agenda-timeline-display-modes d-flex my-2 mx-n1"
+            mandatory>
+            <v-list-item
+              v-for="mode in displayModes"
+              :key="mode.value"
+              :value="mode.value"
+              :class="[`agenda-timeline-display-mode-${mode.value}`, isSelectedDisplayMode(mode) && 'primary-border-color' || 'border-color']"
+              class="justify-center border-radius mx-1 pa-3">
+              <div class="d-flex flex-column align-center">
+                <div class="d-flex align-center">
+                  <v-icon
+                    v-for="icon in mode.icons"
+                    :key="icon"
+                    :color="isSelectedDisplayMode(mode) ? 'primary' : null"
+                    class="mx-1"
+                    size="20">
+                    {{ icon }}
+                  </v-icon>
+                </div>
+                <div
+                  :class="isSelectedDisplayMode(mode) && 'font-weight-bold'"
+                  class="mt-2">
+                  {{ $t(mode.label) }}
+                </div>
+              </div>
+            </v-list-item>
+          </v-list-item-group>
+          <div class="text-subtitle mb-2">{{ $t(selectedDisplayMode.description) }}</div>
+          <div class="pt-3 font-weight-bold">{{ $t('agenda.timeline.settings.drawer.label.listOptions') }}</div>
           <div class="d-flex mb-2 align-center justify-space-between">
             <label class="v-label text-color align-start">
               {{ $t('agenda.timeline.settings.drawer.label.itemsNumber') }}
@@ -112,7 +144,7 @@
             <div class="align-end">
               <number-input
                 v-model="timelineSettings.itemsNumber"
-                :min="0"
+                :min="1"
                 :max="100"
                 :step="1"
                 editable />
@@ -181,6 +213,21 @@
   </exo-drawer>
 </template>
 <script>
+// The settings of a timeline that never saved them, as its portlet
+// preferences declare them, plus the display mode
+const UNSAVED_SETTINGS = {
+  selectedSpaces: [],
+  agendaSource: '',
+  customHeader: false,
+  displaySeeMore: true,
+  seeMoreUrl: '',
+  displayPending: true,
+  displayAddEvent: true,
+  agendaFilter: '',
+  itemsNumber: 10,
+  displayMode: 'dynamic',
+};
+
 export default {
   data: () => ({
     drawer: false,
@@ -201,7 +248,8 @@ export default {
       displayPending: true,
       displayAddEvent: true,
       agendaFilter: 'allEvents',
-      itemsNumber: 10
+      itemsNumber: 10,
+      displayMode: 'dynamic'
     },
     defaultTimelineSettings: {
       selectedSpaces: [],
@@ -212,15 +260,33 @@ export default {
       displayPending: true,
       displayAddEvent: true,
       agendaFilter: 'allEvents',
-      itemsNumber: 10
+      itemsNumber: 10,
+      displayMode: 'dynamic'
     },
+    displayModes: [
+      {
+        value: 'dynamic',
+        label: 'agenda.timeline.settings.drawer.label.displayMode.dynamic',
+        description: 'agenda.timeline.settings.drawer.label.displayModeDescription.dynamic',
+        icons: ['fas fa-calendar-alt', 'fas fa-arrows-alt-h', 'fas fa-list'],
+      },
+      {
+        value: 'list',
+        label: 'agenda.timeline.settings.drawer.label.displayMode.list',
+        description: 'agenda.timeline.settings.drawer.label.displayModeDescription.list',
+        icons: ['fas fa-list'],
+      },
+    ],
   }),
   computed: {
     disabled() {
-      return (this.timelineSettings.displaySeeMore && this.timelineSettings.seeMoreUrl !=='' && !this.isValidLink && (this.timelineSettings.agendaSource === 'selectedSpaces' ? this.timelineSettings.selectedSpaces.length > 0 : true) )  || !this.modified;
+      return (this.timelineSettings.displaySeeMore && this.timelineSettings.seeMoreUrl !=='' && !this.isValidLink) || !this.modified;
     },
     modified() {
       return JSON.stringify(this.timelineSettings) !== JSON.stringify(this.defaultTimelineSettings) || this.transUpdated;
+    },
+    selectedDisplayMode() {
+      return this.displayModes.find(mode => this.isSelectedDisplayMode(mode)) || this.displayModes[0];
     },
     showSuggester() {
       return this.timelineSettings.agendaSource === 'selectedSpaces';
@@ -237,7 +303,7 @@ export default {
     },
     isValidLink() {
       try {
-        return !!(this.timelineSettings.seeMoreUrl && this.timelineSettings.seeMoreUrl !=='' && this.$utils.toLinkUrl(this.timelineSettings.seeMoreUrl, {
+        return !!(this.timelineSettings.seeMoreUrl && this.timelineSettings.seeMoreUrl !=='' && this.hasAllowedLinkScheme(this.timelineSettings.seeMoreUrl) && this.$utils.toLinkUrl(this.timelineSettings.seeMoreUrl, {
           urls: true,
           email: true,
           phone: true,
@@ -262,7 +328,12 @@ export default {
   },
   methods: {
     open() {
-      this.timelineSettings = JSON.parse(JSON.stringify(this.$root.timelineSettings));
+      // Every setting exists before the assignment, else Vue doesn't observe
+      // the ones the stored settings lack
+      this.timelineSettings = {
+        ...structuredClone(UNSAVED_SETTINGS),
+        ...JSON.parse(JSON.stringify(this.$root.timelineSettings)),
+      };
       if (this.timelineSettings.agendaSource === '') {
         if (eXo.env.portal.spaceId && !this.$root.standalone){
           this.timelineSettings.agendaSource = 'selectedSpaces';
@@ -302,12 +373,6 @@ export default {
           this.timelineSettings.seeMoreUrl = `${eXo.env.portal.context}/${eXo.env.portal.portalName}/agenda`;
         }
       }
-      if (this.timelineSettings.displayPending !== false) {
-        this.timelineSettings.displayPending = true;
-      }
-      if (this.timelineSettings.displayAddEvent !== false) {
-        this.timelineSettings.displayAddEvent = true;
-      }
       if (!this.timelineSettings.itemsNumber) {
         this.timelineSettings.itemsNumber = 10;
       }
@@ -324,6 +389,14 @@ export default {
     close() {
       this.$refs.drawer.close();
     },
+    hasAllowedLinkScheme(url) {
+      // At least as strict as the server, which empties a link with another scheme
+      const scheme = url.replace(/[\s\p{Cc}]/gu, '').toLowerCase().match(/^([a-z][a-z0-9+.-]*):/)?.[1];
+      return !scheme || ['http', 'https', 'mailto', 'tel'].includes(scheme);
+    },
+    isSelectedDisplayMode(mode) {
+      return this.timelineSettings.displayMode === mode.value;
+    },
     async save() {
       this.saving = true;
       this.saveHeaderTranslations();
@@ -334,11 +407,7 @@ export default {
         const formData = new FormData();
         formData.append('settings', JSON.stringify(this.timelineSettings));
         const urlParams = new URLSearchParams(formData).toString();
-        // The action URL comes from <portlet:actionURL> which XML-escapes it,
-        // thus its parameters are separated by '&amp;'. They have to be
-        // restored, else only the first portal parameter is readable server
-        // side and the portlet action is dropped without saving anything.
-        const response = await fetch(this.$root.settingsSaveUrl.replaceAll('&amp;', '&'), {
+        const response = await fetch(this.$root.settingsSaveUrl, {
           method: 'POST',
           credentials: 'include',
           headers: {
