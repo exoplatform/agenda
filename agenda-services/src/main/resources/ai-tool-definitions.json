@@ -128,7 +128,7 @@
           },
           "fail_on_conflict": {
             "type": "boolean",
-            "description": "When true, abort creation if any attendee known to be busy clashes with the window. Default false: create anyway and return the conflicts block. The conflicts block only covers attendees whose calendar the current user may read; the others are listed under not_disclosed and were not checked, so all_available means 'no clash was found', not 'everyone is free'."
+            "description": "When true, abort creation if any attendee known to be busy clashes with the window. Default false: create anyway and return the conflicts block; in a run limited to a space, the conflict report is left out and this argument can only be false. The conflicts block only covers attendees whose calendar the current user may read; the others are listed under not_disclosed and were not checked, so all_available means 'no clash was found', not 'everyone is free'."
           }
         },
         "required": [
@@ -165,7 +165,7 @@
     {
       "name": "update_agenda_event",
       "title": "Update an agenda event",
-      "description": "Patch / update an agenda event (only provided optional fields are updated).",
+      "description": "Patch / update an agenda event (only provided optional fields are updated). Returns the attendee conflict report for the event's window; in a run limited to a space, the conflict report is left out.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -210,7 +210,7 @@
           },
           "fail_on_conflict": {
             "type": "boolean",
-            "description": "When true, abort the update if any attendee known to be busy clashes with the (new) window. Default false: update anyway and return the conflicts block. The conflicts block only covers attendees whose calendar the current user may read; the others are listed under not_disclosed and were not checked, so all_available means 'no clash was found', not 'everyone is free'."
+            "description": "When true, abort the update if any attendee known to be busy clashes with the (new) window. Default false: update anyway and return the conflicts block; in a run limited to a space, the conflict report is left out and this argument can only be false. The conflicts block only covers attendees whose calendar the current user may read; the others are listed under not_disclosed and were not checked, so all_available means 'no clash was found', not 'everyone is free'."
           }
         },
         "required": [
