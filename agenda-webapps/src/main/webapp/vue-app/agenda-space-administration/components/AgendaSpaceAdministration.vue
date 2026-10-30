@@ -17,88 +17,90 @@
 
 <template>
   <v-app>
-    <template>
-      <v-card
-        id="agendaSpaceSetting"
-        class="card-border-radius"
-        flat>
-        <div class="text-title">
-          {{ $t('agenda.space.settings.title') }}
-        </div>
-        <v-list class="pa-0">
-          <v-list-item class="pa-0 mt-n2">
-            <v-list-item-content>
-              <v-list-item-title>
-                {{ $t('agenda.space.settings.eventColor') }}
-              </v-list-item-title>
-            </v-list-item-content>
-            <v-list-item-action>
-              <!-- A color picked is shown and saved at once -->
-              <color-picker
-                :value="calendarColor"
-                :aria-label="$t('agenda.space.settings.eventColor')"
-                :swatches="$agendaUtils.EVENT_COLOR_SWATCHES"
-                :disabled="saving"
-                opaque
-                @input="saveColor" />
-            </v-list-item-action>
-          </v-list-item>
-          <!--
-            The calendars the space subscribes to (EXO-90373), next to the colour
-            their events take: for a real manager of the space only, the rule the
-            server applies to them.
-          -->
-          <v-list-item
-            v-if="canManageSubscriptions"
-            class="pa-0 agenda-space-subscriptions-setting">
-            <v-list-item-content>
-              <v-list-item-title>
-                {{ $t('agenda.space.settings.subscriptions.title') }}
-              </v-list-item-title>
-              <v-list-item-subtitle class="agenda-space-subscriptions-count">
-                {{ $t('agenda.space.settings.subscriptions.count', {0: subscriptionsCount}) }}
-              </v-list-item-subtitle>
-            </v-list-item-content>
-            <v-list-item-action>
-              <!--
-                The edit action of this settings page, as its other rows draw it
-                (social's SpaceSettingAccess, SpaceSettingCategories,
-                SpaceSettingPublicSite, SpaceSettingSubspaces): a small icon
-                button, fa-edit at 18 in the default icon colour, its tooltip
-                naming what it edits.
-              -->
-              <v-btn
-                :title="$t('agenda.space.settings.subscriptions.button.tooltip')"
-                small
-                icon
-                class="agenda-space-subscriptions-manage"
-                @click="openSubscriptions">
-                <v-icon size="18" class="icon-default-color">fa-edit</v-icon>
-              </v-btn>
-            </v-list-item-action>
-          </v-list-item>
-        </v-list>
-      </v-card>
-    </template>
     <!--
-      The agenda application is not on this page: the drawers it would host are
-      mounted here, once, and opened by the same root events.
+      One line for the application, as the other applications of this page draw
+      theirs (forms' FormsSpaceSettings): its name, a summary, and one edit icon
+      opening the drawer that holds every agenda setting of the space.
     -->
-    <agenda-space-subscriptions-drawer v-if="canManageSubscriptions" />
+    <v-card
+      id="agendaSpaceSetting"
+      class="card-border-radius"
+      flat>
+      <v-list class="pa-0" dense>
+        <v-list-item class="pa-0">
+          <v-list-item-content>
+            <v-list-item-title class="text-title py-1">
+              {{ $t('agenda.space.settings.title') }}
+            </v-list-item-title>
+            <v-list-item-subtitle class="d-flex align-center pt-0 pb-1 text-wrap agenda-space-settings-summary">
+              {{ $t('agenda.space.settings.eventColor') }}
+              <span
+                :title="calendarColor"
+                :aria-label="$t('agenda.space.settings.eventColor.current', {0: calendarColor || ''})"
+                :style="swatchStyle(calendarColor, 12)"
+                class="d-inline-flex rounded-circle mx-1 agenda-space-settings-summary-color"
+                role="img"></span>
+              <template v-if="canManageSubscriptions">
+                · {{ $t('agenda.space.settings.subscriptions.summary', {0: subscriptionsCount}) }}
+              </template>
+            </v-list-item-subtitle>
+          </v-list-item-content>
+          <v-list-item-action>
+            <!--
+              The edit action of this settings page, as its other rows draw it
+              (social's SpaceSettingAccess, SpaceSettingCategories): a small icon
+              button, fa-edit at 18 in the default icon colour.
+            -->
+            <v-btn
+              id="agendaSpaceSettingsOpen"
+              :title="$t('agenda.space.settings.edit')"
+              :aria-label="$t('agenda.space.settings.edit')"
+              :disabled="!calendar"
+              small
+              icon
+              @click="$refs.drawer.open()">
+              <v-icon size="18" class="icon-default-color">fa-edit</v-icon>
+            </v-btn>
+          </v-list-item-action>
+        </v-list-item>
+      </v-list>
+    </v-card>
+    <agenda-space-settings-drawer
+      ref="drawer"
+      :calendar="calendar"
+      :can-manage-subscriptions="canManageSubscriptions"
+      :space-name="spaceName"
+      @color-saved="calendar.color = $event" />
+    <!-- The drawer adding a calendar link, opened by the drawer above: the agenda application is not on this page -->
     <agenda-calendar-subscription-drawer v-if="canManageSubscriptions" />
   </v-app>
 </template>
 <script>
+import {swatchStyle} from '../js/SpaceSettingsColor.js';
 
 export default {
   data: () => ({
-    calendarColor: null,
-    calendar: {},
+    calendar: null,
     currentSpace: null,
     subscriptionsCount: 0,
-    saving: false,
   }),
   computed: {
+    /**
+     * @returns {String} the colour the space's events take, as stored
+     */
+    calendarColor() {
+      return this.calendar && this.calendar.color || null;
+    },
+    /**
+     * @returns {String} the name of the space, as its settings drawers write it
+     */
+    spaceName() {
+      const space = this.currentSpace;
+      return space && (space.displayName || space.prettyName) || '';
+    },
+    /**
+     * @returns {Number} the identity id of the space, owner of its calendar
+     */
     calendarOwnerId() {
       return Number(this.calendar?.owner?.id);
     },
@@ -128,14 +130,13 @@ export default {
   },
   created() {
     this.$root.$on('agenda-space-subscriptions-changed', this.countSubscriptions);
-    this.$root.$on('agenda-space-subscriptions-removed', this.countSubscriptions);
     this.getCalendar();
   },
   beforeDestroy() {
     this.$root.$off('agenda-space-subscriptions-changed', this.countSubscriptions);
-    this.$root.$off('agenda-space-subscriptions-removed', this.countSubscriptions);
   },
   methods: {
+    swatchStyle,
     /**
      * Counts the calendars the space subscribes to; a failure leaves the count
      * as it was.
@@ -149,18 +150,6 @@ export default {
       return this.$calendarSubscriptionService.getSubscriptions(this.calendarOwnerId)
         .then(subscriptions => this.subscriptionsCount = subscriptions && subscriptions.length || 0)
         .catch(() => null);
-    },
-    /**
-     * Opens the drawer of the calendars the space subscribes to.
-     *
-     * @returns {void}
-     */
-    openSubscriptions() {
-      const space = this.currentSpace;
-      this.$root.$emit('agenda-space-subscriptions-drawer-open', {
-        ownerId: this.calendarOwnerId,
-        spaceName: space && (space.displayName || space.prettyName) || '',
-      });
     },
     /**
      * Reads the space's calendar, the one whose colour the settings show.
@@ -180,31 +169,8 @@ export default {
           })
           .then(data => {
             this.calendar = data && data.calendars && data.calendars.length && data.calendars[0] || null;
-            this.calendarColor = this.calendar.color;
           });
       }
-    },
-    /**
-     * Shows and saves the space's calendar with the color picked, which the
-     * picker emits only when it differs from the stored one; a failure shows
-     * the stored color again with an error.
-     *
-     * @param {String} color the color picked
-     * @returns {void}
-     */
-    saveColor(color) {
-      const storedColor = this.calendarColor;
-      const calendarToSave = JSON.parse(JSON.stringify(this.calendar));
-      calendarToSave.color = color;
-      this.calendarColor = color;
-      this.saving = true;
-      this.$calendarService.saveCalendar(calendarToSave)
-        .then(() => this.calendar.color = color)
-        .catch(() => {
-          this.calendarColor = storedColor;
-          this.$root.$emit('alert-message', this.$t('agenda.calendarSave.error'), 'error');
-        })
-        .finally(() => this.saving = false);
     },
   },
 };
