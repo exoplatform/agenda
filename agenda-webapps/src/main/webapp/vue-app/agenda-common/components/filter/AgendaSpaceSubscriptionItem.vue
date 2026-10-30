@@ -60,6 +60,7 @@
         v-if="pending"
         :title="$t('agenda.space.settings.subscriptions.undo')"
         :aria-label="$t('agenda.space.settings.subscriptions.undo')"
+        :disabled="disabled"
         class="agenda-space-subscription-restore"
         icon
         x-small
@@ -77,6 +78,7 @@
           <v-btn
             v-bind="attrs"
             :title="$t('agenda.calendar.actions')"
+            :disabled="disabled"
             icon
             x-small
             v-on="on">
@@ -114,6 +116,11 @@ export default {
     pending: {
       type: String,
       default: null,
+    },
+    // While the space settings drawer saves: no change can be made to the row
+    disabled: {
+      type: Boolean,
+      default: false,
     },
     // The message key of the last failure to save this row's change
     error: {

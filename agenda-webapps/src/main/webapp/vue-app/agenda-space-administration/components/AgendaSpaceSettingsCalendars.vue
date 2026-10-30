@@ -51,6 +51,7 @@
         :subscription="subscription"
         :pending="toRemove.includes(subscription.id) && 'remove' || null"
         :error="errors[subscription.id] || null"
+        :disabled="saving"
         @refreshed="replace"
         @remove="toRemove = toRemove.concat(subscription.id)"
         @restore="restoreRemoved(subscription.id)" />
@@ -59,6 +60,7 @@
         :key="addition.key"
         :subscription="addition"
         :error="errors[addition.key] || null"
+        :disabled="saving"
         pending="add"
         @restore="toAdd = toAdd.filter(item => item.key !== addition.key)" />
     </v-list>
@@ -202,12 +204,15 @@ export default {
      * Subscribes the space to a calendar waiting for the Save. The additions are
      * sent one after another: the server reads each link while holding one of
      * the user's two read permits (`MAX_READS_PER_USER`), and refuses a third
-     * read running at once.
+     * read running at once. An addition no longer held is skipped.
      *
      * @param {Object} addition the calendar waiting to be added
      * @returns {Promise} resolved once added or refused
      */
     create(addition) {
+      if (!this.toAdd.some(item => item.key === addition.key)) {
+        return Promise.resolve();
+      }
       return this.$calendarSubscriptionService.createSubscription({
         ownerId: this.ownerId,
         url: addition.url,
