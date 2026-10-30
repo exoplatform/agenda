@@ -18,10 +18,11 @@
   <!--
     The calendars a space subscribes to (EXO-90373), for its managers: add one by
     link, and for each who added it and when, when it was last refreshed, a
-    warning when its last refresh failed, and Refresh now / Remove. Opened by a
-    root event from the space calendar's menu in the personal agenda and from the
-    space settings; mounted once on each page, never in a row. The server refuses
-    anyone but a real manager of the space; the openers are only drawn for them.
+    warning when its last refresh failed, and Refresh now / Remove, applied at
+    once. Opened by a root event from the space calendar's menu in the personal
+    agenda; mounted once in Agenda.vue, never in a row. The space settings have
+    their own drawer, whose changes wait for its Save. The server refuses anyone
+    but a real manager of the space; the opener is only drawn for them.
   -->
   <exo-drawer
     ref="spaceSubscriptionsDrawer"
