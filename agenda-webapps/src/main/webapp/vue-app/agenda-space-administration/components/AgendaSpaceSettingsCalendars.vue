@@ -176,7 +176,7 @@ export default {
       this.subscriptions = this.subscriptions.map(row => row.id === refreshed.id && refreshed || row);
     },
     /**
-     * Removes, then adds, what waits for the Save. Each change done leaves the
+     * Removes, then adds one by one, what waits for the Save. Each change done leaves the
      * waiting list; each refused one stays in it with its message, so a second
      * Save retries only those.
      *
@@ -191,21 +191,33 @@ export default {
         })
         .catch(error => this.refused(id, error)));
       return Promise.all(removals)
-        .then(() => Promise.all(this.toAdd.map(addition => this.$calendarSubscriptionService.createSubscription({
-          ownerId: this.ownerId,
-          url: addition.url,
-          name: addition.url === addition.name ? null : addition.name,
-        })
-          .then(saved => {
-            this.subscriptions = saved ? this.subscriptions.concat(saved) : this.subscriptions;
-            this.toAdd = this.toAdd.filter(item => item.key !== addition.key);
-          })
-          .catch(error => this.refused(addition.key, error)))))
+        .then(() => this.toAdd.slice().reduce((chain, addition) => chain.then(() => this.create(addition)), Promise.resolve()))
         .then(() => {
           this.$root.$emit('agenda-space-subscriptions-changed', this.ownerId);
           this.$root.$emit('agenda-refresh');
           return Object.keys(this.errors).length;
         });
+    },
+    /**
+     * Subscribes the space to a calendar waiting for the Save. The additions are
+     * sent one after another: the server reads each link while holding one of
+     * the user's two read permits (`MAX_READS_PER_USER`), and refuses a third
+     * read running at once.
+     *
+     * @param {Object} addition the calendar waiting to be added
+     * @returns {Promise} resolved once added or refused
+     */
+    create(addition) {
+      return this.$calendarSubscriptionService.createSubscription({
+        ownerId: this.ownerId,
+        url: addition.url,
+        name: addition.url === addition.name ? null : addition.name,
+      })
+        .then(saved => {
+          this.subscriptions = saved ? this.subscriptions.concat(saved) : this.subscriptions;
+          this.toAdd = this.toAdd.filter(item => item.key !== addition.key);
+        })
+        .catch(error => this.refused(addition.key, error));
     },
     /**
      * @param {String|Number} key the row whose change was refused
