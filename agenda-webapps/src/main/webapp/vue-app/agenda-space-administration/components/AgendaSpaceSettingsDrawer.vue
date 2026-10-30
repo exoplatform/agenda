@@ -35,7 +35,7 @@
     <template #content>
       <div class="pa-4">
         <div class="d-flex align-center mb-4">
-          <div class="text-subtitle-1 flex-grow-1">{{ $t('agenda.space.settings.eventColor') }}</div>
+          <div class="text-subtitle-1 text-start flex-grow-1">{{ $t('agenda.space.settings.eventColor') }}</div>
           <color-picker
             :value="color"
             :swatches="$agendaUtils.EVENT_COLOR_SWATCHES"
@@ -48,6 +48,7 @@
                 id="agendaSpaceSettingsColor"
                 :title="shown"
                 :aria-label="$t('agenda.space.settings.eventColor.current', {0: shown || ''})"
+                :disabled="saving"
                 icon
                 small
                 v-bind="attrs"
@@ -64,7 +65,7 @@
           {{ $t('agenda.space.settings.colorSaveFailed') }}
         </p>
         <template v-if="canManageSubscriptions">
-          <div class="text-subtitle-1 mb-2">{{ $t('agenda.space.settings.subscriptions.title') }}</div>
+          <div class="text-subtitle-1 text-start mb-2">{{ $t('agenda.space.settings.subscriptions.title') }}</div>
           <agenda-space-settings-calendars
             ref="calendars"
             :owner-id="ownerId"
