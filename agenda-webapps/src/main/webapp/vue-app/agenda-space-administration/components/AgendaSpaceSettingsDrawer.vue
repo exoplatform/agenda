@@ -193,7 +193,7 @@ export default {
       this.saving = true;
       this.colorError = false;
       return this.saveColor()
-        .then(() => this.calendarsChanged && this.$refs.calendars ? this.$refs.calendars.save() : 0)
+        .then(() => (this.calendarsChanged && this.$refs.calendars ? this.$refs.calendars.save() : 0))
         .then(refusedCalendars => {
           if (this.colorError || refusedCalendars) {
             this.$root.$emit('alert-message', this.$t('agenda.space.settings.saveFailed'), 'error');
