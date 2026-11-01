@@ -482,7 +482,8 @@ export default {
       // list: asked first (D15). A limit the stepper shows before the drawer
       // closes counts too, since the closing removes it as well
       if (!open && this.hasLimit()) {
-        // The drawer's close button can close it behind the warning: that
+        // The drawer's close button can close it behind the warning, from the
+        // keyboard (see AgendaUtils#raiseAboveOverlays, its known limit): that
         // close waits for the answer, and on a standalone event for the write
         // the answer starts, as for a padlock's write (see drawerClosed)
         const askedOn = this.event;
@@ -490,7 +491,8 @@ export default {
           .then(() => {
             if (this.eventKey(this.event) !== this.eventKey(askedOn)) {
               // The page shows another event by now ("View" on the message
-              // of an answer stays clickable above the warning): the answer
+              // of an answer stays reachable from the keyboard behind the
+              // warning, see AgendaUtils#raiseAboveOverlays): the answer
               // is about the one it left, locked there when it is an event
               // of its own or a series shown as itself, whose dates the lock
               // reaches (see patchOpen). A date's lock needs the scope
