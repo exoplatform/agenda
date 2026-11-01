@@ -106,8 +106,11 @@ export default {
       this.$root.$emit('agenda-refresh');
     },
     saveFailed(eventToSave, error) {
+      // The scope question closes before a refusal is said: its veil would
+      // cover the message, and the refused value is changed where it was
+      // made, not in the question
+      this.$refs.recurrentEventConfirm.close();
       if (!error) {
-        this.$refs.recurrentEventConfirm.close();
         this.$root.$emit('agenda-event-save-cancel');
         return;
       }
