@@ -293,7 +293,7 @@ export function announcePartlyWaiting(vm, seriesId, firstWaitingOccurrenceId) {
 // platform-ui: drawer 1035, modal backdrop 1040, modal 1050, snackbar 1060 —
 // the plane a drawer takes when it opens over a dialog, as the participants
 // drawer does over the event's page. A blocking question is painted over all
-// of them.
+// of them, on two planes: its veil, then the question itself.
 //
 // Why a fixed plane rather than the skin rule meant to do this: that rule reads
 // `z-index: var(--allPagesZindexModal, 1050) !important` and, where the custom
@@ -301,41 +301,58 @@ export function announcePartlyWaiting(vm, seriesId, firstWaitingOccurrenceId) {
 // invalid at computed-value time and the whole declaration is dropped,
 // !important included: the popup then keeps z-index 3 while its own veil is
 // painted over it. Measuring the screen at open time is no alternative:
-// Vuetify creates that veil in a requestAnimationFrame, so there is nothing
-// to measure when the popup opens.
+// Vuetify writes that veil's plane in a requestAnimationFrame, so there is
+// nothing to measure when the popup opens.
 const ABOVE_STACKING_SCALE = 1070;
 
 /**
- * Paints a popup above the platform stacking scale, once it is open.
+ * Paints a popup and its veil above the platform stacking scale, once it is
+ * open: the popup on its plane and its veil on the plane below, so that
+ * nothing behind the popup takes a click until it is answered, neither the
+ * drawer it is asked from nor a message whose link shows another event.
  *
  * No CSS rule can do it: content-class lands on the inner .v-dialog while the
- * z-index sits on .v-dialog__content, which carries no class of ours. An
+ * z-index sits on .v-dialog__content, which carries no class of ours, and the
+ * skin pins an active veil to the modal backdrop plane with important. An
  * inline value with important is the one step above a skin rule.
  *
- * Its own veil is deliberately left where Vuetify puts it: it keeps dimming
- * the page, below the question instead of over it.
+ * The veil is raised in the frame after the opening: Vuetify creates it when
+ * the popup opens and writes its plane in a requestAnimationFrame, which runs
+ * before this one. lowerToSkin gives it back to the skin when the popup
+ * closes: a veil no longer active lets clicks through while it fades out,
+ * then Vuetify removes it.
  *
  * Known limit: Vuetify keeps the focus in a dialog only while the plane it
  * computed at the opening is the highest on the screen, and this plane is
  * higher. Raised over the event's page, the popup lets a keyboard user Tab
- * out to the drawer behind it.
+ * out to the drawer behind it and to the link of a message.
  *
  * @param {Object} dialog the v-dialog of the popup
- * @param {Number} step how many planes above the scale: one for a question
- *        that can be asked from another raised one, else none
+ * @param {Number} step how many levels above the scale, two planes each (the
+ *        veil, then the popup): one for a question that can be asked from
+ *        another raised one, else none
  * @returns {void}
  */
 export function raiseAboveOverlays(dialog, step) {
   const content = dialog && dialog.$refs.content;
-  if (content) {
-    content.style.setProperty('z-index', String(ABOVE_STACKING_SCALE + (step || 0)), 'important');
+  if (!content) {
+    return;
   }
+  const veilPlane = ABOVE_STACKING_SCALE + 2 * (step || 0);
+  content.style.setProperty('z-index', String(veilPlane + 1), 'important');
+  window.requestAnimationFrame(() => {
+    const veil = dialog.isActive && dialog.overlay && dialog.overlay.$el;
+    if (veil) {
+      veil.style.setProperty('z-index', String(veilPlane), 'important');
+    }
+  });
 }
 
 /**
- * Gives a popup raised by raiseAboveOverlays back to the skin: the next
- * opening raises it again, and a value left behind would outlive the reason
- * for it.
+ * Gives a popup raised by raiseAboveOverlays back to the skin, with its veil:
+ * the next opening raises them again, and a value left behind would outlive
+ * the reason for it. The veil fading out goes back under the drawers at once,
+ * so that it does not dim a question opened or still open there.
  *
  * @param {Object} dialog the v-dialog of the popup
  * @returns {void}
@@ -344,6 +361,10 @@ export function lowerToSkin(dialog) {
   const content = dialog && dialog.$refs.content;
   if (content) {
     content.style.removeProperty('z-index');
+  }
+  const veil = dialog && dialog.overlay && dialog.overlay.$el;
+  if (veil) {
+    veil.style.removeProperty('z-index');
   }
 }
 export function convertDates(event) {

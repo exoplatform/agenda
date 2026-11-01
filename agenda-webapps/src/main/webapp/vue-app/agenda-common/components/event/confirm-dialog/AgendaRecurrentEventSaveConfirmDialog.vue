@@ -142,6 +142,9 @@ export default {
       if (this.dialog) {
         this.$emit('dialog-opened');
       } else {
+        // On every closing, Escape and Vuetify's own included, not only on
+        // close: its veil fading out would dim what it was asked from
+        this.$agendaUtils.lowerToSkin(this.$refs.dialog);
         this.$emit('dialog-closed');
       }
     },
@@ -479,8 +482,6 @@ export default {
         event.preventDefault();
         event.stopPropagation();
       }
-
-      this.$agendaUtils.lowerToSkin(this.$refs.dialog);
       this.dialog = false;
     },
     /**
