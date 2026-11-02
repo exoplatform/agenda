@@ -40,10 +40,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import org.exoplatform.agenda.model.EventAttendeesExport;
+import org.exoplatform.agenda.rest.util.AttendeeUserEntityBuilder;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 
@@ -55,7 +58,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
- * Serves the participant list of an event as a CSV file.
+ * Serves the participant list of an event as a CSV file, and the platform
+ * user an address typed in the participants drawer belongs to.
  * <p>
  * <b>No rule lives here.</b> Which list, who may export it and what each row
  * holds are {@link AgendaEventAttendeeService}'s; this resource reads the
@@ -70,6 +74,8 @@ import jakarta.servlet.http.HttpServletRequest;
 @Tag(name = "event-attendees", description = "Participant lists of agenda events")
 public class AgendaEventAttendeeRest {
 
+  private static final Log                  LOG          = ExoLogger.getLogger(AgendaEventAttendeeRest.class);
+
   private static final MediaType            TEXT_CSV     = new MediaType("text", "csv", StandardCharsets.UTF_8);
 
   private static final String               FORBIDDEN    = "agenda.export.forbidden";
@@ -79,6 +85,10 @@ public class AgendaEventAttendeeRest {
   private static final String               INVALID      = "agenda.export.invalid";
 
   private static final String               CODE_PREFIX  = "agenda.export.";
+
+  private static final String               EMAIL_MANDATORY = "agenda.attendees.emailMandatory";
+
+  private static final String               LOOKUP_FAILED   = "agenda.attendees.lookupFailed";
 
   private final AgendaEventAttendeeService agendaEventAttendeeService;
 
@@ -159,6 +169,49 @@ public class AgendaEventAttendeeRest {
     } catch (IllegalArgumentException e) {
       return refusal(HttpStatus.BAD_REQUEST, StringUtils.startsWith(e.getMessage(), CODE_PREFIX) ? e.getMessage() : INVALID);
     }
+  }
+
+  /**
+   * Answers the platform user an e-mail address typed in the participants
+   * drawer belongs to, whom the drawer then invites as themselves, never as a
+   * guest from outside the platform (eXIP 7.3.0.21, US06). Which user, and
+   * whether the address may be told at all, is the service's rule. Neither
+   * answer is stored by a cache: who owns an address is answered to a
+   * signed-in user, and only while its owner shows it.
+   *
+   * @param email the address typed
+   * @return the user, no content when the address resolves to none, or a
+   *         refusal when none is given or the user directory cannot be read
+   */
+  @GetMapping("events/attendees/user")
+  @Secured("users")
+  @Operation(summary = "Find the user an e-mail address typed to invite someone belongs to", method = "GET",
+             description = "Answers the enabled user whose e-mail address it is, looked up as given and in lower case, as the"
+                 + " database collation compares, when the platform displays e-mail addresses and that user did not hide"
+                 + " theirs; no content otherwise. Never cached.")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "The user"),
+      @ApiResponse(responseCode = "204", description = "No user to invite for that address"),
+      @ApiResponse(responseCode = "400", description = "No address given"),
+      @ApiResponse(responseCode = "503", description = "The user directory could not be read: the address was not checked"),
+  })
+  public ResponseEntity<?> getAttendeeUserByEmail(@Parameter(description = "The e-mail address typed", required = true)
+                                                  @RequestParam(name = "email", required = false)
+                                                  String email) {
+    if (StringUtils.isBlank(email)) {
+      return refusal(HttpStatus.BAD_REQUEST, EMAIL_MANDATORY);
+    }
+    Identity user;
+    try {
+      user = agendaEventAttendeeService.getUserIdentityByEmail(email);
+    } catch (IllegalStateException e) {
+      LOG.warn("Error looking up the user of an e-mail address typed to invite someone", e);
+      return refusal(HttpStatus.SERVICE_UNAVAILABLE, LOOKUP_FAILED);
+    }
+    if (user == null) {
+      return ResponseEntity.noContent().cacheControl(CacheControl.noStore().cachePrivate()).build();
+    }
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore().cachePrivate()).body(AttendeeUserEntityBuilder.toEntity(user));
   }
 
   /**
