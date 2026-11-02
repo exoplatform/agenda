@@ -284,6 +284,9 @@ export default {
       // then, on an event of its own, its write with the read a closing makes.
       // A close of the drawer meanwhile saves once it ended (see drawerClosed)
       openWrite: null,
+      // The lookup of the addresses the drawer was given as it closed: the
+      // visit ends once it settled (see drawerClosed)
+      typedLookup: null,
       scopedChangePending: false,
       // What the pending question is about. Set per gesture rather than fixed,
       // because a wider scope writes exactly these fields onto the series: a
@@ -330,7 +333,7 @@ export default {
      * @returns {void}
      */
     event(event, previousEvent) {
-      if (event && previousEvent && this.seatGivenSinceShown && this.eventKey(event) === this.eventKey(previousEvent)) {
+      if (event && previousEvent && this.seatGivenSinceShown && this.$agendaUtils.eventKey(event) === this.$agendaUtils.eventKey(previousEvent)) {
         this.readSeatsLive();
       }
       this.seatGivenSinceShown = false;
@@ -424,22 +427,6 @@ export default {
         && !!calendarId && Number(this.event.calendar && this.event.calendar.id) === Number(calendarId);
     },
     /**
-     * @param {Object} event an event the page shows
-     * @returns {String} what identifies it across the page's reads: a date
-     *          of a series by its series and its date, since its row id
-     *          appears once the date is first answered. An all-day date by
-     *          its day only: computed on a zone's skipped midnight, it and the
-     *          row it gets differ by the hour, which the server ignores too. A
-     *          timed date keeps its instant, as its row does
-     */
-    eventKey(event) {
-      if (!event.parent || !event.occurrence || !event.occurrence.id) {
-        return `${event.id}`;
-      }
-      const date = String(event.occurrence.id);
-      return `${event.parent.id}@${event.allDay ? date.slice(0, 10) : date}`;
-    },
-    /**
      * @returns {Boolean} whether the drawer is open on changes of an editor's
      *          to the list, the padlock or the limit. A viewer who cannot edit
      *          changes nothing there, and once the drawer is closed, its
@@ -467,6 +454,13 @@ export default {
      * at the click on both paths, so that a cancel leaves the drawer open on
      * the event as it was.
      *
+     * An address entered in the drawer (Enter or space) whose lookup has not
+     * answered when the padlock of an event of its own is clicked to open it
+     * is checked first: the event, open only once the server answered, would
+     * otherwise take a person from outside the platform meanwhile. One the
+     * address adds keeps the event locked, as the drawer's padlock does once
+     * they are listed (US06).
+     *
      * @returns {void}
      */
     toggleOpen() {
@@ -478,6 +472,21 @@ export default {
         return;
       }
       const open = !this.event.open;
+      const typed = open && !this.isOccurrence && this.$eventService.typedAddressLookupsSettled();
+      if (typed) {
+        const askedOn = this.event;
+        typed.then(() => {
+          if (this.pageClosed || this.$agendaUtils.eventKey(this.event) !== this.$agendaUtils.eventKey(askedOn) || this.event.open) {
+            return;
+          }
+          if (this.$refs.attendeesDrawer.holdsExternalGuest) {
+            this.$root.$emit('alert-message', this.$t('agenda.openEvent.externalGuestsInvited'), 'warning');
+            return;
+          }
+          this.toggleOpen();
+        });
+        return;
+      }
       // Locking an open event with a limit removes it and confirms its waiting
       // list: asked first (D15). A limit the stepper shows before the drawer
       // closes counts too, since the closing removes it as well
@@ -489,7 +498,7 @@ export default {
         const askedOn = this.event;
         const pending = this.$refs.closeConfirm.confirm()
           .then(() => {
-            if (this.eventKey(this.event) !== this.eventKey(askedOn)) {
+            if (this.$agendaUtils.eventKey(this.event) !== this.$agendaUtils.eventKey(askedOn)) {
               // The page shows another event by now ("View" on the message
               // of an answer stays reachable from the keyboard behind the
               // warning, see AgendaUtils#raiseAboveOverlays): the answer
@@ -525,6 +534,16 @@ export default {
      * @returns {void}
      */
     applyOpen(open, confirmClose) {
+      if (!this.isOccurrence && open && this.storedListHoldsExternalGuest()) {
+        // The drawer removed the last person from outside the platform, which
+        // the stored list still holds until it is saved: the server refuses
+        // to open an event holding one, so the opening is saved with the list
+        // that no longer holds them, rather than patched alone
+        this.$set(this.event, 'open', true);
+        this.clearInvitePermission();
+        this.saveDrawerNow();
+        return;
+      }
       if (!this.isOccurrence) {
         this.patchOpen(this.event, open, confirmClose);
         return;
@@ -590,7 +609,7 @@ export default {
       const write = confirmed => this.$eventService.updateEventFields({id: patchedEvent.id}, fields, true, false, confirmed);
       this.openWrite = this.$refs.closeConfirm.writeConfirmingClose(write, confirmClose)
         .then(() => {
-          if (this.eventKey(this.event) !== this.eventKey(patchedEvent)) {
+          if (this.$agendaUtils.eventKey(this.event) !== this.$agendaUtils.eventKey(patchedEvent)) {
             // The page shows another event by now, whose padlock this is
             // not, unless it is a date of the series patched, which the
             // patch reached: read again, once the drawer is closed. A read
@@ -674,10 +693,10 @@ export default {
       }
       this.saveDrawerChangesIfEditable();
     },
-    queueDrawerSave() {
+    queueDrawerSave(event = this.event) {
       this.drawerSaveQueued = true;
       // The event the drawer edits: the page may show another by then
-      this.queuedEvent = this.event;
+      this.queuedEvent = event;
     },
     /**
      * Saves the drawer's changes that waited for a write or a question to
@@ -697,7 +716,7 @@ export default {
       if (!closeConfirm || this.pageClosed && this.isDateOfSeries(this.queuedEvent)) {
         return;
       }
-      if (this.eventKey(this.event) !== this.eventKey(this.queuedEvent)) {
+      if (this.$agendaUtils.eventKey(this.event) !== this.$agendaUtils.eventKey(this.queuedEvent)) {
         this.saveChangesLeft(this.queuedEvent, this.drawerChangesSince({
           event: this.queuedEvent,
           attendees: this.attendeesBackup || [],
@@ -754,7 +773,12 @@ export default {
       // changes still on their way. So is the save that close queued behind
       // one on its way, which starts once that one ended, on a date with its
       // scope question. A page closed meanwhile has no drawer left to open
+      // An address the last visit typed is looked up before that close saves
+      // anything (see drawerClosed)
       const saved = () => {
+        if (this.typedLookup) {
+          return this.typedLookup.then(saved);
+        }
         if (this.drawerSave) {
           return this.drawerSave.then(saved);
         }
@@ -785,14 +809,55 @@ export default {
      * for that save as well. So is a save the drawer started while open, and
      * the scope question it asked (see saveDrawerNow).
      *
+     * An address entered in the drawer (Enter or space) whose lookup has not
+     * answered when the drawer closes is waited for: the visit ends, and is
+     * saved, once the platform answered whose address it is and the drawer
+     * added or refused that participant (US06). The scope question a date's
+     * changes need leaves with a page closed meanwhile. A page that shows
+     * another event by then saves them on the event they were made on when it
+     * is an event of its own or a series shown as itself, and gives up a
+     * date's, as for any change left waiting (see settleQueuedSave).
+     *
      * @returns {void}
      */
     drawerClosed() {
+      const typed = this.$eventService.typedAddressLookupsSettled();
+      if (!typed) {
+        this.endDrawerVisit();
+        return;
+      }
+      const closeConfirm = this.$refs.closeConfirm;
+      const editedEvent = this.event;
+      this.typedLookup = typed.then(() => {
+        this.typedLookup = null;
+        if (this.$agendaUtils.eventKey(this.event) !== this.$agendaUtils.eventKey(editedEvent)) {
+          this.drawerVisit = false;
+          this.closeConfirmAtClose = closeConfirm;
+          this.queueDrawerSave(editedEvent);
+          this.settleQueuedSave();
+          this.settleLiveRead();
+          return;
+        }
+        if (this.pageClosed && this.isDateOfSeries(editedEvent)) {
+          this.drawerVisit = false;
+          return;
+        }
+        this.endDrawerVisit(closeConfirm);
+      });
+    },
+    /**
+     * Ends the drawer's visit and saves its changes (see drawerClosed).
+     *
+     * @param {Object} closeConfirm the dialog that asks to confirm a closing,
+     *          the page's own unless given
+     * @returns {void}
+     */
+    endDrawerVisit(closeConfirm = this.$refs.closeConfirm) {
       this.drawerVisit = false;
       if (this.drawerSave || this.scopedChangePending) {
         // Saved once it ended, through the dialog the page has now: a page
         // closed meanwhile has none left by then
-        this.closeConfirmAtClose = this.$refs.closeConfirm;
+        this.closeConfirmAtClose = closeConfirm;
         this.queueDrawerSave();
         return;
       }
@@ -804,7 +869,6 @@ export default {
         const editedEvent = this.event;
         const unsavedList = this.attendeesChanged() ? this.attendeesDelta() : null;
         const unsavedCapacity = this.capacityChanged() ? this.event.capacity || 0 : null;
-        const closeConfirm = this.$refs.closeConfirm;
         // Saved below with the rest of the visit, a change that waited for
         // the padlock's write included (see saveDrawerNow)
         this.drawerSaveQueued = false;
@@ -814,7 +878,7 @@ export default {
             // The scope question a date's changes need left with the page
             return null;
           }
-          if (this.eventKey(this.event) !== this.eventKey(editedEvent)) {
+          if (this.$agendaUtils.eventKey(this.event) !== this.$agendaUtils.eventKey(editedEvent)) {
             this.settleLiveRead();
             // A date's changes are given up, as in saveChangesLeft
             return this.isDateOfSeries(editedEvent) ? null : this.saveChangesOfEventLeft(editedEvent.id, unsavedList, unsavedCapacity, closeConfirm);
@@ -832,7 +896,7 @@ export default {
         });
         return;
       }
-      this.saveDrawerChangesIfEditable();
+      this.saveDrawerChangesIfEditable(closeConfirm);
       this.settleLiveRead();
     },
     /**
@@ -920,6 +984,14 @@ export default {
      */
     openChanged() {
       return !!(this.event && this.event.open) !== this.openBackup;
+    },
+    /**
+     * @returns {Boolean} whether the list as stored, before the drawer's
+     *          changes, holds a person from outside the platform
+     */
+    storedListHoldsExternalGuest() {
+      return (this.attendeesBackup || []).some(attendee => attendee.identity
+        && attendee.identity.providerId === this.$agendaUtils.GUEST_USER_PROVIDER_ID);
     },
     /**
      * @returns {Boolean} whether the drawer changed the participant list since
@@ -1025,7 +1097,7 @@ export default {
           // Everything the drawer changed since it was saved last is given
           // up, put back on the event it was made on, which the page may
           // have left by now
-          if (this.eventKey(this.event) === this.eventKey(carried.event)) {
+          if (this.$agendaUtils.eventKey(this.event) === this.$agendaUtils.eventKey(carried.event)) {
             this.restoreDrawerState();
           } else {
             this.drawerSaveQueued = false;
@@ -1225,7 +1297,7 @@ export default {
           // that gives a seat (EXO-91879), while that save was on its way
           let changedSince = carried ? this.drawerChangesSince(carried) : changes || null;
           const editedEvent = carried ? carried.event : displayedEvent;
-          if (changedSince && this.eventKey(this.event) !== this.eventKey(editedEvent)) {
+          if (changedSince && this.$agendaUtils.eventKey(this.event) !== this.$agendaUtils.eventKey(editedEvent)) {
             // The page shows another event by now: nothing of those changes
             // goes on it
             this.saveChangesLeft(editedEvent, changedSince);
@@ -1306,7 +1378,7 @@ export default {
       this.scopedChangePending = false;
       const seatChanges = this.scopeSeatChanges;
       this.scopeSeatChanges = [];
-      if (seatChanges.length && this.drawerVisit && this.eventKey(this.event) === this.eventKey(this.scopeCarried.event)) {
+      if (seatChanges.length && this.drawerVisit && this.$agendaUtils.eventKey(this.event) === this.$agendaUtils.eventKey(this.scopeCarried.event)) {
         seatChanges.reverse().forEach(undo => undo());
       } else {
         this.restoreDrawerState();

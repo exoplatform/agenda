@@ -91,9 +91,9 @@
             PATCH on the detail page, a form value saved with the event in the
             creation / edit form). A viewer who cannot edit gets the icon and
             its title, no button: nothing to click, no hover background. So
-            does an editor while the participants may modify the event: an
-            open event excludes that permission, and the title says what to
-            deactivate first.
+            does an editor while the participants may modify the event, or
+            while a person from outside the platform is invited: an open
+            event excludes both, and the title says what to change first.
           -->
           <template v-if="showOpenToggle">
             <v-btn
@@ -316,13 +316,25 @@ export default {
      * shown but not clickable, and its title says what to deactivate first.
      * Only that option blocks: it is the one the forms show, while "can
      * invite" — set by its watcher, never shown — is cleared by the opening
-     * itself in both hosts. The server refuses a toggle that breaks the rule
-     * with a 400, so this only spares the click.
+     * itself in both hosts. An open event never holds a person from outside
+     * the platform either: while one is invited, the padlock is blocked the
+     * same way, until the last one is removed. The server refuses a toggle
+     * that breaks either rule with a 400, so this only spares the click.
      *
-     * @returns {Boolean} whether the modify permission blocks the padlock
+     * @returns {Boolean} whether the modify permission or a person from
+     *          outside the platform blocks the padlock
      */
     openToggleBlocked() {
-      return !this.isOpenEvent && !!(this.event && this.event.allowAttendeeToUpdate);
+      return !this.isOpenEvent && (!!(this.event && this.event.allowAttendeeToUpdate) || this.holdsExternalGuest);
+    },
+    /**
+     * @returns {Boolean} whether a person from outside the platform, a guest
+     *          invited by e-mail address, is among the participants
+     */
+    holdsExternalGuest() {
+      return !!(this.event && this.event.attendees
+        && this.event.attendees.some(attendee => attendee.identity
+          && attendee.identity.providerId === this.$agendaUtils.GUEST_USER_PROVIDER_ID));
     },
     openIcon() {
       return this.isOpenEvent ? 'fas fa-lock-open' : 'fas fa-lock';
@@ -332,7 +344,9 @@ export default {
     },
     openToggleTitle() {
       if (this.editable && this.openToggleBlocked) {
-        return this.$t('agenda.openEvent.blockedByAttendeePermission.tooltip');
+        return this.holdsExternalGuest
+          ? this.$t('agenda.openEvent.externalGuestsInvited')
+          : this.$t('agenda.openEvent.blockedByAttendeePermission.tooltip');
       }
       if (this.editable) {
         return this.isOpenEvent
@@ -704,20 +718,76 @@ export default {
       const words = input !== null ? input.split(' ') : '';
       const email = words[words.length - 1];
       if (reg.test(email)) {
-        this.event.attendees.push({
-          identity: {
-            id: `${email}`,
-            remoteId: email,
-            identityId: email,
-            providerId: 'GUEST_USER',
-            profile: {
-              fullName: email,
-              avatarUrl: '/portal/rest/v1/social/users/default-image/avatar',
-            },
-          },
-        });
+        // Looked up as typed: the user directory may compare its case
+        const typedWords = this.$refs.invitedAttendeeAutoComplete.searchTerm.split(' ');
+        this.inviteTypedAddress(email, typedWords[typedWords.length - 1]);
       }
       this.$refs.invitedAttendeeAutoComplete.clear();
+    },
+    /**
+     * An address the platform recognises is the user whose address it is,
+     * invited as themselves, on any event (US06). Any other one is a person
+     * from outside the platform: invited as a guest on a locked event, refused
+     * on an open one, which never holds one, as the server would refuse the
+     * save. Settled once the platform answered: on the event the drawer shows
+     * then, the same event read again included, or else on the one the
+     * address was typed on, which the event page saves when the drawer was
+     * closed on it and it is an event of its own or a series shown as itself;
+     * a date's changes need its scope question, which the page left with
+     * that date (see AgendaEventAttendees#drawerClosed). An address the
+     * platform could not be asked about is told, and added to nobody. A save
+     * of the event, and the opening of an event of its own on the event page,
+     * wait for it (see EventService#typedAddressLookupsSettled).
+     *
+     * @param {String} email the address, in lower case, as a guest is stored
+     * @param {String} typed the address as typed
+     * @returns {Promise} settled once the participant is added or refused
+     */
+    inviteTypedAddress(email, typed) {
+      const typedOn = this.event;
+      const lookup = this.$eventService.getAttendeeUserByEmail(typed)
+        .then(user => {
+          const shown = this.$agendaUtils.eventKey(this.event) === this.$agendaUtils.eventKey(typedOn);
+          this.addTypedAddress(shown ? this.event : typedOn, email, user);
+        }, () => this.$root.$emit('alert-message', this.$t('agenda.attendees.lookupError'), 'error'));
+      return this.$eventService.trackTypedAddressLookup(lookup);
+    },
+    /**
+     * @param {Object} event the event the address is added to
+     * @param {String} email the address typed, in lower case
+     * @param {Object} user the platform user whose address it is, as the
+     *          platform answered, or null for a person from outside it
+     * @returns {void}
+     */
+    addTypedAddress(event, email, user) {
+      if (!event.attendees) {
+        this.$set(event, 'attendees', []);
+      }
+      // A user as the suggester adds one, a guest as one was always added
+      const identity = user ? {
+        id: user.id,
+        providerId: user.providerId,
+        remoteId: user.remoteId,
+        profile: {
+          fullname: user.fullName,
+          avatar: user.avatarUrl,
+        },
+      } : {
+        id: `${email}`,
+        remoteId: email,
+        identityId: email,
+        providerId: this.$agendaUtils.GUEST_USER_PROVIDER_ID,
+        profile: {
+          fullName: email,
+          avatarUrl: '/portal/rest/v1/social/users/default-image/avatar',
+        },
+      };
+      if (!user && event.open) {
+        this.$root.$emit('alert-message', this.$t('agenda.openEvent.externalGuestNotAllowed'), 'warning');
+      } else if (!event.attendees.some(attendee => attendee.identity
+          && attendee.identity.remoteId === identity.remoteId && attendee.identity.providerId === identity.providerId)) {
+        event.attendees.push(user ? {identity, response: 'NEEDS_ACTION'} : {identity});
+      }
     },
   },
 };

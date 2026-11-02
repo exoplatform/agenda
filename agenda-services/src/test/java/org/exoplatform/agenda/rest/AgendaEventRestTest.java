@@ -420,6 +420,24 @@ class AgendaEventRestTest {
   }
 
   @Test
+  void aSplitInvitesAnAddedAddressOfAPlatformUserAsThatUser() throws Exception {
+    seriesAttendees(7L, "testuser2");
+    Identity user = Mockito.mock(Identity.class);
+    when(user.getId()).thenReturn("11");
+    when(user.getProviderId()).thenReturn(OrganizationIdentityProvider.NAME);
+    when(user.getRemoteId()).thenReturn("testuser3");
+    when(attendeeService.getUserIdentityByEmail("Testuser3@Example.com")).thenReturn(user);
+    when(identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "testuser3")).thenReturn(user);
+    EventSplitEntity body = splitBody(List.of(attendee("testuser3@example.com", "GUEST_USER", "Testuser3@Example.com")),
+                                      List.of());
+
+    eventRest.splitEvent(EVENT_ID, null, true, body);
+
+    assertEquals(List.of(11L), capturedSplit().addedIdentityIds());
+    Mockito.verify(identityManager, Mockito.never()).getOrCreateIdentity(eq("GUEST_USER"), any());
+  }
+
+  @Test
   void aRefusedSplitGetsBadRequestWithItsMessageCodeAndDate() throws Exception {
     seriesAttendees(7L, "testuser2");
     EventSplitEntity body = splitBody(List.of(), List.of());
