@@ -25,6 +25,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -46,7 +47,12 @@ import org.exoplatform.commons.api.notification.command.NotificationCommand;
 import org.exoplatform.commons.api.notification.model.PluginKey;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.notification.impl.NotificationContextImpl;
+import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.services.organization.OrganizationService;
+import org.exoplatform.services.organization.Query;
+import org.exoplatform.services.organization.User;
+import org.exoplatform.services.organization.UserStatus;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -75,6 +81,19 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * carries no expiry of its own and is bounded against the event instead.
    */
   private static final int           EXPIRY_TOKEN_PART    = 3;
+
+  /**
+   * The users the directory may find for an address, read at most: the
+   * address itself, and those a looser directory adds
+   */
+  private static final int           EMAIL_LOOKUP_LIMIT   = 20;
+
+  /**
+   * A text looked up as an e-mail address: one at sign between two parts, no
+   * space, and no star, which the user directory reads as a pattern even in a
+   * lookup by equality (gatein-portal UserDAOImpl#findUsersByQuery)
+   */
+  private static final Pattern       ADDRESS_LOOKED_UP    = Pattern.compile("[^@\\s*]+@[^@\\s*]+");
 
   /** The refusal of an export on a date poll: only a confirmed event's list is exported (D13). */
   private static final String        EXPORT_DATE_POLL           = "agenda.export.datePoll";
@@ -130,6 +149,8 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
 
   private ProfilePropertyService     profilePropertyService;
 
+  private OrganizationService        organizationService;
+
   public AgendaEventAttendeeServiceImpl(AgendaEventAttendeeStorage attendeeStorage,
                                         AgendaEventStorage eventStorage,
                                         AgendaCalendarService calendarService,
@@ -157,7 +178,34 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
                                                              boolean sendInvitations,
                                                              boolean resetResponses,
                                                              AgendaEventModification eventModifications) {
+    checkNoExternalGuestJoinsOpenEvent(event, attendees, creatorUserId);
     return saveEventAttendees(event, attendees, creatorUserId, sendInvitations, resetResponses, eventModifications, true);
+  }
+
+  /**
+   * An open event never holds a person from outside the platform: a save that
+   * adds one to an open event is refused, whatever asked for it. The event
+   * Service refuses its own saves before their first write; this holds for
+   * every other caller. The rows a date copies from its series, which have no
+   * saver, are not decided again here.
+   */
+  private void checkNoExternalGuestJoinsOpenEvent(Event event, List<EventAttendee> attendees, long creatorUserId) {
+    if (creatorUserId <= 0 || event == null || attendees == null || attendees.isEmpty()) {
+      return;
+    }
+    Event storedEvent = eventStorage.getEventById(event.getId());
+    if (storedEvent == null || !isOpen(storedEvent)) {
+      return;
+    }
+    Set<Long> present = getEventAttendees(event.getId()).getEventAttendees()
+                                                        .stream()
+                                                        .map(EventAttendee::getIdentityId)
+                                                        .collect(Collectors.toSet());
+    if (attendees.stream()
+                 .filter(attendee -> !present.contains(attendee.getIdentityId()))
+                 .anyMatch(attendee -> Utils.isExternalGuest(Utils.getIdentityById(identityManager, attendee.getIdentityId())))) {
+      throw new IllegalArgumentException(Utils.EXTERNAL_GUEST_NOT_ALLOWED);
+    }
   }
 
   /**
@@ -525,7 +573,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       if (space != null && StringUtils.isNotBlank(space.getDisplayName())) {
         return space.getDisplayName();
       }
-    } else if (isGuest(identity)) {
+    } else if (Utils.isExternalGuest(identity)) {
       return identity.getRemoteId();
     }
     Profile profile = identity.getProfile();
@@ -540,7 +588,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   private String exportedEmail(Identity identity, long identityId, ProfilePropertySetting emailSetting, String hidden) {
     if (identity.isSpace()) {
       return "";
-    } else if (isGuest(identity)) {
+    } else if (Utils.isExternalGuest(identity)) {
       return identity.getRemoteId();
     } else if (getProfilePropertyService().getHiddenProfilePropertyIds(identityId).contains(emailSetting.getId())) {
       return hidden;
@@ -564,10 +612,6 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
     case WAITING -> EXPORT_ANSWER_WAITING_LIST;
     default -> EXPORT_ANSWER_NO_ANSWER;
     };
-  }
-
-  private static boolean isGuest(Identity identity) {
-    return AgendaGuestUserIdentityProvider.NAME.equals(identity.getProviderId());
   }
 
   /**
@@ -1557,6 +1601,86 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
   }
 
   /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Identity getUserIdentityByEmail(String email) {
+    String address = StringUtils.trim(email);
+    // The user directory reads a star as a pattern, whose lookup reads every
+    // user it matches, unpaged: a text that is not an address, or that holds a
+    // star, is never handed to it. It is only ever asked for an address by
+    // equality, never by a pattern, whose grammar is the database's
+    if (StringUtils.isBlank(address) || !ADDRESS_LOOKED_UP.matcher(address).matches() || !displaysEmails()) {
+      return null;
+    }
+    try {
+      // The platform's directory stores an address as it was given and looks
+      // it up by equality, as the database collation compares: ignoring case
+      // on MySQL, not on PostgreSQL or Oracle. An address typed in capitals is
+      // looked up again in lower case, as most addresses are stored. Another
+      // directory may match more loosely: each answer is kept only when it is
+      // the address itself
+      String lowerCase = address.toLowerCase();
+      User owner = findUserByEmail(address, address);
+      if (owner == null && !lowerCase.equals(address)) {
+        owner = findUserByEmail(lowerCase, address);
+      }
+      if (owner == null) {
+        return null;
+      }
+      Identity identity = identityManager.getOrCreateUserIdentity(owner.getUserName());
+      return identity == null || hidesEmail(identity) ? null : identity;
+    } catch (Exception e) {
+      // Neither a user nor a person from outside the platform: the address
+      // was not checked. Not given in the message, nor carried by it: it is
+      // personal data, and the directory's message holds it, so the cause is
+      // logged at debug only and every caller's log reads this message
+      LOG.debug("The user directory could not be read to look up an e-mail address", e);
+      throw new IllegalStateException("The user directory could not be read to look up an e-mail address ("
+          + e.getClass().getName() + ")");
+    }
+  }
+
+  /**
+   * @param queried the address the user directory is asked for, by equality
+   * @param address the e-mail address typed, with no star
+   * @return the one enabled user whose address it is, compared ignoring case,
+   *         among those the directory finds, or null
+   */
+  private User findUserByEmail(String queried, String address) throws Exception {
+    Query query = new Query();
+    query.setEmail(queried);
+    ListAccess<User> users = getOrganizationService().getUserHandler().findUsersByQuery(query, UserStatus.ENABLED);
+    int size = users == null ? 0 : Math.min(users.getSize(), EMAIL_LOOKUP_LIMIT);
+    if (size <= 0) {
+      return null;
+    }
+    List<User> owners = Arrays.stream(users.load(0, size))
+                              .filter(user -> user != null && address.equalsIgnoreCase(StringUtils.trim(user.getEmail())))
+                              .toList();
+    return owners.size() == 1 ? owners.get(0) : null;
+  }
+
+  /**
+   * @return whether the platform displays the users' e-mail addresses, as the
+   *         export of a participant list writes them
+   */
+  private boolean displaysEmails() {
+    ProfilePropertySetting emailSetting = getEmailSetting();
+    return emailSetting != null && emailSetting.isActive() && emailSetting.isVisible();
+  }
+
+  /**
+   * @return whether the user hid their e-mail address
+   */
+  private boolean hidesEmail(Identity identity) {
+    ProfilePropertySetting emailSetting = getEmailSetting();
+    return emailSetting == null
+        || getProfilePropertyService().getHiddenProfilePropertyIds(Long.parseLong(identity.getId()))
+                                      .contains(emailSetting.getId());
+  }
+
+  /**
    * @param event {@link Event} as stored
    * @param identityId an identity that is not one of its attendees
    * @return whether they may answer it all the same: the half of
@@ -2303,6 +2427,13 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       profilePropertyService = ExoContainerContext.getService(ProfilePropertyService.class);
     }
     return profilePropertyService;
+  }
+
+  private OrganizationService getOrganizationService() {
+    if (organizationService == null) {
+      organizationService = ExoContainerContext.getService(OrganizationService.class);
+    }
+    return organizationService;
   }
 
   private void dispatch(NotificationContext ctx, String... pluginId) {

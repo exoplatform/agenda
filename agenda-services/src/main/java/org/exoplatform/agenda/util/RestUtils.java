@@ -29,6 +29,7 @@ import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
+import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.agenda.rest.model.*;
 import org.exoplatform.agenda.service.*;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -76,6 +77,69 @@ public class RestUtils {
     return "/" + PortalContainer.getCurrentPortalContainerName();
   }
 
+  /**
+   * A participant given by an e-mail address that the platform recognises, and
+   * that the client typed rather than read back from the server, is invited as
+   * the user whose address it is, never as a guest from outside the platform
+   * (eXIP 7.3.0.21, US06). A guest already invited comes back with the id of
+   * its identity and stays one: a save never turns them into someone else. A
+   * user given twice, picked and typed, is invited once.
+   *
+   * @param attendees the participants of a write, changed in place
+   * @param identityManager resolves the ids given
+   * @param attendeeService resolves an address to its user
+   * @throws IllegalStateException when the user directory cannot be read: the
+   *           write fails rather than invite a platform user as a guest
+   */
+  public static void resolveTypedAddresses(List<EventAttendeeEntity> attendees,
+                                           IdentityManager identityManager,
+                                           AgendaEventAttendeeService attendeeService) {
+    if (attendees == null || attendees.isEmpty()) {
+      return;
+    }
+    // The people given otherwise, by the id or the provider and remote id the
+    // client sent: a user picked in the suggester has no id yet
+    Set<String> givenKeys = new HashSet<>();
+    for (EventAttendeeEntity attendee : attendees) {
+      IdentityEntity identity = attendee == null ? null : attendee.getIdentity();
+      if (identity != null && !AgendaGuestUserIdentityProvider.NAME.equals(identity.getProviderId())) {
+        if (StringUtils.isNumeric(identity.getId())) {
+          givenKeys.add(identity.getId());
+        }
+        givenKeys.add(identity.getProviderId() + ":" + identity.getRemoteId());
+      }
+    }
+    Iterator<EventAttendeeEntity> iterator = attendees.iterator();
+    while (iterator.hasNext()) {
+      IdentityEntity identity = Optional.ofNullable(iterator.next()).map(EventAttendeeEntity::getIdentity).orElse(null);
+      if (identity == null || !AgendaGuestUserIdentityProvider.NAME.equals(identity.getProviderId())
+          || StringUtils.isBlank(identity.getRemoteId()) || namesAnIdentity(identity.getId(), identityManager)) {
+        continue;
+      }
+      Identity user = attendeeService.getUserIdentityByEmail(identity.getRemoteId());
+      if (user == null) {
+        continue;
+      }
+      String userKey = user.getProviderId() + ":" + user.getRemoteId();
+      if (givenKeys.contains(user.getId()) || !givenKeys.add(userKey)) {
+        iterator.remove();
+        continue;
+      }
+      givenKeys.add(user.getId());
+      identity.setId(user.getId());
+      identity.setProviderId(user.getProviderId());
+      identity.setRemoteId(user.getRemoteId());
+    }
+  }
+
+  /**
+   * @return whether the id is the technical id of an identity: a participant
+   *         read from the server, rather than typed
+   */
+  private static boolean namesAnIdentity(String identityId, IdentityManager identityManager) {
+    return StringUtils.isNumeric(identityId) && identityManager.getIdentity(identityId) != null;
+  }
+
   public static String getIdentityId(IdentityEntity identityEntity, IdentityManager identityManager) {
     if (identityEntity == null) {
       return null;
@@ -118,6 +182,7 @@ public class RestUtils {
   public static Event createEventEntity(IdentityManager identityManager,
                                         AgendaCalendarService agendaCalendarService,
                                         AgendaEventService agendaEventService,
+                                        AgendaEventAttendeeService agendaEventAttendeeService,
                                         EventEntity eventEntity,
                                         long userIdentityId,
                                         String timeZoneId,
@@ -127,6 +192,7 @@ public class RestUtils {
 
     cleanupAttachedEntitiesIds(eventEntity);
 
+    resolveTypedAddresses(eventEntity.getAttendees(), identityManager, agendaEventAttendeeService);
     List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
     List<EventAttendee> attendees = null;
     if (attendeeEntities != null && !attendeeEntities.isEmpty()) {
@@ -220,6 +286,7 @@ public class RestUtils {
       }
     }
     List<Long> addedIdentityIds = new ArrayList<>();
+    resolveTypedAddresses(splitEntity.getAddedAttendees(), identityManager, agendaEventAttendeeService);
     if (splitEntity.getAddedAttendees() != null) {
       for (EventAttendeeEntity attendeeEntity : splitEntity.getAddedAttendees()) {
         IdentityEntity attendeeIdentity = attendeeEntity.getIdentity();

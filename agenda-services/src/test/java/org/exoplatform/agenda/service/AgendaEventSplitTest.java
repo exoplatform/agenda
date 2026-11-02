@@ -57,6 +57,7 @@ import org.exoplatform.agenda.model.AgendaEventModification;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.model.EventAttendeePromotion;
+import org.exoplatform.agenda.model.EventOccurrence;
 import org.exoplatform.agenda.model.EventRecurrence;
 import org.exoplatform.agenda.model.EventReminder;
 import org.exoplatform.agenda.model.EventSplit;
@@ -164,13 +165,16 @@ public class AgendaEventSplitTest extends BaseAgendaEventTest {
 
   /**
    * A change that adds a user picked in the suggester and an email guest
-   * puts both on the continuation with no answer.
+   * puts both on the continuation with no answer. The series is locked to its
+   * participants: an open event never holds an email guest.
    *
    * @throws Exception when a write fails
    */
   @Test
   public void aSplitAddsAPickedUserAndAnEmailGuestWithNoAnswer() throws Exception {
-    Event series = series(4, 0, testuser2Identity);
+    Event lockedSeries = seriesEvent(4, 0);
+    lockedSeries.setOpen(false);
+    Event series = createEvent(lockedSeries, id(testuser1Identity), testuser2Identity);
     answerAll(series.getId(), testuser2Identity, EventAttendeeResponse.ACCEPTED);
     Identity guest = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, "guest-split@example.com");
     assertNotNull(guest);
@@ -188,6 +192,190 @@ public class AgendaEventSplitTest extends BaseAgendaEventTest {
     assertEquals(EventAttendeeResponse.NEEDS_ACTION, responseAt(continuation.getId(), testuser4Identity, null));
     assertEquals(EventAttendeeResponse.NEEDS_ACTION, responseAt(continuation.getId(), guest, null));
     assertEquals(EventAttendeeResponse.ACCEPTED, responseAt(continuation.getId(), testuser2Identity, null));
+  }
+
+  /**
+   * An open event never holds a person from outside the platform: a split of
+   * an open series that adds an email guest to the continuation is refused
+   * before it writes, and the series keeps every date.
+   *
+   * @throws Exception when the fixture fails
+   */
+  @Test
+  public void aSplitOfAnOpenSeriesAddingAnEmailGuestIsRefused() throws Exception {
+    Event series = series(4, 0, testuser2Identity);
+    List<ZonedDateTime> dates = dates(series);
+    Identity guest = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, "guest-open-split@example.com");
+    String rule = agendaEventService.getEventById(series.getId()).getRecurrence().getRrule();
+
+    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class,
+                                                    () -> split(series, dates.get(1), testuser1Identity, edits -> {
+                                                    }, List.of(guest), List.of(), false, false));
+    assertEquals("agenda.openEvent.externalGuestNotAllowed", refusal.getMessage());
+    assertEquals(rule, agendaEventService.getEventById(series.getId()).getRecurrence().getRrule());
+  }
+
+  /**
+   * A locked series one of whose dates was opened on its own: a split that
+   * adds an email guest is refused when that date moves to the continuation,
+   * the split date itself or a later one, whose people it reaches. It is
+   * refused before the split writes anything, and the series keeps every
+   * date.
+   *
+   * @throws Exception when the fixture fails
+   */
+  @Test
+  public void aSplitAddingAnEmailGuestIsRefusedWhenItReachesADateOpenedOnItsOwn() throws Exception {
+    Identity guest = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, "guest-reached-split@example.com");
+    for (int opened : new int[] { 2, 3 }) {
+      Event lockedSeries = seriesEvent(4, 0);
+      lockedSeries.setOpen(false);
+      Event series = createEvent(lockedSeries, id(testuser1Identity), testuser2Identity);
+      List<ZonedDateTime> dates = dates(series);
+      openOnItsOwn(series, dates.get(opened));
+      String rule = agendaEventService.getEventById(series.getId()).getRecurrence().getRrule();
+
+      List<IllegalArgumentException> refusals = new ArrayList<>();
+      List<RecordedStatement> statements = record(() -> refusals.add(assertThrows("opened: " + opened,
+                                                                                  IllegalArgumentException.class,
+                                                                                  () -> split(series, dates.get(2), testuser1Identity, edits -> {
+                                                                                  }, List.of(guest), List.of(), false, false))));
+      assertEquals("agenda.openEvent.externalGuestNotAllowed", refusals.get(0).getMessage());
+      assertNoWrite("opened: " + opened, statements);
+      assertEquals(rule, agendaEventService.getEventById(series.getId()).getRecurrence().getRrule());
+    }
+  }
+
+  /**
+   * A date opened on its own before the split date stays with the series: a
+   * split that adds an email guest puts them on the continuation, and the
+   * open date never holds them.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aSplitAddsAnEmailGuestWhenOnlyAnEarlierDateWasOpenedOnItsOwn() throws Exception {
+    Event lockedSeries = seriesEvent(4, 0);
+    lockedSeries.setOpen(false);
+    Event series = createEvent(lockedSeries, id(testuser1Identity), testuser2Identity);
+    List<ZonedDateTime> dates = dates(series);
+    long openDateId = openOnItsOwn(series, dates.get(1));
+    Identity guest = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, "guest-earlier-split@example.com");
+
+    Event continuation = split(series, dates.get(2), testuser1Identity, edits -> {
+    }, List.of(guest), List.of(), false, false);
+
+    assertEquals(EventAttendeeResponse.NEEDS_ACTION, responseAt(continuation.getId(), guest, null));
+    assertTrue(rows(openDateId, guest).isEmpty());
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(openDateId).getOpen());
+  }
+
+  /**
+   * A split that adds an email guest and lets participants modify the event,
+   * or invite, closes the date opened on its own that it reaches, as any
+   * change granting them closes a date: the guest reaches a locked date, and
+   * the split is not refused.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aSplitAddingAnEmailGuestAndAParticipantPermissionClosesTheDateOpenedOnItsOwn() throws Exception {
+    Identity guest = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, "guest-permission-split@example.com");
+    for (boolean invite : new boolean[] { false, true }) {
+      Event lockedSeries = seriesEvent(4, 0);
+      lockedSeries.setOpen(false);
+      Event series = createEvent(lockedSeries, id(testuser1Identity), testuser2Identity);
+      List<ZonedDateTime> dates = dates(series);
+      long openDateId = openOnItsOwn(series, dates.get(3));
+      String context = invite ? "invite" : "modify";
+
+      Event continuation = split(series, dates.get(2), testuser1Identity, edits -> {
+        if (invite) {
+          edits.setAllowAttendeeToInvite(true);
+        } else {
+          edits.setAllowAttendeeToUpdate(true);
+        }
+      }, List.of(guest), List.of(), false, false);
+
+      Event date = agendaEventService.getEventById(openDateId);
+      assertEquals(context, continuation.getId(), date.getParentId());
+      assertEquals(context, Boolean.FALSE, date.getOpen());
+      assertFalse(context, rows(openDateId, guest).isEmpty());
+    }
+  }
+
+  /**
+   * A split that adds an email guest and ends the series earlier deletes the
+   * date opened on its own that its rule no longer gives: the guest reaches
+   * no open date, and the split is not refused.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aSplitAddingAnEmailGuestDeletesTheDateOpenedOnItsOwnItsRuleNoLongerGives() throws Exception {
+    Identity guest = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, "guest-shortened-split@example.com");
+    Event lockedSeries = seriesEvent(4, 0);
+    lockedSeries.setOpen(false);
+    Event series = createEvent(lockedSeries, id(testuser1Identity), testuser2Identity);
+    List<ZonedDateTime> dates = dates(series);
+    long openDateId = openOnItsOwn(series, dates.get(3));
+
+    Event continuation = split(series,
+                               dates.get(2),
+                               testuser1Identity,
+                               edits -> edits.getRecurrence().setCount(1),
+                               List.of(guest),
+                               List.of(),
+                               false,
+                               false);
+
+    assertEquals(List.of(dates.get(2).toInstant()), dates(continuation).stream().map(ZonedDateTime::toInstant).toList());
+    assertNull(agendaEventService.getEventById(openDateId));
+    assertEquals(EventAttendeeResponse.NEEDS_ACTION, responseAt(continuation.getId(), guest, null));
+  }
+
+  /**
+   * The same on an all-day series, west and east of UTC: the date opened on
+   * its own is the split date, which the continuation reaches, or the day
+   * before it, which stays with the series.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void anAllDaySplitAddingAnEmailGuestIsJudgedOnTheDayOpenedOnItsOwn() throws Exception {
+    Identity guest = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, "guest-all-day-split@example.com");
+    for (ZoneId zone : List.of(ZoneId.of("America/New_York"), ZoneId.of("Asia/Tokyo"))) {
+      for (int opened : new int[] { 1, 2 }) {
+        LocalDate firstDay = LocalDate.now(zone).plusDays(60);
+        Event event = seriesEvent(4, 0);
+        event.setOpen(false);
+        event.setAllDay(true);
+        event.setTimeZoneId(zone);
+        event.setStart(firstDay.atStartOfDay(zone));
+        event.setEnd(firstDay.atTime(23, 59, 59).atZone(zone));
+        Event series = createEvent(event, id(testuser1Identity), testuser2Identity);
+        List<ZonedDateTime> dates = dates(series);
+        assertEquals(firstDay.plusDays(2), dates.get(2).toLocalDate());
+        long openDateId = openOnItsOwn(series, dates.get(opened));
+        String context = zone + ", opened: " + opened;
+
+        if (opened == 2) {
+          List<IllegalArgumentException> refusals = new ArrayList<>();
+          List<RecordedStatement> statements = record(() -> refusals.add(assertThrows(context,
+                                                                                      IllegalArgumentException.class,
+                                                                                      () -> split(series, dates.get(2), testuser1Identity, edits -> {
+                                                                                      }, List.of(guest), List.of(), false, false))));
+          assertEquals(context, "agenda.openEvent.externalGuestNotAllowed", refusals.get(0).getMessage());
+          assertNoWrite(context, statements);
+        } else {
+          Event continuation = split(series, dates.get(2), testuser1Identity, edits -> {
+          }, List.of(guest), List.of(), false, false);
+          assertEquals(context, EventAttendeeResponse.NEEDS_ACTION, responseAt(continuation.getId(), guest, null));
+          assertTrue(context, rows(openDateId, guest).isEmpty());
+          assertEquals(context, firstDay.plusDays(1), agendaEventService.getEventById(openDateId).getOccurrence().getId().toLocalDate());
+        }
+      }
+    }
   }
 
   /**
@@ -1661,6 +1849,29 @@ public class AgendaEventSplitTest extends BaseAgendaEventTest {
     agendaEventAttendeeService.sendUpcomingEventResponse(seriesId, date, id(identity), response);
   }
 
+  /**
+   * Opens one date of a series on its own, as its creator.
+   *
+   * @return the id of the date's row
+   */
+  private long openOnItsOwn(Event series, ZonedDateTime occurrenceId) throws Exception {
+    Event date = agendaEventService.getEventById(series.getId()).clone();
+    date.setId(0);
+    date.setParentId(series.getId());
+    date.setRecurrence(null);
+    date.setOccurrence(new EventOccurrence(occurrenceId));
+    date.setOpen(true);
+    return agendaEventService.createEvent(date,
+                                          Collections.emptyList(),
+                                          Collections.emptyList(),
+                                          Collections.emptyList(),
+                                          null,
+                                          null,
+                                          false,
+                                          id(testuser1Identity))
+                             .getId();
+  }
+
   private List<EventAttendee> rows(long eventId, Identity identity) {
     return agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees(id(identity));
   }
@@ -1684,6 +1895,18 @@ public class AgendaEventSplitTest extends BaseAgendaEventTest {
                   .minusSeconds(1)
                   .withZoneSameInstant(ZoneOffset.UTC)
                   .format(DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'"));
+  }
+
+  /**
+   * Fails when a statement recorded writes: a refusal before the first write
+   * leaves nothing for a rollback to undo.
+   */
+  private static void assertNoWrite(String context, List<RecordedStatement> statements) {
+    List<String> writes = statements.stream()
+                                    .map(statement -> statement.sql().trim().toLowerCase())
+                                    .filter(sql -> sql.startsWith("insert") || sql.startsWith("update") || sql.startsWith("delete"))
+                                    .toList();
+    assertTrue(context + ", written before the refusal: " + writes, writes.isEmpty());
   }
 
   private List<RecordedStatement> record(Action action) throws Exception {

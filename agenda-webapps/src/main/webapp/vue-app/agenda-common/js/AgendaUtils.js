@@ -937,6 +937,23 @@ export function participantKey(attendee) {
 }
 
 /**
+ * @param {Object} event an event a page or a drawer shows
+ * @returns {String} what identifies it across the reads of its page: a date
+ *          of a series by its series and its date, since its row id appears
+ *          once the date is first answered. An all-day date by its day only:
+ *          computed on a zone's skipped midnight, it and the row it gets
+ *          differ by the hour, which the server ignores too. A timed date
+ *          keeps its instant, as its row does
+ */
+export function eventKey(event) {
+  if (!event.parent || !event.occurrence || !event.occurrence.id) {
+    return `${event.id}`;
+  }
+  const date = String(event.occurrence.id);
+  return `${event.parent.id}@${event.allDay ? date.slice(0, 10) : date}`;
+}
+
+/**
  * What a host did to a participant list, as a delta rather than the list
  * itself: a wider scope applies it to a list the host did not edit, the
  * series' own, which may hold people the edited list does not.

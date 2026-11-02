@@ -175,7 +175,7 @@ public class AgendaEventAttendeeExportTest extends BaseAgendaEventTest {
   @Test
   public void theFileListsTheParticipantsAsTheDrawerShowsThem() throws Exception {
     Identity guest = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, GUEST_EMAIL);
-    Event event = openLimitedEvent(2,
+    Event event = openedWithAGuest(2,
                                    testuser1Identity,
                                    testuser2Identity,
                                    testuser3Identity,
@@ -590,6 +590,25 @@ public class AgendaEventAttendeeExportTest extends BaseAgendaEventTest {
     event.setOpen(true);
     event.setCapacity(capacity);
     return createEvent(event, id(testuser1Identity), attendees);
+  }
+
+  /**
+   * The same event, holding a guest invited by email: an open event refuses
+   * one since US06 of eXip 7.3.0.21, so the event is created locked and opened
+   * straight in the storage, as an event opened before that holds it.
+   */
+  private Event openedWithAGuest(int capacity, Identity... attendees) throws Exception {
+    ZonedDateTime start = ZonedDateTime.now().plusDays(60).withNano(0).withSecond(0).withMinute(0);
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setRecurrence(null);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(false);
+    long eventId = createEvent(event, id(testuser1Identity), attendees).getId();
+    Event row = agendaEventStorage.getEventById(eventId);
+    row.setOpen(true);
+    row.setCapacity(capacity);
+    agendaEventStorage.updateEvent(row);
+    return agendaEventService.getEventById(eventId);
   }
 
   /**
