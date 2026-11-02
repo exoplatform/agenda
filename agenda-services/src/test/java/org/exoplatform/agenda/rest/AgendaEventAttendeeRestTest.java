@@ -52,6 +52,7 @@ import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.manager.IdentityManager;
 
 /**
@@ -59,7 +60,8 @@ import org.exoplatform.social.core.manager.IdentityManager;
  * the user from the session and their language from their settings, the date
  * and the zone read from the query, the file's type, name and cache headers,
  * and a refusal per service exception, never cached and never carrying the
- * engine's text.
+ * engine's text; and the user an address typed in the participants drawer
+ * belongs to, served as the drawer adds them and never cached.
  */
 class AgendaEventAttendeeRestTest {
 
@@ -209,6 +211,102 @@ class AgendaEventAttendeeRestTest {
            .andExpect(jsonPath("$.message").value("agenda.export.invalid"));
 
     verify(service, never()).exportEventAttendees(anyLong(), any(), anyLong(), any(), any());
+  }
+
+  /**
+   * The user an address belongs to is served as the participants drawer adds
+   * them, and never stored by a cache: who owns an address is answered to a
+   * signed-in user, and only while its owner shows it.
+   *
+   * @throws Exception when the request fails
+   */
+  @Test
+  void theUserOfAnAddressIsServedAsTheDrawerAddsThem() throws Exception {
+    Identity jane = new Identity("organization", "jane");
+    jane.setId("11");
+    Profile profile = new Profile(jane);
+    profile.setProperty(Profile.FULL_NAME, "Jane Doe");
+    profile.setAvatarUrl("/portal/rest/v1/social/users/jane/avatar?lastModified=7");
+    jane.setProfile(profile);
+    when(service.getUserIdentityByEmail("Jane.Doe@example.com")).thenReturn(jane);
+
+    mockMvc.perform(as("alice", get("/events/attendees/user").param("email", "Jane.Doe@example.com")))
+           .andExpect(status().isOk())
+           .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store, private"))
+           .andExpect(jsonPath("$.id").value("11"))
+           .andExpect(jsonPath("$.providerId").value("organization"))
+           .andExpect(jsonPath("$.remoteId").value("jane"))
+           .andExpect(jsonPath("$.fullName").value("Jane Doe"))
+           .andExpect(jsonPath("$.avatarUrl").value("/portal/rest/v1/social/users/jane/avatar?lastModified=7"));
+  }
+
+  /**
+   * A user whose profile gives no name and no avatar is served with the
+   * username and the platform's avatar of that username.
+   *
+   * @throws Exception when the request fails
+   */
+  @Test
+  void aUserWithNoNameOrAvatarIsServedWithTheUsernameAndItsAvatar() throws Exception {
+    Identity john = new Identity("organization", "john");
+    john.setId("12");
+    when(service.getUserIdentityByEmail("john@example.com")).thenReturn(john);
+
+    mockMvc.perform(as("alice", get("/events/attendees/user").param("email", "john@example.com")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.fullName").value("john"))
+           .andExpect(jsonPath("$.avatarUrl").value("/portal/rest/v1/social/users/john/avatar"));
+  }
+
+  /**
+   * An address that resolves to no user to invite answers no content, never
+   * stored by a cache either.
+   *
+   * @throws Exception when the request fails
+   */
+  @Test
+  void anAddressOfNoUserIsAnsweredWithNoContent() throws Exception {
+    mockMvc.perform(as("alice", get("/events/attendees/user").param("email", "someone@outside.org")))
+           .andExpect(status().isNoContent())
+           .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store, private"));
+
+    verify(service).getUserIdentityByEmail("someone@outside.org");
+  }
+
+  /**
+   * A user directory that cannot be read leaves the address unchecked: the
+   * lookup answers that it is unavailable, never no content, which the drawer
+   * would take for a person from outside the platform.
+   *
+   * @throws Exception when the request fails
+   */
+  @Test
+  void aDirectoryThatCannotBeReadAnswersUnavailable() throws Exception {
+    when(service.getUserIdentityByEmail("jane@example.com")).thenThrow(new IllegalStateException("directory down"));
+
+    mockMvc.perform(as("alice", get("/events/attendees/user").param("email", "jane@example.com")))
+           .andExpect(status().isServiceUnavailable())
+           .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store, private"))
+           .andExpect(jsonPath("$.message").value("agenda.attendees.lookupFailed"));
+  }
+
+  /**
+   * A lookup with no address, or a blank one, is refused with its code before
+   * the service is asked.
+   *
+   * @throws Exception when the request fails
+   */
+  @Test
+  void aLookupWithNoAddressIsABadRequest() throws Exception {
+    mockMvc.perform(as("alice", get("/events/attendees/user")))
+           .andExpect(status().isBadRequest())
+           .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store, private"))
+           .andExpect(jsonPath("$.message").value("agenda.attendees.emailMandatory"));
+    mockMvc.perform(as("alice", get("/events/attendees/user").param("email", " ")))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.message").value("agenda.attendees.emailMandatory"));
+
+    verify(service, never()).getUserIdentityByEmail(any());
   }
 
   private MockHttpServletRequestBuilder as(String username, MockHttpServletRequestBuilder builder) {

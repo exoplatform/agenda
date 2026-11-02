@@ -44,6 +44,7 @@ import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
+import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.ExoContainerContext;
@@ -117,6 +118,15 @@ public class Utils {
   public static final MetadataKey EVENT_METADATA_KEY                   = new MetadataKey(EVENT_METADATA_TYPE.getName(), EVENT_METADATA_NAME, 0);
 
   public static final String EVENT_ID                                  = "eventId";
+
+  /**
+   * Refusal of a write that adds a person from outside the platform to an
+   * open event, or keeps one there
+   */
+  public static final String EXTERNAL_GUEST_NOT_ALLOWED                = "agenda.openEvent.externalGuestNotAllowed";
+
+  /** Refusal of a write that opens an event a person from outside the platform is invited to */
+  public static final String EXTERNAL_GUESTS_INVITED                   = "agenda.openEvent.externalGuestsInvited";
 
   public static final String CONTENT_ID                                = "contentId";
 
@@ -678,6 +688,26 @@ public class Utils {
 
   public static Identity getIdentityById(IdentityManager identityManager, String identityId) {
     return identityManager.getIdentity(identityId);
+  }
+
+  /**
+   * @param identityManager the identities, read by id
+   * @param attendees the rows of an event
+   * @return whether one of them is a person from outside the platform: a guest
+   *         invited by e-mail address, who has no account. An open event never
+   *         holds one
+   */
+  public static boolean holdsExternalGuest(IdentityManager identityManager, Collection<EventAttendee> attendees) {
+    return attendees != null
+        && attendees.stream().anyMatch(attendee -> isExternalGuest(getIdentityById(identityManager, attendee.getIdentityId())));
+  }
+
+  /**
+   * @param identity an attendee's identity, null when it no longer exists
+   * @return whether it is a guest invited by e-mail address, with no account
+   */
+  public static boolean isExternalGuest(Identity identity) {
+    return identity != null && AgendaGuestUserIdentityProvider.NAME.equals(identity.getProviderId());
   }
 
   public static long getIdentityIdByUsername(IdentityManager identityManager, String username) {

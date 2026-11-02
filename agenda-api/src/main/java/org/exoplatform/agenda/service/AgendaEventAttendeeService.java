@@ -475,4 +475,25 @@ public interface AgendaEventAttendeeService {
    */
   boolean canRespondToEvent(Event event, long identityId);
 
+  /**
+   * Resolves an e-mail address typed to invite someone to the platform user
+   * whose address it is: such a person is invited as themselves, never as a
+   * guest from outside the platform (eXIP 7.3.0.21, US06). Only an address the
+   * platform displays resolves: none when the platform displays no e-mail
+   * address, or when that user hid theirs, so that the lookup never tells who
+   * owns an address the platform keeps private.
+   *
+   * @param email an e-mail address, looked up as given and in lower case,
+   *          each compared as the database collation compares, ignoring case
+   *          or not; one holding a star never resolves
+   * @return the {@link Identity} of the enabled user whose e-mail address it
+   *         is, or null when there is none
+   * @throws IllegalStateException when the user directory cannot be read: the
+   *           address is then neither a user nor a person from outside the
+   *           platform. The platform's directory also answers so for an
+   *           address two of its accounts hold, which its lookup by a unique
+   *           attribute refuses
+   */
+  Identity getUserIdentityByEmail(String email);
+
 }
