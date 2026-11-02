@@ -594,6 +594,26 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
                               : resultList.stream().map(tuple -> tuple.get(0, Long.class)).collect(Collectors.toList());
   }
 
+  /**
+   * Detaches every entity the thread's persistence context holds, after writing
+   * out what a running transaction has not flushed yet, so the next reads and
+   * deletes start from what the database holds. A bulk delete, as the attendee
+   * and reminder ones are, leaves the entities it removes managed: once an
+   * event was saved in the same context (agenda's reminder listener
+   * materialising a series' next days, say), deleting it fails at the flush on
+   * its attendee rows still referencing it. Nothing is lost: outside a
+   * transaction every write was already committed, and inside one it is
+   * flushed first. A caller that keeps a managed entity and uses it afterwards
+   * must reload it.
+   */
+  public void detachAll() {
+    EntityManager entityManager = getEntityManager();
+    if (entityManager.getTransaction().isActive()) {
+      entityManager.flush();
+    }
+    entityManager.clear();
+  }
+
   public void deleteExceptionalOccurences(long parentRecurrentEventId) {
     List<Long> result = getExceptionalOccurenceIds(parentRecurrentEventId);
     for (Long id : result) {

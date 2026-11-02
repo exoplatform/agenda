@@ -249,6 +249,24 @@ public class AgendaEventStorage {
     return EntityMapper.fromEntity(eventEntity);
   }
 
+  /**
+   * Deletes the exceptional occurrences of a series that was just saved in this
+   * persistence context, starting from what the database holds
+   * ({@link EventDAO#detachAll()}): the rows agenda's reminder listener
+   * materialised on the save are still managed, and deleting them in place
+   * fails at the flush. The clear detaches every entity of the thread's
+   * persistence context, not only this series': a caller must not keep a
+   * managed entity across this call and rely on it afterwards, as
+   * {@link #deleteEventAfterRead(long)} already requires.
+   *
+   * @param parentRecurrentEventId the series
+   * @return the ids of the occurrences deleted
+   */
+  public List<Long> deleteExceptionalOccurencesOfSavedSeries(long parentRecurrentEventId) {
+    this.eventDAO.detachAll();
+    return deleteExceptionalOccurences(parentRecurrentEventId);
+  }
+
   public List<Long> deleteExceptionalOccurences(long parentRecurrentEventId) {
     List<Long> deletedEventIds = this.eventDAO.getExceptionalOccurenceIds(parentRecurrentEventId);
     this.eventDAO.deleteExceptionalOccurences(parentRecurrentEventId);
