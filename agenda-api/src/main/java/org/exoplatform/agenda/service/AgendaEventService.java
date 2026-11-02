@@ -150,10 +150,12 @@ public interface AgendaEventService {
    * @throws IllegalAccessException when the user may not update one of the two
    *           events
    * @throws AgendaException when one of the two events does not exist
-   * @throws IllegalArgumentException when the two events are one, when one of
-   *           them is not a recurring series or when they live in different
-   *           calendars; the message is the code
-   *           {@code agenda.seriesSplit.notAllowed}
+   * @throws IllegalArgumentException with the code
+   *           {@code agenda.seriesSplit.notAllowed} when the two events are
+   *           one, when one of them is not a recurring series or when they
+   *           live in different calendars, and
+   *           {@code agenda.openEvent.externalGuestNotAllowed} when the merge
+   *           would leave a person from outside the platform on an open date
    */
   List<Long> moveExceptionalOccurrences(long fromEventId,
                                         long toEventId,
@@ -192,9 +194,15 @@ public interface AgendaEventService {
    * @throws IllegalArgumentException with the code
    *           {@code agenda.seriesSplit.notAllowed} when the event is not a
    *           series or the date is not one of its dates after the first,
-   *           {@code agenda.capacity.invalid} for a negative limit, and
+   *           {@code agenda.capacity.invalid} for a negative limit,
    *           {@code agenda.capacity.closeNeedsConfirmation} when the change
-   *           closes the event while people are waiting and is not confirmed
+   *           closes the event while people are waiting and is not confirmed,
+   *           {@code agenda.openEvent.externalGuestsInvited} when the change
+   *           opens the continuation of a locked series while people from
+   *           outside the platform are invited, and
+   *           {@code agenda.openEvent.externalGuestNotAllowed} when one of them
+   *           would be on the open continuation of an open series or reach a
+   *           date that stays open
    */
   Event splitEvent(long seriesId,
                    EventSplit split,

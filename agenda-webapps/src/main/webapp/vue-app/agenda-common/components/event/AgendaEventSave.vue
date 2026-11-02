@@ -38,6 +38,13 @@ export default {
       }
     },
     saveEvent(event, ignoreRecurrentPopin, changeDatesOnly) {
+      const typed = this.$eventService.typedAddressLookupsSettled();
+      if (typed) {
+        // An address entered (Enter or space) just before the save carries its
+        // participant once the platform answered whose address it is (US06)
+        typed.then(() => this.saveEvent(event, ignoreRecurrentPopin, changeDatesOnly));
+        return;
+      }
       this.confirmClose = false;
       if (!this.closesWithLimit(event)) {
         this.saveInScope(event, ignoreRecurrentPopin, changeDatesOnly);

@@ -387,7 +387,10 @@ export default {
         this.event.end = this.event.endDate || this.$agendaUtils.toRFC3339(new Date());
       }
 
-      this.$eventService.createEvent(this.event)
+      // An address entered (Enter or space) just before the save carries its
+      // participant once the platform answered whose address it is (US06)
+      Promise.resolve(this.$eventService.typedAddressLookupsSettled())
+        .then(() => this.$eventService.createEvent(this.event))
         .then(event => {
           this.$root.$emit('agenda-event-saved', event);
           this.close();

@@ -115,6 +115,59 @@ export function getEventById(eventId, expand, firstOccurrence) {
   });
 }
 
+// The addresses typed in a participants drawer whose user the platform is
+// being asked for, each until the drawer added or refused its participant
+// (see AgendaEventFormAttendeesDrawer#inviteTypedAddress)
+const typedAddressLookups = new Set();
+
+/**
+ * Keeps a lookup of an address typed until it settles, so that a save of the
+ * event waits for the participant it adds (see typedAddressLookupsSettled).
+ *
+ * @param {Promise} lookup settled once the drawer added or refused the
+ *          participant, never rejected
+ * @returns {Promise} the lookup
+ */
+export function trackTypedAddressLookup(lookup) {
+  typedAddressLookups.add(lookup);
+  lookup.then(() => typedAddressLookups.delete(lookup));
+  return lookup;
+}
+
+/**
+ * @returns {Promise} settled once every address typed is added or refused,
+ *          one typed meanwhile included; null when none is being looked up,
+ *          so that a save waits only when it has to
+ */
+export function typedAddressLookupsSettled() {
+  if (!typedAddressLookups.size) {
+    return null;
+  }
+  return Promise.all(Array.from(typedAddressLookups)).then(() => typedAddressLookupsSettled());
+}
+
+/**
+ * @param {String} email an e-mail address typed to invite someone, as typed
+ * @returns {Promise<Object>} the platform user whose address it is, to invite
+ *          as themselves: id, providerId, remoteId, fullName and avatarUrl; null
+ *          when the platform recognises none
+ */
+export function getAttendeeUserByEmail(email) {
+  const params = new URLSearchParams({email});
+  return fetch(`/agenda/rest/events/attendees/user?${params.toString()}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then((resp) => {
+    if (resp && resp.status === 204) {
+      return null;
+    } else if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error looking up the user of an e-mail address');
+    }
+  });
+}
+
 export function getEventOccurrence(parentEventId, occurrenceId, expand) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/occurrence/${parentEventId}/${occurrenceId}?expand=${expand || ''}&timeZoneId=${USER_TIMEZONE_ID}`, {
     method: 'GET',

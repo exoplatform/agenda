@@ -586,6 +586,17 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // the date options.
     eventToCreate.setOpen(Boolean.TRUE.equals(event.getOpen())
         && canBeOpen(eventToCreate, calendar));
+    // An open event never holds a person from outside the platform: unlike
+    // the invariant above, the flag does not yield, the creation is refused.
+    // A date of a series given no list takes the series' attendees for it
+    if (Boolean.TRUE.equals(eventToCreate.getOpen())
+        && Utils.holdsExternalGuest(identityManager,
+                                    attendees != null && !attendees.isEmpty() ? attendees
+                                                                             : inheritedSeriesAttendees(eventToCreate,
+                                                                                                        event,
+                                                                                                        parentEvent))) {
+      throw new IllegalArgumentException(Utils.EXTERNAL_GUEST_NOT_ALLOWED);
+    }
     // The limit follows the flag: not stated, or asked on an event that may
     // have none, it is no limit. No floor applies: the attendees saved below
     // hold no Yes yet but the creator's, which takes its seat through the
@@ -793,18 +804,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    *          when it names none
    */
   private void inheritSeriesAttendees(Event occurrence, Event event, Event parentEvent) {
-    if (occurrence == null || parentEvent == null || !isAmendmentOfADateOf(event, parentEvent)) {
+    if (occurrence == null) {
       return;
     }
-    EventOccurrence eventOccurrence = occurrence.getOccurrence();
-    if (eventOccurrence == null || eventOccurrence.getId() == null) {
-      return;
-    }
-    EventAttendeeList seriesAttendees = attendeeService.getEventAttendees(occurrence.getParentId());
-    if (seriesAttendees == null) {
-      return;
-    }
-    List<EventAttendee> inherited = cleanupAttendeeIds(attendeesOfDate(seriesAttendees, eventOccurrence.getId()));
+    List<EventAttendee> inherited = cleanupAttendeeIds(inheritedSeriesAttendees(occurrence, event, parentEvent));
     if (inherited.isEmpty()) {
       return;
     }
@@ -814,6 +817,29 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                        false,
                                        occurrence.getStatus() != EventStatus.CONFIRMED,
                                        null);
+  }
+
+  /**
+   * @param date the date of a series being created, before or after it is
+   *          stored: its occurrence id says which date
+   * @param event the event the creation was asked with
+   * @param parentEvent its series, null when it has none
+   * @return the series&#39; attendees for that date, which a date created with
+   *         no list of its own takes; empty when it takes none
+   */
+  private List<EventAttendee> inheritedSeriesAttendees(Event date, Event event, Event parentEvent) {
+    if (parentEvent == null || !isAmendmentOfADateOf(event, parentEvent)) {
+      return Collections.emptyList();
+    }
+    EventOccurrence eventOccurrence = date.getOccurrence();
+    if (eventOccurrence == null || eventOccurrence.getId() == null) {
+      return Collections.emptyList();
+    }
+    EventAttendeeList seriesAttendees = attendeeService.getEventAttendees(parentEvent.getId());
+    if (seriesAttendees == null) {
+      return Collections.emptyList();
+    }
+    return attendeesOfDate(seriesAttendees, eventOccurrence.getId());
   }
 
   /**
@@ -961,9 +987,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // Expanding a recurrence costs more than everything else in this loop, and
     // only a change of the rule or of the times can make a date disappear from
     // it: a corrected summary cannot, so it does not pay for the expansion
-    boolean datesOrRuleChanged = !sameRecurrenceRule(storedSeries, updatedSeries)
-        || !isSameInstant(storedSeries.getStart(), updatedSeries.getStart())
-        || !isSameInstant(storedSeries.getEnd(), updatedSeries.getEnd());
+    boolean datesOrRuleChanged = datesOrRuleChanged(storedSeries, updatedSeries);
     // Read once: every occurrence lives in the calendar of its series, and the
     // open invariant is evaluated against it for each of them below
     Calendar seriesCalendar = agendaCalendarService.getCalendarById(updatedSeries.getCalendarId());
@@ -1031,23 +1055,15 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       occurrence.setVisibility(mergeOccurrenceProperty(visibilityOf(occurrence),
                                                        visibilityOf(storedSeries),
                                                        visibilityOf(updatedSeries)));
-      occurrence.setStatus(mergeOccurrenceProperty(occurrence.getStatus(),
-                                                   storedSeries.getStatus(),
-                                                   updatedSeries.getStatus()));
       occurrence.setTimeZoneId(mergeOccurrenceProperty(occurrence.getTimeZoneId(),
                                                        storedSeries.getTimeZoneId(),
                                                        updatedSeries.getTimeZoneId()));
       occurrence.setAllDay(mergeOccurrenceProperty(occurrence.isAllDay(),
                                                    storedSeries.isAllDay(),
                                                    updatedSeries.isAllDay()));
-      occurrence.setAllowAttendeeToUpdate(mergeOccurrenceProperty(occurrence.isAllowAttendeeToUpdate(),
-                                                                  storedSeries.isAllowAttendeeToUpdate(),
-                                                                  updatedSeries.isAllowAttendeeToUpdate()));
-      occurrence.setAllowAttendeeToInvite(mergeOccurrenceProperty(occurrence.isAllowAttendeeToInvite(),
-                                                                  storedSeries.isAllowAttendeeToInvite(),
-                                                                  updatedSeries.isAllowAttendeeToInvite()));
+      mergeOpenRuleProperties(occurrence, storedSeries, updatedSeries);
       boolean over = seriesDates.isOver(occurrence);
-      mergeOpenAndCapacity(occurrence, storedSeries, updatedSeries, seriesCalendar, over);
+      mergeOpenAndCapacity(occurrence, storedSeries, updatedSeries, seriesCalendar, over, attendeesRemovedFromSeries);
       keepLimitAboveAccepted(occurrenceBeforeMerge, occurrence, attendeesRemovedFromSeries, updatedSeries.getId());
       if (closes(occurrenceBeforeMerge, occurrence)) {
         // Said here: a move of dates under another series closes them with no
@@ -1120,21 +1136,77 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * @param updatedSeries the series after the change
    * @param seriesCalendar the series' calendar
    * @param over whether the date is over
+   * @param removedFromSeries the identities the change removes from the
+   *          series, which leave the date with it (applySeriesMembershipChange)
    */
   private void mergeOpenAndCapacity(Event occurrence,
                                     Event storedSeries,
                                     Event updatedSeries,
                                     Calendar seriesCalendar,
-                                    boolean over) {
-    occurrence.setOpen(Boolean.TRUE.equals(mergeOccurrenceProperty(occurrence.getOpen(),
-                                                                  storedSeries.getOpen(),
-                                                                  updatedSeries.getOpen()))
-        && canBeOpen(occurrence, seriesCalendar));
+                                    boolean over,
+                                    Set<Long> removedFromSeries) {
+    occurrence.setOpen(openAfterMerge(occurrence, storedSeries, updatedSeries, seriesCalendar, removedFromSeries));
     int capacity = over ? SeatRule.capacityOf(occurrence)
                         : mergeOccurrenceProperty(SeatRule.capacityOf(occurrence),
                                                   SeatRule.capacityOf(storedSeries),
                                                   SeatRule.capacityOf(updatedSeries));
     occurrence.setCapacity(canHaveCapacity(occurrence, seriesCalendar) ? capacity : 0);
+  }
+
+  /**
+   * Merges into a date individually modified the properties of a series
+   * change that canBeOpen reads: its status and the two participant
+   * permissions.
+   *
+   * @param occurrence the date's row
+   * @param storedSeries the series before the change
+   * @param updatedSeries the series after the change
+   */
+  private void mergeOpenRuleProperties(Event occurrence, Event storedSeries, Event updatedSeries) {
+    occurrence.setStatus(mergeOccurrenceProperty(occurrence.getStatus(), storedSeries.getStatus(), updatedSeries.getStatus()));
+    occurrence.setAllowAttendeeToUpdate(mergeOccurrenceProperty(occurrence.isAllowAttendeeToUpdate(),
+                                                                storedSeries.isAllowAttendeeToUpdate(),
+                                                                updatedSeries.isAllowAttendeeToUpdate()));
+    occurrence.setAllowAttendeeToInvite(mergeOccurrenceProperty(occurrence.isAllowAttendeeToInvite(),
+                                                                storedSeries.isAllowAttendeeToInvite(),
+                                                                updatedSeries.isAllowAttendeeToInvite()));
+  }
+
+  /**
+   * Whether a date individually modified is open once a series change is
+   * merged into it, before the people the series gains reach it: the merged
+   * flag, the open invariant holding.
+   *
+   * @param occurrence the date's row, its flag not merged yet, its status and
+   *          participant permissions merged (mergeOpenRuleProperties)
+   * @param storedSeries the series before the change
+   * @param updatedSeries the series after the change
+   * @param seriesCalendar the series' calendar
+   * @param removedFromSeries the identities the change removes from the
+   *          series, which leave the date with it (applySeriesMembershipChange)
+   * @return whether the merge leaves the date open
+   */
+  private boolean openAfterMerge(Event occurrence,
+                                 Event storedSeries,
+                                 Event updatedSeries,
+                                 Calendar seriesCalendar,
+                                 Set<Long> removedFromSeries) {
+    boolean open = Boolean.TRUE.equals(mergeOccurrenceProperty(occurrence.getOpen(),
+                                                               storedSeries.getOpen(),
+                                                               updatedSeries.getOpen()))
+        && canBeOpen(occurrence, seriesCalendar);
+    // A date holding a person from outside the platform is not opened with its
+    // series: it stays closed, as when the invariant fails. One already open
+    // is not closed here, which would be a closing path of its own. The list
+    // read is the one the change leaves the date with: a guest the series
+    // removes in the same change leaves the date too
+    return open && (Boolean.TRUE.equals(occurrence.getOpen())
+        || !Utils.holdsExternalGuest(identityManager,
+                                     attendeeService.getEventAttendees(occurrence.getId())
+                                                    .getEventAttendees()
+                                                    .stream()
+                                                    .filter(attendee -> !removedFromSeries.contains(attendee.getIdentityId()))
+                                                    .toList()));
   }
 
   /**
@@ -1425,6 +1497,21 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   /**
+   * Whether a series change can make a date disappear from the recurrence:
+   * only a change of the rule or of the times can.
+   *
+   * @param storedSeries the series before the change
+   * @param updatedSeries the series after the change
+   * @return whether the dates the change keeps are to be checked against the
+   *         new recurrence (seriesStillProducesOccurrence)
+   */
+  private boolean datesOrRuleChanged(Event storedSeries, Event updatedSeries) {
+    return !sameRecurrenceRule(storedSeries, updatedSeries)
+        || !isSameInstant(storedSeries.getStart(), updatedSeries.getStart())
+        || !isSameInstant(storedSeries.getEnd(), updatedSeries.getEnd());
+  }
+
+  /**
    * Whether the recurrence of the series still produces the date of a stored
    * occurrence. Deleting a row is the consequence of answering no, so the match
    * is the <strong>same predicate</strong> that decides elsewhere whether a row
@@ -1512,6 +1599,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     Event fromSeries = agendaEventStorage.getEventById(fromEventId);
     Event toSeries = agendaEventStorage.getEventById(toEventId);
     checkSeriesSplit(fromSeries, toSeries);
+    // The dates moved take the people the second series holds that the first
+    // did not (applySeriesMembershipChange), on a date that is over as well,
+    // where the attendee service decides nothing: refused before the first
+    // write, as a split refuses it, when one of them is from outside the
+    // platform and such a date stays open on its own
+    checkExternalGuests(fromSeries, toSeries, attendeeService.getEventAttendees(toEventId).getEventAttendees(), fromDate);
     // The occurrence tolerance rather than the UTC day: on the night daylight
     // saving starts, two daily dates 23 hours apart can share a UTC day, and
     // the one before the split, which the first series keeps producing, would
@@ -1572,7 +1665,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       return;
     }
     Calendar calendar = agendaCalendarService.getCalendarById(toSeries.getCalendarId());
-    for (DateCapacity date : mergedDateCapacities(fromSeries, toSeries, calendar, fromDate)) {
+    // Logged only: the dates a removal opens with their series are not read
+    for (DateCapacity date : mergedDateCapacities(fromSeries, toSeries, calendar, fromDate, Collections.emptySet())) {
       if (closes(date.before(), date.after())
           && gainsSeats(SeatRule.capacityOf(date.before()), SeatRule.capacityOf(date.after()))
           && hasWaitingAttendees(date.before(), Collections.emptySet(), false)) {
@@ -1675,6 +1769,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     List<EventAttendee> rows = continuationRows(seriesId, splitFrom, addedIdentityIds, removedIdentityIds);
     // Every refusal comes before the first write
     checkSplitCapacity(series, continuation, rows, keepsTheDates, removedIdentityIds, splitFrom, confirmClose, calendar);
+    checkExternalGuests(series, continuation, rows, splitFrom);
 
     if (keepsTheDates && SeatRule.capacityOf(continuation) == SeatRule.capacityOf(series)) {
       // The same dates under the same limit: a date already full stays so,
@@ -2016,7 +2111,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
       confirmsWaitingList = closes(series, continuation) && waitsFrom(series, rows, splitFrom);
     }
-    for (DateCapacity date : mergedDateCapacities(series, continuation, calendar, splitFrom)) {
+    for (DateCapacity date : mergedDateCapacities(series, continuation, calendar, splitFrom, removedIdentityIds)) {
       int dateCapacity = SeatRule.capacityOf(date.after());
       if (tightens(SeatRule.capacityOf(date.before()), dateCapacity)
           && isBelowPoolFloor(date.before().getId(), dateCapacity, removedIdentityIds)) {
@@ -2649,6 +2744,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                           calendar,
                           true);
     }
+    checkExternalGuests(storedEvent, eventToUpdate, attendees, null);
 
     AgendaEventModification eventModifications = new AgendaEventModification(eventId, event.getCalendarId(), userIdentityId);
     eventModifications.addModificationType(AgendaEventModificationType.UPDATED);
@@ -2879,6 +2975,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         throw new IllegalArgumentException("agenda.openEvent.notAllowed");
       }
       event.setOpen(false);
+    }
+    // An open event never holds a person from outside the platform: a patch
+    // that opens one that does is refused. Opened with all its dates, a series
+    // leaves closed a date holding one of its own (mergeOpenAndCapacity)
+    if (Boolean.TRUE.equals(event.getOpen()) && !Boolean.TRUE.equals(originalEvent.getOpen())
+        && Utils.holdsExternalGuest(identityManager, attendeeService.getEventAttendees(eventId).getEventAttendees())) {
+      throw new IllegalArgumentException(Utils.EXTERNAL_GUESTS_INVITED);
     }
     // The limit holds on an event that may have one only: a patch that asks
     // for one on any other is refused, and one that closes the event removes
@@ -3569,7 +3672,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     boolean confirmsWaitingList = closes(storedEvent, eventToStore)
         && hasWaitingAttendees(storedEvent, removedIdentityIds, datesChanged);
     if (series && reachesDates) {
-      for (DateCapacity date : mergedDateCapacities(storedEvent, eventToStore, calendar, null)) {
+      for (DateCapacity date : mergedDateCapacities(storedEvent, eventToStore, calendar, null, removedIdentityIds)) {
         int dateCapacity = SeatRule.capacityOf(date.after());
         if (tightens(SeatRule.capacityOf(date.before()), dateCapacity)
             && isBelowPoolFloor(date.before().getId(), dateCapacity, removedIdentityIds)) {
@@ -3602,11 +3705,14 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * @param from the first date a split moves under its continuation, which the
    *          merge reaches alone, compared as the move compares it; null for a
    *          change of the whole series
+   * @param removedFromSeries the identities the change removes from the
+   *          series, as the merge reads them (see mergeOpenAndCapacity)
    */
   private List<DateCapacity> mergedDateCapacities(Event storedSeries,
                                                   Event updatedSeries,
                                                   Calendar seriesCalendar,
-                                                  ZonedDateTime from) {
+                                                  ZonedDateTime from,
+                                                  Set<Long> removedFromSeries) {
     List<DateCapacity> dateCapacities = new ArrayList<>();
     List<Event> rows = readExceptionalOccurrences(storedSeries.getId());
     SeriesDates seriesDates = new SeriesDates(storedSeries, () -> rows, ZonedDateTime.now(ZoneOffset.UTC));
@@ -3623,7 +3729,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       merged.setAllowAttendeeToInvite(mergeOccurrenceProperty(row.isAllowAttendeeToInvite(),
                                                               storedSeries.isAllowAttendeeToInvite(),
                                                               updatedSeries.isAllowAttendeeToInvite()));
-      mergeOpenAndCapacity(merged, storedSeries, updatedSeries, seriesCalendar, false);
+      mergeOpenAndCapacity(merged, storedSeries, updatedSeries, seriesCalendar, false, removedFromSeries);
       dateCapacities.add(new DateCapacity(row, merged));
     }
     return dateCapacities;
@@ -3749,6 +3855,93 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     Set<Long> removedIdentityIds = attendeeIdentityIds(attendeeService.getEventAttendees(eventId).getEventAttendees());
     removedIdentityIds.removeAll(attendeeIdentityIds(attendees));
     return removedIdentityIds;
+  }
+
+  /**
+   * Refuses, before the first write, a save that would leave a person from
+   * outside the platform on an open row: the row the save writes, or a date of
+   * the series opened on its own, which every person the series gains reaches
+   * (applySeriesMembershipChange). An event already open is refused as an
+   * addition, one the save opens as an opening. A move of dates writes no
+   * series: only its dates are judged.
+   *
+   * @param storedRow the row as stored, the series for a split or a move of
+   *          its dates
+   * @param rowToWrite the row the save writes, the continuation for a split,
+   *          the series the dates move under for a move
+   * @param attendees the attendees the row written will hold, the series the
+   *          dates move under holds for a move
+   * @param datesFrom the first date the people the series gains reach, null
+   *          for every date; unused when the row written is no series
+   */
+  private void checkExternalGuests(Event storedRow,
+                                   Event rowToWrite,
+                                   List<EventAttendee> attendees,
+                                   ZonedDateTime datesFrom) {
+    boolean move = rowToWrite.getId() > 0 && rowToWrite.getId() != storedRow.getId();
+    if (!move && Boolean.TRUE.equals(rowToWrite.getOpen()) && Utils.holdsExternalGuest(identityManager, attendees)) {
+      throw new IllegalArgumentException(Boolean.TRUE.equals(storedRow.getOpen()) ? Utils.EXTERNAL_GUEST_NOT_ALLOWED
+                                                                                 : Utils.EXTERNAL_GUESTS_INVITED);
+    }
+    if (rowToWrite.getParentId() > 0 || rowToWrite.getRecurrence() == null && storedRow.getRecurrence() == null) {
+      return;
+    }
+    Set<Long> held = attendeeIdentityIds(attendeeService.getEventAttendees(storedRow.getId()).getEventAttendees());
+    Set<Long> gained = attendeeIdentityIds(attendees);
+    gained.removeAll(held);
+    if (gained.stream().noneMatch(identityId -> Utils.isExternalGuest(Utils.getIdentityById(identityManager, identityId)))) {
+      return;
+    }
+    Set<Long> removed = new HashSet<>(held);
+    removed.removeAll(attendeeIdentityIds(attendees));
+    Calendar seriesCalendar = agendaCalendarService.getCalendarById(rowToWrite.getCalendarId());
+    List<Event> datesReached = readExceptionalOccurrences(storedRow.getId()).stream()
+                                                                            .filter(date -> reachedFrom(date, datesFrom))
+                                                                            .collect(Collectors.toCollection(ArrayList::new));
+    if (move && !datesReached.isEmpty()) {
+      // A move of dates that moves one: the merge then goes over every date
+      // the series they move under holds, its own ones as well, and gives
+      // each the same people
+      datesReached.addAll(readExceptionalOccurrences(rowToWrite.getId()));
+    }
+    // A date is judged as the merge leaves it, before the people the series
+    // gains reach it: one the new recurrence no longer produces is deleted;
+    // one that follows the series takes its new flag, and one the change makes
+    // a poll's or lets participants modify or invite is closed. A date the
+    // merge deletes for carrying nothing of its own is judged as kept: it
+    // follows the series, which a guest can only reach open stored so before
+    // such guests were kept out of open events, and then shows that open date
+    // The rules are compared as the merge compares them, as stored: the rule
+    // string of a row the save writes is the one the storage writes from its
+    // fields, whatever string the caller sent with them (none from REST, the
+    // one read before an edit made in place); a move writes no series, whose
+    // rule is compared as it is stored
+    Event written = rowToWrite.clone();
+    if (!move && written.getRecurrence() != null) {
+      written.getRecurrence().setRrule(Utils.getICalendarRecur(written.getRecurrence(), written.getTimeZoneId()).toString());
+    }
+    boolean datesOrRuleChanged = datesOrRuleChanged(storedRow, written);
+    if (datesReached.stream().anyMatch(date -> {
+      if (date.getOccurrence() == null || date.getOccurrence().getId() == null
+          || datesOrRuleChanged && !seriesStillProducesOccurrence(rowToWrite, date.getOccurrence().getId())) {
+        return false;
+      }
+      Event merged = date.clone();
+      mergeOpenRuleProperties(merged, storedRow, rowToWrite);
+      return openAfterMerge(merged, storedRow, rowToWrite, seriesCalendar, removed);
+    })) {
+      throw new IllegalArgumentException(Utils.EXTERNAL_GUEST_NOT_ALLOWED);
+    }
+  }
+
+  private boolean reachedFrom(Event date, ZonedDateTime datesFrom) {
+    if (datesFrom == null) {
+      return true;
+    }
+    // Matched as the dates a split moves are: within 12 hours, which an all-day
+    // date stored at its UTC midnight needs
+    return date.getOccurrence() != null && date.getOccurrence().getId() != null
+        && !date.getOccurrence().getId().isBefore(datesFrom.minusHours(12));
   }
 
   /**
