@@ -591,7 +591,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
           @ApiResponse(responseCode = "200", description = "Request fulfilled: the identifiers of the rows moved and kept"),
           @ApiResponse(
               responseCode = "400",
-              description = "Invalid query input: a missing or malformed parameter, or two events a split cannot join. The body carries the message code"
+              description = "Invalid query input: a missing or malformed parameter, two events a split cannot join, or a person from outside the platform the merge would leave on an open date. The body carries the message code"
           ),
           @ApiResponse(responseCode = "403", description = "Forbidden operation"),
           @ApiResponse(responseCode = "404", description = "Object not found"),
@@ -665,7 +665,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
           @ApiResponse(responseCode = "200", description = "Request fulfilled: the continuing series"),
           @ApiResponse(
               responseCode = "400",
-              description = "Invalid input: a date that is not one of the event's after its first, an invalid limit, a limit below the Yes answers of a date, or a closing of the event while people wait that is not confirmed. The body carries the message code, and the date for a limit below the Yes answers"
+              description = "Invalid input: a date that is not one of the event's after its first, an invalid limit, a limit below the Yes answers of a date, a closing of the event while people wait that is not confirmed, or a person from outside the platform on an open continuation or on a date that stays open. The body carries the message code, and the date for a limit below the Yes answers"
           ),
           @ApiResponse(responseCode = "403", description = "Forbidden operation"),
           @ApiResponse(responseCode = "404", description = "Object not found"),
@@ -768,6 +768,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       Event event = createEventEntity(identityManager,
                                       agendaCalendarService,
                                       agendaEventService,
+                                      agendaEventAttendeeService,
                                       eventEntity,
                                       userIdentityId,
                                       timeZoneId,
@@ -838,6 +839,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                     eventEntity,
                     storedEvent);
 
+      RestUtils.resolveTypedAddresses(eventEntity.getAttendees(), identityManager, agendaEventAttendeeService);
       List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
       List<EventAttendee> attendees = null;
       if (attendeeEntities != null && !attendeeEntities.isEmpty()) {

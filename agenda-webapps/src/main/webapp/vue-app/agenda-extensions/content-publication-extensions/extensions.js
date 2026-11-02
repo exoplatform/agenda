@@ -45,6 +45,9 @@ export function registerExtensions() {
       });
 
       const updateEvent = !!event?.id;
+      // An address entered (Enter or space) just before the save carries its
+      // participant once the platform answered whose address it is (US06)
+      await Vue.prototype.$eventService.typedAddressLookupsSettled();
       // A closing of an open event with a limit was confirmed at its padlock
       const eventRequest = updateEvent ? Vue.prototype.$eventService.updateEvent(event, context?.params?.confirmClose)
         : Vue.prototype.$eventService.createEvent(event);
