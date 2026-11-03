@@ -41,7 +41,7 @@
                 class="d-inline-flex rounded-circle mx-1 agenda-space-settings-summary-color"
                 role="img"></span>
               <span v-if="canManageSubscriptions" class="agenda-space-subscriptions-count">
-                · {{ $t('agenda.space.settings.subscriptions.summary', {0: subscriptionsCount}) }}
+                · {{ subscriptionsSummary }}
               </span>
             </v-list-item-subtitle>
           </v-list-item-content>
@@ -103,6 +103,18 @@ export default {
      */
     calendarOwnerId() {
       return Number(this.calendar?.owner?.id);
+    },
+    /**
+     * @returns {String} the number of calendars the space subscribes to, with its plural
+     */
+    subscriptionsSummary() {
+      if (!this.subscriptionsCount) {
+        return this.$t('agenda.space.settings.subscriptions.summary.none');
+      } else if (this.subscriptionsCount === 1) {
+        return this.$t('agenda.space.settings.subscriptions.summary.one');
+      } else {
+        return this.$t('agenda.space.settings.subscriptions.summary.many', {0: this.subscriptionsCount});
+      }
     },
     /**
      * Whether the user is a real manager of the space, the server's own answer
