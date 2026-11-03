@@ -118,4 +118,32 @@ public class AgendaEventSpaceScopeResolver implements SpaceScopeResolver {
     }
   }
 
+  /**
+   * Tells whether a person could edit the event in person, by the agenda's
+   * own rule ({@link AgendaEventService#canUpdateEvent(Event, long)}): its
+   * creator, an attendee the event lets edit it, an editor of its calendar,
+   * or a person it is shared with for edit.
+   *
+   * @param objectId the event id
+   * @param userName the person a digital worker would change the event for
+   * @return true when the person could edit the event; false for a missing
+   *         event, a person with no identity, an id that isn't one, or a
+   *         lookup that fails
+   */
+  @Override
+  public Boolean canEdit(String objectId, String userName) {
+    if (!StringUtils.isNumeric(objectId) || StringUtils.isBlank(userName)) {
+      return false;
+    }
+    try {
+      Event event = agendaEventService.getEventById(Long.parseLong(objectId));
+      Identity person = event == null ? null : identityManager.getOrCreateUserIdentity(userName);
+      return person != null && !person.isDeleted() && person.isEnable()
+             && agendaEventService.canUpdateEvent(event, Long.parseLong(person.getId()));
+    } catch (RuntimeException e) {
+      log.debug("Whether '{}' may edit agenda event '{}' couldn't be told", userName, objectId, e);
+      return false;
+    }
+  }
+
 }
