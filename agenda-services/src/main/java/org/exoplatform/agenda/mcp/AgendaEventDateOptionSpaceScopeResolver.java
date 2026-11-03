@@ -95,4 +95,28 @@ public class AgendaEventDateOptionSpaceScopeResolver implements SpaceScopeResolv
     }
   }
 
+  /**
+   * Tells whether a person could edit, in person, the event the date option
+   * belongs to, as {@link AgendaEventSpaceScopeResolver#canEdit} tells it.
+   *
+   * @param objectId the date option id
+   * @param userName the person a digital worker would confirm the date for
+   * @return true when the person could edit the option's event; false for a
+   *         missing option, an id that isn't one, or a lookup that fails
+   */
+  @Override
+  public Boolean canEdit(String objectId, String userName) {
+    if (!StringUtils.isNumeric(objectId)) {
+      return false;
+    }
+    try {
+      long dateOptionId = Long.parseLong(objectId);
+      EventDateOption dateOption = dateOptionId <= 0 ? null : agendaEventDatePollService.getEventDateOption(dateOptionId, ZoneOffset.UTC);
+      return dateOption != null && Boolean.TRUE.equals(eventSpaceScopeResolver.canEdit(String.valueOf(dateOption.getEventId()), userName));
+    } catch (RuntimeException e) {
+      log.debug("Whether '{}' may edit the event of agenda date option '{}' couldn't be told", userName, objectId, e);
+      return false;
+    }
+  }
+
 }
