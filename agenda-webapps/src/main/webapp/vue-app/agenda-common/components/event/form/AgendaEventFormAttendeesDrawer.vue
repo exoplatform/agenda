@@ -93,7 +93,8 @@
             its title, no button: nothing to click, no hover background. So
             does an editor while the participants may modify the event, or
             while a person from outside the platform is invited: an open
-            event excludes both, and the title says what to change first.
+            event excludes both, so the icon takes the disabled icon colour
+            and the title says what to change first.
           -->
           <template v-if="showOpenToggle">
             <v-btn
@@ -313,7 +314,8 @@ export default {
     /**
      * An open event excludes "participants can modify the event" and
      * "participants can invite": while "can modify" is on, the padlock is
-     * shown but not clickable, and its title says what to deactivate first.
+     * shown disabled, not clickable, and its title says what to deactivate
+     * first.
      * Only that option blocks: it is the one the forms show, while "can
      * invite" — set by its watcher, never shown — is cleared by the opening
      * itself in both hosts. An open event never holds a person from outside
@@ -339,7 +341,18 @@ export default {
     openIcon() {
       return this.isOpenEvent ? 'fas fa-lock-open' : 'fas fa-lock';
     },
+    /**
+     * A padlock an editor cannot click takes the platform's disabled icon
+     * colour, so it does not read as the closed padlock they could open. A
+     * viewer who cannot edit sees the event's state, not a control: their
+     * icon keeps the default colour.
+     *
+     * @returns {String} the padlock icon's colour class
+     */
     openIconClass() {
+      if (this.editable && this.openToggleBlocked) {
+        return 'icon-disabled-color';
+      }
       return this.isOpenEvent ? 'primary--text' : 'icon-default-color';
     },
     openToggleTitle() {
