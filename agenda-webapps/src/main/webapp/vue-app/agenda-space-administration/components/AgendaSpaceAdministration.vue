@@ -18,53 +18,48 @@
 <template>
   <v-app>
     <!--
-      One line for the application, as the other applications of this page draw
-      theirs (forms' FormsSpaceSettings): its name, a summary, and one edit icon
-      opening the drawer that holds every agenda setting of the space.
+      One row for the application, drawn as the rows of the user Settings page:
+      its name, a grey summary, and one edit icon opening the drawer that holds
+      every agenda setting of the space. Space settings draws the card around it.
     -->
-    <v-card
-      id="agendaSpaceSetting"
-      class="card-border-radius"
-      flat>
-      <v-list class="pa-0" dense>
-        <v-list-item class="pa-0">
-          <v-list-item-content>
-            <v-list-item-title class="text-title py-1">
-              {{ $t('agenda.space.settings.title') }}
-            </v-list-item-title>
-            <v-list-item-subtitle class="d-flex align-center pt-0 pb-1 text-wrap agenda-space-settings-summary">
-              {{ $t('agenda.space.settings.eventColor') }}
-              <span
-                :title="calendarColor"
-                :aria-label="$t('agenda.space.settings.eventColor.current', {0: calendarColor || ''})"
-                :style="swatchStyle(calendarColor, 12)"
-                class="d-inline-flex rounded-circle mx-1 agenda-space-settings-summary-color"
-                role="img"></span>
-              <span v-if="canManageSubscriptions" class="agenda-space-subscriptions-count">
-                · {{ subscriptionsSummary }}
-              </span>
-            </v-list-item-subtitle>
-          </v-list-item-content>
-          <v-list-item-action>
-            <!--
-              The edit action of this settings page, as its other rows draw it
-              (social's SpaceSettingAccess, SpaceSettingCategories): a small icon
-              button, fa-edit at 18 in the default icon colour.
-            -->
-            <v-btn
-              id="agendaSpaceSettingsOpen"
-              :title="$t('agenda.space.settings.edit')"
-              :aria-label="$t('agenda.space.settings.edit')"
-              :disabled="!calendar"
-              small
-              icon
-              @click="$refs.drawer.open()">
-              <v-icon size="18" class="icon-default-color">fa-edit</v-icon>
-            </v-btn>
-          </v-list-item-action>
-        </v-list-item>
-      </v-list>
-    </v-card>
+    <div id="agendaSpaceSetting">
+      <v-list-item two-line>
+        <v-list-item-content>
+          <v-list-item-title class="text-color">
+            {{ $t('agenda.space.settings.title') }}
+          </v-list-item-title>
+          <v-list-item-subtitle class="d-flex align-center text-wrap agenda-space-settings-summary">
+            {{ $t('agenda.space.settings.eventColor') }}
+            <span
+              :title="calendarColor"
+              :aria-label="$t('agenda.space.settings.eventColor.current', {0: calendarColor || ''})"
+              :style="swatchStyle(calendarColor, 12)"
+              class="d-inline-flex rounded-circle mx-1 agenda-space-settings-summary-color"
+              role="img"></span>
+            <span v-if="canManageSubscriptions" class="agenda-space-subscriptions-count">
+              · {{ subscriptionsSummary }}
+            </span>
+          </v-list-item-subtitle>
+        </v-list-item-content>
+        <v-list-item-action>
+          <!--
+            The edit action of this settings page, as its other rows draw it
+            (social's SpaceSettingAccess, SpaceSettingCategories): a small icon
+            button, fa-edit at 18 in the default icon colour.
+          -->
+          <v-btn
+            id="agendaSpaceSettingsOpen"
+            :title="$t('agenda.space.settings.edit')"
+            :aria-label="$t('agenda.space.settings.edit')"
+            :disabled="!calendar"
+            small
+            icon
+            @click="$refs.drawer.open()">
+            <v-icon size="18" class="icon-default-color">fa-edit</v-icon>
+          </v-btn>
+        </v-list-item-action>
+      </v-list-item>
+    </div>
     <agenda-space-settings-drawer
       ref="drawer"
       :calendar="calendar"
