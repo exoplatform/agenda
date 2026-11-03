@@ -84,6 +84,28 @@ class AgendaEventDateOptionSpaceScopeResolverTest {
   }
 
   /**
+   * A person may have a date confirmed for them only when they could edit
+   * the date's event, as the event resolver tells; a missing date, an id
+   * that isn't one or a failing lookup answer no. Mutants: the event
+   * resolver's answer ignored, another event asked, a failure read as yes.
+   */
+  @Test
+  void aDateCanBeConfirmedForWhoCouldEditItsEvent() {
+    EventDateOption option = new EventDateOption();
+    option.setEventId(100L);
+    when(datePollService.getEventDateOption(7L, ZoneOffset.UTC)).thenReturn(option);
+    when(eventResolver.canEdit("100", "paul")).thenReturn(true);
+    when(eventResolver.canEdit("100", "rita")).thenReturn(false);
+    when(datePollService.getEventDateOption(9L, ZoneOffset.UTC)).thenThrow(new IllegalStateException("boom"));
+
+    assertEquals(Boolean.TRUE, resolver.canEdit("7", "paul"));
+    assertEquals(Boolean.FALSE, resolver.canEdit("7", "rita"));
+    assertEquals(Boolean.FALSE, resolver.canEdit("8", "paul"), "a missing date");
+    assertEquals(Boolean.FALSE, resolver.canEdit("9", "paul"), "a failing lookup");
+    assertEquals(Boolean.FALSE, resolver.canEdit("x", "paul"));
+  }
+
+  /**
    * A date whose event belongs to no space, a missing date, a lookup that
    * fails and an id that isn't one belong to no space, which the server
    * refuses.

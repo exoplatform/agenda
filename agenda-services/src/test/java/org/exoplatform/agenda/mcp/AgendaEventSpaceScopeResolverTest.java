@@ -17,7 +17,9 @@
 package org.exoplatform.agenda.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -183,6 +185,55 @@ class AgendaEventSpaceScopeResolverTest {
     doReturn(owner).when(identityManager).getIdentity(anyLong());
     doThrow(new IllegalStateException("index down")).when(spaceService).getSpaceByPrettyName("alpha");
     assertNull(resolver.spaceOf("5"));
+  }
+
+  /**
+   * A person may have the event changed for them only when the agenda's own
+   * rule lets them edit it in person, asked for that person's identity; a
+   * person with no identity, a deleted or disabled one, a missing event, an
+   * id that isn't one, no person or a failing lookup answer no. Mutants: the
+   * agenda's answer ignored or read for another identity, a deleted or
+   * disabled person let through, a failure read as yes.
+   */
+  @Test
+  void canEditIsTheAgendasOwnRuleForThePerson() {
+    Event event = agendaEventService.getEventById(EVENT_ID);
+    Identity paul = person("42", true, false);
+    Identity rita = person("43", true, false);
+    when(identityManager.getOrCreateUserIdentity("paul")).thenReturn(paul);
+    when(identityManager.getOrCreateUserIdentity("rita")).thenReturn(rita);
+    Identity gone = person("44", true, true);
+    Identity off = person("45", false, false);
+    when(identityManager.getOrCreateUserIdentity("gone")).thenReturn(gone);
+    when(identityManager.getOrCreateUserIdentity("off")).thenReturn(off);
+    when(agendaEventService.canUpdateEvent(event, 42L)).thenReturn(true);
+    when(agendaEventService.canUpdateEvent(event, 44L)).thenReturn(true);
+    when(agendaEventService.canUpdateEvent(event, 45L)).thenReturn(true);
+
+    assertTrue(resolver.canEdit("5", "paul"));
+    assertFalse(resolver.canEdit("5", "rita"));
+    assertFalse(resolver.canEdit("5", "gone"), "a deleted person");
+    assertFalse(resolver.canEdit("5", "off"), "a disabled person");
+    assertFalse(resolver.canEdit("5", "nobody"), "no identity");
+    assertFalse(resolver.canEdit("6", "paul"), "a missing event");
+    assertFalse(resolver.canEdit("x5", "paul"));
+    assertFalse(resolver.canEdit("5", " "));
+    doThrow(new IllegalStateException("boom")).when(agendaEventService).getEventById(8L);
+    assertFalse(resolver.canEdit("8", "paul"), "a failing lookup");
+  }
+
+  /**
+   * @param id       the identity id
+   * @param enabled  true for an enabled identity
+   * @param deleted  true for a deleted identity
+   * @return a user identity
+   */
+  private static Identity person(String id, boolean enabled, boolean deleted) {
+    Identity identity = mock(Identity.class);
+    when(identity.getId()).thenReturn(id);
+    when(identity.isEnable()).thenReturn(enabled);
+    when(identity.isDeleted()).thenReturn(deleted);
+    return identity;
   }
 
   /**

@@ -102,15 +102,15 @@ class AgendaToolDefinitionSpaceScopeTest {
   private static final ObjectMapper MAPPER           = new ObjectMapper();
 
   /** The role each space-scoped write declares in {@code space_role}. */
-  private static final Map<String, String> SPACE_ROLES = Map.of("cancel_agenda_event", "redactor",
-                                                                "confirm_date_poll", "redactor",
+  private static final Map<String, String> SPACE_ROLES = Map.of("cancel_agenda_event", "editor",
+                                                                "confirm_date_poll", "editor",
                                                                 "create_agenda_event", "redactor",
                                                                 "create_date_poll", "redactor",
-                                                                "delete_agenda_event", "redactor",
-                                                                "invite_space_to_agenda_event", "redactor",
-                                                                "invite_users_to_agenda_event", "redactor",
-                                                                "set_event_conference", "redactor",
-                                                                "update_agenda_event", "redactor");
+                                                                "delete_agenda_event", "editor",
+                                                                "invite_space_to_agenda_event", "editor",
+                                                                "invite_users_to_agenda_event", "editor",
+                                                                "set_event_conference", "editor",
+                                                                "update_agenda_event", "editor");
 
   /**
    * Exactly the expected tools declare a space scope, by the space argument
@@ -360,11 +360,13 @@ class AgendaToolDefinitionSpaceScopeTest {
    * who asks a digital worker for it must hold in the call's space
    * (EXO-91405), and no space-scoped read declares one: an event or a date
    * poll is created in a space calendar with the space's redact permission
-   * ({@code Utils#canCreateEvent}), and an event is then written by its
-   * creator, by an attendee it allows to, or by a manager of the space
-   * ({@code AgendaEventServiceImpl#writeRightOf}), so each of them is
-   * {@code redactor}, the creator and attendee rights staying the worker's
-   * own.
+   * ({@code Utils#canCreateEvent}), so its creation is {@code redactor}; an
+   * existing event is changed, cancelled, deleted, has people invited or a
+   * date confirmed only for who could edit that event in person (the PO's
+   * ruling on EXO-91405), by its creator, an attendee it allows to, an editor
+   * of its calendar or a person it is shared with for edit
+   * ({@code AgendaEventServiceImpl#writeRightOf}), which the event resolver
+   * tells, so each of those writes is {@code editor}.
    * Mutants: a write's role dropped or changed, or a read given one.
    *
    * @throws Exception when the shipped definitions can't be read
