@@ -241,7 +241,7 @@
         "false_only_args": [
           "fail_on_conflict"
         ],
-        "space_role": "redactor"
+        "space_role": "editor"
       },
       "require_approval": true
     },
@@ -270,7 +270,7 @@
       "space_scope": {
         "object_arg": "event_id",
         "resolver": "event",
-        "space_role": "redactor"
+        "space_role": "editor"
       },
       "require_approval": true
     },
@@ -358,7 +358,7 @@
         "allowed_args": [
           "occurrence_id"
         ],
-        "space_role": "redactor"
+        "space_role": "editor"
       },
       "require_approval": true
     },
@@ -387,7 +387,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "event_id", "resolver": "event", "allowed_args": ["space_id"], "space_role": "redactor" },
+      "space_scope": { "object_arg": "event_id", "resolver": "event", "allowed_args": ["space_id"], "space_role": "editor" },
       "require_approval": true
     },
     {
@@ -419,7 +419,7 @@
         "idempotentHint": true,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "event_id", "resolver": "event", "allowed_args": ["attendee_usernames"], "space_role": "redactor" },
+      "space_scope": { "object_arg": "event_id", "resolver": "event", "allowed_args": ["attendee_usernames"], "space_role": "editor" },
       "require_approval": true
     },
     {
@@ -566,7 +566,7 @@
         "idempotentHint": false,
         "openWorldHint": false
       },
-      "space_scope": { "object_arg": "date_option_id", "resolver": "event_date_option", "space_role": "redactor" },
+      "space_scope": { "object_arg": "date_option_id", "resolver": "event_date_option", "space_role": "editor" },
       "require_approval": true
     },
     {
@@ -833,7 +833,7 @@
           "url",
           "type"
         ],
-        "space_role": "redactor"
+        "space_role": "editor"
       },
       "require_approval": true
     },
