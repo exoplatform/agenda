@@ -58,7 +58,7 @@
           color="info-color-background"
           offset-x="13"
           offset-y="12"
-          class="me-8">
+          class="waiting-list-badge me-8">
           <v-btn
             icon
             small
@@ -75,7 +75,7 @@
         :size="32"
         @open="openDrawer" />
     </div>
-    <div v-if="capacityIndicator" class="d-flex align-center mt-3">
+    <div v-if="capacityIndicator" class="capacity-indicator d-flex align-center mt-3">
       <v-icon size="18" class="warning--text me-2 flex-shrink-0">{{ showsWaitingPosition ? 'fas fa-info-circle' : 'fas fa-user-lock' }}</v-icon>
       <span class="text-color">{{ capacityIndicator }}</span>
     </div>
