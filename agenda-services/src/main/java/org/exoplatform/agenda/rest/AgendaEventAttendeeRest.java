@@ -129,16 +129,16 @@ public class AgendaEventAttendeeRest {
       @ApiResponse(responseCode = "403", description = "The user may not update the event"),
       @ApiResponse(responseCode = "404", description = "Event not found, or the date was cancelled"),
   })
-  public ResponseEntity<?> exportEventAttendees(HttpServletRequest request,
-                                                @Parameter(description = "Event technical identifier", required = true)
-                                                @PathVariable("eventId")
-                                                long eventId,
-                                                @Parameter(description = "Occurrence id of a date of the series, RFC 3339")
-                                                @RequestParam(name = "occurrenceId", required = false)
-                                                String occurrenceId,
-                                                @Parameter(description = "IANA time zone of the user, dating the file name")
-                                                @RequestParam(name = "timeZoneId", required = false)
-                                                String timeZoneId) {
+  public ResponseEntity<Object> exportEventAttendees(HttpServletRequest request,
+                                                     @Parameter(description = "Event technical identifier", required = true)
+                                                     @PathVariable("eventId")
+                                                     long eventId,
+                                                     @Parameter(description = "Occurrence id of a date of the series, RFC 3339")
+                                                     @RequestParam(name = "occurrenceId", required = false)
+                                                     String occurrenceId,
+                                                     @Parameter(description = "IANA time zone of the user, dating the file name")
+                                                     @RequestParam(name = "timeZoneId", required = false)
+                                                     String timeZoneId) {
     ZonedDateTime occurrence;
     ZoneId zoneId;
     try {
@@ -195,9 +195,9 @@ public class AgendaEventAttendeeRest {
       @ApiResponse(responseCode = "400", description = "No address given"),
       @ApiResponse(responseCode = "503", description = "The user directory could not be read: the address was not checked"),
   })
-  public ResponseEntity<?> getAttendeeUserByEmail(@Parameter(description = "The e-mail address typed", required = true)
-                                                  @RequestParam(name = "email", required = false)
-                                                  String email) {
+  public ResponseEntity<Object> getAttendeeUserByEmail(@Parameter(description = "The e-mail address typed", required = true)
+                                                       @RequestParam(name = "email", required = false)
+                                                       String email) {
     if (StringUtils.isBlank(email)) {
       return refusal(HttpStatus.BAD_REQUEST, EMAIL_MANDATORY);
     }
@@ -245,7 +245,7 @@ public class AgendaEventAttendeeRest {
    * @param code the message code
    * @return the response
    */
-  private static ResponseEntity<Map<String, String>> refusal(HttpStatus status, String code) {
+  private static ResponseEntity<Object> refusal(HttpStatus status, String code) {
     return ResponseEntity.status(status).cacheControl(CacheControl.noStore().cachePrivate()).body(Map.of("message", code));
   }
 
