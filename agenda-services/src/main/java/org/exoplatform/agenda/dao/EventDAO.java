@@ -30,7 +30,9 @@ import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;
 
 public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
 
-  private static final int   DEFAULT_LIMIT = 10;
+  private static final int    DEFAULT_LIMIT      = 10;
+
+  private static final String EVENT_ID_PARAMETER = "eventId";
 
   private EventConferenceDAO eventConferenceDAO;
 
@@ -635,7 +637,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
    */
   public boolean lockEvent(long eventId) {
     TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.lockEvent", Long.class);
-    query.setParameter("eventId", eventId);
+    query.setParameter(EVENT_ID_PARAMETER, eventId);
     query.setLockMode(LockModeType.PESSIMISTIC_WRITE);
     List<Long> resultList = query.getResultList();
     return resultList != null && !resultList.isEmpty();
@@ -654,7 +656,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
    */
   public Date getCapacityReachedDate(long eventId) {
     TypedQuery<Date> query = getEntityManager().createNamedQuery("AgendaEvent.getCapacityReachedDate", Date.class);
-    query.setParameter("eventId", eventId);
+    query.setParameter(EVENT_ID_PARAMETER, eventId);
     query.setFlushMode(FlushModeType.AUTO);
     List<Date> resultList = query.getResultList();
     return resultList.isEmpty() ? null : resultList.get(0);
@@ -672,7 +674,7 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
    */
   public void saveCapacityReachedDate(long eventId, Date capacityReachedDate) {
     Query query = getEntityManager().createNamedQuery("AgendaEvent.saveCapacityReachedDate");
-    query.setParameter("eventId", eventId);
+    query.setParameter(EVENT_ID_PARAMETER, eventId);
     query.setParameter("capacityReachedDate", capacityReachedDate);
     query.executeUpdate();
   }
