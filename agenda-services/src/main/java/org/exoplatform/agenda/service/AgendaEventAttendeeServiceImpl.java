@@ -2282,6 +2282,12 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
       return;
     }
     Event pool = eventStorage.getEventById(eventId);
+    if (pool == null) {
+      // Defensive: getEventById answers null for a row it does not find, and
+      // no path is known that reaches here with the pool's row gone. A pool
+      // that does not exist has no seat to give
+      return;
+    }
     if (pool.getRecurrence() != null) {
       promoteSeriesWaitingAttendees(pool, waitingAttendees);
       return;
