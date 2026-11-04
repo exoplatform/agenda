@@ -5,6 +5,7 @@
       <v-btn
         :disabled="!value"
         :title="$t('agenda.capacity.decrease')"
+        class="capacity-decrease-button"
         icon
         small
         @click="decrease">
@@ -28,7 +29,7 @@
           maxlength="9"
           inputmode="numeric"
           type="text"
-          class="position-absolute l-0 t-0 full-width full-height text-body text-center transparent pa-0 ma-0 no-border no-box-shadow"
+          class="capacity-limit-field position-absolute l-0 t-0 full-width full-height text-body text-center transparent pa-0 ma-0 no-border no-box-shadow"
           @focus="startTyping"
           @keypress="acceptDigitsOnly"
           @keydown.enter.prevent="$event.target.blur()"
@@ -38,6 +39,7 @@
       </span>
       <v-btn
         :title="$t('agenda.capacity.increase')"
+        class="capacity-increase-button"
         icon
         small
         @click="increase">
