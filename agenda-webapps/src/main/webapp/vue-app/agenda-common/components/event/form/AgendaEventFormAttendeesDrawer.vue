@@ -24,6 +24,7 @@
               icon
               :disabled="exportDisabled"
               :aria-label="exportLabel"
+              class="participants-export-button"
               @click="$emit('export')">
               <v-icon size="20" class="icon-default-color">fas fa-download</v-icon>
             </v-btn>
