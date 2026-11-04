@@ -125,12 +125,13 @@ const typedAddressLookups = new Set();
  * event waits for the participant it adds (see typedAddressLookupsSettled).
  *
  * @param {Promise} lookup settled once the drawer added or refused the
- *          participant, never rejected
+ *          participant, rejected only when one of its own handlers throws
  * @returns {Promise} the lookup
  */
 export function trackTypedAddressLookup(lookup) {
   typedAddressLookups.add(lookup);
-  lookup.then(() => typedAddressLookups.delete(lookup));
+  const settled = () => typedAddressLookups.delete(lookup);
+  lookup.then(settled, settled);
   return lookup;
 }
 
