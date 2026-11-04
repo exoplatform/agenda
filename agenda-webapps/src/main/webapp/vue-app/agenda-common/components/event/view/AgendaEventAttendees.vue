@@ -1066,11 +1066,7 @@ export default {
         // invitation, not a padlock.
         const eventToSave = JSON.parse(JSON.stringify(this.eventWithDatesToSave(this.event)));
         eventToSave.sendInvitation = listChanged;
-        // Opening travels with the invite permission it clears (see toggleOpen)
-        const fields = padlockChanged ? (this.event.open ? ['open', 'allowAttendeeToInvite'] : ['open']) : [];
-        if (capacityChanged) {
-          fields.push('capacity');
-        }
+        const fields = this.scopedFields(padlockChanged, capacityChanged);
         const delta = listChanged ? this.attendeesDelta() : null;
         // Locking a date with a limit removes it and confirms its waiting
         // list (D15): confirmed at the padlock (see toggleOpen) and carried to
@@ -1109,6 +1105,26 @@ export default {
           this.settleQueuedSave();
           this.settleLiveRead();
         });
+    },
+    /**
+     * @param {Boolean} padlockChanged whether the visit changed the padlock
+     * @param {Boolean} capacityChanged whether the visit changed the limit
+     * @returns {Array<String>} the event fields a scoped save of the visit
+     *          names: the padlock, with the invite permission an opening
+     *          clears (see toggleOpen), then the limit
+     */
+    scopedFields(padlockChanged, capacityChanged) {
+      const fields = [];
+      if (padlockChanged) {
+        fields.push('open');
+        if (this.event.open) {
+          fields.push('allowAttendeeToInvite');
+        }
+      }
+      if (capacityChanged) {
+        fields.push('capacity');
+      }
+      return fields;
     },
     /**
      * @returns {Object} what the drawer holds, as a write carries it: the
@@ -1318,40 +1334,7 @@ export default {
             this.liveReadPending = true;
             return;
           }
-          // The people the organiser added or removed in the drawer, still
-          // open while the padlock closed the event, are not saved yet: they
-          // go back on the list read (EXO-90310)
-          const unsavedList = keepsDrawerList && this.drawerHoldsChanges() && this.attendeesChanged()
-            ? this.attendeesDelta() : null;
-          this.$set(this.event, 'open', storedEvent.open);
-          this.$set(this.event, 'capacity', storedEvent.capacity);
-          this.$set(this.event, 'acceptedCount', storedEvent.acceptedCount);
-          // A change of the limit or of the participants moves the line
-          this.$set(this.event, 'waitingListPosition', storedEvent.waitingListPosition);
-          this.$set(this.event, 'attendees', storedEvent.attendees || []);
-          if (this.event.parent && storedEvent.parent) {
-            this.$set(this.event.parent, 'open', storedEvent.parent.open);
-          }
-          // The popup is closed before this read returns, so an organiser who
-          // reopens the drawer in that window snapshots the pre-save event; when
-          // the read lands and replaces attendees and open, the next close would
-          // see a difference and ask the same question again. Re-taking the
-          // reference point on what the server stored closes that race
-          this.rememberDrawerState();
-          if (unsavedList) {
-            // After the reference point, so that the drawer's close still
-            // saves them
-            this.$set(this.event, 'attendees', this.$agendaUtils.withAttendeesDelta(this.event.attendees, unsavedList));
-          }
-          if (changedSince && changedSince.attendees) {
-            this.$set(this.event, 'attendees', this.$agendaUtils.withAttendeesDelta(this.event.attendees, changedSince.attendees));
-          }
-          if (changedSince && changedSince.capacity !== null) {
-            // Never below the people who said Yes, as the stepper keeps it:
-            // a step taken while the save was on its way did not count the
-            // seats that save gave
-            this.$set(this.event, 'capacity', changedSince.capacity && Math.max(changedSince.capacity, storedEvent.acceptedCount || 0));
-          }
+          this.applyStoredEvent(storedEvent, keepsDrawerList, changedSince);
         })
         .catch(() => this.$root.$emit('agenda-refresh'))
         .finally(() => {
@@ -1360,6 +1343,54 @@ export default {
           this.readsInFlight--;
           this.settleLiveRead();
         });
+    },
+    /**
+     * Puts a read of the event the page shows on it (see
+     * refreshDisplayedEvent), then puts back what the drawer holds that the
+     * read does not.
+     *
+     * @param {Object} storedEvent the event as read
+     * @param {Boolean} keepsDrawerList whether the people the drawer, still
+     *          open, added or removed, not saved yet, stay on the list read
+     * @param {Object} changedSince what the drawer changed while the write
+     *          the read follows was on its way, null when nothing
+     * @returns {void}
+     */
+    applyStoredEvent(storedEvent, keepsDrawerList, changedSince) {
+      // The people the organiser added or removed in the drawer, still
+      // open while the padlock closed the event, are not saved yet: they
+      // go back on the list read (EXO-90310)
+      const unsavedList = keepsDrawerList && this.drawerHoldsChanges() && this.attendeesChanged()
+        ? this.attendeesDelta() : null;
+      this.$set(this.event, 'open', storedEvent.open);
+      this.$set(this.event, 'capacity', storedEvent.capacity);
+      this.$set(this.event, 'acceptedCount', storedEvent.acceptedCount);
+      // A change of the limit or of the participants moves the line
+      this.$set(this.event, 'waitingListPosition', storedEvent.waitingListPosition);
+      this.$set(this.event, 'attendees', storedEvent.attendees || []);
+      if (this.event.parent && storedEvent.parent) {
+        this.$set(this.event.parent, 'open', storedEvent.parent.open);
+      }
+      // The popup is closed before this read returns, so an organiser who
+      // reopens the drawer in that window snapshots the pre-save event; when
+      // the read lands and replaces attendees and open, the next close would
+      // see a difference and ask the same question again. Re-taking the
+      // reference point on what the server stored closes that race
+      this.rememberDrawerState();
+      if (unsavedList) {
+        // After the reference point, so that the drawer's close still
+        // saves them
+        this.$set(this.event, 'attendees', this.$agendaUtils.withAttendeesDelta(this.event.attendees, unsavedList));
+      }
+      if (changedSince && changedSince.attendees) {
+        this.$set(this.event, 'attendees', this.$agendaUtils.withAttendeesDelta(this.event.attendees, changedSince.attendees));
+      }
+      if (changedSince && changedSince.capacity !== null) {
+        // Never below the people who said Yes, as the stepper keeps it:
+        // a step taken while the save was on its way did not count the
+        // seats that save gave
+        this.$set(this.event, 'capacity', changedSince.capacity && Math.max(changedSince.capacity, storedEvent.acceptedCount || 0));
+      }
     },
     /**
      * The popup closed without the organiser choosing a scope: whatever the
