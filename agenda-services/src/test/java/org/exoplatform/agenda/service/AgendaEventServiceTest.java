@@ -7179,7 +7179,7 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     for (ZonedDateTime start : starts) {
       Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
       seriesInstance.setTimeZoneId(start.getZone());
-      if (start.getZone() == ZoneOffset.UTC) {
+      if (ZoneOffset.UTC.equals(start.getZone())) {
         seriesInstance.getRecurrence().setFrequency(EventRecurrenceFrequency.HOURLY);
         seriesInstance.getRecurrence().setUntil(null);
         seriesInstance.getRecurrence().setCount(4);

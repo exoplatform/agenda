@@ -1245,7 +1245,7 @@ public class AgendaEventSplitTest extends BaseAgendaEventTest {
     assertEquals(7, dates(continuation).size());
     assertTrue(dates(continuation).stream()
                                   .map(date -> date.withZoneSameInstant(ZoneId.of("Europe/Paris")).getDayOfWeek())
-                                  .allMatch(day -> day != DayOfWeek.SATURDAY && day != DayOfWeek.SUNDAY));
+                                  .allMatch(day -> !DayOfWeek.SATURDAY.equals(day) && !DayOfWeek.SUNDAY.equals(day)));
   }
 
   /**
@@ -1472,7 +1472,7 @@ public class AgendaEventSplitTest extends BaseAgendaEventTest {
     List<ZonedDateTime> continuationDates = dates(continuation);
     assertEquals(3, continuationDates.size());
     assertTrue(continuationDates.toString(),
-               continuationDates.stream().allMatch(date -> date.getDayOfWeek() == moved.getDayOfWeek()));
+               continuationDates.stream().allMatch(date -> moved.getDayOfWeek().equals(date.getDayOfWeek())));
     assertEquals(EventAttendeeResponse.NEEDS_ACTION, responseAt(continuation.getId(), testuser2Identity, null));
   }
 
