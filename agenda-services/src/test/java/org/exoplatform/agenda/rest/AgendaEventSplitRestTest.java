@@ -65,8 +65,7 @@ import org.exoplatform.social.core.manager.IdentityManager;
 
 /**
  * Pins the status contract of {@code POST /agenda/rest/events/{id}/split}, a
- * Spring MVC resource since the integration review of eXIP 7.3.0.21: the
- * continuation's identifier on success; 403, 404, and 400 with the message
+ * Spring MVC resource: the continuation's identifier on success; 403, 404, and 400 with the message
  * code in {@code {"message": ...}}, the date that blocks beside it for a limit
  * below the Yes answers; a fixed code, never an exception's text, for a bad
  * date or zone, an unreadable body and a failure. Also pins how the change's
@@ -170,7 +169,9 @@ class AgendaEventSplitRestTest {
     when(user.getId()).thenReturn("11");
     when(user.getProviderId()).thenReturn(OrganizationIdentityProvider.NAME);
     when(user.getRemoteId()).thenReturn("testuser3");
-    when(attendeeService.getUserIdentityByEmail(eq("Testuser3@Example.com"), anyLong())).thenReturn(user);
+    // Looked up for the user who splits: an unknown or external one resolves
+    // no address, and every typed address would become a guest
+    when(attendeeService.getUserIdentityByEmail("Testuser3@Example.com", USER_IDENTITY_ID)).thenReturn(user);
     when(identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "testuser3")).thenReturn(user);
 
     split(null, true, body("[" + attendee("testuser3@example.com", "GUEST_USER", "Testuser3@Example.com") + "]", "[]"));

@@ -81,7 +81,8 @@ public class RestUtils {
    * A participant given by an e-mail address that the platform recognises, and
    * that the client typed rather than read back from the server, is invited as
    * the user whose address it is, never as a guest from outside the platform
-   * (eXIP 7.3.0.21, US06). A guest already invited comes back with the id of
+   * (eXIP 7.3.0.21, US06), when the user who saves is not an external user:
+   * an external user is told no owner, so the address stays a guest's. A guest already invited comes back with the id of
    * its identity and stays one: a save never turns them into someone else. A
    * user given twice, picked and typed, is invited once.
    *
