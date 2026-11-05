@@ -22,8 +22,8 @@ import org.exoplatform.agenda.constant.EventAttendeeResponse;
  * A calendar invitation a user received by mail and wants in their eXo
  * calendar — answered, added as it is, or removed because its organiser
  * cancelled it (EXO-90866). Agenda's own words for what the mail reader hands
- * over, so that only the plugin bridging the two add-ons names the reader's
- * types.
+ * over: agenda names none of the reader's types and does not depend on it;
+ * the reader's plugin translates (EXO-92981).
  * <p>
  * Every field but {@code username} is the sender's content or was read from
  * it: a claim, not a fact.
