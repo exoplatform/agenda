@@ -70,6 +70,7 @@ import org.exoplatform.agenda.model.EventOccurrence;
 import org.exoplatform.agenda.model.EventDateOption;
 import org.exoplatform.agenda.model.EventReminder;
 import org.exoplatform.agenda.model.EventSearchResult;
+import org.exoplatform.agenda.model.EventSeatCounts;
 import org.exoplatform.agenda.model.AgendaEventModification;
 import org.exoplatform.agenda.constant.AvailabilitySharing;
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
@@ -158,6 +159,8 @@ class AgendaEventMcpToolTest {
     agendaEventService = Mockito.mock(AgendaEventService.class);
     agendaEventConferenceService = Mockito.mock(AgendaEventConferenceService.class);
     agendaEventAttendeeService = Mockito.mock(AgendaEventAttendeeService.class);
+    // A read of one event fills its seats, as the service counts them
+    when(agendaEventAttendeeService.getSeatCounts(anyLong(), any(), anyLong())).thenReturn(new EventSeatCounts(0, 0, null));
     agendaEventDatePollService = Mockito.mock(org.exoplatform.agenda.service.AgendaEventDatePollService.class);
     agendaEventReminderService = Mockito.mock(org.exoplatform.agenda.service.AgendaEventReminderService.class);
     agendaUserSettingsService = Mockito.mock(AgendaUserSettingsService.class);
