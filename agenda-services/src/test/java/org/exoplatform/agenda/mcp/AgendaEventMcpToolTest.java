@@ -188,6 +188,7 @@ class AgendaEventMcpToolTest {
                                   agendaEventAttendeeService,
                                   agendaEventDatePollService,
                                   agendaEventReminderService,
+                                  Mockito.mock(org.exoplatform.agenda.service.AgendaRemoteEventService.class),
                                   agendaUserSettingsService,
                                   portalConfigService,
                                   profilePropertyService,
