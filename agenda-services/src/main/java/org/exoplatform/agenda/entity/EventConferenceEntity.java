@@ -48,6 +48,7 @@ import jakarta.persistence.Table;
   query = "SELECT DISTINCT a.url, COALESCE(parent.id, evt.id) FROM AgendaEventConference a"
       + " JOIN a.event evt LEFT JOIN evt.parent parent"
       + " WHERE a.type = :type AND a.url LIKE :url ESCAPE '!'"
+      + " ORDER BY COALESCE(parent.id, evt.id) ASC, a.url ASC"
 )
 public class EventConferenceEntity implements Serializable {
 
