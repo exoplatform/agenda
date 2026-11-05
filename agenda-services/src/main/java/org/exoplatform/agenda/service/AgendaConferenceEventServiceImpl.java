@@ -67,7 +67,10 @@ public class AgendaConferenceEventServiceImpl implements AgendaConferenceEventSe
    */
   static final Duration                      LOOKBACK_BEYOND_GRACE = Duration.ofHours(36);
 
-  /** At most this many meeting links are read for one call. */
+  /**
+   * At most this many meeting links are read for one call, among those holding
+   * its identifier as a whole segment, the series created first first.
+   */
   static final int                           MATCH_LIMIT           = 200;
 
   /**
@@ -127,7 +130,7 @@ public class AgendaConferenceEventServiceImpl implements AgendaConferenceEventSe
     }
     Duration grace = Duration.ofHours(graceHours);
     Set<Long> seriesIds = new LinkedHashSet<>();
-    conferenceStorage.findConferencesContaining(providerType, "/" + callId, MATCH_LIMIT)
+    conferenceStorage.findConferencesHoldingSegment(providerType, "/" + callId, MATCH_LIMIT)
                      .stream()
                      .filter(match -> holdsCallId(match.url(), callId))
                      .forEach(match -> seriesIds.add(match.seriesId()));

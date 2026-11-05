@@ -136,7 +136,7 @@ class AgendaConferenceEventServiceImplTest {
    */
   @Test
   void aLongerCallIdentifierFindsNothing() throws Exception {
-    when(conferenceStorage.findConferencesContaining(JITSI, "/" + CALL_ID, AgendaConferenceEventServiceImpl.MATCH_LIMIT))
+    when(conferenceStorage.findConferencesHoldingSegment(JITSI, "/" + CALL_ID, AgendaConferenceEventServiceImpl.MATCH_LIMIT))
                                                                                                                     .thenReturn(List.of(new EventConferenceMatch("https://host/jitsi/meet/"
                                                                                                                         + CALL_ID + "d", SINGLE)));
 
@@ -494,7 +494,7 @@ class AgendaConferenceEventServiceImplTest {
     assertEquals(AgendaConferenceEventServiceImpl.GRACE_TOO_LONG,
                  assertThrows(IllegalArgumentException.class,
                               () -> service.getConferenceEvent(JITSI, CALL_ID, moment, 169, READER)).getMessage());
-    verify(conferenceStorage, never()).findConferencesContaining(anyString(), anyString(), anyInt());
+    verify(conferenceStorage, never()).findConferencesHoldingSegment(anyString(), anyString(), anyInt());
   }
 
   /**
@@ -515,7 +515,7 @@ class AgendaConferenceEventServiceImplTest {
    * @param seriesIds the series of the links
    */
   private void matches(long... seriesIds) {
-    when(conferenceStorage.findConferencesContaining(JITSI, "/" + CALL_ID, AgendaConferenceEventServiceImpl.MATCH_LIMIT))
+    when(conferenceStorage.findConferencesHoldingSegment(JITSI, "/" + CALL_ID, AgendaConferenceEventServiceImpl.MATCH_LIMIT))
                                                                                                                     .thenReturn(java.util.Arrays.stream(seriesIds)
                                                                                                                                                 .mapToObj(id -> new EventConferenceMatch(LINK,
                                                                                                                                                                                          id))
