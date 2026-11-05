@@ -4,7 +4,7 @@
     {
       "name": "get_agenda_events",
       "title": "Get agenda events",
-      "description": "Retrieve agenda events for the current user, optionally filtered by RFC3339 start/end, space, and limit: the events they accepted, may attend or have not answered yet, and the ones whose waiting list they are on (user_answer WAITING). Without a space, the events of the calendars other users shared with them come too, whatever their answer: user_answer is then left out when they are not invited.",
+      "description": "Retrieve agenda events for the current user, optionally filtered by RFC3339 start/end, space, and limit: the events they accepted, may attend or have not answered yet, and the ones whose waiting list they are on (user_answer WAITING), and the events that invite one of their spaces, whatever they answered: user_answer is then their own answer, left out when they gave none. Without a space, the events of the calendars other users shared with them come too, whatever their answer: user_answer is then left out when they are not invited.",
       "input_schema": {
         "type": "object",
         "properties": {

@@ -131,13 +131,6 @@ public class AgendaEventAttendeeUserByEmailTest extends BaseAgendaEventTest {
     }
   }
 
-  /**
-   * @return the identity the lookups are made for: an internal user
-   */
-  private long callerId() {
-    return Long.parseLong(testuser1Identity.getId());
-  }
-
   @Test
   public void anAddressResolvesToItsUserIgnoringCase() {
     String email = emailOf(testuser2Identity);
@@ -241,6 +234,13 @@ public class AgendaEventAttendeeUserByEmailTest extends BaseAgendaEventTest {
     assertEquals(200, response.getStatus());
     long createdId = ((EventEntity) response.getEntity()).getId();
     assertTrue(agendaEventAttendeeService.isEventAttendee(createdId, id(testuser4Identity)));
+  }
+
+  /**
+   * @return the identity the lookups are made for: an internal user
+   */
+  private long callerId() {
+    return Long.parseLong(testuser1Identity.getId());
   }
 
   private AgendaEventRest eventRest() {
