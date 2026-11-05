@@ -478,7 +478,8 @@ public class AgendaEventMcpTool implements McpToolPlugin {
    *
    * @param eventId the event's identifier
    * @return the event as the user now reads it
-   * @throws IllegalAccessException when the user may not access the event
+   * @throws IllegalAccessException when the user may not access the event, or
+   *           may not answer it: not invited, and the event isn't open to them
    * @throws ObjectNotFoundException when the event does not exist
    */
   public AgendaEventModel acceptAgendaEventInvitation(Long eventId) throws IllegalAccessException, ObjectNotFoundException {
