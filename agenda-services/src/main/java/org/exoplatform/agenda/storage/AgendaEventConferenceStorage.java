@@ -39,23 +39,25 @@ public class AgendaEventConferenceStorage {
   }
 
   /**
-   * Lists the meeting links of a conference type containing a text, each with
-   * the series of the events holding it. The text is matched literally: the
-   * LIKE wildcards it holds, <code>%</code> and <code>_</code>, are escaped.
-   * The links come by series, the earliest created first.
+   * Lists the meeting links of a conference type holding a path segment, each
+   * with the series of the events holding it: the segment followed by the end
+   * of the link, a query string, a fragment or another segment. The segment is
+   * matched literally: the LIKE wildcards it holds, <code>%</code> and
+   * <code>_</code>, are escaped. The links come by series, the earliest
+   * created first, so the limit keeps the series created first, whenever
+   * their links were saved.
    * <p>
-   * The text is searched anywhere in the link, which no index serves: each
+   * The segment is searched anywhere in the link, which no index serves: each
    * call reads the whole conference table. It is meant for one lookup at a
    * time, such as opening one recording, never for each item of a list.
    *
    * @param type conference type, the web conferencing provider type
-   * @param text the text the link contains
+   * @param segment the segment, such as <code>/</code> and a call identifier
    * @param limit maximum number of links to return
    * @return the links found, possibly empty
    */
-  public List<EventConferenceMatch> findConferencesContaining(String type, String text, int limit) {
-    String pattern = "%" + escapeLikeWildcards(text) + "%";
-    return eventConferenceDAO.findByTypeAndUrlLike(type, pattern, limit)
+  public List<EventConferenceMatch> findConferencesHoldingSegment(String type, String segment, int limit) {
+    return eventConferenceDAO.findByTypeAndUrlSegment(type, escapeLikeWildcards(segment), limit)
                              .stream()
                              .map(row -> new EventConferenceMatch((String) row[0], ((Number) row[1]).longValue()))
                              .toList();
