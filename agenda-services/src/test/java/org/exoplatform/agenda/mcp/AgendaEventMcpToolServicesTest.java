@@ -40,6 +40,7 @@ import org.exoplatform.agenda.mcp.model.AgendaEventModel;
 import org.exoplatform.agenda.model.AvailabilityConflicts;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.model.RemoteEvent;
 import org.exoplatform.agenda.service.AgendaAvailabilityService;
 import org.exoplatform.agenda.service.AgendaScheduleConflictService;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
@@ -88,6 +89,7 @@ public class AgendaEventMcpToolServicesTest extends BaseAgendaEventTest {
                                   agendaEventAttendeeService,
                                   agendaEventDatePollService,
                                   agendaEventReminderService,
+                                  agendaRemoteEventService,
                                   agendaUserSettingsService,
                                   portalConfigService,
                                   mock(ProfilePropertyService.class),
@@ -117,8 +119,10 @@ public class AgendaEventMcpToolServicesTest extends BaseAgendaEventTest {
 
   /**
    * Making a single event weekly through the tool keeps both participants'
-   * rows with their answers, its conference and its organiser's reminder.
-   * Mutant: the update given null lists, which deletes all of them.
+   * rows with their answers, its conference, its organiser's reminder and
+   * the organiser's link to the event's copy in a remote calendar.
+   * Mutant: the update given null lists, or no remote copy, which deletes
+   * them.
    *
    * @throws Exception when the event can't be created, answered or updated
    */
@@ -138,6 +142,14 @@ public class AgendaEventMcpToolServicesTest extends BaseAgendaEventTest {
     int rowsBefore = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees().size();
     assertEquals(1, agendaEventConferenceService.getEventConferences(eventId).size());
     assertEquals(1, agendaEventReminderService.getEventReminders(eventId, organiserId).size());
+    agendaRemoteEventService.saveRemoteEvent(eventId,
+                                             new RemoteEvent(0,
+                                                             eventId,
+                                                             organiserId,
+                                                             "copy-in-the-remote-calendar",
+                                                             remoteProvider.getId(),
+                                                             remoteProvider.getName()),
+                                             organiserId);
 
     assertNotNull(tool.updateAgendaEvent(eventId, null, null, null, null, null, "WEEKLY", 1, null, 3, false));
 
@@ -152,6 +164,9 @@ public class AgendaEventMcpToolServicesTest extends BaseAgendaEventTest {
     assertEquals(rowsBefore, rows.size());
     assertEquals(1, agendaEventConferenceService.getEventConferences(eventId).size());
     assertEquals(1, agendaEventReminderService.getEventReminders(eventId, organiserId).size());
+    RemoteEvent remoteCopy = agendaRemoteEventService.findRemoteEvent(eventId, organiserId);
+    assertNotNull("the link to the copy in the remote calendar was dropped", remoteCopy);
+    assertEquals("copy-in-the-remote-calendar", remoteCopy.getRemoteId());
   }
 
   /**
