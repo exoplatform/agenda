@@ -24,12 +24,13 @@ import jakarta.persistence.EntityManager;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.DecideContext;
-import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.commons.persistence.impl.EntityManagerService;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+
+import io.meeds.common.ContainerTransactional;
 
 /**
  * Runs the decide steps of the agenda — the writes of an answer, of an
@@ -47,9 +48,11 @@ import org.exoplatform.services.log.Log;
  * every event the step read or wrote, then, when it succeeded, the broadcasts
  * and the notification dispatches it queued, in order.</li>
  * </ul>
- * Its transaction is {@code @ExoTransactional}, which the Architects Lead
- * allows for the decide steps only: {@code @ContainerTransactional} opens no
- * JPA transaction, and a row lock lives in one.
+ * Its transaction is {@code @ContainerTransactional(atomic = true)}'s: the
+ * aspect begins it, commits it when the step returns, and rolls it back when
+ * the step throws, its writes and its lock with it. The step refuses to run
+ * inside a transaction it did not begin, which the aspect would join, since
+ * its lock would then not be that transaction's first read.
  */
 class DecideSteps {
 
@@ -161,38 +164,34 @@ class DecideSteps {
     }
   }
 
-  @ExoTransactional
+  @ContainerTransactional(atomic = true)
   private <T, X1 extends Exception, X2 extends Exception> T decideInTransaction(DecideContext context,
                                                                                DecideTarget target,
                                                                                DecideBody<T, X1, X2> body) throws X1, X2 {
-    try {
-      // Recorded first, so that the cache entries the caller resolved from are
-      // evicted when the step ends, whether it acts or has them resolved again
-      target.lockedEventIds().forEach(DecideContext::recordEvent);
-      if (target.eventId() > 0) {
-        DecideContext.recordEvent(target.eventId());
-      }
-      if (!eventStorage.lockEvents(target.lockedEventIds().stream().mapToLong(Long::longValue).toArray())) {
-        throw new ResolveAgainException("An event of " + target.lockedEventIds() + " no longer exists");
-      }
-      target.lockedEventIds().forEach(context::addLockedEvent);
-      if (target.eventId() > 0) {
-        Event event = eventStorage.getEventById(target.eventId());
-        if (event == null || Math.max(event.getParentId(), 0) != target.parentId()) {
-          throw new ResolveAgainException("Event " + target.eventId() + " is no longer an event of " + target.parentId());
-        }
-      }
-      T result = body.decide();
-      if (isRollbackOnly()) {
-        // A failure the body caught marked the transaction, which the aspect
-        // rolls back without a word: its writes are lost, and so is the step
-        throw new IllegalStateException("A failure caught during the decide step marked its transaction for rollback");
-      }
-      return result;
-    } catch (Throwable e) { // NOSONAR the transaction rolls back on every failure, and the failure goes on
-      markRollbackOnly();
-      throw e;
+    // Recorded first, so that the cache entries the caller resolved from are
+    // evicted when the step ends, whether it acts or has them resolved again
+    target.lockedEventIds().forEach(DecideContext::recordEvent);
+    if (target.eventId() > 0) {
+      DecideContext.recordEvent(target.eventId());
     }
+    if (!eventStorage.lockEvents(target.lockedEventIds().stream().mapToLong(Long::longValue).toArray())) {
+      throw new ResolveAgainException("An event of " + target.lockedEventIds() + " no longer exists");
+    }
+    target.lockedEventIds().forEach(context::addLockedEvent);
+    if (target.eventId() > 0) {
+      Event event = eventStorage.getEventById(target.eventId());
+      if (event == null || Math.max(event.getParentId(), 0) != target.parentId()) {
+        throw new ResolveAgainException("Event " + target.eventId() + " is no longer an event of " + target.parentId());
+      }
+    }
+    T result = body.decide();
+    if (isRollbackOnly()) {
+      // A failure the body caught marked the transaction: the step fails, and
+      // the aspect rolls its writes back. Failing here, before the aspect
+      // answers the same case with a RollbackException, names the step
+      throw new IllegalStateException("A failure caught during the decide step marked its transaction for rollback");
+    }
+    return result;
   }
 
   private <T, X1 extends Exception, X2 extends Exception> T decideNested(DecideContext context,
@@ -241,17 +240,10 @@ class DecideSteps {
         && entityManager.getTransaction().getRollbackOnly();
   }
 
-  private void markRollbackOnly() {
-    EntityManager entityManager = getEntityManager();
-    if (entityManager != null && entityManager.getTransaction().isActive()) {
-      entityManager.getTransaction().setRollbackOnly();
-    }
-  }
-
   /**
-   * @return the thread's entity manager, found the way
-   *         {@code ExoTransactionalAspect} finds it to begin the step's
-   *         transaction, or null when there is none
+   * @return the thread's entity manager, held by the portal container's
+   *         persistence service, in which the aspect begins the step's
+   *         transaction; null when there is none
    */
   private EntityManager getEntityManager() {
     EntityManagerService entityManagerService = ExoContainerContext.getService(EntityManagerService.class);
