@@ -58,7 +58,8 @@ public class EventConferenceDAO extends GenericDAOJPAImpl<EventConferenceEntity,
    * occurrences comes back once. The pattern escapes its
    * wildcards with <code>!</code>, the one escape character every supported
    * engine reads the same way (MySQL reads a backslash in a literal as an
-   * escape of its own).
+   * escape of its own). The rows come by series, the earliest created first,
+   * so the limit keeps the earliest series whatever the links saved later.
    *
    * @param type conference type, the web conferencing provider type
    * @param urlPattern LIKE pattern, wildcards of the searched text escaped
