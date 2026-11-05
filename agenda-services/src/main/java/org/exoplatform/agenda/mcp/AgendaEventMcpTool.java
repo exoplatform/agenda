@@ -97,6 +97,7 @@ import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.service.AgendaEventConferenceService;
 import org.exoplatform.agenda.service.AgendaEventDatePollService;
 import org.exoplatform.agenda.service.AgendaEventReminderService;
+import org.exoplatform.agenda.service.AgendaRemoteEventService;
 import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.agenda.service.AgendaScheduleConflictService;
 import org.exoplatform.agenda.service.AgendaUserSettingsService;
@@ -191,6 +192,8 @@ public class AgendaEventMcpTool implements McpToolPlugin {
 
   private final AgendaEventReminderService   agendaEventReminderService;
 
+  private final AgendaRemoteEventService     agendaRemoteEventService;
+
   private final AgendaUserSettingsService    agendaUserSettingsService;
 
   private final ProfilePropertyService       profilePropertyService;
@@ -212,6 +215,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                             AgendaEventAttendeeService agendaEventAttendeeService,
                             AgendaEventDatePollService agendaEventDatePollService,
                             AgendaEventReminderService agendaEventReminderService,
+                            AgendaRemoteEventService agendaRemoteEventService,
                             AgendaUserSettingsService agendaUserSettingsService,
                             UserPortalConfigService portalConfigService,
                             ProfilePropertyService profilePropertyService,
@@ -227,6 +231,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     this.agendaEventConferenceService = agendaEventConferenceService;
     this.agendaEventDatePollService = agendaEventDatePollService;
     this.agendaEventReminderService = agendaEventReminderService;
+    this.agendaRemoteEventService = agendaRemoteEventService;
     this.agendaUserSettingsService = agendaUserSettingsService;
     this.agendaCalendarService = agendaCalendarService;
     this.profilePropertyService = profilePropertyService;
@@ -658,15 +663,17 @@ public class AgendaEventMcpTool implements McpToolPlugin {
       existingEvent.setStart(startDate);
       existingEvent.setEnd(endDate);
       existingEvent.setRecurrence(recurrence);
-      // A full update saves the lists it is given, and a null list means none:
-      // the stored participants, conferences and the caller's reminders are
-      // handed back, so that the save keeps them and their answers
+      // A full update saves what it is given, and a null list, or a null
+      // remote copy, means none: the stored participants, conferences, the
+      // caller's reminders and the caller's link to the event's copy in a
+      // remote calendar are handed back, so that the save keeps them and the
+      // answers. Date options are kept when none are given
       agendaEventService.updateEvent(existingEvent,
                                      attendees,
                                      agendaEventConferenceService.getEventConferences(eventId),
                                      agendaEventReminderService.getEventReminders(eventId, userIdentityId),
                                      null,
-                                     null,
+                                     agendaRemoteEventService.findRemoteEvent(eventId, userIdentityId),
                                      false,
                                      userIdentityId);
     } else {
