@@ -248,11 +248,14 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     long userIdentityId = getCurrentUserIdentityId();
     List<Long> ownerIds = spaceId == null || spaceId.longValue() == 0 ? null :
                                                                       getSpaceIdentityIds(Collections.singletonList(spaceId));
+    // The answers the agenda page lists: a Yes given once every seat was
+    // taken reads WAITING, and its event stays in the user's agenda
     EventFilter eventFilter = new EventFilter(userIdentityId,
                                               ownerIds,
                                               List.of(EventAttendeeResponse.ACCEPTED,
                                                       EventAttendeeResponse.TENTATIVE,
-                                                      EventAttendeeResponse.NEEDS_ACTION),
+                                                      EventAttendeeResponse.NEEDS_ACTION,
+                                                      EventAttendeeResponse.WAITING),
                                               startDatetime,
                                               endDatetime,
                                               limit);
@@ -432,7 +435,18 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                                          userIdentityId);
   }
 
-  public void acceptAgendaEventInvitation(Long eventId) throws IllegalAccessException, ObjectNotFoundException {
+  /**
+   * Answers Yes to an event as the current user, and reads the event back, as
+   * {@link #respondToAgendaEvent(Long, String, String)} does: on a date whose
+   * seats are all taken, the Yes joins the waiting list, which the answer read
+   * back says.
+   *
+   * @param eventId the event's identifier
+   * @return the event as the user now reads it
+   * @throws IllegalAccessException when the user may not access the event
+   * @throws ObjectNotFoundException when the event does not exist
+   */
+  public AgendaEventModel acceptAgendaEventInvitation(Long eventId) throws IllegalAccessException, ObjectNotFoundException {
     if (eventId == null || eventId == 0) {
       throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MANDATORY);
     } else if (!userAcl.hasAccessPermission(AgendaEventAclPlugin.OBJECT_TYPE,
@@ -441,6 +455,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
       throw new IllegalAccessException(MSG_USER_NOT_ALLOWED_TO_ACCESS_EVENT.formatted(eventId));
     }
     agendaEventAttendeeService.sendEventResponse(eventId, getCurrentUserIdentityId(), EventAttendeeResponse.ACCEPTED);
+    return getAgendaEventById(eventId);
   }
 
   public AgendaEventModel inviteUsersToAgendaEvent(Long eventId, List<String> attendeeUsernames) throws IllegalAccessException,

@@ -282,6 +282,70 @@ public class AgendaEventMcpToolServicesTest extends BaseAgendaEventTest {
     assertEquals(Integer.valueOf(1), model.getWaitingListPosition());
   }
 
+  /**
+   * A Yes given through the tool once every seat is taken joins the waiting
+   * list, and the event read back says so, as the answer tool's does.
+   * Mutant: the tool answering without reading the event back.
+   *
+   * @throws Exception when the event can't be created or answered
+   */
+  @Test
+  public void anAcceptanceOnAFullEventReadsBackThePlaceOnTheWaitingList() throws Exception {
+    long eventId = createLimitedEvent(1);
+    agendaEventAttendeeService.sendEventResponse(eventId, Long.parseLong(testuser4Identity.getId()), EventAttendeeResponse.ACCEPTED);
+
+    actAs(testuser5Identity);
+    AgendaEventModel model = tool.acceptAgendaEventInvitation(eventId);
+
+    assertNotNull("the event read back after the answer", model);
+    assertEquals(EventAttendeeResponse.WAITING, model.getUserAnswer());
+    assertEquals(Integer.valueOf(1), model.getWaitingListPosition());
+  }
+
+  /**
+   * An event the user is on the waiting list of stays in their agenda, as
+   * the agenda page lists it, with the WAITING answer.
+   * Mutant: the listing's answers without WAITING, which drops the event.
+   *
+   * @throws Exception when the event can't be created, answered or listed
+   */
+  @Test
+  public void aListingOfTheAgendaKeepsAnEventTheUserIsWaitingFor() throws Exception {
+    long eventId = createLimitedEvent(1);
+    agendaEventAttendeeService.sendEventResponse(eventId, Long.parseLong(testuser4Identity.getId()), EventAttendeeResponse.ACCEPTED);
+    agendaEventAttendeeService.sendEventResponse(eventId, Long.parseLong(testuser5Identity.getId()), EventAttendeeResponse.ACCEPTED);
+    Event event = agendaEventService.getEventById(eventId);
+
+    actAs(testuser5Identity);
+    List<AgendaEventModel> listed = tool.getAgendaEvents(event.getStart().minusMinutes(1).format(AgendaDateUtils.RFC_3339_FORMATTER),
+                                                         event.getEnd().plusMinutes(1).format(AgendaDateUtils.RFC_3339_FORMATTER),
+                                                         null,
+                                                         null)
+                                        .getEvents();
+
+    AgendaEventModel model = listed.stream().filter(listedEvent -> listedEvent.getId() == eventId).findFirst().orElse(null);
+    assertNotNull("the event the user is waiting for is listed", model);
+    assertEquals(EventAttendeeResponse.WAITING, model.getUserAnswer());
+  }
+
+  /**
+   * Creates an open event of the space calendar, in three days, with a
+   * capacity limit, testuser4 and testuser5 invited.
+   *
+   * @param capacity its number of seats
+   * @return its identifier
+   * @throws Exception when it can't be created
+   */
+  private long createLimitedEvent(int capacity) throws Exception {
+    ZonedDateTime start = getDate().withZoneSameInstant(ZoneOffset.UTC).plusDays(3);
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setRecurrence(null);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(true);
+    event.setCapacity(capacity);
+    return createEvent(event, Long.parseLong(testuser1Identity.getId()), testuser4Identity, testuser5Identity).getId();
+  }
+
   private List<ZonedDateTime> occurrenceIds(long seriesId) {
     Event stored = agendaEventService.getEventById(seriesId);
     ZonedDateTime start = stored.getStart();
