@@ -225,7 +225,7 @@ public class AgendaInvitationLandingService {
    * platform, whose personal calendar agenda creates on first use, and who has
    * no remote calendar account connected to agenda. Whether another add-on
    * holds that user's calendar instead is not agenda's to read here; the
-   * plugin asks them. No round trip to a server: an identity read (cached)
+   * mail reader's plugin asks them. No round trip to a server: an identity read (cached)
    * and a settings read (one small query for the remote providers).
    *
    * @param username the user's login
