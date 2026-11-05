@@ -88,12 +88,15 @@ public class RestUtils {
    * @param attendees the participants of a write, changed in place
    * @param identityManager resolves the ids given
    * @param attendeeService resolves an address to its user
+   * @param callerIdentityId the identity of the user who saves: an external
+   *          user resolves no address
    * @throws IllegalStateException when the user directory cannot be read: the
    *           write fails rather than invite a platform user as a guest
    */
   public static void resolveTypedAddresses(List<EventAttendeeEntity> attendees,
                                            IdentityManager identityManager,
-                                           AgendaEventAttendeeService attendeeService) {
+                                           AgendaEventAttendeeService attendeeService,
+                                           long callerIdentityId) {
     if (attendees == null || attendees.isEmpty()) {
       return;
     }
@@ -116,7 +119,7 @@ public class RestUtils {
           || StringUtils.isBlank(identity.getRemoteId()) || namesAnIdentity(identity.getId(), identityManager)) {
         continue;
       }
-      Identity user = attendeeService.getUserIdentityByEmail(identity.getRemoteId());
+      Identity user = attendeeService.getUserIdentityByEmail(identity.getRemoteId(), callerIdentityId);
       if (user == null) {
         continue;
       }
@@ -192,7 +195,7 @@ public class RestUtils {
 
     cleanupAttachedEntitiesIds(eventEntity);
 
-    resolveTypedAddresses(eventEntity.getAttendees(), identityManager, agendaEventAttendeeService);
+    resolveTypedAddresses(eventEntity.getAttendees(), identityManager, agendaEventAttendeeService, userIdentityId);
     List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
     List<EventAttendee> attendees = null;
     if (attendeeEntities != null && !attendeeEntities.isEmpty()) {
@@ -286,7 +289,7 @@ public class RestUtils {
       }
     }
     List<Long> addedIdentityIds = new ArrayList<>();
-    resolveTypedAddresses(splitEntity.getAddedAttendees(), identityManager, agendaEventAttendeeService);
+    resolveTypedAddresses(splitEntity.getAddedAttendees(), identityManager, agendaEventAttendeeService, userIdentityId);
     if (splitEntity.getAddedAttendees() != null) {
       for (EventAttendeeEntity attendeeEntity : splitEntity.getAddedAttendees()) {
         IdentityEntity attendeeIdentity = attendeeEntity.getIdentity();
