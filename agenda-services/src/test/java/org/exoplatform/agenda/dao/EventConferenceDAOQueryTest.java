@@ -194,6 +194,30 @@ class EventConferenceDAOQueryTest {
   }
 
   /**
+   * The rows come back by series, the earliest created first, whatever the
+   * order the links were saved in: the limit keeps the earliest series, so
+   * links saved later on other events cannot push it out.
+   */
+  @Test
+  void theRowsComeBackByEarliestSeries() {
+    entityManager.getTransaction().begin();
+    long calendar = calendar();
+    long earlier = event(calendar, null);
+    long later = event(calendar, null);
+    conference(later, JITSI, "https://host/jitsi/meet/g_order-call");
+    conference(earlier, JITSI, "https://host/jitsi/meet/g_order-call");
+    entityManager.getTransaction().commit();
+    entityManager.clear();
+
+    List<EventConferenceMatch> matches = storage.findConferencesContaining(JITSI, "/g_order-call", 50);
+
+    assertEquals(List.of(earlier, later), matches.stream().map(EventConferenceMatch::seriesId).toList());
+    assertEquals(List.of(earlier),
+                 storage.findConferencesContaining(JITSI, "/g_order-call", 1).stream().map(EventConferenceMatch::seriesId).toList(),
+                 "the limit keeps the series created first");
+  }
+
+  /**
    * Persists a calendar.
    *
    * @return its identifier

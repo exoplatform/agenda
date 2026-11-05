@@ -42,6 +42,11 @@ public class AgendaEventConferenceStorage {
    * Lists the meeting links of a conference type containing a text, each with
    * the series of the events holding it. The text is matched literally: the
    * LIKE wildcards it holds, <code>%</code> and <code>_</code>, are escaped.
+   * The links come by series, the earliest created first.
+   * <p>
+   * The text is searched anywhere in the link, which no index serves: each
+   * call reads the whole conference table. It is meant for one lookup at a
+   * time, such as opening one recording, never for each item of a list.
    *
    * @param type conference type, the web conferencing provider type
    * @param text the text the link contains
