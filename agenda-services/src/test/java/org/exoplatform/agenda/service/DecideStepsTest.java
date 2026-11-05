@@ -141,7 +141,7 @@ class DecideStepsTest {
 
   /**
    * An outermost step looks for the thread's transaction where its
-   * {@code @ExoTransactional} would join it, through the portal container's
+   * {@code @ContainerTransactional} would join it, through the portal container's
    * persistence service, also on a thread no container is bound to, whose
    * top container has no such service: called inside that transaction, it
    * is refused before it locks anything.
