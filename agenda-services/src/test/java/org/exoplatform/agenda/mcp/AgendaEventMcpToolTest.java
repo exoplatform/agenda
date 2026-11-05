@@ -323,7 +323,13 @@ class AgendaEventMcpToolTest {
   @Test
   void acceptAgendaEventInvitationSucceeds() throws Exception {
     when(userAcl.hasAccessPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
-    tool.acceptAgendaEventInvitation(EVENT_ID);
+    stubSpaceCalendarChain(SPACE_ID, SPACE_PRETTY_NAME, OWNER_IDENTITY_ID, CALENDAR_ID);
+    Event fetched = buildEvent(EVENT_ID, CALENDAR_ID, START, END, EventStatus.CONFIRMED);
+    when(agendaEventService.getEventById(eq(EVENT_ID), eq(ZoneOffset.UTC), eq(USER_IDENTITY_ID))).thenReturn(fetched);
+
+    AgendaEventModel model = tool.acceptAgendaEventInvitation(EVENT_ID);
+
+    assertNotNull(model);
     verify(agendaEventAttendeeService, times(1)).sendEventResponse(EVENT_ID,
                                                                    USER_IDENTITY_ID,
                                                                    EventAttendeeResponse.ACCEPTED);
