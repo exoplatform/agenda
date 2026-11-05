@@ -561,8 +561,17 @@ public class AgendaEventMcpTool implements McpToolPlugin {
       existingEvent.setStart(startDate);
       existingEvent.setEnd(endDate);
       existingEvent.setRecurrence(recurrence);
-      // Passing null for attendees/conferences/reminders keeps the existing ones untouched
-      agendaEventService.updateEvent(existingEvent, null, null, null, null, null, false, userIdentityId);
+      // A full update saves the lists it is given, and a null list means none:
+      // the stored participants, conferences and the caller's reminders are
+      // handed back, so that the save keeps them and their answers
+      agendaEventService.updateEvent(existingEvent,
+                                     attendees,
+                                     agendaEventConferenceService.getEventConferences(eventId),
+                                     agendaEventReminderService.getEventReminders(eventId, userIdentityId),
+                                     null,
+                                     null,
+                                     false,
+                                     userIdentityId);
     } else {
       Map<String, List<String>> fieldsToUpdate = new HashMap<>();
       if (summary != null) {
