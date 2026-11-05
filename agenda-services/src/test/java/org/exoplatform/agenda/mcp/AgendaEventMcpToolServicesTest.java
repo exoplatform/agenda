@@ -18,6 +18,7 @@ package org.exoplatform.agenda.mcp;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
@@ -35,6 +36,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.agenda.mcp.model.AgendaEventModel;
 import org.exoplatform.agenda.model.AvailabilityConflicts;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
@@ -45,18 +47,17 @@ import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.services.security.ConversationState;
+import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.profileproperty.ProfilePropertyService;
 
 import io.meeds.portal.permlink.service.PermanentLinkService;
 import io.meeds.social.translation.service.TranslationService;
 
 /**
- * A change of an event's recurrence through the assistant, on the real
- * services: the full update it makes saves the lists it is given, so the
- * participants, their answers, the conferences and the caller's reminders
- * survive it only when the tool hands the stored ones back.
+ * The assistant's agenda tool on the real agenda services: what its writes
+ * keep, and what its reads show, against the rows the services store.
  */
-public class AgendaEventMcpToolRecurrenceTest extends BaseAgendaEventTest {
+public class AgendaEventMcpToolServicesTest extends BaseAgendaEventTest {
 
   private AgendaEventMcpTool tool;
 
@@ -95,6 +96,15 @@ public class AgendaEventMcpToolRecurrenceTest extends BaseAgendaEventTest {
                                   identityManager,
                                   spaceService,
                                   userAcl);
+  }
+
+  /**
+   * Makes a user the current one, whom the tool acts and reads for.
+   *
+   * @param identity the user's identity
+   */
+  private void actAs(Identity identity) {
+    ConversationState.setCurrent(new ConversationState(new org.exoplatform.services.security.Identity(identity.getRemoteId())));
   }
 
   /**
@@ -142,6 +152,77 @@ public class AgendaEventMcpToolRecurrenceTest extends BaseAgendaEventTest {
     assertEquals(rowsBefore, rows.size());
     assertEquals(1, agendaEventConferenceService.getEventConferences(eventId).size());
     assertEquals(1, agendaEventReminderService.getEventReminders(eventId, organiserId).size());
+  }
+
+  /**
+   * A user who declined a series and then said Yes from its second date holds
+   * two rows. A read of the series lists them once, with the answer valid at
+   * its next date, here the third: the Yes, as the event page shows it.
+   * Mutant: the answer read from the first row, and one entry per row.
+   *
+   * @throws Exception when the series can't be created or answered
+   */
+  @Test
+  public void aSeriesReadListsEachAttendeeOnceWithTheAnswerValidAtItsNextDate() throws Exception {
+    long userId = Long.parseLong(testuser5Identity.getId());
+    ZonedDateTime start = ZonedDateTime.now().minusHours(30).withNano(0).withSecond(0).withMinute(0);
+    Event series = newEventInstance(start, start.plusHours(1), false);
+    long seriesId = createEvent(series, Long.parseLong(testuser1Identity.getId()), testuser5Identity).getId();
+    List<ZonedDateTime> dates = occurrenceIds(seriesId);
+    agendaEventAttendeeService.sendEventResponse(seriesId, userId, EventAttendeeResponse.DECLINED);
+    agendaEventAttendeeService.sendUpcomingEventResponse(seriesId, dates.get(1), userId, EventAttendeeResponse.ACCEPTED);
+    assertEquals(2, agendaEventAttendeeService.getEventAttendees(seriesId).getEventAttendees(userId).size());
+    assertTrue("the third date is the next one", dates.get(2).isAfter(ZonedDateTime.now()));
+
+    actAs(testuser5Identity);
+    AgendaEventModel model = tool.getAgendaEventById(seriesId);
+
+    assertEquals(EventAttendeeResponse.ACCEPTED, model.getUserAnswer());
+    assertEquals(agendaEventAttendeeService.getSeriesResponse(seriesId, userId), model.getUserAnswer());
+    assertEquals(1,
+                 model.getAttendees()
+                      .stream()
+                      .filter(attendee -> attendee.getUser() != null
+                          && testuser5Identity.getRemoteId().equals(attendee.getUser().getUsername()))
+                      .count());
+  }
+
+  /**
+   * A read of an event with a capacity limit gives its seats and the
+   * reader's place on its waiting list, as the event page does.
+   * Mutant: the seats left unfilled.
+   *
+   * @throws Exception when the event can't be created or answered
+   */
+  @Test
+  public void aReadOfALimitedEventGivesItsSeatsAndTheReadersPlaceOnTheWaitingList() throws Exception {
+    ZonedDateTime start = getDate().withZoneSameInstant(ZoneOffset.UTC).plusDays(3);
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setRecurrence(null);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(true);
+    event.setCapacity(1);
+    long eventId = createEvent(event, Long.parseLong(testuser1Identity.getId()), testuser4Identity, testuser5Identity).getId();
+    agendaEventAttendeeService.sendEventResponse(eventId, Long.parseLong(testuser4Identity.getId()), EventAttendeeResponse.ACCEPTED);
+    agendaEventAttendeeService.sendEventResponse(eventId, Long.parseLong(testuser5Identity.getId()), EventAttendeeResponse.ACCEPTED);
+
+    actAs(testuser5Identity);
+    AgendaEventModel model = tool.getAgendaEventById(eventId);
+
+    assertEquals(EventAttendeeResponse.WAITING, model.getUserAnswer());
+    assertEquals(Integer.valueOf(1), model.getCapacity());
+    assertEquals(Integer.valueOf(1), model.getAcceptedCount());
+    assertEquals(Integer.valueOf(1), model.getWaitingCount());
+    assertEquals(Integer.valueOf(1), model.getWaitingListPosition());
+  }
+
+  private List<ZonedDateTime> occurrenceIds(long seriesId) {
+    Event stored = agendaEventService.getEventById(seriesId);
+    ZonedDateTime start = stored.getStart();
+    return agendaEventService.getEventOccurrencesInPeriod(stored, start.minusDays(1), start.plusDays(5), stored.getTimeZoneId(), 0)
+                             .stream()
+                             .map(occurrence -> occurrence.getOccurrence().getId())
+                             .toList();
   }
 
 }

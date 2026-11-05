@@ -36,7 +36,7 @@
     {
       "name": "get_agenda_event_by_id",
       "title": "Get agenda event",
-      "description": "Fetch a single agenda event by its id.",
+      "description": "Fetch a single agenda event by its id. Each attendee is listed once; on a recurring event read as a whole, with the answer valid at its next date. user_answer is the current user's answer: WAITING when they are on the waiting list. On an event with a capacity limit, capacity gives its number of seats, accepted_count the Yes answers holding a seat, waiting_count the people on the waiting list, and waiting_list_position the current user's place on it.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -602,7 +602,7 @@
     {
       "name": "get_event_attendees",
       "title": "Get event attendees",
-      "description": "List an event's attendees together with each one's response (ACCEPTED, DECLINED, TENTATIVE or NEEDS_ACTION).",
+      "description": "List an event's attendees, each once, together with their response: ACCEPTED, DECLINED, TENTATIVE, NEEDS_ACTION, or WAITING for someone on the waiting list of an event with a capacity limit. On a recurring event read as a whole, each attendee's response is the one valid at its next date.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -625,7 +625,7 @@
     {
       "name": "respond_to_agenda_event",
       "title": "Respond to an agenda event",
-      "description": "Respond to an event as the current user with ACCEPTED, DECLINED or TENTATIVE: as an invited attendee, or, when the event is open (is_open true), as any user who can access it. The optional comment is accepted but not persisted (no backend storage for response comments).",
+      "description": "Respond to an event as the current user with ACCEPTED, DECLINED or TENTATIVE: as an invited attendee, or, when the event is open (is_open true), as any user who can access it. On an event with a capacity limit, a Yes (ACCEPTED) given once every seat is taken puts the user on the waiting list: their answer then reads WAITING, and they get a seat in the order the list was joined as soon as one frees up. On a recurring event, each date decides its own seat. WAITING and NEEDS_ACTION are not answers to give. The optional comment is accepted but not persisted (no backend storage for response comments).",
       "input_schema": {
         "type": "object",
         "properties": {
