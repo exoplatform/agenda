@@ -263,7 +263,7 @@ export function splitEvent(seriesId, event, delta, splitFrom, sendInvitation, co
     })
     .then(conferences => {
       event.conferences = conferences && conferences.filter(conference => !!conference);
-      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${seriesId}/split?timeZoneId=${USER_TIMEZONE_ID}&confirmClose=${!!confirmClose}`, {
+      return fetch(`/agenda/rest/events/${seriesId}/split?timeZoneId=${USER_TIMEZONE_ID}&confirmClose=${!!confirmClose}`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -280,7 +280,9 @@ export function splitEvent(seriesId, event, delta, splitFrom, sendInvitation, co
     })
     .then((resp) => {
       if (resp && resp.ok) {
-        return resp.json();
+        // The split answers the continuation's identifier: the continuation
+        // is read as the event page reads any event
+        return resp.json().then(continuation => getEventById(continuation.id, 'all'));
       } else {
         return toSaveError(resp, 'Error splitting event');
       }
@@ -467,9 +469,10 @@ function toSaveError(resp, message) {
     error.status = resp.status;
     const text = (body || '').trim();
     if (text.startsWith('{')) {
-      // An object without a code, the body of an invalid event, has none
+      // An object without a code, the body of an invalid event, has none. The
+      // Spring MVC resources write theirs as message, the JAX-RS ones as code
       const refusal = parseRefusal(text);
-      error.code = refusal.code;
+      error.code = refusal.code || refusal.message;
       error.date = refusal.date;
     } else {
       error.code = text.replace(/^"|"$/g, '');
