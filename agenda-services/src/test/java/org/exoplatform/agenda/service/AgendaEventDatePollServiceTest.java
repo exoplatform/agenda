@@ -813,7 +813,7 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
       assertEquals("Confirming a date poll must not broadcast the organizer's automatic answer as a user response",
                    0,
                    responseSentCount.get());
-      assertTrue("The organizer's automatic answer must still be saved", responseSavedCount.get() >= 1);
+      assertEquals("The confirmer's automatic answer is saved exactly once", 1, responseSavedCount.get());
       EventAttendee organizer = agendaEventAttendeeService.getEventAttendees(eventId)
                                                           .getEventAttendees()
                                                           .stream()
