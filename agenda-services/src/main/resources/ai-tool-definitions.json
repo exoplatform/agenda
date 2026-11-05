@@ -4,7 +4,7 @@
     {
       "name": "get_agenda_events",
       "title": "Get agenda events",
-      "description": "Retrieve agenda events for the current user, optionally filtered by RFC3339 start/end, space, and limit: the events they accepted, may attend or have not answered yet, and the ones whose waiting list they are on (user_answer WAITING).",
+      "description": "Retrieve agenda events for the current user, optionally filtered by RFC3339 start/end, space, and limit: the events they accepted, may attend or have not answered yet, and the ones whose waiting list they are on (user_answer WAITING). Without a space, the events of the calendars other users shared with them come too, whatever their answer: user_answer is then left out when they are not invited.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -45,7 +45,7 @@
     {
       "name": "get_agenda_event_by_id",
       "title": "Get agenda event",
-      "description": "Fetch a single agenda event by its id. Each attendee is listed once; on a recurring event read as a whole, with the answer valid at its next date. user_answer is the current user's answer: WAITING when they are on the waiting list. On an event with a capacity limit, capacity gives its number of seats, accepted_count the Yes answers holding a seat, waiting_count the people on the waiting list, and waiting_list_position the current user's place on it; on a recurring event read as a whole, those of its next date.",
+      "description": "Fetch a single agenda event by its id. Each attendee is listed once; on a recurring event read as a whole, with the answer valid at its next date, or at its last one once all its dates have passed. user_answer is the current user's answer: WAITING when they are on the waiting list. On an event with a capacity limit, capacity gives its number of seats, accepted_count the Yes answers holding a seat, waiting_count the people on the waiting list, and waiting_list_position the current user's place on it; on a recurring event read as a whole, those of that same date.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -681,7 +681,7 @@
     {
       "name": "get_event_attendees",
       "title": "Get event attendees",
-      "description": "List an event's attendees, each once, together with their response: ACCEPTED, DECLINED, TENTATIVE, NEEDS_ACTION, or WAITING for someone on the waiting list of an event with a capacity limit. On a recurring event read as a whole, each attendee's response is the one valid at its next date.",
+      "description": "List an event's attendees, each once, together with their response: ACCEPTED, DECLINED, TENTATIVE, NEEDS_ACTION, or WAITING for someone on the waiting list of an event with a capacity limit. On a recurring event read as a whole, each attendee's response is the one valid at its next date, or at its last one once all its dates have passed.",
       "input_schema": {
         "type": "object",
         "properties": {
