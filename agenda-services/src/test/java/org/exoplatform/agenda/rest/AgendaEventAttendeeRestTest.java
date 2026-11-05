@@ -69,6 +69,8 @@ class AgendaEventAttendeeRestTest {
 
   private static final String         CONTENT   = "\uFEFF\"Nom\",\"Réponse\"\r\n\"Jane Doe\",\"Oui\"\r\n";
 
+  private static final long           ALICE_ID  = 3L;
+
   private AgendaEventAttendeeService service;
 
   private MockedStatic<Utils>        utils;
@@ -79,8 +81,6 @@ class AgendaEventAttendeeRestTest {
    * Builds the dispatcher over the resource, with Alice as the user of the
    * session, whose platform language is French.
    */
-  private static final long ALICE_ID = 3L;
-
   @BeforeEach
   void setUp() {
     service = mock(AgendaEventAttendeeService.class);
