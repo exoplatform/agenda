@@ -156,19 +156,7 @@ public class CachedAgendaEventStorage extends AgendaEventStorage {
    */
   private void clearCalendarEventsFromCache(long calendarId) {
     try {
-      this.eventCache.select(new CachedObjectSelector<Long, Event>() {
-        @Override
-        public void onSelect(ExoCache<? extends Long, ? extends Event> cache,
-                             Long eventId,
-                             ObjectCacheInfo<? extends Event> ocinfo) throws Exception {
-          cache.remove(eventId);
-        }
-
-        @Override
-        public boolean select(Long key, ObjectCacheInfo<? extends Event> ocinfo) {
-          return ocinfo.get().getCalendarId() == calendarId;
-        }
-      });
+      this.eventCache.select(new CalendarEventsSelector(calendarId));
     } catch (Exception e) {
       LOG.warn("Error when clearing event cache", e);
     }
