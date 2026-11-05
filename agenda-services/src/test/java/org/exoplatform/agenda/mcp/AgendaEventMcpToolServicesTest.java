@@ -36,6 +36,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
+import org.exoplatform.agenda.mcp.model.AgendaEventAttendeeModel;
 import org.exoplatform.agenda.mcp.model.AgendaEventModel;
 import org.exoplatform.agenda.model.AvailabilityConflicts;
 import org.exoplatform.agenda.model.Event;
@@ -44,6 +45,7 @@ import org.exoplatform.agenda.model.RemoteEvent;
 import org.exoplatform.agenda.service.AgendaAvailabilityService;
 import org.exoplatform.agenda.service.AgendaScheduleConflictService;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
+import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.portal.config.model.PortalConfig;
@@ -200,6 +202,48 @@ public class AgendaEventMcpToolServicesTest extends BaseAgendaEventTest {
                       .filter(attendee -> attendee.getUser() != null
                           && testuser5Identity.getRemoteId().equals(attendee.getUser().getUsername()))
                       .count());
+  }
+
+  /**
+   * A user who declined a series and then said Yes from its second date holds
+   * two rows. A listing of the agenda shows that date as a date the series
+   * computes, with the user once and the answer valid at it: the Yes.
+   * Mutant: the rows of every date, which lists the user twice.
+   *
+   * @throws Exception when the series can't be created, answered or listed
+   */
+  @Test
+  public void aListedDateOfASeriesShowsEachAttendeeOnceWithTheAnswerValidAtThatDate() throws Exception {
+    long userId = Long.parseLong(testuser5Identity.getId());
+    ZonedDateTime start = ZonedDateTime.now().minusHours(30).withNano(0).withSecond(0).withMinute(0);
+    Event series = newEventInstance(start, start.plusHours(1), false);
+    long seriesId = createEvent(series, Long.parseLong(testuser1Identity.getId()), testuser5Identity).getId();
+    List<ZonedDateTime> dates = occurrenceIds(seriesId);
+    agendaEventAttendeeService.sendEventResponse(seriesId, userId, EventAttendeeResponse.DECLINED);
+    agendaEventAttendeeService.sendUpcomingEventResponse(seriesId, dates.get(1), userId, EventAttendeeResponse.ACCEPTED);
+    assertEquals(2, agendaEventAttendeeService.getEventAttendees(seriesId).getEventAttendees(userId).size());
+    ZonedDateTime date = dates.get(1).withZoneSameInstant(ZoneOffset.UTC);
+
+    actAs(testuser5Identity);
+    List<AgendaEventModel> listed = tool.getAgendaEvents(date.minusMinutes(1).format(AgendaDateUtils.RFC_3339_FORMATTER),
+                                                         date.plusMinutes(1).format(AgendaDateUtils.RFC_3339_FORMATTER),
+                                                         null,
+                                                         null)
+                                        .getEvents();
+
+    assertEquals(1, listed.size());
+    AgendaEventModel model = listed.get(0);
+    assertEquals("a date the series computes, not a row of its own", 0, model.getId());
+    assertEquals(seriesId, model.getParentEventId());
+    assertEquals(EventAttendeeResponse.ACCEPTED, model.getUserAnswer());
+    List<AgendaEventAttendeeModel> userEntries = model.getAttendees()
+                                                      .stream()
+                                                      .filter(attendee -> attendee.getUser() != null
+                                                          && testuser5Identity.getRemoteId()
+                                                                              .equals(attendee.getUser().getUsername()))
+                                                      .toList();
+    assertEquals(1, userEntries.size());
+    assertEquals(EventAttendeeResponse.ACCEPTED, userEntries.get(0).getResponse());
   }
 
   /**
