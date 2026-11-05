@@ -631,6 +631,17 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
    * plain read: on MySQL and MariaDB, a plain read fixes the snapshot the
    * following reads see. So it reads the row's identifier only, and loads no
    * entity whose eager associations would be read right after it.
+   * <p>
+   * No lock timeout is set: a transaction asking for a locked row, on a
+   * request thread or in the {@code @Asynchronous}
+   * {@code ContentAgendaEventSyncListener}, waits until the holder's
+   * transaction ends. The holder's decide step is the intended bound: it
+   * holds the lock for its own reads and writes, and publishes its broadcasts
+   * and notifications after the commit, but for the metadata broadcast social
+   * makes while the event's properties are saved. Past it, the database's own
+   * limit applies: InnoDB fails the waiting statement after
+   * {@code innodb_lock_wait_timeout}, 50 seconds by default; PostgreSQL waits
+   * as long as {@code lock_timeout} allows, without limit by default.
    *
    * @param eventId event technical identifier
    * @return whether the row exists, and so is locked
