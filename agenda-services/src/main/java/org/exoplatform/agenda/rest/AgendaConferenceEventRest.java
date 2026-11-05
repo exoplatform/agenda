@@ -100,7 +100,9 @@ public class AgendaConferenceEventRest {
              description = "Answers the event a call was held for, among the single events and the occurrences whose own"
                  + " meeting link refers to the call and that the authenticated user can read in full: the one whose"
                  + " span, extended by the grace, holds the moment, the latest when several do; else the single event or"
-                 + " series referring to the call started last before the moment. An occurrence is looked at when it"
+                 + " series referring to the call started last before the moment, or the one starting first when all"
+                 + " start after it. Between candidates starting together, the series created first. An occurrence is"
+                 + " looked at when it"
                  + " started at most the grace and 36 hours before the moment.")
   @ApiResponses(value = {
       @ApiResponse(responseCode = "200", description = "The event"),

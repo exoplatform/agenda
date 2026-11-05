@@ -44,9 +44,14 @@ public interface AgendaConferenceEventService {
    * The candidate whose span, extended by the grace, holds the moment is
    * answered, the one started last when several do. When none does, the
    * single event or series referring to the call that started last before
-   * the moment is answered, or the first one found when all start after it:
-   * a single event is so answered whatever the moment when it is the only
-   * event of the call.
+   * the moment is answered, or the one starting first when all start after
+   * it: a single event is so answered whatever the moment when it is the only
+   * event of the call. Between candidates starting together, the series
+   * created first is answered.
+   * <p>
+   * Any user may store a meeting link on an event of their own: when another
+   * event the user can read holds the same link and its span holds the
+   * moment too, the one started last is answered, whoever created it.
    *
    * @param providerType the web conferencing provider type, which is the type
    *          of the event's conference
