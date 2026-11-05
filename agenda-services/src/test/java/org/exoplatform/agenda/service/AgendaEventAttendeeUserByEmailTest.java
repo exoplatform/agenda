@@ -79,13 +79,6 @@ public class AgendaEventAttendeeUserByEmailTest extends BaseAgendaEventTest {
    * Displays the email profile property, creating its setting when the
    * container has none.
    */
-  /**
-   * @return the identity the lookups are made for: an internal user
-   */
-  private long callerId() {
-    return Long.parseLong(testuser1Identity.getId());
-  }
-
   @Before
   public void displayTheEmail() throws Exception {
     // The entity build reads the current user through the social
@@ -136,6 +129,13 @@ public class AgendaEventAttendeeUserByEmailTest extends BaseAgendaEventTest {
     } else {
       displayEmail(storedActive, storedVisible);
     }
+  }
+
+  /**
+   * @return the identity the lookups are made for: an internal user
+   */
+  private long callerId() {
+    return Long.parseLong(testuser1Identity.getId());
   }
 
   @Test
