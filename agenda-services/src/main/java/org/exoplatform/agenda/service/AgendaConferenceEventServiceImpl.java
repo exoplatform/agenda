@@ -134,6 +134,8 @@ public class AgendaConferenceEventServiceImpl implements AgendaConferenceEventSe
     List<Event> spanning = new ArrayList<>();
     List<Event> series = new ArrayList<>();
     seriesIds.forEach(seriesId -> collect(seriesId, providerType, callId, moment, grace, identityId, spanning, series));
+    // Stream#max keeps the first of equal elements: between candidates
+    // starting together, the series created first, the links coming by series.
     return spanning.stream()
                    .max(Comparator.comparing(Event::getStart))
                    .orElseGet(() -> closestBefore(series, moment));
@@ -325,20 +327,20 @@ public class AgendaConferenceEventServiceImpl implements AgendaConferenceEventSe
 
   /**
    * Picks, among series and single events, the one started last before the
-   * moment, or the first one when all start after it.
+   * moment, or, when all start after it, the one starting first. Between
+   * events starting together, the series created first is kept.
    *
-   * @param events the readable series and single events
+   * @param events the readable series and single events, the series created
+   *          first coming first
    * @param moment when the call was held
    * @return the event, or <code>null</code> when there is none
    */
-  private static Event closestBefore(List<Event> events, ZonedDateTime moment) {
-    if (events.isEmpty()) {
-      return null;
-    }
-    return events.stream()
-                 .filter(event -> event.getStart() != null && !event.getStart().isAfter(moment))
-                 .max(Comparator.comparing(Event::getStart))
-                 .orElse(events.get(0));
+  static Event closestBefore(List<Event> events, ZonedDateTime moment) {
+    List<Event> dated = events.stream().filter(event -> event.getStart() != null).toList();
+    return dated.stream()
+                .filter(event -> !event.getStart().isAfter(moment))
+                .max(Comparator.comparing(Event::getStart))
+                .orElseGet(() -> dated.stream().min(Comparator.comparing(Event::getStart)).orElse(null));
   }
 
 }

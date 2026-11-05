@@ -429,6 +429,50 @@ class AgendaConferenceEventServiceImplTest {
   }
 
   /**
+   * Before every event of the call, the one starting first is answered,
+   * whichever series the links name first.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void beforeEveryEventTheOneStartingFirstIsAnswered() throws Exception {
+    ZonedDateTime monday = at(ZoneOffset.UTC, 10, 0).minusDays(1);
+    ZonedDateTime tuesday = at(ZoneOffset.UTC, 10, 0);
+    Event early = single(SINGLE, monday);
+    Event late = single(SINGLE + 1, tuesday);
+    matches(SINGLE + 1, SINGLE);
+    stored(early);
+    stored(late);
+    when(agendaEventService.getEventById(SINGLE, ZoneOffset.UTC, READER)).thenReturn(early);
+    when(agendaEventService.getEventById(SINGLE + 1, ZoneOffset.UTC, READER)).thenReturn(late);
+
+    assertSame(early, service.getConferenceEvent(JITSI, CALL_ID, monday.minusDays(3), GRACE, READER),
+               "the one starting first, not the series the links name first");
+  }
+
+  /**
+   * Between events of the call starting together, the series the links name
+   * first, the one created first, is answered, whether they span the moment
+   * or all start after it.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void betweenEventsStartingTogetherTheFirstSeriesIsAnswered() throws Exception {
+    ZonedDateTime tuesday = at(ZoneOffset.UTC, 10, 0);
+    Event first = single(SINGLE, tuesday);
+    Event second = single(SINGLE + 1, tuesday);
+    matches(SINGLE, SINGLE + 1);
+    stored(first);
+    stored(second);
+    when(agendaEventService.getEventById(SINGLE, ZoneOffset.UTC, READER)).thenReturn(first);
+    when(agendaEventService.getEventById(SINGLE + 1, ZoneOffset.UTC, READER)).thenReturn(second);
+
+    assertSame(first, service.getConferenceEvent(JITSI, CALL_ID, tuesday.plusMinutes(30), GRACE, READER), "both span the moment");
+    assertSame(first, service.getConferenceEvent(JITSI, CALL_ID, tuesday.minusDays(1), GRACE, READER), "both start after it");
+  }
+
+  /**
    * A missing type, call identifier or moment, and a grace out of 0 to 168
    * hours, are refused with their code.
    */
