@@ -839,7 +839,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                     eventEntity,
                     storedEvent);
 
-      RestUtils.resolveTypedAddresses(eventEntity.getAttendees(), identityManager, agendaEventAttendeeService);
+      RestUtils.resolveTypedAddresses(eventEntity.getAttendees(), identityManager, agendaEventAttendeeService, userIdentityId);
       List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
       List<EventAttendee> attendees = null;
       if (attendeeEntities != null && !attendeeEntities.isEmpty()) {

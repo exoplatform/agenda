@@ -1604,7 +1604,13 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    * {@inheritDoc}
    */
   @Override
-  public Identity getUserIdentityByEmail(String email) {
+  public Identity getUserIdentityByEmail(String email, long callerIdentityId) {
+    Identity caller = callerIdentityId > 0 ? identityManager.getIdentity(String.valueOf(callerIdentityId)) : null;
+    if (caller == null || caller.isExternal()) {
+      // An external user is told no owner, as the platform's people search
+      // tells them no user beyond their connections
+      return null;
+    }
     String address = StringUtils.trim(email);
     // The user directory reads a star as a pattern, whose lookup reads every
     // user it matches, unpaged: a text that is not an address, or that holds a

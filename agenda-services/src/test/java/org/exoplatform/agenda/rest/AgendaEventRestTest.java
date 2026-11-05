@@ -426,7 +426,7 @@ class AgendaEventRestTest {
     when(user.getId()).thenReturn("11");
     when(user.getProviderId()).thenReturn(OrganizationIdentityProvider.NAME);
     when(user.getRemoteId()).thenReturn("testuser3");
-    when(attendeeService.getUserIdentityByEmail("Testuser3@Example.com")).thenReturn(user);
+    when(attendeeService.getUserIdentityByEmail(eq("Testuser3@Example.com"), anyLong())).thenReturn(user);
     when(identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "testuser3")).thenReturn(user);
     EventSplitEntity body = splitBody(List.of(attendee("testuser3@example.com", "GUEST_USER", "Testuser3@Example.com")),
                                       List.of());

@@ -61,6 +61,8 @@ import org.exoplatform.web.security.codec.CodecInitializer;
  */
 class AgendaEventAttendeeUserLookupTest {
 
+  private static final long             CALLER_ID = 99L;
+
   private UserHandler                    userHandler;
 
   private IdentityManager                identityManager;
@@ -85,6 +87,9 @@ class AgendaEventAttendeeUserLookupTest {
     container.when(() -> ExoContainerContext.getService(OrganizationService.class)).thenReturn(organizationService);
     container.when(() -> ExoContainerContext.getService(ProfilePropertyService.class)).thenReturn(profilePropertyService);
     identityManager = mock(IdentityManager.class);
+    // The lookups are made for an internal user
+    Identity caller = mock(Identity.class);
+    when(identityManager.getIdentity(String.valueOf(CALLER_ID))).thenReturn(caller);
     attendeeService = new AgendaEventAttendeeServiceImpl(mock(AgendaEventAttendeeStorage.class),
                                                          mock(AgendaEventStorage.class),
                                                          mock(AgendaCalendarService.class),
@@ -109,7 +114,7 @@ class AgendaEventAttendeeUserLookupTest {
     found("jane.doe@example.com", user("jane", "jane.doe@example.com"));
     Identity jane = identity("jane", "21");
 
-    assertEquals(jane, attendeeService.getUserIdentityByEmail("Jane.Doe@Example.com"));
+    assertEquals(jane, attendeeService.getUserIdentityByEmail("Jane.Doe@Example.com", CALLER_ID));
   }
 
   /**
@@ -122,7 +127,7 @@ class AgendaEventAttendeeUserLookupTest {
     Identity jane = identity("jane", "22");
     identity("jane2", "23");
 
-    assertEquals(jane, attendeeService.getUserIdentityByEmail("jane@example.com"));
+    assertEquals(jane, attendeeService.getUserIdentityByEmail("jane@example.com", CALLER_ID));
   }
 
   @Test
@@ -131,7 +136,7 @@ class AgendaEventAttendeeUserLookupTest {
     identity("twin1", "24");
     identity("twin2", "25");
 
-    assertNull(attendeeService.getUserIdentityByEmail("twin@example.com"));
+    assertNull(attendeeService.getUserIdentityByEmail("twin@example.com", CALLER_ID));
   }
 
   /**
@@ -143,7 +148,7 @@ class AgendaEventAttendeeUserLookupTest {
   void aTextThatIsNotAnAddressOrHoldsAStarIsNeverHandedToTheDirectory() throws Exception {
     for (String text : new String[] { "*", "*@example.com", "jane*@example.com", "jane@example.com*", "jane", "jane@",
         "@example.com", "jane doe@example.com", "jane@@example.com" }) {
-      assertNull(attendeeService.getUserIdentityByEmail(text), text);
+      assertNull(attendeeService.getUserIdentityByEmail(text, CALLER_ID), text);
     }
     Mockito.verify(userHandler, Mockito.never()).findUsersByQuery(any(), any());
   }
@@ -162,9 +167,9 @@ class AgendaEventAttendeeUserLookupTest {
     Identity promo = identity("promo", "32");
     Identity team = identity("team", "33");
 
-    assertEquals(john, attendeeService.getUserIdentityByEmail("john_doe@example.com"));
-    assertEquals(promo, attendeeService.getUserIdentityByEmail("50%off@example.com"));
-    assertEquals(team, attendeeService.getUserIdentityByEmail("[team]@example.com"));
+    assertEquals(john, attendeeService.getUserIdentityByEmail("john_doe@example.com", CALLER_ID));
+    assertEquals(promo, attendeeService.getUserIdentityByEmail("50%off@example.com", CALLER_ID));
+    assertEquals(team, attendeeService.getUserIdentityByEmail("[team]@example.com", CALLER_ID));
     Mockito.verify(userHandler, Mockito.never())
            .findUsersByQuery(argThat(query -> query != null && query.getEmail() != null && query.getEmail().contains("*")),
                              any());
@@ -181,9 +186,30 @@ class AgendaEventAttendeeUserLookupTest {
     when(userHandler.findUsersByQuery(any(), any())).thenThrow(new Exception("Cannot find user by unique attribute: attrValue=jane@example.com"));
 
     IllegalStateException refusal = assertThrows(IllegalStateException.class,
-                                                 () -> attendeeService.getUserIdentityByEmail("jane@example.com"));
+                                                 () -> attendeeService.getUserIdentityByEmail("jane@example.com", CALLER_ID));
     assertNull(refusal.getCause());
     assertFalse(refusal.getMessage().contains("jane"), refusal.getMessage());
+  }
+
+  /**
+   * An external user is told no owner, and the directory is not asked, as
+   * the platform's people search tells them no user beyond their
+   * connections; nor is a caller who is no known identity. An internal user
+   * typing the same address is told its owner.
+   * Mutant: the caller not read.
+   */
+  @Test
+  void anExternalCallerIsToldNoOwner() throws Exception {
+    found("jane@example.com", user("jane", "jane@example.com"));
+    Identity jane = identity("jane", "24");
+    Identity external = mock(Identity.class);
+    when(external.isExternal()).thenReturn(true);
+    when(identityManager.getIdentity("98")).thenReturn(external);
+
+    assertNull(attendeeService.getUserIdentityByEmail("jane@example.com", 98L));
+    assertNull(attendeeService.getUserIdentityByEmail("jane@example.com", 97L));
+    Mockito.verify(userHandler, Mockito.never()).findUsersByQuery(any(), any());
+    assertEquals(jane, attendeeService.getUserIdentityByEmail("jane@example.com", CALLER_ID));
   }
 
   private void found(String queried, User... users) throws Exception {

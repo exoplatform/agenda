@@ -45,6 +45,8 @@ class RestUtilsTypedAddressTest {
 
   private static final String        ADDRESS = "Jane.Doe@Example.com";
 
+  private static final long          CALLER_ID = 3L;
+
   private IdentityManager            identityManager;
 
   private AgendaEventAttendeeService attendeeService;
@@ -57,7 +59,7 @@ class RestUtilsTypedAddressTest {
     when(jane.getId()).thenReturn("11");
     when(jane.getProviderId()).thenReturn(OrganizationIdentityProvider.NAME);
     when(jane.getRemoteId()).thenReturn("jane");
-    when(attendeeService.getUserIdentityByEmail(ADDRESS)).thenReturn(jane);
+    when(attendeeService.getUserIdentityByEmail(ADDRESS, CALLER_ID)).thenReturn(jane);
   }
 
   /**
@@ -66,17 +68,17 @@ class RestUtilsTypedAddressTest {
    */
   @Test
   void anAddressTheDirectoryCannotCheckFailsTheWrite() {
-    when(attendeeService.getUserIdentityByEmail("john@example.com")).thenThrow(new IllegalStateException("directory down"));
+    when(attendeeService.getUserIdentityByEmail("john@example.com", CALLER_ID)).thenThrow(new IllegalStateException("directory down"));
     List<EventAttendeeEntity> attendees = list(attendee("john@example.com", AgendaGuestUserIdentityProvider.NAME, "john@example.com"));
 
-    assertThrows(IllegalStateException.class, () -> RestUtils.resolveTypedAddresses(attendees, identityManager, attendeeService));
+    assertThrows(IllegalStateException.class, () -> RestUtils.resolveTypedAddresses(attendees, identityManager, attendeeService, CALLER_ID));
   }
 
   @Test
   void anAddressTypedThatThePlatformRecognisesIsItsUser() {
     List<EventAttendeeEntity> attendees = list(attendee(ADDRESS.toLowerCase(), AgendaGuestUserIdentityProvider.NAME, ADDRESS));
 
-    RestUtils.resolveTypedAddresses(attendees, identityManager, attendeeService);
+    RestUtils.resolveTypedAddresses(attendees, identityManager, attendeeService, CALLER_ID);
 
     assertEquals(1, attendees.size());
     IdentityEntity identity = attendees.get(0).getIdentity();
@@ -91,7 +93,7 @@ class RestUtilsTypedAddressTest {
     when(identityManager.getIdentity("9")).thenReturn(guest);
     List<EventAttendeeEntity> attendees = list(attendee("9", AgendaGuestUserIdentityProvider.NAME, ADDRESS));
 
-    RestUtils.resolveTypedAddresses(attendees, identityManager, attendeeService);
+    RestUtils.resolveTypedAddresses(attendees, identityManager, attendeeService, CALLER_ID);
 
     IdentityEntity identity = attendees.get(0).getIdentity();
     assertEquals("9", identity.getId());
@@ -103,7 +105,7 @@ class RestUtilsTypedAddressTest {
   void anAddressThePlatformDoesNotRecogniseStaysAGuest() {
     List<EventAttendeeEntity> attendees = list(attendee(null, AgendaGuestUserIdentityProvider.NAME, "someone@outside.org"));
 
-    RestUtils.resolveTypedAddresses(attendees, identityManager, attendeeService);
+    RestUtils.resolveTypedAddresses(attendees, identityManager, attendeeService, CALLER_ID);
 
     assertEquals(AgendaGuestUserIdentityProvider.NAME, attendees.get(0).getIdentity().getProviderId());
     assertEquals("someone@outside.org", attendees.get(0).getIdentity().getRemoteId());
@@ -114,7 +116,7 @@ class RestUtilsTypedAddressTest {
     List<EventAttendeeEntity> attendees = list(attendee("organization:jane", OrganizationIdentityProvider.NAME, "jane"),
                                                attendee(ADDRESS, AgendaGuestUserIdentityProvider.NAME, ADDRESS));
 
-    RestUtils.resolveTypedAddresses(attendees, identityManager, attendeeService);
+    RestUtils.resolveTypedAddresses(attendees, identityManager, attendeeService, CALLER_ID);
 
     assertEquals(1, attendees.size());
     assertEquals("jane", attendees.get(0).getIdentity().getRemoteId());
@@ -125,7 +127,7 @@ class RestUtilsTypedAddressTest {
     List<EventAttendeeEntity> attendees = list(attendee(ADDRESS, AgendaGuestUserIdentityProvider.NAME, ADDRESS),
                                                attendee(ADDRESS, AgendaGuestUserIdentityProvider.NAME, ADDRESS));
 
-    RestUtils.resolveTypedAddresses(attendees, identityManager, attendeeService);
+    RestUtils.resolveTypedAddresses(attendees, identityManager, attendeeService, CALLER_ID);
 
     assertEquals(1, attendees.size());
     assertEquals("11", attendees.get(0).getIdentity().getId());
@@ -136,7 +138,7 @@ class RestUtilsTypedAddressTest {
     List<EventAttendeeEntity> attendees = list(attendee("11", null, null),
                                                attendee(ADDRESS, AgendaGuestUserIdentityProvider.NAME, ADDRESS));
 
-    RestUtils.resolveTypedAddresses(attendees, identityManager, attendeeService);
+    RestUtils.resolveTypedAddresses(attendees, identityManager, attendeeService, CALLER_ID);
 
     assertEquals(1, attendees.size());
     assertEquals("11", attendees.get(0).getIdentity().getId());

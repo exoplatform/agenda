@@ -179,31 +179,35 @@ public class AgendaEventAttendeeRest {
    * answer is stored by a cache: who owns an address is answered to a
    * signed-in user, and only while its owner shows it.
    *
+   * @param request the authenticated request
    * @param email the address typed
-   * @return the user, no content when the address resolves to none, or a
-   *         refusal when none is given or the user directory cannot be read
+   * @return the user, no content when the address resolves to none or the
+   *         caller is an external user, or a refusal when none is given or
+   *         the user directory cannot be read
    */
   @GetMapping("events/attendees/user")
   @Secured("users")
   @Operation(summary = "Find the user an e-mail address typed to invite someone belongs to", method = "GET",
              description = "Answers the enabled user whose e-mail address it is, looked up as given and in lower case, as the"
                  + " database collation compares, when the platform displays e-mail addresses and that user did not hide"
-                 + " theirs; no content otherwise. Never cached.")
+                 + " theirs; no content otherwise, and always to an external user. Never cached.")
   @ApiResponses(value = {
       @ApiResponse(responseCode = "200", description = "The user"),
-      @ApiResponse(responseCode = "204", description = "No user to invite for that address"),
+      @ApiResponse(responseCode = "204", description = "No user to invite for that address, or an external caller"),
       @ApiResponse(responseCode = "400", description = "No address given"),
       @ApiResponse(responseCode = "503", description = "The user directory could not be read: the address was not checked"),
   })
-  public ResponseEntity<Object> getAttendeeUserByEmail(@Parameter(description = "The e-mail address typed", required = true)
+  public ResponseEntity<Object> getAttendeeUserByEmail(HttpServletRequest request,
+                                                       @Parameter(description = "The e-mail address typed", required = true)
                                                        @RequestParam(name = "email", required = false)
                                                        String email) {
     if (StringUtils.isBlank(email)) {
       return refusal(HttpStatus.BAD_REQUEST, EMAIL_MANDATORY);
     }
+    Identity caller = identityManager.getOrCreateUserIdentity(request.getRemoteUser());
     Identity user;
     try {
-      user = agendaEventAttendeeService.getUserIdentityByEmail(email);
+      user = caller == null ? null : agendaEventAttendeeService.getUserIdentityByEmail(email, Long.parseLong(caller.getId()));
     } catch (IllegalStateException e) {
       LOG.warn("Error looking up the user of an e-mail address typed to invite someone", e);
       return refusal(HttpStatus.SERVICE_UNAVAILABLE, LOOKUP_FAILED);
