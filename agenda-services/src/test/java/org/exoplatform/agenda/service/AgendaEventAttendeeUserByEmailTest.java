@@ -79,6 +79,13 @@ public class AgendaEventAttendeeUserByEmailTest extends BaseAgendaEventTest {
    * Displays the email profile property, creating its setting when the
    * container has none.
    */
+  /**
+   * @return the identity the lookups are made for: an internal user
+   */
+  private long callerId() {
+    return Long.parseLong(testuser1Identity.getId());
+  }
+
   @Before
   public void displayTheEmail() throws Exception {
     // The entity build reads the current user through the social
@@ -135,18 +142,18 @@ public class AgendaEventAttendeeUserByEmailTest extends BaseAgendaEventTest {
   public void anAddressResolvesToItsUserIgnoringCase() {
     String email = emailOf(testuser2Identity);
 
-    Identity user = agendaEventAttendeeService.getUserIdentityByEmail(email);
+    Identity user = agendaEventAttendeeService.getUserIdentityByEmail(email, callerId());
     assertEquals(testuser2Identity.getId(), user == null ? null : user.getId());
 
-    Identity typedInCapitals = agendaEventAttendeeService.getUserIdentityByEmail("  " + email.toUpperCase() + " ");
+    Identity typedInCapitals = agendaEventAttendeeService.getUserIdentityByEmail("  " + email.toUpperCase() + " ", callerId());
     assertEquals(testuser2Identity.getId(), typedInCapitals == null ? null : typedInCapitals.getId());
   }
 
   @Test
   public void anAddressOfNoUserResolvesToNobody() {
-    assertNull(agendaEventAttendeeService.getUserIdentityByEmail("nobody.here@outside.example.org"));
-    assertNull(agendaEventAttendeeService.getUserIdentityByEmail(" "));
-    assertNull(agendaEventAttendeeService.getUserIdentityByEmail(null));
+    assertNull(agendaEventAttendeeService.getUserIdentityByEmail("nobody.here@outside.example.org", callerId()));
+    assertNull(agendaEventAttendeeService.getUserIdentityByEmail(" ", callerId()));
+    assertNull(agendaEventAttendeeService.getUserIdentityByEmail(null, callerId()));
   }
 
   /**
@@ -157,7 +164,7 @@ public class AgendaEventAttendeeUserByEmailTest extends BaseAgendaEventTest {
   public void theBeginningOfAnAddressResolvesToNobody() {
     String email = emailOf(testuser2Identity);
 
-    assertNull(agendaEventAttendeeService.getUserIdentityByEmail(email.substring(0, email.length() - 1)));
+    assertNull(agendaEventAttendeeService.getUserIdentityByEmail(email.substring(0, email.length() - 1), callerId()));
   }
 
   /**
@@ -169,7 +176,7 @@ public class AgendaEventAttendeeUserByEmailTest extends BaseAgendaEventTest {
   public void aPatternResolvesToNobody() {
     String email = emailOf(testuser2Identity);
 
-    assertNull(agendaEventAttendeeService.getUserIdentityByEmail("*" + email.substring(1)));
+    assertNull(agendaEventAttendeeService.getUserIdentityByEmail("*" + email.substring(1), callerId()));
   }
 
   @Test
@@ -177,26 +184,26 @@ public class AgendaEventAttendeeUserByEmailTest extends BaseAgendaEventTest {
     String email = emailOf(testuser2Identity);
 
     displayEmail(true, false);
-    assertNull("the platform displays no e-mail address", agendaEventAttendeeService.getUserIdentityByEmail(email));
+    assertNull("the platform displays no e-mail address", agendaEventAttendeeService.getUserIdentityByEmail(email, callerId()));
     displayEmail(false, true);
-    assertNull("the e-mail property is not active", agendaEventAttendeeService.getUserIdentityByEmail(email));
+    assertNull("the e-mail property is not active", agendaEventAttendeeService.getUserIdentityByEmail(email, callerId()));
     displayEmail(true, true);
 
     profilePropertyService.hidePropertySetting(Long.parseLong(testuser2Identity.getId()), emailSettingId);
     hidden = true;
-    assertNull("the user hid their e-mail address", agendaEventAttendeeService.getUserIdentityByEmail(email));
+    assertNull("the user hid their e-mail address", agendaEventAttendeeService.getUserIdentityByEmail(email, callerId()));
   }
 
   @Test
   public void anAddressOfADisabledUserResolvesToNobody() throws Exception {
     String email = emailOf(testuser3Identity);
-    Identity user = agendaEventAttendeeService.getUserIdentityByEmail(email);
+    Identity user = agendaEventAttendeeService.getUserIdentityByEmail(email, callerId());
     assertEquals(testuser3Identity.getId(), user == null ? null : user.getId());
 
     container.getComponentInstanceOfType(OrganizationService.class).getUserHandler().setEnabled("testuser3", false, true);
     disabled = true;
 
-    assertNull(agendaEventAttendeeService.getUserIdentityByEmail(email));
+    assertNull(agendaEventAttendeeService.getUserIdentityByEmail(email, callerId()));
   }
 
   /**

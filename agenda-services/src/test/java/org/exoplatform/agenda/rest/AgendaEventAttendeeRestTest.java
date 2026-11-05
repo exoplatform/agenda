@@ -79,12 +79,14 @@ class AgendaEventAttendeeRestTest {
    * Builds the dispatcher over the resource, with Alice as the user of the
    * session, whose platform language is French.
    */
+  private static final long ALICE_ID = 3L;
+
   @BeforeEach
   void setUp() {
     service = mock(AgendaEventAttendeeService.class);
     IdentityManager identityManager = mock(IdentityManager.class);
     Identity alice = new Identity("organization", "alice");
-    alice.setId("3");
+    alice.setId(String.valueOf(ALICE_ID));
     when(identityManager.getOrCreateUserIdentity("alice")).thenReturn(alice);
     utils = mockStatic(Utils.class);
     utils.when(() -> Utils.getUserLanguage("alice")).thenReturn("fr");
@@ -228,7 +230,7 @@ class AgendaEventAttendeeRestTest {
     profile.setProperty(Profile.FULL_NAME, "Jane Doe");
     profile.setAvatarUrl("/portal/rest/v1/social/users/jane/avatar?lastModified=7");
     jane.setProfile(profile);
-    when(service.getUserIdentityByEmail("Jane.Doe@example.com")).thenReturn(jane);
+    when(service.getUserIdentityByEmail("Jane.Doe@example.com", ALICE_ID)).thenReturn(jane);
 
     mockMvc.perform(as("alice", get("/events/attendees/user").param("email", "Jane.Doe@example.com")))
            .andExpect(status().isOk())
@@ -250,7 +252,7 @@ class AgendaEventAttendeeRestTest {
   void aUserWithNoNameOrAvatarIsServedWithTheUsernameAndItsAvatar() throws Exception {
     Identity john = new Identity("organization", "john");
     john.setId("12");
-    when(service.getUserIdentityByEmail("john@example.com")).thenReturn(john);
+    when(service.getUserIdentityByEmail("john@example.com", ALICE_ID)).thenReturn(john);
 
     mockMvc.perform(as("alice", get("/events/attendees/user").param("email", "john@example.com")))
            .andExpect(status().isOk())
@@ -270,7 +272,7 @@ class AgendaEventAttendeeRestTest {
            .andExpect(status().isNoContent())
            .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store, private"));
 
-    verify(service).getUserIdentityByEmail("someone@outside.org");
+    verify(service).getUserIdentityByEmail("someone@outside.org", ALICE_ID);
   }
 
   /**
@@ -282,7 +284,7 @@ class AgendaEventAttendeeRestTest {
    */
   @Test
   void aDirectoryThatCannotBeReadAnswersUnavailable() throws Exception {
-    when(service.getUserIdentityByEmail("jane@example.com")).thenThrow(new IllegalStateException("directory down"));
+    when(service.getUserIdentityByEmail("jane@example.com", ALICE_ID)).thenThrow(new IllegalStateException("directory down"));
 
     mockMvc.perform(as("alice", get("/events/attendees/user").param("email", "jane@example.com")))
            .andExpect(status().isServiceUnavailable())
@@ -306,7 +308,7 @@ class AgendaEventAttendeeRestTest {
            .andExpect(status().isBadRequest())
            .andExpect(jsonPath("$.message").value("agenda.attendees.emailMandatory"));
 
-    verify(service, never()).getUserIdentityByEmail(any());
+    verify(service, never()).getUserIdentityByEmail(any(), anyLong());
   }
 
   private MockHttpServletRequestBuilder as(String username, MockHttpServletRequestBuilder builder) {

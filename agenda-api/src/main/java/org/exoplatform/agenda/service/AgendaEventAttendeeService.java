@@ -481,19 +481,24 @@ public interface AgendaEventAttendeeService {
    * guest from outside the platform (eXIP 7.3.0.21, US06). Only an address the
    * platform displays resolves: none when the platform displays no e-mail
    * address, or when that user hid theirs, so that the lookup never tells who
-   * owns an address the platform keeps private.
+   * owns an address the platform keeps private. Nor for a caller who is an
+   * external user, whom the platform's people search tells no user beyond
+   * their connections.
    *
    * @param email an e-mail address, looked up as given and in lower case,
    *          each compared as the database collation compares, ignoring case
    *          or not; one holding a star never resolves
+   * @param callerIdentityId the {@link Identity} technical identifier of the
+   *          user who typed the address
    * @return the {@link Identity} of the enabled user whose e-mail address it
-   *         is, or null when there is none
+   *         is, or null when there is none, or when the caller is an external
+   *         user or no known identity
    * @throws IllegalStateException when the user directory cannot be read: the
    *           address is then neither a user nor a person from outside the
    *           platform. The platform's directory also answers so for an
    *           address two of its accounts hold, which its lookup by a unique
    *           attribute refuses
    */
-  Identity getUserIdentityByEmail(String email);
+  Identity getUserIdentityByEmail(String email, long callerIdentityId);
 
 }
