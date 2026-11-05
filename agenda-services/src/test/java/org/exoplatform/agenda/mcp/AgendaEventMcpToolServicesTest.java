@@ -205,10 +205,12 @@ public class AgendaEventMcpToolServicesTest extends BaseAgendaEventTest {
   }
 
   /**
-   * A user who declined a series and then said Yes from its second date holds
-   * two rows. A listing of the agenda shows that date as a date the series
-   * computes, with the user once and the answer valid at it: the Yes.
-   * Mutant: the rows of every date, which lists the user twice.
+   * A user who declined a series, said Yes from its second date and No again
+   * from its third holds three rows. A listing of the agenda shows the second
+   * date as a date the series computes, with the user once and the answer
+   * valid at it: the Yes, where the series' next date, the third, has the No.
+   * Mutants: the rows of every date, which lists the user three times; the
+   * answers of the series read as a whole, valid at its next date.
    *
    * @throws Exception when the series can't be created, answered or listed
    */
@@ -221,7 +223,12 @@ public class AgendaEventMcpToolServicesTest extends BaseAgendaEventTest {
     List<ZonedDateTime> dates = occurrenceIds(seriesId);
     agendaEventAttendeeService.sendEventResponse(seriesId, userId, EventAttendeeResponse.DECLINED);
     agendaEventAttendeeService.sendUpcomingEventResponse(seriesId, dates.get(1), userId, EventAttendeeResponse.ACCEPTED);
-    assertEquals(2, agendaEventAttendeeService.getEventAttendees(seriesId).getEventAttendees(userId).size());
+    agendaEventAttendeeService.sendUpcomingEventResponse(seriesId, dates.get(2), userId, EventAttendeeResponse.DECLINED);
+    assertEquals(3, agendaEventAttendeeService.getEventAttendees(seriesId).getEventAttendees(userId).size());
+    assertTrue("the third date is the next one", dates.get(2).isAfter(ZonedDateTime.now()));
+    assertEquals("the series read as a whole gives the No of its next date",
+                 EventAttendeeResponse.DECLINED,
+                 agendaEventAttendeeService.getSeriesResponse(seriesId, userId));
     ZonedDateTime date = dates.get(1).withZoneSameInstant(ZoneOffset.UTC);
 
     actAs(testuser5Identity);
