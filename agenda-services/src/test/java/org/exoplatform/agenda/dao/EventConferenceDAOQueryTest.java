@@ -136,20 +136,46 @@ class EventConferenceDAOQueryTest {
   }
 
   /**
-   * The links of the call's type containing its text are found, each with
-   * its series: the series and its stored occurrence, which holds the same
-   * link, answer the series once, and the longer call's event answers
-   * itself, the service ruling its segment out.
+   * The links of the call's type holding its identifier as a whole segment
+   * are found, each with its series: the series and its stored occurrence,
+   * which holds the same link, answer the series once. The longer call's
+   * link, where the identifier only begins a segment, is not read.
    */
   @Test
   void theLinksHoldingTheCallAreFoundOncePerSeries() {
-    List<EventConferenceMatch> matches = storage.findConferencesContaining(JITSI, "/" + CALL_ID, 50);
+    List<EventConferenceMatch> matches = storage.findConferencesHoldingSegment(JITSI, "/" + CALL_ID, 50);
 
     Set<String> found = matches.stream().map(match -> match.seriesId() + " " + match.url()).collect(Collectors.toSet());
-    assertEquals(Set.of(series + " https://host/jitsi/meet/" + CALL_ID + "?inviteId=1",
-                        longerCallEvent + " https://host/jitsi/meet/" + CALL_ID + "d"),
-                 found);
-    assertEquals(2, matches.size(), "the link the stored occurrence copies from its series comes back once");
+    assertEquals(Set.of(series + " https://host/jitsi/meet/" + CALL_ID + "?inviteId=1"), found);
+    assertEquals(1, matches.size(), "the link the stored occurrence copies from its series comes back once");
+  }
+
+  /**
+   * A link holds the call when its identifier ends the link or is followed by
+   * a query string, a fragment or another segment; the links where it only
+   * begins a longer segment are not read, so they do not count toward the
+   * limit, even on a series created earlier.
+   */
+  @Test
+  void onlyTheLinksHoldingTheCallCountTowardTheLimit() {
+    entityManager.getTransaction().begin();
+    long calendar = calendar();
+    long longerEarlier = event(calendar, null);
+    long atEnd = event(calendar, null);
+    long beforeFragment = event(calendar, null);
+    long beforePath = event(calendar, null);
+    conference(longerEarlier, JITSI, "https://host/jitsi/meet/g_cap-call2");
+    conference(atEnd, JITSI, "https://host/jitsi/meet/g_cap-call");
+    conference(beforeFragment, JITSI, "https://host/jitsi/meet/g_cap-call#config");
+    conference(beforePath, JITSI, "https://host/jitsi/meet/g_cap-call/lobby");
+    entityManager.getTransaction().commit();
+    entityManager.clear();
+
+    assertEquals(List.of(atEnd, beforeFragment, beforePath),
+                 storage.findConferencesHoldingSegment(JITSI, "/g_cap-call", 50).stream().map(EventConferenceMatch::seriesId).toList());
+    assertEquals(List.of(atEnd),
+                 storage.findConferencesHoldingSegment(JITSI, "/g_cap-call", 1).stream().map(EventConferenceMatch::seriesId).toList(),
+                 "the longer call's link, on a series created earlier, does not take the one place");
   }
 
   /**
@@ -159,7 +185,7 @@ class EventConferenceDAOQueryTest {
    */
   @Test
   void anUnderscoreOfTheCallIdIsMatchedLiterally() {
-    List<EventConferenceMatch> matches = storage.findConferencesContaining(JITSI, "/" + CALL_ID, 50);
+    List<EventConferenceMatch> matches = storage.findConferencesHoldingSegment(JITSI, "/" + CALL_ID, 50);
 
     assertTrue(matches.stream().noneMatch(match -> match.url().contains("gXspace")),
                "a link differing where the call identifier holds _ is not the call's");
@@ -171,8 +197,8 @@ class EventConferenceDAOQueryTest {
    */
   @Test
   void aPercentAndTheEscapeCharacterAreMatchedLiterally() {
-    assertTrue(storage.findConferencesContaining(JITSI, "/g%abc", 50).isEmpty(), "% matches only %");
-    assertTrue(storage.findConferencesContaining(JITSI, "/g!_space-abc", 50).isEmpty(), "! matches only !");
+    assertTrue(storage.findConferencesHoldingSegment(JITSI, "/g%abc", 50).isEmpty(), "% matches only %");
+    assertTrue(storage.findConferencesHoldingSegment(JITSI, "/g!_space-abc", 50).isEmpty(), "! matches only !");
   }
 
   /**
@@ -180,9 +206,9 @@ class EventConferenceDAOQueryTest {
    */
   @Test
   void aConferenceOfAnotherTypeIsNotFound() {
-    assertTrue(storage.findConferencesContaining(JITSI, "/" + CALL_ID, 50).stream().noneMatch(match -> match.url().endsWith("/" + CALL_ID)),
+    assertTrue(storage.findConferencesHoldingSegment(JITSI, "/" + CALL_ID, 50).stream().noneMatch(match -> match.url().endsWith("/" + CALL_ID)),
                "the manual conference holds the link with nothing after it, and is of another type");
-    assertEquals(1, storage.findConferencesContaining("manual", "/" + CALL_ID, 50).size());
+    assertEquals(1, storage.findConferencesHoldingSegment("manual", "/" + CALL_ID, 50).size());
   }
 
   /**
@@ -190,13 +216,13 @@ class EventConferenceDAOQueryTest {
    */
   @Test
   void theLimitBoundsTheRows() {
-    assertEquals(1, storage.findConferencesContaining(JITSI, "/" + CALL_ID, 1).size());
+    assertEquals(1, storage.findConferencesHoldingSegment(JITSI, "/" + CALL_ID, 1).size());
   }
 
   /**
    * The rows come back by series, the earliest created first, whatever the
-   * order the links were saved in: the limit keeps the earliest series, so
-   * links saved later on other events cannot push it out.
+   * order the links were saved in: the limit keeps the series created first,
+   * whenever their links were saved.
    */
   @Test
   void theRowsComeBackByEarliestSeries() {
@@ -209,11 +235,11 @@ class EventConferenceDAOQueryTest {
     entityManager.getTransaction().commit();
     entityManager.clear();
 
-    List<EventConferenceMatch> matches = storage.findConferencesContaining(JITSI, "/g_order-call", 50);
+    List<EventConferenceMatch> matches = storage.findConferencesHoldingSegment(JITSI, "/g_order-call", 50);
 
     assertEquals(List.of(earlier, later), matches.stream().map(EventConferenceMatch::seriesId).toList());
     assertEquals(List.of(earlier),
-                 storage.findConferencesContaining(JITSI, "/g_order-call", 1).stream().map(EventConferenceMatch::seriesId).toList(),
+                 storage.findConferencesHoldingSegment(JITSI, "/g_order-call", 1).stream().map(EventConferenceMatch::seriesId).toList(),
                  "the limit keeps the series created first");
   }
 

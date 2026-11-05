@@ -44,10 +44,11 @@ import jakarta.persistence.Table;
   query = "SELECT a FROM AgendaEventConference a WHERE a.event.id = :eventId"
 )
 @NamedQuery(
-  name = "AgendaEventConference.findByTypeAndUrlLike",
+  name = "AgendaEventConference.findByTypeAndUrlSegment",
   query = "SELECT DISTINCT a.url, COALESCE(parent.id, evt.id) FROM AgendaEventConference a"
       + " JOIN a.event evt LEFT JOIN evt.parent parent"
-      + " WHERE a.type = :type AND a.url LIKE :url ESCAPE '!'"
+      + " WHERE a.type = :type AND (a.url LIKE :atEnd ESCAPE '!' OR a.url LIKE :beforeQuery ESCAPE '!'"
+      + " OR a.url LIKE :beforeFragment ESCAPE '!' OR a.url LIKE :beforePath ESCAPE '!')"
       + " ORDER BY COALESCE(parent.id, evt.id) ASC, a.url ASC"
 )
 public class EventConferenceEntity implements Serializable {
