@@ -42,7 +42,6 @@ import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventResponseOutcome;
-import org.exoplatform.agenda.rest.model.EventEntity;
 import org.exoplatform.agenda.rest.model.EventResponseOutcomeEntity;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;

@@ -89,7 +89,7 @@ class AgendaEventAttendeeUserLookupTest {
     identityManager = mock(IdentityManager.class);
     // The lookups are made for an internal user
     Identity caller = mock(Identity.class);
-    when(identityManager.getIdentity(String.valueOf(CALLER_ID))).thenReturn(caller);
+    when(identityManager.getIdentity(CALLER_ID)).thenReturn(caller);
     attendeeService = new AgendaEventAttendeeServiceImpl(mock(AgendaEventAttendeeStorage.class),
                                                          mock(AgendaEventStorage.class),
                                                          mock(AgendaCalendarService.class),
@@ -204,7 +204,7 @@ class AgendaEventAttendeeUserLookupTest {
     Identity jane = identity("jane", "24");
     Identity external = mock(Identity.class);
     when(external.isExternal()).thenReturn(true);
-    when(identityManager.getIdentity("98")).thenReturn(external);
+    when(identityManager.getIdentity(98L)).thenReturn(external);
 
     assertNull(attendeeService.getUserIdentityByEmail("jane@example.com", 98L));
     assertNull(attendeeService.getUserIdentityByEmail("jane@example.com", 97L));
