@@ -5,6 +5,8 @@ import static org.junit.Assert.*;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import org.junit.Test;
@@ -12,7 +14,9 @@ import org.junit.Test;
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.services.listener.Listener;
 
 public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
 
@@ -752,6 +756,74 @@ public class AgendaEventDatePollServiceTest extends BaseAgendaEventTest {
     createdDateOption2 = dateOptions.get(1);
     assertTrue(createdDateOption1.isSelected());
     assertFalse(createdDateOption2.isSelected());
+  }
+
+  @Test
+  public void testSelectEventDateOptionDoesNotBroadcastTheOrganizerResponse() throws Exception { // NOSONAR
+    long organizerId = Long.parseLong(testuser1Identity.getId());
+    ZonedDateTime start = getDate();
+    EventDateOption dateOption1 = new EventDateOption(0, 0, start, start, false, false, null);
+    EventDateOption dateOption2 = new EventDateOption(0, 0, start.plusDays(1), start.plusDays(1), false, false, null);
+    Event event = new Event();
+    event.setCalendarId(spaceCalendar.getId());
+    Event createdEvent = agendaEventService.createEvent(event,
+                                                        Arrays.asList(new EventAttendee(0,
+                                                                                        organizerId,
+                                                                                        EventAttendeeResponse.NEEDS_ACTION),
+                                                                      new EventAttendee(0,
+                                                                                        Long.parseLong(testuser2Identity.getId()),
+                                                                                        EventAttendeeResponse.NEEDS_ACTION)),
+                                                        Collections.emptyList(),
+                                                        Collections.emptyList(),
+                                                        Arrays.asList(dateOption1, dateOption2),
+                                                        null,
+                                                        true,
+                                                        organizerId);
+    long eventId = createdEvent.getId();
+    EventDateOption firstOption = agendaEventDatePollService.getEventDateOptions(eventId, ZoneOffset.UTC)
+                                                            .stream()
+                                                            .min(Comparator.comparing(EventDateOption::getStart))
+                                                            .orElseThrow();
+
+    // ListenerService has no way to unregister a listener: the flag disarms these ones once the test is over
+    AtomicBoolean listening = new AtomicBoolean(true);
+    AtomicInteger responseSentCount = new AtomicInteger();
+    AtomicInteger responseSavedCount = new AtomicInteger();
+    Listener<Object, Object> sentListener = new Listener<>() {
+      @Override
+      public void onEvent(org.exoplatform.services.listener.Event<Object, Object> event) {
+        if (listening.get()) {
+          responseSentCount.incrementAndGet();
+        }
+      }
+    };
+    Listener<Object, Object> savedListener = new Listener<>() {
+      @Override
+      public void onEvent(org.exoplatform.services.listener.Event<Object, Object> event) {
+        if (listening.get()) {
+          responseSavedCount.incrementAndGet();
+        }
+      }
+    };
+    listenerService.addListener(Utils.POST_EVENT_RESPONSE_SENT, sentListener);
+    listenerService.addListener(Utils.POST_EVENT_RESPONSE_SAVED, savedListener);
+    try {
+      agendaEventService.selectEventDateOption(eventId, firstOption.getId(), organizerId);
+
+      assertEquals("Confirming a date poll must not broadcast the organizer's automatic answer as a user response",
+                   0,
+                   responseSentCount.get());
+      assertEquals("The confirmer's automatic answer is saved exactly once", 1, responseSavedCount.get());
+      EventAttendee organizer = agendaEventAttendeeService.getEventAttendees(eventId)
+                                                          .getEventAttendees()
+                                                          .stream()
+                                                          .filter(attendee -> attendee.getIdentityId() == organizerId)
+                                                          .findFirst()
+                                                          .orElseThrow();
+      assertEquals(EventAttendeeResponse.ACCEPTED, organizer.getResponse());
+    } finally {
+      listening.set(false);
+    }
   }
 
   @Test

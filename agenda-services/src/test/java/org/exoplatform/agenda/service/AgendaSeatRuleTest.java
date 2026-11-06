@@ -1623,8 +1623,8 @@ public class AgendaSeatRuleTest extends BaseAgendaEventTest {
 
   /**
    * Choosing the date of a poll starts the other answers over without
-   * reporting them as sent: a reset is not an answer. The chooser's Yes is
-   * one.
+   * reporting them as sent: a reset is not an answer, and the chooser's
+   * automatic Yes is not one either.
    *
    * @throws Exception when a write fails
    */
@@ -1640,7 +1640,7 @@ public class AgendaSeatRuleTest extends BaseAgendaEventTest {
 
     assertEquals(EventAttendeeResponse.NEEDS_ACTION, responseOf(pollId, testuser2Identity));
     assertEquals(EventAttendeeResponse.ACCEPTED, responseOf(pollId, testuser1Identity));
-    assertEquals(List.of(id(testuser1Identity)), identitiesOf(Utils.POST_EVENT_RESPONSE_SENT));
+    assertEquals(List.of(), identitiesOf(Utils.POST_EVENT_RESPONSE_SENT));
   }
 
   private static boolean isAttendeeWrite(RecordedStatement statement) {
