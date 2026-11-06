@@ -1,5 +1,5 @@
 <template>
-  <v-list-item class="px-0">
+  <v-list-item class="event-participant-item px-0">
     <v-list-item-avatar
       :tile="isSpace"
       :class="isSpace && 'rounded'"
@@ -30,7 +30,7 @@
         v-if="attendee.response"
         size="20"
         :color="responseColor"
-        :class="['me-1', responseColorClass]"
+        :class="['participant-response', responseStateClass, 'me-1', responseColorClass]"
         :title="responseLabel">
         {{ responseIcon }}
       </v-icon>
@@ -38,6 +38,7 @@
         v-if="editable"
         :disabled="isOwner"
         :title="isOwner ? $t('agenda.tooltip.cannotRemoveOwner') : $t('agenda.tooltip.removeParticipant')"
+        class="remove-participant-button"
         icon
         small
         @click="!isOwner && $emit('remove-attendee', attendee)">
@@ -119,6 +120,9 @@ export default {
       case 'WAITING': return 'warning--text';
       default: return null;
       }
+    },
+    responseStateClass() {
+      return `participant-response-${this.attendee.response.toLowerCase().replace('_', '-')}`;
     },
     responseLabel() {
       switch (this.attendee.response) {
