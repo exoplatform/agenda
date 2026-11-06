@@ -150,7 +150,9 @@ export default {
   },
   mounted() {
     if (this.event && this.event.conferences && this.event.conferences.length) {
-      this.conferenceURL = this.event.conferences[0].url;
+      // A provider conference not saved yet has no URL: null keeps the
+      // watcher from firing, which would drop the conference
+      this.conferenceURL = this.event.conferences[0].url || null;
     } else {
       this.conferenceURL = null;
       this.$set(this.event, 'conferences', null);
