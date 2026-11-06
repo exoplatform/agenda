@@ -395,6 +395,13 @@ export default {
           this.$root.$emit('agenda-event-saved', event);
           this.close();
         })
+        // A failed save is said, as a split's is: by the refusal's own label
+        // when the server names one, else as a save that failed. The drawer
+        // stays open with what was typed
+        .catch(error => {
+          const message = error && error.code && this.$te(error.code) ? this.$t(error.code) : this.$t('agenda.eventSave.error');
+          this.$root.$emit('alert-message', message, 'error');
+        })
         .finally(() => {
           this.saving = false;
           this.$root.$emit('agenda-refresh');
