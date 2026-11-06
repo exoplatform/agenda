@@ -1605,7 +1605,7 @@ public class AgendaEventAttendeeServiceImpl implements AgendaEventAttendeeServic
    */
   @Override
   public Identity getUserIdentityByEmail(String email, long callerIdentityId) {
-    Identity caller = callerIdentityId > 0 ? identityManager.getIdentity(String.valueOf(callerIdentityId)) : null;
+    Identity caller = callerIdentityId > 0 ? identityManager.getIdentity(callerIdentityId) : null;
     if (caller == null || caller.isExternal()) {
       // An external user is told no owner, as the platform's people search
       // tells them no user beyond their connections
