@@ -4,6 +4,7 @@
     <v-btn
       :class="sortedAttendees.length > 1 && !event.id || event.id ? '' : 'ms-auto'"
       :title="$t('agenda.addParticipants')"
+      class="add-participants-button"
       icon
       small
       @click="openDrawer">
