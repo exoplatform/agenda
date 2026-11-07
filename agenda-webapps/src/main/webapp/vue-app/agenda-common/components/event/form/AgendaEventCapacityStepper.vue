@@ -46,7 +46,7 @@
         <v-icon size="16" class="icon-default-color">fas fa-plus</v-icon>
       </v-btn>
     </div>
-    <div v-if="atMinimum" class="d-flex align-center caption text-sub-title">
+    <div v-if="atMinimum" class="capacity-minimum-hint d-flex align-center caption text-sub-title">
       <v-icon size="14" class="info--text me-1">fas fa-info-circle</v-icon>
       <span>{{ $t('agenda.capacity.minimumHint') }}</span>
     </div>
