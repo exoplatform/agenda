@@ -39,37 +39,51 @@
           </v-icon>
         </v-btn>
       </div>
-      <v-btn
-        v-if="displaySeeMore && ($root.isMobile || !$root.hover)"
-        ref="moreButton"
-        class="flex-shrink-0 flex-grow-0 px-0 ps-3"
-        color="primary"
-        height="28"
-        text
-        @click="openSeeMoreLink">
-        {{ $t('agenda.timeline.seeMore') }}
-      </v-btn>
-      <v-btn
-        v-if="!$root.isMobile && $root.hover && displaySeeMore"
-        id="agendaTimeLinerxtarnalLinkButton"
-        :title="$t('agenda.timeline.seeMore.tooltip')"
-        color="primary"
-        icon
-        max-width="28"
-        max-height="28"
-        @click="openSeeMoreLink">
-        <v-icon size="20">fa-external-link-alt</v-icon>
-      </v-btn>
-      <v-btn
-        v-if="!$root.isMobile && $root.hover && $root.canEdit"
-        id="agendaTimeLineSettingsButton"
-        :title="$t('agenda.settings.button.tooltip')"
-        max-width="28"
-        max-height="28"
-        icon
-        @click="$root.$emit('open-agenda-timeline-settings')">
-        <v-icon size="20">fa-cog</v-icon>
-      </v-btn>
+      <!-- on a desktop, the link and settings icons replace the 'See All' text while the card is hovered, and while the
+           keyboard focus is on one of them (agenda.less): hidden, they keep their place in the tab order, and the
+           text, the mouse's, is left out of it -->
+      <div class="agenda-timeline-header-actions d-flex">
+        <v-btn
+          v-if="displaySeeMore"
+          ref="moreButton"
+          :tabindex="$root.isMobile ? null : '-1'"
+          :aria-hidden="$root.isMobile ? null : 'true'"
+          :class="!$root.isMobile && 'agenda-timeline-see-all'"
+          class="flex-shrink-0 flex-grow-0 px-0 ps-3"
+          color="primary"
+          height="28"
+          text
+          @click="openSeeMoreLink">
+          {{ $t('agenda.timeline.seeMore') }}
+        </v-btn>
+        <div
+          v-if="!$root.isMobile && (displaySeeMore || $root.canEdit)"
+          class="agenda-timeline-hover-actions">
+          <v-btn
+            v-if="displaySeeMore"
+            id="agendaTimeLinerxtarnalLinkButton"
+            :title="$t('agenda.timeline.seeMore.tooltip')"
+            :aria-label="$t('agenda.timeline.seeMore.tooltip')"
+            color="primary"
+            icon
+            max-width="28"
+            max-height="28"
+            @click="openSeeMoreLink">
+            <v-icon size="20">fa-external-link-alt</v-icon>
+          </v-btn>
+          <v-btn
+            v-if="$root.canEdit"
+            id="agendaTimeLineSettingsButton"
+            :title="$t('agenda.settings.button.tooltip')"
+            :aria-label="$t('agenda.settings.button.tooltip')"
+            max-width="28"
+            max-height="28"
+            icon
+            @click="$root.$emit('open-agenda-timeline-settings')">
+            <v-icon size="20">fa-cog</v-icon>
+          </v-btn>
+        </div>
+      </div>
     </div>
   </div>
 </template>
