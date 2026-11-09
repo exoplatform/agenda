@@ -2,9 +2,7 @@
   <v-hover v-slot="{ hover }">
     <v-card
       flat
-      class="pa-0"
-      :aria-label="$t('search.access.to.result', {0 : excerptText})"
-      :href="eventUrl">
+      class="search-result-card pa-0">
       <v-list class="pa-0" :class="hover && 'light-grey-background-color no-border-radius' || ''">
         <v-list-item>
           <v-list-item-icon class="me-2">
@@ -15,10 +13,12 @@
 
           <v-list-item-content>
             <v-list-item-title class="d-flex flex-row full-width align-center">
-              <h1
-                class="flex-grow-1 title primary--text pt-1 mb-0 ps-0 my-auto align-center text-start text-truncate"
-                :aria-label="eventTitleText"
-                v-sanitized-html="eventTitle"></h1>
+              <h1 class="flex-grow-1 title primary--text pt-1 mb-0 ps-0 my-auto align-center text-start text-truncate">
+                <a
+                  :href="eventUrl"
+                  class="search-result-link"
+                  v-sanitized-html="eventTitle"></a>
+              </h1>
             </v-list-item-title>
 
             <v-list-item-subtitle class="d-flex flex-column">
@@ -29,7 +29,7 @@
                     v-on="on"
                     :href="calendarOwnerLink"
                     :class="isSpaceEvent && 'spaceAvatar' || ''"
-                    class="flex-nowrap flex-shrink-0 d-flex">
+                    class="search-result-interactive flex-nowrap flex-shrink-0 d-flex">
                     <v-avatar
                       :size="18"
                       tile
@@ -96,17 +96,11 @@ export default {
     excerptHtml() {
       return this.excerpts.length && this.excerpts.join('\r\n...') || this.eventDescription;
     },
-    excerptText() {
-      return this.excerpts.length ? this.$utils.htmlToText(this.excerptHtml) : this.eventDescription;
-    },
     eventStartDate() {
       return this.result && this.result.start;
     },
     eventTitle() {
       return this.result && this.result.summary || '';
-    },
-    eventTitleText() {
-      return this.$utils.htmlToText(this.eventTitle);
     },
     owner() {
       return this.result && this.result.calendar && this.result.calendar.owner;
