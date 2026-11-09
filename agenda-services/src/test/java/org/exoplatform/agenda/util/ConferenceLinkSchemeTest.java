@@ -16,16 +16,16 @@
  */
 package org.exoplatform.agenda.util;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.exoplatform.agenda.model.EventConference;
 
@@ -62,16 +62,16 @@ public class ConferenceLinkSchemeTest {
                                                         "javascriptx:alert(1)");
 
   @Test
-  public void testScriptUrlsAreRecognised() {
+  void testScriptUrlsAreRecognised() {
     for (String url : SCRIPT_URLS) {
-      assertTrue("Not recognised as a script link: " + url, Utils.isScriptUrl(url));
+      assertTrue(Utils.isScriptUrl(url), "Not recognised as a script link: " + url);
     }
   }
 
   @Test
-  public void testOtherUrlsAreNotRecognised() {
+  void testOtherUrlsAreNotRecognised() {
     for (String url : OTHER_URLS) {
-      assertFalse("Recognised as a script link: " + url, Utils.isScriptUrl(url));
+      assertFalse(Utils.isScriptUrl(url), "Recognised as a script link: " + url);
     }
     assertFalse(Utils.isScriptUrl(null));
     assertFalse(Utils.isScriptUrl(""));
@@ -82,7 +82,7 @@ public class ConferenceLinkSchemeTest {
    * default lower case of <code>I</code> is a dotless i.
    */
   @Test
-  public void testScriptUrlIsRecognisedWhateverTheDefaultLocale() {
+  void testScriptUrlIsRecognisedWhateverTheDefaultLocale() {
     Locale defaultLocale = Locale.getDefault();
     try {
       Locale.setDefault(Locale.of("tr"));
@@ -93,14 +93,14 @@ public class ConferenceLinkSchemeTest {
   }
 
   @Test
-  public void testCheckConferenceUrlsRefusesAScriptLink() {
+  void testCheckConferenceUrlsRefusesAScriptLink() {
     List<EventConference> conferences = Arrays.asList(conference("https://meet.example.com/room"),
                                                       conference("JavaScript:alert(1)"));
     assertThrows(IllegalArgumentException.class, () -> Utils.checkConferenceUrls(conferences));
   }
 
   @Test
-  public void testCheckConferenceUrlsAcceptsOtherLinks() {
+  void testCheckConferenceUrlsAcceptsOtherLinks() {
     Utils.checkConferenceUrls(null);
     Utils.checkConferenceUrls(Collections.emptyList());
     Utils.checkConferenceUrls(Arrays.asList(conference("https://meet.example.com/room"), conference(null)));

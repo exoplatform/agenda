@@ -16,12 +16,12 @@
  */
 package org.exoplatform.agenda.util;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Locale;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Pins how the descriptions of the calendar file write the web conference
@@ -29,50 +29,50 @@ import org.junit.Test;
  * escaped, and neither writes a link running a script. The link is the one
  * the event stored, which may predate the refusal of such links at save.
  */
-public class EventIcsBuilderConferenceLinkTest {
+class EventIcsBuilderConferenceLinkTest {
 
   private static final String LINK         = "https://meet.example.com/room?a=1&b=\"2\"<x>";
 
   private static final String ESCAPED_LINK = "https://meet.example.com/room?a=1&amp;b=&quot;2&quot;&lt;x&gt;";
 
   @Test
-  public void testHtmlDescriptionEscapesTheConferenceLink() {
+  void testHtmlDescriptionEscapesTheConferenceLink() {
     String html = EventIcsBuilder.htmlDescription(Locale.ENGLISH, "Ada", "Chemistry", LINK, null, null);
 
-    assertTrue(html, html.contains("<a href=\"" + ESCAPED_LINK + "\">" + ESCAPED_LINK + "</a>"));
-    assertFalse(html, html.contains("\"2\""));
+    assertTrue(html.contains("<a href=\"" + ESCAPED_LINK + "\">" + ESCAPED_LINK + "</a>"), html);
+    assertFalse(html.contains("\"2\""), html);
   }
 
   @Test
-  public void testHtmlDescriptionLeavesOutAScriptLink() {
+  void testHtmlDescriptionLeavesOutAScriptLink() {
     for (String url : ConferenceLinkSchemeTest.SCRIPT_URLS) {
       String html = EventIcsBuilder.htmlDescription(Locale.ENGLISH, "Ada", "Chemistry", url, null, null);
 
-      assertFalse(url, html.contains("<a "));
+      assertFalse(html.contains("<a "), url);
     }
   }
 
   @Test
-  public void testHtmlDescriptionEscapesTheNames() {
+  void testHtmlDescriptionEscapesTheNames() {
     String html = EventIcsBuilder.htmlDescription(Locale.ENGLISH, "Ada <b>\"L\"</b>", "Chem & <i>Co</i>", null, null, null);
 
-    assertTrue(html, html.contains("<b>Ada &lt;b&gt;&quot;L&quot;&lt;/b&gt;</b>"));
-    assertTrue(html, html.contains("<b>Chem &amp; &lt;i&gt;Co&lt;/i&gt;</b>"));
+    assertTrue(html.contains("<b>Ada &lt;b&gt;&quot;L&quot;&lt;/b&gt;</b>"), html);
+    assertTrue(html.contains("<b>Chem &amp; &lt;i&gt;Co&lt;/i&gt;</b>"), html);
   }
 
   @Test
-  public void testDescriptionKeepsAConferenceLink() {
+  void testDescriptionKeepsAConferenceLink() {
     String text = EventIcsBuilder.description(Locale.ENGLISH, "Ada", "Chemistry", LINK, null, null, null);
 
-    assertTrue(text, text.contains(LINK));
+    assertTrue(text.contains(LINK), text);
   }
 
   @Test
-  public void testDescriptionLeavesOutAScriptLink() {
+  void testDescriptionLeavesOutAScriptLink() {
     for (String url : ConferenceLinkSchemeTest.SCRIPT_URLS) {
       String text = EventIcsBuilder.description(Locale.ENGLISH, "Ada", "Chemistry", url, null, null, null);
 
-      assertFalse(url, text.contains(url));
+      assertFalse(text.contains(url), url);
     }
   }
 
