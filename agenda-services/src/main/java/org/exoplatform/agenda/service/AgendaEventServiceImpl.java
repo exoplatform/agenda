@@ -1104,9 +1104,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       // the series had takes the series' new ones, a row with links of its own
       // keeps them. Without it a changed meeting link never reaches the dates
       // the reminder job materialised for the next days.
-      if (conferencesChanged && conferenceKeys(rowLists.conferences()).equals(conferenceKeys(seriesConferencesBefore))) {
+      if (conferencesChanged && hasSeriesConferences(rowLists.conferences(), seriesConferencesBefore)) {
         conferenceService.saveEventConferences(storedOccurrence.getId(),
-                                               copyConferencesTo(seriesConferencesAfter, storedOccurrence.getId()));
+                                               copyConferencesTo(withoutScriptUrls(seriesConferencesAfter),
+                                                                 storedOccurrence.getId()));
       }
 
       applySeriesMembershipChange(storedOccurrence,
@@ -1348,7 +1349,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // same reminder for another range of its dates
     List<EventReminder> seriesRemindersOnThatDate = remindersOnThatDate(seriesLists.reminders(), occurrenceId);
     return !attendeeResponses(rowLists.attendees()).equals(attendeeResponses(seriesAttendeesOnThatDate))
-        || !conferenceKeys(rowLists.conferences()).equals(conferenceKeys(seriesLists.conferences()))
+        || !hasSeriesConferences(rowLists.conferences(), seriesLists.conferences())
         || !reminderKeys(rowLists.reminders()).equals(reminderKeys(seriesRemindersOnThatDate));
   }
 
@@ -1404,6 +1405,34 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
     }
     return keys;
+  }
+
+  /**
+   * @param rowConferences the conferences of a date of the series
+   * @param seriesConferences the series' conferences
+   * @return whether the date holds the series' conferences, as they are or as
+   *         {@link #saveEventExceptionalOccurrence(long, ZonedDateTime)}
+   *         copies them, without the links it leaves out
+   */
+  private boolean hasSeriesConferences(List<EventConference> rowConferences, List<EventConference> seriesConferences) {
+    Set<String> rowKeys = conferenceKeys(rowConferences);
+    return rowKeys.equals(conferenceKeys(seriesConferences))
+        || rowKeys.equals(conferenceKeys(withoutScriptUrls(seriesConferences)));
+  }
+
+  /**
+   * @param conferences a conference list, may be null
+   * @return the conferences whose link is not one
+   *         {@link Utils#isScriptUrl(String)} recognises, which are the ones
+   *         the series' links are copied as to a date
+   */
+  private List<EventConference> withoutScriptUrls(List<EventConference> conferences) {
+    if (conferences == null) {
+      return new ArrayList<>();
+    }
+    return conferences.stream()
+                      .filter(conference -> !isScriptUrl(conference.getUrl()))
+                      .collect(Collectors.toList());
   }
 
   /**
@@ -2393,10 +2422,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // whoever asked for the date: a stored link that is no longer accepted is
     // left out of the copy rather than refused. A save posted by a client, the
     // copy of a series included, is checked like any other in createEvent
-    List<EventConference> conferences = conferenceService.getEventConferences(eventId)
-                                                         .stream()
-                                                         .filter(conference -> !isScriptUrl(conference.getUrl()))
-                                                         .collect(Collectors.toList());
+    List<EventConference> conferences = withoutScriptUrls(conferenceService.getEventConferences(eventId));
     cleanupConferenceIds(conferences);
     List<EventReminder> reminders = reminderService.getEventReminders(eventId);
     cleanupReminderIds(reminders);
