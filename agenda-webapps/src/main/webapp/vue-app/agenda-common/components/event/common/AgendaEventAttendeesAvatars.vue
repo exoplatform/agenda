@@ -1,7 +1,7 @@
 <template>
   <v-card
     :min-width="avatarsWidth"
-    class="transparent d-flex align-center"
+    class="event-attendees-avatars transparent d-flex align-center"
     flat
     tabindex="0"
     min-height="42"
@@ -34,7 +34,7 @@
       v-else
       :min-width="avatarsWidth"
       :min-height="size"
-      class="caption white--text grey-lighten1-background px-1"
+      class="event-attendees-see-more-button caption white--text grey-lighten1-background px-1"
       v-ripple="false"
       text
       @click.stop="$emit('open')">
