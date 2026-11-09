@@ -2,7 +2,7 @@
   <div class="d-flex">
     <select
       v-model="recurrenceType"
-      class="subtitle-1 my-auto ignore-vuetify-classes">
+      class="event-recurrence-select subtitle-1 my-auto ignore-vuetify-classes">
       <option
         v-for="recurrenceOption in recurrenceOptions"
         :key="recurrenceOption.value"

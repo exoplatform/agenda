@@ -17,7 +17,7 @@
       <v-btn
         :loading="savingResponse === 'DECLINED'"
         :disabled="savingResponse"
-        :class="eventResponse === 'DECLINED' && 'btn-primary'"
+        :class="eventResponse === 'DECLINED' && ['btn-primary', 'event-response-selected']"
         value="DECLINED"
         class="btn border-radius mx-2"
         @click="changeResponse('DECLINED')">
@@ -27,7 +27,7 @@
       <v-btn
         :loading="savingResponse === 'TENTATIVE'"
         :disabled="savingResponse"
-        :class="eventResponse === 'TENTATIVE' && 'btn-primary'"
+        :class="eventResponse === 'TENTATIVE' && ['btn-primary', 'event-response-selected']"
         value="TENTATIVE"
         class="btn border-radius"
         @click="changeResponse('TENTATIVE')">
@@ -86,15 +86,17 @@ export default {
       return this.waits ? 'WAITING' : 'ACCEPTED';
     },
     /**
-     * @returns {String} the chosen look of the seat answer: orange for a
-     *          viewer on the waiting list, as the waiting answer reads
-     *          everywhere else, the primary colour for a Yes
+     * @returns {Array|null} the chosen look of the seat answer: orange for
+     *          a viewer on the waiting list, as the waiting answer reads
+     *          everywhere else, the primary colour for a Yes, beside the
+     *          event-response-selected class every chosen answer carries;
+     *          null when the seat answer is not the chosen one
      */
     seatButtonClass() {
       if (this.eventResponse !== this.seatResponse) {
         return null;
       }
-      return this.waits ? 'waiting-response-selected' : 'btn-primary';
+      return [this.waits ? 'waiting-response-selected' : 'btn-primary', 'event-response-selected'];
     },
   },
   methods: {
