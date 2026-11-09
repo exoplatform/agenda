@@ -24,6 +24,7 @@ import java.text.MessageFormat;
 import java.time.*;
 import java.util.*;
 import java.util.Date;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import net.fortuna.ical4j.data.CalendarOutputter;
@@ -106,6 +107,18 @@ public class Utils {
    * asked for. See {@link #invitationTokenExpiry(Event)} for why a day.
    */
   private static final int              INVITATION_TOKEN_GRACE_HOURS     = 24;
+
+  /**
+   * Characters a browser ignores, or that cannot belong to a scheme, when it
+   * reads the scheme of a link: control characters, the space and DEL.
+   */
+  private static final Pattern          SCRIPT_URL_IGNORED_CHARACTERS    = Pattern.compile("[\\x00-\\x20\\x7F]");
+
+  /**
+   * Schemes a browser runs as a script, or opens as a document of its own, in
+   * the page of whoever follows the link.
+   */
+  private static final List<String>     SCRIPT_URL_SCHEMES               = List.of("javascript:", "vbscript:", "data:");
 
   private static class ICal4jTimeZoneRegistryHolder {
     private static final TimeZoneRegistry INSTANCE = TimeZoneRegistryFactory.getInstance().createRegistry();
@@ -854,6 +867,39 @@ public class Utils {
                                   .getString(label);
     } catch (MissingResourceException mre) {
       return label;
+    }
+  }
+
+  /**
+   * Tells whether following a link runs a script or opens a document in the
+   * page of whoever follows it: its scheme is <code>javascript:</code>,
+   * <code>vbscript:</code> or <code>data:</code>. The scheme is compared
+   * without case, and after removing every control character and space, so a
+   * value a browser reads as one of these schemes once it has trimmed it and
+   * dropped its tabs and line breaks is recognised too.
+   *
+   * @param url a link, may be null
+   * @return true when the link uses one of these schemes
+   */
+  public static boolean isScriptUrl(String url) {
+    if (url == null) {
+      return false;
+    }
+    String normalizedUrl = SCRIPT_URL_IGNORED_CHARACTERS.matcher(url).replaceAll("").toLowerCase(Locale.ROOT);
+    return SCRIPT_URL_SCHEMES.stream().anyMatch(normalizedUrl::startsWith);
+  }
+
+  /**
+   * Refuses web conferences whose link uses a scheme
+   * {@link #isScriptUrl(String)} recognises.
+   *
+   * @param conferences conferences to check, may be null
+   * @throws IllegalArgumentException when one of them has such a link
+   */
+  public static void checkConferenceUrls(Collection<EventConference> conferences) {
+    if (conferences != null
+        && conferences.stream().anyMatch(conference -> conference != null && isScriptUrl(conference.getUrl()))) {
+      throw new IllegalArgumentException("Web conference link scheme isn't allowed");
     }
   }
 
