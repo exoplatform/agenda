@@ -2,6 +2,7 @@
   <exo-drawer
     ref="attendeesDrawer"
     right
+    class="event-participants-drawer"
     body-classes="hide-scroll decrease-z-index-more"
     @closed="$emit('closed')">
     <template slot="title">
@@ -101,7 +102,8 @@
             <v-btn
               v-if="editable && !openToggleBlocked"
               icon
-              class="flex-shrink-0 me-1"
+              class="open-event-toggle flex-shrink-0 me-1"
+              :class="openToggleStateClass"
               :title="openToggleTitle"
               @click="$emit('toggle-open')">
               <v-icon size="20" :class="openIconClass">{{ openIcon }}</v-icon>
@@ -109,8 +111,8 @@
             <v-icon
               v-else
               size="20"
-              class="flex-shrink-0 me-3"
-              :class="openIconClass"
+              class="open-event-toggle flex-shrink-0 me-3"
+              :class="[openIconClass, openToggleStateClass]"
               :title="openToggleTitle">
               {{ openIcon }}
             </v-icon>
@@ -355,6 +357,12 @@ export default {
         return 'icon-disabled-color';
       }
       return this.isOpenEvent ? 'primary--text' : 'icon-default-color';
+    },
+    openToggleStateClass() {
+      return [
+        this.isOpenEvent ? 'open-event-toggle-open' : 'open-event-toggle-locked',
+        this.editable && this.openToggleBlocked && 'open-event-toggle-blocked',
+      ];
     },
     openToggleTitle() {
       if (this.editable && this.openToggleBlocked) {
