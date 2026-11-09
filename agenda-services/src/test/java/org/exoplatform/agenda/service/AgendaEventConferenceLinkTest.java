@@ -18,6 +18,7 @@ package org.exoplatform.agenda.service;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 
 import java.time.ZoneOffset;
@@ -44,6 +45,8 @@ import org.exoplatform.agenda.util.ConferenceLinkSchemeTest;
 public class AgendaEventConferenceLinkTest extends BaseAgendaEventTest {
 
   private static final String SCRIPT_URL = "JavaScript:alert(1)";
+
+  private static final String NEW_URL    = "https://meet.example.com/new";
 
   @Test
   public void testSaveEventConferencesRefusesScriptLinksBeforeAnyChange() throws Exception {
@@ -165,6 +168,86 @@ public class AgendaEventConferenceLinkTest extends BaseAgendaEventTest {
                                                                            Collections.emptyList(),
                                                                            start));
     assertEquals(eventCount, getEventDAO().count().longValue());
+  }
+
+  /**
+   * A date the platform copied from a series holding a refused link has the
+   * series' other links only. It is still a plain copy of the series: when the
+   * series' links change, the date is not kept as a date of its own, and a
+   * new copy carries the series' new links.
+   */
+  @Test
+  public void testDateCopiedWithoutAStoredScriptLinkFollowsTheSeries() throws Exception {
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+    ZonedDateTime start = getDate();
+    long seriesId = createEventWithConference().getId();
+    storeLegacyScriptLink(seriesId);
+    Event copiedDate = agendaEventService.saveEventExceptionalOccurrence(seriesId, start);
+    ZonedDateTime occurrenceId = copiedDate.getOccurrence().getId();
+
+    updateSeriesConferences(seriesId, userIdentityId, Collections.singletonList(conference(NEW_URL)));
+
+    // Dropped as a plain copy of the series, then copied again from it
+    assertNull(agendaEventStorage.getEventById(copiedDate.getId()));
+    Event copiedAgain = agendaEventService.saveEventExceptionalOccurrence(seriesId, occurrenceId);
+    assertStoredUrls(copiedAgain.getId(), NEW_URL);
+  }
+
+  /**
+   * A date kept for a change of its own still takes the series' new links when
+   * it held the series' links as the platform copied them.
+   */
+  @Test
+  public void testDateWithAChangeOfItsOwnTakesTheSeriesNewLink() throws Exception {
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+    ZonedDateTime start = getDate();
+    long seriesId = createEventWithConference().getId();
+    storeLegacyScriptLink(seriesId);
+    Event date = agendaEventService.saveEventExceptionalOccurrence(seriesId, start);
+    date.setSummary("dateSummary");
+    agendaEventStorage.updateEvent(date);
+
+    updateSeriesConferences(seriesId, userIdentityId, Collections.singletonList(conference(NEW_URL)));
+
+    assertEquals("dateSummary", agendaEventService.getEventById(date.getId()).getSummary());
+    assertStoredUrls(date.getId(), NEW_URL);
+  }
+
+  /**
+   * A series that keeps its refused link next to a new one hands the date the
+   * links it may hold, not the refused one.
+   */
+  @Test
+  public void testSeriesKeepingItsScriptLinkHandsTheDateTheOtherLinks() throws Exception {
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+    ZonedDateTime start = getDate();
+    long seriesId = createEventWithConference().getId();
+    storeLegacyScriptLink(seriesId);
+    Event date = agendaEventService.saveEventExceptionalOccurrence(seriesId, start);
+    date.setSummary("dateSummary");
+    agendaEventStorage.updateEvent(date);
+
+    List<EventConference> conferences = new ArrayList<>(agendaEventConferenceService.getEventConferences(seriesId));
+    conferences.add(conference(NEW_URL));
+    updateSeriesConferences(seriesId, userIdentityId, conferences);
+
+    assertStoredUrls(seriesId, "conf_uri", SCRIPT_URL, NEW_URL);
+    assertStoredUrls(date.getId(), "conf_uri", NEW_URL);
+  }
+
+  private void updateSeriesConferences(long seriesId,
+                                       long userIdentityId,
+                                       List<EventConference> conferences) throws Exception {
+    // Only the links change: attendees and reminders are saved as they are
+    Event series = agendaEventService.getEventById(seriesId, ZoneOffset.UTC, userIdentityId).clone();
+    agendaEventService.updateEvent(series,
+                                   agendaEventAttendeeService.getEventAttendees(seriesId).getEventAttendees(),
+                                   conferences,
+                                   agendaEventReminderService.getEventReminders(seriesId, userIdentityId),
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
   }
 
   private Event createEventWithConference() throws Exception {
