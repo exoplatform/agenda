@@ -1,6 +1,6 @@
 <template>
   <v-app class="agenda-application" flat>
-    <v-hover v-model="$root.hover">
+    <div class="agenda-timeline-widget">
       <v-card class="d-flex flex-column application-body position-static border-box-sizing" flat>
         <agenda-timeline-header
           :current-space="currentSpace"
@@ -46,7 +46,7 @@
           :working-time="workingTime"
           :connected-connector="connectedConnector" />  
       </v-card>
-    </v-hover>
+    </div>
     <agenda-event-dialog
       ref="eventFormDialog"
       :current-space="currentSpace"
