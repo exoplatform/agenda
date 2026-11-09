@@ -911,6 +911,33 @@
   }
 }
 
+/* On a desktop, the link and settings icons replace the 'See All' text while
+   the card is hovered, and while the keyboard focus is on one of them: hidden,
+   they keep their place in the tab order, so the keyboard reaches them as the
+   mouse does. */
+.agenda-timeline-header-actions {
+  position: relative;
+  .agenda-timeline-hover-actions {
+    display: flex;
+    position: absolute;
+    top: 0;
+    inset-inline-end: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+.agenda-timeline-widget:hover .agenda-timeline-header-actions,
+.agenda-timeline-header-actions:focus-within {
+  .agenda-timeline-see-all {
+    display: none;
+  }
+  .agenda-timeline-hover-actions {
+    position: static;
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 .event-attendees {
   width: 250px;
   max-width: 250px;
