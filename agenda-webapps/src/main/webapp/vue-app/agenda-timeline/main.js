@@ -35,7 +35,6 @@ export function init(appId, canEdit, settings, settingsSaveUrl, settingName, hea
       data() {
         return {
           bodyElementWidth: 0,
-          hover: false,
           timelineSettings: settings,
           settingsSaveUrl,
           canEdit,
