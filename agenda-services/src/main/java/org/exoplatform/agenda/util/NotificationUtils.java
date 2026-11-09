@@ -734,9 +734,10 @@ public class NotificationUtils {
       Identity identity = identityManager.getIdentity(identityId);
       templateContext.put(TEMPLATE_VARIABLE_IS_CREATOR, notificationReceiverUserName.equals(identity.getRemoteId()));
     }
-    if (notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CONFERENCE) != null) {
-      templateContext.put(TEMPLATE_VARIABLE_EVENT_CONFERENCE,
-                          notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CONFERENCE));
+    // The template writes the link into an href attribute as it receives it
+    String eventConference = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_CONFERENCE);
+    if (eventConference != null && !Utils.isScriptUrl(eventConference)) {
+      templateContext.put(TEMPLATE_VARIABLE_EVENT_CONFERENCE, Utils.escapeHtmlText(eventConference));
     }
 
     return templateContext;

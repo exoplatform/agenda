@@ -232,7 +232,7 @@ public final class EventIcsBuilder {
       text.append(" ").append(label(userLocale, IN_SPACE_LABEL)).append(" ").append(spaceName);
     }
     text.append(".");
-    if (StringUtils.isNotBlank(conferenceUrl)) {
+    if (StringUtils.isNotBlank(conferenceUrl) && !Utils.isScriptUrl(conferenceUrl)) {
       text.append("\n\n").append(label(userLocale, VISIO_LINK_LABEL)).append(" ").append(conferenceUrl);
     }
     // Beside the conference link, and for the same reason it is there: many
@@ -406,19 +406,23 @@ public final class EventIcsBuilder {
     StringBuilder html = new StringBuilder("<html><body>");
     html.append(encoder.encodeHTML(label(userLocale, INVITATION_TEXT_LABEL)))
         .append("  <b>")
-        .append(StringUtils.defaultString(eventCreatorFullName))
+        .append(Utils.escapeHtmlText(eventCreatorFullName))
         .append("</b> ");
     if (StringUtils.isNotBlank(spaceName)) {
-      html.append(encoder.encodeHTML(label(userLocale, IN_SPACE_LABEL))).append(" <b>").append(spaceName).append("</b>");
+      html.append(encoder.encodeHTML(label(userLocale, IN_SPACE_LABEL)))
+          .append(" <b>")
+          .append(Utils.escapeHtmlText(spaceName))
+          .append("</b>");
     }
     html.append(". ");
-    if (StringUtils.isNotBlank(conferenceUrl)) {
+    if (StringUtils.isNotBlank(conferenceUrl) && !Utils.isScriptUrl(conferenceUrl)) {
+      String conferenceUrlHtml = Utils.escapeHtmlText(conferenceUrl);
       html.append("<br><br><b>")
           .append(encoder.encodeHTML(label(userLocale, VISIO_LINK_LABEL)))
           .append(" </b> <a href=\"")
-          .append(conferenceUrl)
+          .append(conferenceUrlHtml)
           .append("\">")
-          .append(conferenceUrl)
+          .append(conferenceUrlHtml)
           .append("</a>");
     }
     if (StringUtils.isNotBlank(eventUrl)) {
