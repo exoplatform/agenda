@@ -2,7 +2,7 @@
   <v-hover v-slot="{ hover }">
     <v-card
       flat
-      class="search-result-card pa-0">
+      class="transparent pa-0">
       <v-list class="pa-0" :class="hover && 'light-grey-background-color no-border-radius' || ''">
         <v-list-item>
           <v-list-item-icon class="me-2">
@@ -16,7 +16,7 @@
               <h1 class="flex-grow-1 title primary--text pt-1 mb-0 ps-0 my-auto align-center text-start text-truncate">
                 <a
                   :href="eventUrl"
-                  class="search-result-link"
+                  class="stretched-link"
                   v-sanitized-html="eventTitle"></a>
               </h1>
             </v-list-item-title>
@@ -29,7 +29,7 @@
                     v-on="on"
                     :href="calendarOwnerLink"
                     :class="isSpaceEvent && 'spaceAvatar' || ''"
-                    class="search-result-interactive flex-nowrap flex-shrink-0 d-flex">
+                    class="stretched-link-above flex-nowrap flex-shrink-0 d-flex">
                     <v-avatar
                       :size="18"
                       tile
