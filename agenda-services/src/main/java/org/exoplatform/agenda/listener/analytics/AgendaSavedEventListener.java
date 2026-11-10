@@ -20,6 +20,7 @@ import static io.meeds.analytics.utils.AnalyticsUtils.addSpaceStatistics;
 
 import org.apache.commons.lang3.StringUtils;
 
+import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.model.AgendaEventModification;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.service.AgendaCalendarService;
@@ -53,9 +54,15 @@ public class AgendaSavedEventListener extends Listener<AgendaEventModification, 
   @Override
   public void onEvent(Event<AgendaEventModification, Object> event) throws Exception {
     AgendaEventModification eventModification = event.getSource();
+    boolean isNew = StringUtils.equals(event.getEventName(), EXO_AGENDA_EVENT_CREATED_EVENT_NAME);
+    if (isNew && eventModification.hasModification(AgendaEventModificationType.SPLIT)) {
+      // A series saved for this and upcoming events is one action: the update
+      // of the series it shortens is the operation recorded, as when the save
+      // starts at the first occurrence
+      return;
+    }
     Long eventId = eventModification.getEventId();
     org.exoplatform.agenda.model.Event agendaEvent = getAgendaEventService().getEventById(eventId);
-    boolean isNew = StringUtils.equals(event.getEventName(), EXO_AGENDA_EVENT_CREATED_EVENT_NAME);
     long userId = isNew ? agendaEvent.getCreatorId() : agendaEvent.getModifierId();
     addEventStatistic(agendaEvent, eventModification, userId, isNew);
   }
