@@ -549,9 +549,11 @@ export default {
       }
     },
     refreshProviders(spacePrettyName) {
-      // Only the last request sets the providers: the answer for an owner the
-      // form left meanwhile would offer that owner's providers to the next one
+      // Only the last request sets the providers, and none are held until it
+      // answers: the providers of an owner the form left are never offered to
+      // the next one
       const request = ++this.providersRequest;
+      this.conferenceProviders = null;
       if (spacePrettyName) {
         this.$webConferencingService.getAllProviders(spacePrettyName).then(providers => {
           if (request === this.providersRequest) {
@@ -559,8 +561,6 @@ export default {
           }
           return this.$nextTick();
         });
-      } else {
-        this.conferenceProviders = null;
       }
     },
     /**
