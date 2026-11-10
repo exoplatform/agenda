@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.ListResourceBundle;
@@ -40,9 +41,13 @@ import org.mockito.Mockito;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
+import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventResponseOutcome;
 import org.exoplatform.agenda.rest.model.EventResponseOutcomeEntity;
+import org.exoplatform.agenda.model.EventConference;
+import org.exoplatform.agenda.rest.model.CalendarEntity;
+import org.exoplatform.agenda.rest.model.EventEntity;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.service.AgendaEventConferenceService;
@@ -51,6 +56,8 @@ import org.exoplatform.agenda.service.AgendaEventReminderService;
 import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.agenda.service.AgendaRemoteEventService;
 import org.exoplatform.container.ExoContainerContext;
+import org.exoplatform.agenda.util.ConferenceLinkSchemeTest;
+import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.resources.ResourceBundleService;
 import org.exoplatform.portal.config.UserPortalConfigService;
@@ -59,6 +66,7 @@ import org.exoplatform.services.security.IdentityConstants;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.social.rest.entity.IdentityEntity;
 
 import org.exoplatform.services.rest.impl.MultivaluedMapImpl;
 import javax.ws.rs.core.MediaType;
@@ -89,6 +97,9 @@ import javax.ws.rs.core.Response;
  * ({@code POST /v1/agenda/events/{id}/exceptionalOccurrences/move}, finding 14
  * of the integration review) answers under the same contract: 403, 400 with
  * the code, 404, and the identifiers kept on success.
+ * <p>
+ * The creation and the update of an event answer a web conference link that
+ * runs a script (EXO-91510) with 400 and its message code.
  */
 class AgendaEventRestTest {
 
@@ -98,9 +109,13 @@ class AgendaEventRestTest {
 
   private static final long          EVENT_ID         = 42L;
 
+  private static final long          CALENDAR_ID      = 7L;
+
   private AgendaEventService         agendaEventService;
 
   private AgendaEventAttendeeService attendeeService;
+
+  private AgendaCalendarService      agendaCalendarService;
 
   private IdentityManager            identityManager;
 
@@ -111,6 +126,7 @@ class AgendaEventRestTest {
     identityManager = Mockito.mock(IdentityManager.class);
     agendaEventService = Mockito.mock(AgendaEventService.class);
     attendeeService = Mockito.mock(AgendaEventAttendeeService.class);
+    agendaCalendarService = Mockito.mock(AgendaCalendarService.class);
     // The resource resolves its caller from the conversation state, as every
     // real request does
     ConversationState.setCurrent(new ConversationState(new org.exoplatform.services.security.Identity(USERNAME)));
@@ -119,7 +135,7 @@ class AgendaEventRestTest {
     when(identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, USERNAME)).thenReturn(userIdentity);
     eventRest = new AgendaEventRest(identityManager,
                                     Mockito.mock(UserPortalConfigService.class),
-                                    Mockito.mock(AgendaCalendarService.class),
+                                    agendaCalendarService,
                                     agendaEventService,
                                     Mockito.mock(AgendaEventConferenceService.class),
                                     Mockito.mock(AgendaRemoteEventService.class),
@@ -358,6 +374,85 @@ class AgendaEventRestTest {
     Response response = eventRest.moveEventExceptionalOccurrences(EVENT_ID, 43L, "2026-10-05T09:00:00.000Z");
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     assertEquals(kept, response.getEntity());
+  }
+
+  /**
+   * A web conference link that runs a script, refused by the Service, is a
+   * caller error: 400 with its message code, never the 500 of the catch-all.
+   * The Service is stubbed with the check it applies to the conferences it is
+   * handed, so the pin also holds that the endpoint hands it the payload's.
+   */
+  @Test
+  void aCreationWithAConferenceLinkThatRunsAScriptGetsBadRequestWithItsMessageCode() throws Exception {
+    stubCalendarOwner();
+    when(agendaEventService.createEvent(any(), any(), any(), any(), any(), any(), anyBoolean(), anyBoolean(), anyLong()))
+      .thenAnswer(invocation -> {
+        Utils.checkConferenceUrls(invocation.getArgument(2));
+        return new Event();
+      });
+
+    for (String url : ConferenceLinkSchemeTest.SCRIPT_URLS) {
+      Response response = eventRest.createEvent(null, false, eventToSave(0, url));
+
+      assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus(), url);
+      assertEquals(Utils.CONFERENCE_URL_NOT_ALLOWED, response.getEntity(), url);
+    }
+  }
+
+  /**
+   * The update answers the same refusal the same way.
+   */
+  @Test
+  void anUpdateWithAConferenceLinkThatRunsAScriptGetsBadRequestWithItsMessageCode() throws Exception {
+    stubCalendarOwner();
+    Event storedEvent = new Event();
+    storedEvent.setId(EVENT_ID);
+    storedEvent.setCalendarId(CALENDAR_ID);
+    when(agendaEventService.getEventById(EVENT_ID)).thenReturn(storedEvent);
+    when(agendaEventService.updateEvent(any(), any(), any(), any(), any(), any(), anyBoolean(), anyBoolean(), anyLong()))
+      .thenAnswer(invocation -> {
+        Utils.checkConferenceUrls(invocation.getArgument(2));
+        return storedEvent;
+      });
+
+    for (String url : ConferenceLinkSchemeTest.SCRIPT_URLS) {
+      Response response = eventRest.updateEvent(eventToSave(EVENT_ID, url), null, false);
+
+      assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus(), url);
+      assertEquals(Utils.CONFERENCE_URL_NOT_ALLOWED, response.getEntity(), url);
+    }
+  }
+
+  private void stubCalendarOwner() {
+    Identity owner = Mockito.mock(Identity.class);
+    when(owner.getId()).thenReturn(String.valueOf(USER_IDENTITY_ID));
+    when(owner.getProviderId()).thenReturn(OrganizationIdentityProvider.NAME);
+    when(owner.getRemoteId()).thenReturn(USERNAME);
+    when(identityManager.getIdentity(String.valueOf(USER_IDENTITY_ID))).thenReturn(owner);
+    Calendar calendar = new Calendar();
+    calendar.setId(CALENDAR_ID);
+    calendar.setOwnerId(USER_IDENTITY_ID);
+    when(agendaCalendarService.getCalendarById(CALENDAR_ID)).thenReturn(calendar);
+  }
+
+  private EventEntity eventToSave(long eventId, String conferenceUrl) {
+    IdentityEntity ownerEntity = new IdentityEntity();
+    ownerEntity.setId(String.valueOf(USER_IDENTITY_ID));
+    CalendarEntity calendarEntity = new CalendarEntity();
+    calendarEntity.setId(CALENDAR_ID);
+    calendarEntity.setOwner(ownerEntity);
+    EventConference conference = new EventConference();
+    conference.setType("web");
+    conference.setUrl(conferenceUrl);
+    EventEntity eventEntity = new EventEntity();
+    eventEntity.setId(eventId);
+    eventEntity.setTimeZoneId("UTC");
+    eventEntity.setSummary("Meeting");
+    eventEntity.setStart("2026-11-12T09:00:00.000Z");
+    eventEntity.setEnd("2026-11-12T10:00:00.000Z");
+    eventEntity.setCalendar(calendarEntity);
+    eventEntity.setConferences(new ArrayList<>(List.of(conference)));
+    return eventEntity;
   }
 
   private Response patch(MultivaluedMap<String, String> fields) {
