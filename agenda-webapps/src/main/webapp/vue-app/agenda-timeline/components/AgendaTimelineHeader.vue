@@ -39,16 +39,16 @@
           </v-icon>
         </v-btn>
       </div>
-      <!-- on a desktop, the link and settings icons replace the 'See All' text while the card is hovered, and while the
-           keyboard focus is on one of them (agenda.less): hidden, they keep their place in the tab order, and the
+      <!-- on a desktop, the link and settings icons replace the 'See All' text on hover and while the
+           keyboard focus is on one of them (hover-swap helper): hidden, they keep their place in the tab order, and the
            text, the mouse's, is left out of it -->
-      <div class="agenda-timeline-header-actions d-flex">
+      <div class="hover-swap-parent d-flex">
         <v-btn
           v-if="displaySeeMore"
           ref="moreButton"
           :tabindex="$root.isMobile ? null : '-1'"
           :aria-hidden="$root.isMobile ? null : 'true'"
-          :class="!$root.isMobile && 'agenda-timeline-see-all'"
+          :class="!$root.isMobile && 'hover-swap-default'"
           class="flex-shrink-0 flex-grow-0 px-0 ps-3"
           color="primary"
           height="28"
@@ -58,7 +58,7 @@
         </v-btn>
         <div
           v-if="!$root.isMobile && (displaySeeMore || $root.canEdit)"
-          class="agenda-timeline-hover-actions">
+          class="hover-swap-alt">
           <v-btn
             v-if="displaySeeMore"
             id="agendaTimeLinerxtarnalLinkButton"
