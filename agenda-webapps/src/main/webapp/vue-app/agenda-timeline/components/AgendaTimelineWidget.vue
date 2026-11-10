@@ -1,6 +1,6 @@
 <template>
   <v-app class="agenda-application" flat>
-    <div class="agenda-timeline-widget">
+    <div class="agenda-timeline-widget hover-swap-trigger">
       <v-card class="d-flex flex-column application-body position-static border-box-sizing" flat>
         <agenda-timeline-header
           :current-space="currentSpace"
