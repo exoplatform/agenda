@@ -115,6 +115,60 @@ export function getEventById(eventId, expand, firstOccurrence) {
   });
 }
 
+// The addresses typed in a participants drawer whose user the platform is
+// being asked for, each until the drawer added or refused its participant
+// (see AgendaEventFormAttendeesDrawer#inviteTypedAddress)
+const typedAddressLookups = new Set();
+
+/**
+ * Keeps a lookup of an address typed until it settles, so that a save of the
+ * event waits for the participant it adds (see typedAddressLookupsSettled).
+ *
+ * @param {Promise} lookup settled once the drawer added or refused the
+ *          participant, rejected only when one of its own handlers throws
+ * @returns {Promise} the lookup
+ */
+export function trackTypedAddressLookup(lookup) {
+  typedAddressLookups.add(lookup);
+  const settled = () => typedAddressLookups.delete(lookup);
+  lookup.then(settled, settled);
+  return lookup;
+}
+
+/**
+ * @returns {Promise} settled once every address typed is added or refused,
+ *          one typed meanwhile included; null when none is being looked up,
+ *          so that a save waits only when it has to
+ */
+export function typedAddressLookupsSettled() {
+  if (!typedAddressLookups.size) {
+    return null;
+  }
+  return Promise.all(Array.from(typedAddressLookups)).then(() => typedAddressLookupsSettled());
+}
+
+/**
+ * @param {String} email an e-mail address typed to invite someone, as typed
+ * @returns {Promise<Object>} the platform user whose address it is, to invite
+ *          as themselves: id, providerId, remoteId, fullName and avatarUrl; null
+ *          when the platform recognises none
+ */
+export function getAttendeeUserByEmail(email) {
+  const params = new URLSearchParams({email});
+  return fetch(`/agenda/rest/events/attendees/user?${params.toString()}`, {
+    method: 'GET',
+    credentials: 'include',
+  }).then((resp) => {
+    if (resp && resp.status === 204) {
+      return null;
+    } else if (resp && resp.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error looking up the user of an e-mail address');
+    }
+  });
+}
+
 export function getEventOccurrence(parentEventId, occurrenceId, expand) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/occurrence/${parentEventId}/${occurrenceId}?expand=${expand || ''}&timeZoneId=${USER_TIMEZONE_ID}`, {
     method: 'GET',
@@ -169,7 +223,99 @@ export function moveExceptionalOccurrences(eventId, toEventId, from) {
   });
 }
 
-export function createEvent(event) {
+/**
+ * Splits a recurring event at one of its dates, a "this and upcoming" change,
+ * in one request: the series continuing it from that date is created with the
+ * fields given, the dates customised from it on move under it, and the event
+ * ends the day before. The participants are the series' own, with the change
+ * given as a delta.
+ *
+ * @param {Number} seriesId the recurring event
+ * @param {Object} event the continuing series as edited; its participants are
+ *          the ones its conferences are synchronised with, and are not sent
+ * @param {Object} delta the participants added and the participant keys
+ *          removed (see AgendaUtils#attendeesDelta), null when nobody changed
+ * @param {String} splitFrom the occurrence id of the date it starts on
+ * @param {Boolean} sendInvitation whether the participants are notified
+ * @param {Boolean} confirmClose whether the organiser confirmed closing the
+ *          event while people wait for a seat: without it, such a split is
+ *          refused with agenda.capacity.closeNeedsConfirmation
+ * @param {Array} seriesFields the fields of the event the series keeps as its
+ *          own, which are not sent: among them, start, end, allDay and
+ *          recurrence. What is sent is written in the zone the series was
+ *          read in, which the request names: the series keeps its own zone,
+ *          and the server moves the one day a rule derived from the date
+ *          names there onto the series' zone (see EventSplit#readZone)
+ * @returns {Promise} the continuing series
+ */
+export function splitEvent(seriesId, event, delta, splitFrom, sendInvitation, confirmClose, seriesFields) {
+  event = formatEventToSave(event);
+  // Synchronised on a copy: the participants are not sent
+  const saveWebConferencePromises = getSaveAllWebConferencesPromises(Object.assign({}, event));
+  delete event.attendees;
+  (seriesFields || []).forEach(field => delete event[field]);
+  const addedAttendees = {attendees: JSON.parse(JSON.stringify(delta && delta.added || []))};
+  formatEventAttendees(addedAttendees);
+
+  return Promise.all(saveWebConferencePromises)
+    .catch(e => {
+      console.error('Error saving web conferencing, delete them', e);
+    })
+    .then(conferences => {
+      event.conferences = conferences && conferences.filter(conference => !!conference);
+      return fetch(`/agenda/rest/events/${seriesId}/split?timeZoneId=${USER_TIMEZONE_ID}&confirmClose=${!!confirmClose}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          event,
+          addedAttendees: addedAttendees.attendees,
+          removedAttendees: (delta && delta.removedParticipantKeys || []).map(toRemovedAttendee),
+          splitFrom,
+          sendInvitation: !!sendInvitation,
+        }),
+      });
+    })
+    .then((resp) => {
+      if (resp && resp.ok) {
+        // The split answers the continuation's identifier: the continuation
+        // is read as the event page reads any event
+        return resp.json().then(continuation => getEventById(continuation.id, 'all'));
+      } else {
+        return toSaveError(resp, 'Error splitting event');
+      }
+    });
+}
+
+/**
+ * @param {String} participantKey a participant key (see
+ *          AgendaUtils#participantKey): `providerId:remoteId`, split on its
+ *          first colon, or an identity id
+ * @returns {Object} the participant a split removes
+ */
+function toRemovedAttendee(participantKey) {
+  const separator = participantKey.indexOf(':');
+  return {
+    identity: separator < 0 ? {id: participantKey} : {
+      providerId: participantKey.substring(0, separator),
+      remoteId: participantKey.substring(separator + 1),
+    },
+  };
+}
+
+/**
+ * Creates an event, or saves one date of a series alone.
+ *
+ * @param {Object} event the event to create
+ * @param {Boolean} confirmClose whether the user confirmed that the save closes
+ *          a date of an open series with a limit, its waiting list then
+ *          confirmed: without it, such a save is refused with
+ *          agenda.capacity.closeNeedsConfirmation
+ * @returns {Promise} the event created, or the date saved
+ */
+export function createEvent(event, confirmClose) {
   if (!Object.prototype.hasOwnProperty.call(event, 'sendInvitation')) {
     event.sendInvitation = true;
   }
@@ -183,7 +329,7 @@ export function createEvent(event) {
     })
     .then(conferences => {
       event.conferences = conferences && conferences.filter(conference => !!conference);
-      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events`, {
+      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events?confirmClose=${!!confirmClose}`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -196,12 +342,21 @@ export function createEvent(event) {
       if (resp && resp.ok) {
         return resp.json();
       } else {
-        throw new Error('Error creating event');
+        return toSaveError(resp, 'Error creating event');
       }
     });
 }
 
-export function updateEvent(event) {
+/**
+ * Saves an event as a whole.
+ *
+ * @param {Object} event the event to save
+ * @param {Boolean} confirmClose whether the user confirmed that the save closes
+ *          an open event with a limit, its waiting list then confirmed: without
+ *          it, such a save is refused with agenda.capacity.closeNeedsConfirmation
+ * @returns {Promise} the event saved
+ */
+export function updateEvent(event, confirmClose) {
   if (!Object.prototype.hasOwnProperty.call(event, 'sendInvitation')) {
     event.sendInvitation = true;
   }
@@ -215,7 +370,7 @@ export function updateEvent(event) {
     })
     .then(conferences => {
       event.conferences = conferences && conferences.filter(conference => !!conference);
-      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events`, {
+      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events?confirmClose=${!!confirmClose}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -227,11 +382,22 @@ export function updateEvent(event) {
       if (resp && resp.ok) {
         return resp.json();
       } else {
-        throw new Error('Error updating event');
+        return toSaveError(resp, 'Error updating event');
       }
     });
 }
 
+/**
+ * @param {Number} eventId the event answered, a series for several dates
+ * @param {String} occurrenceId the date answered, if one is
+ * @param {String} response the answer given, WAITING asking for a seat as
+ *        ACCEPTED does
+ * @param {Boolean} upcoming whether the answer holds for that date and the
+ *        ones after it
+ * @returns {Promise} resolved with what the server decided: the answer stored
+ *          at the date answered (a Yes on a full event waits) and the first
+ *          date an answer for several dates waits for, null when none
+ */
 export function sendEventResponse(eventId, occurrenceId, response, upcoming) {
   return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}/response/send?response=${response}&occurrenceId=${occurrenceId || ''}&upcoming=${upcoming || false}`, {
     method: 'GET',
@@ -243,10 +409,11 @@ export function sendEventResponse(eventId, occurrenceId, response, upcoming) {
     if (!resp || !resp.ok) {
       throw new Error('Error sending event response');
     }
+    return resp.json().catch(() => null);
   });
 }
 
-export function updateEventFields(event, eventFields, updateAllOccurrences, sendInvitations) {
+export function updateEventFields(event, eventFields, updateAllOccurrences, sendInvitations, confirmClose) {
   const eventId = event.id;
   eventFields = formatEventToSave(eventFields);
 
@@ -265,7 +432,7 @@ export function updateEventFields(event, eventFields, updateAllOccurrences, send
       updateAllOccurrences = !!updateAllOccurrences;
       sendInvitations = !!sendInvitations;
 
-      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?updateAllOccurrences=${updateAllOccurrences}&timeZoneId=${USER_TIMEZONE_ID}&sendInvitations=${sendInvitations}`, {
+      return fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/agenda/events/${eventId}?updateAllOccurrences=${updateAllOccurrences}&timeZoneId=${USER_TIMEZONE_ID}&sendInvitations=${sendInvitations}&confirmClose=${!!confirmClose}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: {
@@ -276,20 +443,50 @@ export function updateEventFields(event, eventFields, updateAllOccurrences, send
     }).then((resp) => {
       if (resp && resp.ok) {
         return resp.json();
-      } else if (resp) {
-        // A 400 carries a message code in its body (agenda.openEvent.notAllowed,
-        // agenda.eventFieldNotSupported...): handed to the caller, which may
-        // translate it instead of showing a generic error
-        return resp.text().then(body => {
-          const error = new Error('Error updating event');
-          error.status = resp.status;
-          error.code = (body || '').trim().replace(/^"|"$/g, '');
-          throw error;
-        });
       } else {
-        throw new Error('Error updating event');
+        return toSaveError(resp, 'Error updating event');
       }
     });
+}
+
+/**
+ * A refused save carries a message code in its body (agenda.openEvent.notAllowed,
+ * agenda.capacity.belowAccepted...), or an object holding the code and the day,
+ * yyyy-MM-dd, of the date of a series that blocks a limit: handed to the
+ * caller, which may translate it instead of showing a generic error.
+ *
+ * @param {Response} resp the response of the refused save, or nothing
+ * @param {String} message the error's message
+ * @returns {Promise} rejected with an error carrying the status, the code and
+ *          the day named, if any
+ */
+function toSaveError(resp, message) {
+  if (!resp) {
+    return Promise.reject(new Error(message));
+  }
+  return resp.text().then(body => {
+    const error = new Error(message);
+    error.status = resp.status;
+    const text = (body || '').trim();
+    if (text.startsWith('{')) {
+      // An object without a code, the body of an invalid event, has none. The
+      // Spring MVC resources write theirs as message, the JAX-RS ones as code
+      const refusal = parseRefusal(text);
+      error.code = refusal.code || refusal.message;
+      error.date = refusal.date;
+    } else {
+      error.code = text.replace(/^"|"$/g, '');
+    }
+    throw error;
+  });
+}
+
+function parseRefusal(text) {
+  try {
+    return JSON.parse(text) || {};
+  } catch (e) {
+    return {};
+  }
 }
 
 export function getUserReminderSettings() {
@@ -587,6 +784,33 @@ export function generateICS(eventId, timeZoneId) {
   });
 }
 
+/**
+ * Downloads the participant list of a date of an event as a CSV file. The
+ * server writes the file and checks the right to export it; the browser
+ * follows a plain link to it and saves it under the name the server gives.
+ *
+ * @param {Number} eventId the event, the series or the row of a date
+ * @param {String} occurrenceId occurrence id of a date of the series that has
+ *          no row of its own, null otherwise
+ * @param {String} timeZoneId the user's zone, dating the file name
+ * @returns {void}
+ */
+export function exportEventAttendees(eventId, occurrenceId, timeZoneId) {
+  const params = new URLSearchParams();
+  if (occurrenceId) {
+    params.append('occurrenceId', occurrenceId);
+  }
+  if (timeZoneId) {
+    params.append('timeZoneId', timeZoneId);
+  }
+  const link = document.createElement('a');
+  link.href = `/agenda/rest/events/${eventId}/attendees/export?${params.toString()}`;
+  link.setAttribute('download', '');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
 export function deleteContent(contentId, delay) {
   return fetch(`/content/rest/contents/${contentId}?type=article&delay=${delay || 0}`, {
     credentials: 'include',
@@ -704,9 +928,9 @@ function getSaveAllWebConferencesPromises(event) {
   // conferences and must not speak for them: an absent attendee list is not an
   // empty one. The parent of a recurrent event and the exceptional occurrences
   // are exactly that — the expand fills attendees on the top-level entity only
-  // — and a remote-id patch routes them through here (EXO-90015). The three
-  // other callers pass a form event or an expand=all one, which always carries
-  // the list, empty or not.
+  // — and a remote-id patch routes them through here (EXO-90015). The other
+  // callers pass a form event or an expand=all one, which always carries the
+  // list, empty or not.
   if (event.conferences && event.conferences.length && event.attendees) {
     event.conferences.forEach(conference => {
       const saveWebConferencePromise = saveEventWebConferencing(event, conference);

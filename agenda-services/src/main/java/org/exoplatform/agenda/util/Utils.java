@@ -39,10 +39,12 @@ import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.constant.EventAccess;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.constant.EventAvailability;
+import org.exoplatform.agenda.constant.EventRecurrenceFrequency;
 import org.exoplatform.agenda.constant.EventStatus;
 import org.exoplatform.agenda.constant.EventVisibility;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
+import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.container.ExoContainerContext;
@@ -117,6 +119,15 @@ public class Utils {
 
   public static final String EVENT_ID                                  = "eventId";
 
+  /**
+   * Refusal of a write that adds a person from outside the platform to an
+   * open event, or keeps one there
+   */
+  public static final String EXTERNAL_GUEST_NOT_ALLOWED                = "agenda.openEvent.externalGuestNotAllowed";
+
+  /** Refusal of a write that opens an event a person from outside the platform is invited to */
+  public static final String EXTERNAL_GUESTS_INVITED                   = "agenda.openEvent.externalGuestsInvited";
+
   public static final String CONTENT_ID                                = "contentId";
 
   public static final String            POST_CREATE_AGENDA_EVENT_EVENT = "exo.agenda.event.created";
@@ -130,6 +141,26 @@ public class Utils {
   public static final String            POST_EVENT_RESPONSE_SENT       = "exo.agenda.event.responseSent";
 
   public static final String            POST_EVENT_RESPONSE_SAVED      = "exo.agenda.event.responseSaved";
+
+  /**
+   * A waiting attendee got a seat: source, the attendee row before; data, the
+   * row after, reported on a series from the first date it got a seat for.
+   * Never a {@link #POST_EVENT_RESPONSE_SENT}: nobody answered.
+   */
+  public static final String            POST_EVENT_ATTENDEE_PROMOTED   = "exo.agenda.event.attendee.promoted";
+
+  /**
+   * An answer stored as a Yes filled the seats of a date while their pool was
+   * not marked as having reached its capacity: the answer filling the last
+   * seat, or, after a reset that cleared the mark while the answers it kept
+   * still fill the pool, a Yes given again by an attendee holding one of
+   * those seats. Source, the identifier of the event row whose mark reports
+   * the pool: the pool's own row, or the series' row for the stored row of a
+   * confirmed date holding the series' limit and not over, which the series
+   * reports once with the dates it carries (D21); data, the occurrence id of
+   * the date filled, null on an event of no series.
+   */
+  public static final String            POST_EVENT_CAPACITY_REACHED    = "exo.agenda.event.capacity.reached";
 
   public static final String            POST_CREATE_AGENDA_EVENT_POLL  = "exo.agenda.event.poll.created";
 
@@ -275,17 +306,81 @@ public class Utils {
 
   public static ZonedDateTime getOccurrenceId(boolean allDay, ZonedDateTime eventStartDate, ZoneId eventStartDateTimeZone) {
     if (allDay) {
-      ZonedDateTime utc = eventStartDate.withZoneSameInstant(ZoneOffset.UTC);
-      if (utc.toLocalTime().equals(LocalTime.MIDNIGHT)) {
-        return utc;
-      }
-      return eventStartDate.withZoneSameInstant(eventStartDateTimeZone)
-                           .toLocalDate()
-                           .atStartOfDay(ZoneOffset.UTC);
+      // An all-day id names a date in one of three forms: a UTC midnight; the
+      // local start of the date the recurrence computes, carried as UTC, which
+      // is past midnight once a change of offset skipped one; or, before
+      // TASK-39591, the instant of that local start. West of UTC the date of
+      // the first two is their UTC date, the instant read in the zone falling
+      // on the day before; east of it the date of the last one is its date in
+      // the zone, its UTC date being the day before. The later of both dates is
+      // the date in every case
+      LocalDate utcDate = eventStartDate.withZoneSameInstant(ZoneOffset.UTC).toLocalDate();
+      LocalDate zoneDate = eventStartDate.withZoneSameInstant(eventStartDateTimeZone).toLocalDate();
+      return (zoneDate.isAfter(utcDate) ? zoneDate : utcDate).atStartOfDay(ZoneOffset.UTC);
     } else {
       return eventStartDate.withZoneSameInstant(eventStartDateTimeZone)
                            .withZoneSameInstant(ZoneOffset.UTC);
     }
+  }
+
+  /**
+   * The date of a series an occurrence id designates. An all-day id is read as
+   * {@link #getOccurrenceId(boolean, ZonedDateTime, ZoneId)} normalises it, the
+   * later of its UTC date and its date in the series' zone: a UTC midnight, the
+   * local start of a date carried as UTC, also past midnight once a change of
+   * offset skipped one, and the instant of that local start, as all-day ids
+   * were before TASK-39591, each name their date. A timed id is read in the
+   * series' zone.
+   *
+   * @param series the series
+   * @param occurrenceId an occurrence id of the series, normalised or not
+   * @return the date of the series it designates
+   */
+  public static LocalDate getSeriesDate(Event series, ZonedDateTime occurrenceId) {
+    ZoneId zone = series.getTimeZoneId() == null ? ZoneOffset.UTC : series.getTimeZoneId();
+    if (series.isAllDay()) {
+      return getOccurrenceId(true, occurrenceId, zone).toLocalDate();
+    }
+    return occurrenceId.withZoneSameInstant(zone).toLocalDate();
+  }
+
+  /**
+   * Whether two occurrence ids designate the same date of a series: the same
+   * {@link #getSeriesDate}, or, on a series with several dates a day, an
+   * hourly or finer rule or one listing several hours, minutes or seconds, the
+   * same instant.
+   *
+   * @param series the series
+   * @param occurrenceId an occurrence id of the series
+   * @param otherOccurrenceId another occurrence id of the series
+   * @return whether both designate the same date
+   */
+  public static boolean isSameSeriesDate(Event series, ZonedDateTime occurrenceId, ZonedDateTime otherOccurrenceId) {
+    if (hasSeveralDatesADay(series.getRecurrence())) {
+      return occurrenceId.toEpochSecond() == otherOccurrenceId.toEpochSecond();
+    }
+    return getSeriesDate(series, occurrenceId).isEqual(getSeriesDate(series, otherOccurrenceId));
+  }
+
+  /**
+   * Whether a recurrence puts several dates on one day: an hourly or finer
+   * rule, or one listing several hours, minutes or seconds.
+   *
+   * @param recurrence the recurrence, or null
+   * @return whether its dates share a day
+   */
+  public static boolean hasSeveralDatesADay(EventRecurrence recurrence) {
+    if (recurrence == null) {
+      return false;
+    }
+    EventRecurrenceFrequency frequency = recurrence.getFrequency();
+    return frequency == EventRecurrenceFrequency.HOURLY || frequency == EventRecurrenceFrequency.MINUTELY
+        || frequency == EventRecurrenceFrequency.SECONDLY || hasSeveralValues(recurrence.getByHour())
+        || hasSeveralValues(recurrence.getByMinute()) || hasSeveralValues(recurrence.getBySecond());
+  }
+
+  private static boolean hasSeveralValues(List<String> values) {
+    return values != null && values.size() > 1;
   }
 
   public static Recur getICalendarRecur(EventRecurrence recurrence, ZoneId zoneId) {
@@ -566,7 +661,20 @@ public class Utils {
     return canAccessCalendar(identityManager, spaceService, calendar.getOwnerId(), userIdentityId);
   }
 
+  /**
+   * Broadcasts an event, or, while a decide step runs on the thread, queues it
+   * for after that step's transaction has committed: a listener that reads the
+   * state back must see it committed.
+   *
+   * @param listenerService the listener service
+   * @param eventName the event name
+   * @param source the event source
+   * @param data the event data
+   */
   public static void broadcastEvent(ListenerService listenerService, String eventName, Object source, Object data) {
+    if (DecideContext.queue(() -> broadcastEvent(listenerService, eventName, source, data))) {
+      return;
+    }
     try {
       listenerService.broadcast(eventName, source, data);
     } catch (Exception e) {
@@ -580,6 +688,26 @@ public class Utils {
 
   public static Identity getIdentityById(IdentityManager identityManager, String identityId) {
     return identityManager.getIdentity(identityId);
+  }
+
+  /**
+   * @param identityManager the identities, read by id
+   * @param attendees the rows of an event
+   * @return whether one of them is a person from outside the platform: a guest
+   *         invited by e-mail address, who has no account. An open event never
+   *         holds one
+   */
+  public static boolean holdsExternalGuest(IdentityManager identityManager, Collection<EventAttendee> attendees) {
+    return attendees != null
+        && attendees.stream().anyMatch(attendee -> isExternalGuest(getIdentityById(identityManager, attendee.getIdentityId())));
+  }
+
+  /**
+   * @param identity an attendee's identity, null when it no longer exists
+   * @return whether it is a guest invited by e-mail address, with no account
+   */
+  public static boolean isExternalGuest(Identity identity) {
+    return identity != null && AgendaGuestUserIdentityProvider.NAME.equals(identity.getProviderId());
   }
 
   public static long getIdentityIdByUsername(IdentityManager identityManager, String username) {
@@ -686,6 +814,11 @@ public class Utils {
     }
     if (!Objects.equals(newEvent.getOpen(), oldEvent.getOpen())) {
       eventModification.addModificationType(AgendaEventModificationType.OPEN_UPDATED);
+    }
+    // A limit not stated is no limit, as the column stores it
+    if (!Objects.equals(Objects.requireNonNullElse(newEvent.getCapacity(), 0),
+                        Objects.requireNonNullElse(oldEvent.getCapacity(), 0))) {
+      eventModification.addModificationType(AgendaEventModificationType.CAPACITY_UPDATED);
     }
     if (newEvent.getCalendarId() != oldEvent.getCalendarId()) {
       eventModification.addModificationType(AgendaEventModificationType.OWNER_UPDATED);
@@ -951,6 +1084,8 @@ public class Utils {
       return "agenda.accepted";
     } else if (response == EventAttendeeResponse.DECLINED) {
       return "agenda.declined";
+    } else if (response == EventAttendeeResponse.WAITING) {
+      return "agenda.waiting";
     } else {
       return "agenda.tentative";
     }

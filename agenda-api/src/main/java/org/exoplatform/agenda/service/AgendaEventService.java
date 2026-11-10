@@ -23,6 +23,7 @@ import java.util.Map;
 
 import org.exoplatform.agenda.constant.EventAccess;
 import org.exoplatform.agenda.exception.AgendaException;
+import org.exoplatform.agenda.exception.CapacityBelowAcceptedException;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -149,10 +150,12 @@ public interface AgendaEventService {
    * @throws IllegalAccessException when the user may not update one of the two
    *           events
    * @throws AgendaException when one of the two events does not exist
-   * @throws IllegalArgumentException when the two events are one, when one of
-   *           them is not a recurring series or when they live in different
-   *           calendars; the message is the code
-   *           {@code agenda.seriesSplit.notAllowed}
+   * @throws IllegalArgumentException with the code
+   *           {@code agenda.seriesSplit.notAllowed} when the two events are
+   *           one, when one of them is not a recurring series or when they
+   *           live in different calendars, and
+   *           {@code agenda.openEvent.externalGuestNotAllowed} when the merge
+   *           would leave a person from outside the platform on an open date
    */
   List<Long> moveExceptionalOccurrences(long fromEventId,
                                         long toEventId,
@@ -160,7 +163,61 @@ public interface AgendaEventService {
                                         long userIdentityId) throws IllegalAccessException, AgendaException;
 
   /**
-   * Retrieves an event identified by its technical identifier.
+   * Splits a recurring event at one of its dates: a "this and upcoming"
+   * change. A series continuing the first one from that date on is created,
+   * the dates customised from it on move under it, and the first series is
+   * shortened to the day before, all in one transaction.
+   * <p>
+   * The continuation keeps the series' creator and calendar, and takes from
+   * the change only the fields {@link EventSplit#event()} lists. When the
+   * change moves no date (same first date, times, duration, time zone,
+   * all-day flag and recurrence pattern), every attendee keeps their answers
+   * and their places on the waiting list, which takes the seats the change
+   * frees; when it moves one, every answer but the user's starts over.
+   *
+   * @param seriesId technical identifier of the recurring event
+   * @param split what the change asks of the continuation
+   * @param splitFrom the occurrence id of the continuation's first date, a
+   *          date of the series after its first one
+   * @param sendInvitation whether the attendees are notified
+   * @param confirmClose whether the user confirmed a change that closes the
+   *          event while people are waiting
+   * @param userIdentityId who is splitting; must be allowed to update the
+   *          series and to create an event in its calendar
+   * @return the continuation, as stored
+   * @throws IllegalAccessException when the user may not update the series or
+   *           create an event in its calendar
+   * @throws AgendaException when the series does not exist, or the
+   *           continuation is invalid
+   * @throws CapacityBelowAcceptedException when the continuation's limit, or
+   *           the limit a moved date gets, is below the Yes answers of a date
+   * @throws IllegalArgumentException with the code
+   *           {@code agenda.seriesSplit.notAllowed} when the event is not a
+   *           series or the date is not one of its dates after the first,
+   *           {@code agenda.capacity.invalid} for a negative limit,
+   *           {@code agenda.capacity.closeNeedsConfirmation} when the change
+   *           closes the event while people are waiting and is not confirmed,
+   *           {@code agenda.openEvent.externalGuestsInvited} when the change
+   *           opens the continuation of a locked series while people from
+   *           outside the platform are invited, and
+   *           {@code agenda.openEvent.externalGuestNotAllowed} when one of them
+   *           would be on the open continuation of an open series or reach a
+   *           date that stays open
+   */
+  Event splitEvent(long seriesId,
+                   EventSplit split,
+                   ZonedDateTime splitFrom,
+                   boolean sendInvitation,
+                   boolean confirmClose,
+                   long userIdentityId) throws IllegalAccessException, AgendaException;
+
+  /**
+   * Retrieves the exceptional occurrence a recurrent event holds for one of
+   * its dates: the row whose occurrence id designates the same date of the
+   * series — a timed id read in the series' zone, an all-day id as the later
+   * of its UTC date and its date in that zone — or, on a series with several
+   * dates a day, the row stored at that instant; the first created when the
+   * date has several.
    *
    * @param eventId technical identifier of parent recurrent event
    * @param occurrenceId technical occurrence event identifier
@@ -169,14 +226,18 @@ public interface AgendaEventService {
   Event getExceptionalOccurrenceEvent(long eventId, ZonedDateTime occurrenceId);
 
   /**
-   * Create a new exceptional occurrence for a parent recurrent event
-   * 
+   * Creates the exceptional occurrence of one date of a parent recurrent
+   * event, under the lock of the series. A date has one row: when it already
+   * has one, as {@link #getExceptionalOccurrenceEvent} finds it, that row is
+   * returned as it is, and the attendees, conferences and reminders given are
+   * not applied to it.
+   *
    * @param eventId technical identifier of parent recurrent event
-   * @param attendees {@link List} of attendees
-   * @param conferences {@link List} of conferences
-   * @param reminders {@link List} of reminders
+   * @param attendees {@link List} of attendees of a row created
+   * @param conferences {@link List} of conferences of a row created
+   * @param reminders {@link List} of reminders of a row created
    * @param occurrenceId event occurent identifier
-   * @return newly created {@link Event}
+   * @return the {@link Event} created, or the date's existing row
    * @throws AgendaException when the event attributes aren't valid
    */
   Event createEventExceptionalOccurrence(long eventId,
@@ -186,11 +247,14 @@ public interface AgendaEventService {
                                          ZonedDateTime occurrenceId) throws AgendaException;
 
   /**
-   * Creates an exceptional occurrence for a recurrent event and occurrence ID
-   * 
+   * Finds the exceptional occurrence of one date of a recurrent event, as
+   * {@link #getExceptionalOccurrenceEvent} does, or creates it as a copy of
+   * the series, with the series' attendees valid at that date, its
+   * conferences and its reminders, under the lock of the series.
+   *
    * @param eventId parent recurrent event identifier
    * @param occurrenceId Occurrence identifier
-   * @return created {@link Event}
+   * @return the date's existing row, or the {@link Event} created
    * @throws AgendaException when an error occurs hile creating event
    */
   Event saveEventExceptionalOccurrence(long eventId, ZonedDateTime occurrenceId) throws AgendaException;
@@ -210,12 +274,84 @@ public interface AgendaEventService {
    *          remote connector
    * @param sendInvitation whether send invitation to attendees or not
    * @param userIdentityId user {@link Identity} identifier
-   * @return Created {@link Event} with technichal identifier
+   * @return Created {@link Event} with technichal identifier, or the date of
+   *         the series updated
    * @throws IllegalAccessException when user is not allowed to create event on
    *           calendar, or creates an exceptional occurrence of a recurring
-   *           event (a parent) that they aren't allowed to update
+   *           event (a parent) that they aren't allowed to update, or saves a
+   *           date of a series they may not update at that date, as an
+   *           attendee whose rows start after it
    * @throws AgendaException when the event attributes aren't valid, or when the
    *           parent event isn't found
+   * @throws IllegalArgumentException with the message code
+   *           {@code agenda.capacity.invalid} when the capacity asked is
+   *           negative; on a date of a series saved as an update of its row,
+   *           the codes of
+   *           {@link #updateEvent(Event, List, List, List, List, RemoteEvent, boolean, boolean, long)}
+   */
+  default Event createEvent(Event event,
+                            List<EventAttendee> attendees,
+                            List<EventConference> conferences,
+                            List<EventReminder> reminders,
+                            List<EventDateOption> dateOptions,
+                            RemoteEvent remoteEvent,
+                            boolean sendInvitation,
+                            long userIdentityId) throws IllegalAccessException, AgendaException {
+    return createEvent(event,
+                       attendees,
+                       conferences,
+                       reminders,
+                       dateOptions,
+                       remoteEvent,
+                       sendInvitation,
+                       false,
+                       userIdentityId);
+  }
+
+  /**
+   * Creates an event, as
+   * {@link #createEvent(Event, List, List, List, List, RemoteEvent, boolean, long)}
+   * does, once the user has confirmed closing it when the save closes a date
+   * of a series whose waiting list it would confirm.
+   * <p>
+   * One of a series' dates is saved as an update of its row, the row being
+   * created first as the series' copy at that date when it has none: its
+   * attendees keep their answers, their seats and their places on the
+   * waiting list, as on a date that already has its row, unless the save
+   * changes the date's times. Named by no attendee, the date keeps the ones
+   * the series has there. A date that has no row yet and that its series does
+   * not give, or that belongs to a series with several dates a day, is
+   * created as a new event instead.
+   *
+   * @param event {@link Event} to create
+   * @param attendees event attendees of type {@link EventAttendee}
+   * @param conferences event conferences of type {@link EventConference}
+   * @param reminders {@link List} of preferred user reminders of type
+   *          {@link EventReminder}
+   * @param dateOptions {@link List} of {@link EventDateOption} of corresponding
+   *          event
+   * @param remoteEvent {@link RemoteEvent} of synchronized event by user to
+   *          remote connector
+   * @param sendInvitation whether send invitation to attendees or not
+   * @param confirmClose whether the user confirmed that closing the date
+   *          removes its capacity limit and confirms its waiting list
+   * @param userIdentityId user {@link Identity} identifier
+   * @return Created {@link Event} with technichal identifier, or the date of
+   *         the series updated
+   * @throws IllegalAccessException when user is not allowed to create event on
+   *           calendar, or creates an exceptional occurrence of a recurring
+   *           event (a parent) that they aren't allowed to update, or saves a
+   *           date of a series they may not update at that date, as an
+   *           attendee whose rows start after it
+   * @throws AgendaException when the event attributes aren't valid, or when the
+   *           parent event isn't found
+   * @throws IllegalArgumentException with the message code
+   *           {@code agenda.capacity.invalid} when the capacity asked is
+   *           negative; on a date of a series saved as an update of its row,
+   *           the codes of
+   *           {@link #updateEvent(Event, List, List, List, List, RemoteEvent, boolean, boolean, long)},
+   *           {@code agenda.capacity.closeNeedsConfirmation} among them when
+   *           the save closes the date with a waiting list without confirmClose
    */
   Event createEvent(Event event,
                     List<EventAttendee> attendees,
@@ -224,6 +360,7 @@ public interface AgendaEventService {
                     List<EventDateOption> dateOptions,
                     RemoteEvent remoteEvent,
                     boolean sendInvitation,
+                    boolean confirmClose,
                     long userIdentityId) throws IllegalAccessException, AgendaException;
 
   /**
@@ -249,6 +386,58 @@ public interface AgendaEventService {
    *           identifier is not found
    * @throws AgendaException when the event attributes aren't valid
    */
+  default Event updateEvent(Event event,
+                            List<EventAttendee> attendees,
+                            List<EventConference> conferences,
+                            List<EventReminder> reminders,
+                            List<EventDateOption> dateOptions,
+                            RemoteEvent remoteEvent,
+                            boolean sendInvitation,
+                            long userIdentityId) throws IllegalAccessException, ObjectNotFoundException, AgendaException {
+    return updateEvent(event,
+                       attendees,
+                       conferences,
+                       reminders,
+                       dateOptions,
+                       remoteEvent,
+                       sendInvitation,
+                       false,
+                       userIdentityId);
+  }
+
+  /**
+   * Updates an existing event, as
+   * {@link #updateEvent(Event, List, List, List, List, RemoteEvent, boolean, long)}
+   * does, once the user has confirmed closing it when the save closes an open
+   * event whose waiting list it would confirm.
+   *
+   * @param event {@link Event} to update
+   * @param attendees event attendees of type {@link EventAttendee}
+   * @param conferences event conferences of type {@link EventConference}
+   * @param reminders {@link List} of preferred user reminders of type
+   *          {@link EventReminder}
+   * @param dateOptions {@link List} of {@link EventDateOption} of corresponding
+   *          event
+   * @param remoteEvent {@link RemoteEvent} of synchronized event by user to
+   *          remote connector
+   * @param sendInvitation whether re-send invitation to attendees or not
+   * @param confirmClose whether the user confirmed that closing the event
+   *          removes its capacity limit and confirms its waiting list
+   * @param userIdentityId user {@link Identity} identifier
+   * @return Updated {@link Event}
+   * @throws IllegalAccessException when user is not allowed to update event,
+   *           or moves it to another calendar in which they can't create events
+   * @throws ObjectNotFoundException when the event identified by its technical
+   *           identifier is not found
+   * @throws AgendaException when the event attributes aren't valid
+   * @throws IllegalArgumentException with the message code
+   *           {@code agenda.capacity.invalid} or
+   *           {@code agenda.capacity.belowAccepted} when the capacity asked is
+   *           refused, the latter a {@link CapacityBelowAcceptedException}
+   *           naming the date of a series that blocks,
+   *           {@code agenda.capacity.closeNeedsConfirmation} when the save
+   *           closes an event with a waiting list without confirmClose
+   */
   Event updateEvent(Event event,
                     List<EventAttendee> attendees,
                     List<EventConference> conferences,
@@ -256,6 +445,7 @@ public interface AgendaEventService {
                     List<EventDateOption> dateOptions,
                     RemoteEvent remoteEvent,
                     boolean sendInvitation,
+                    boolean confirmClose,
                     long userIdentityId) throws IllegalAccessException, ObjectNotFoundException, AgendaException;
 
   /**
@@ -277,10 +467,48 @@ public interface AgendaEventService {
    *           identifier is not found
    * @throws AgendaException when the event attribute isn't valid
    */
+  default void updateEventFields(long eventId,
+                                 Map<String, List<String>> fields,
+                                 boolean updateAllOccurrences,
+                                 boolean sendInvitation,
+                                 long userIdentityId) throws IllegalAccessException, ObjectNotFoundException, AgendaException {
+    updateEventFields(eventId, fields, updateAllOccurrences, sendInvitation, false, userIdentityId);
+  }
+
+  /**
+   * Updates fields of an event, as
+   * {@link #updateEventFields(long, Map, boolean, boolean, long)} does, once
+   * the user has confirmed closing it when the patch closes an open event
+   * whose waiting list it would confirm.
+   *
+   * @param eventId Event technical identifier to update
+   * @param fields {@link Event} fields with field name as map key and field
+   *          value as map value
+   * @param updateAllOccurrences whether apply modification on all exceptional
+   *          occurrences as well or not
+   * @param sendInvitation whether re-send invitation to attendees or not
+   * @param confirmClose whether the user confirmed that closing the event
+   *          removes its capacity limit and confirms its waiting list
+   * @param userIdentityId user {@link Identity} identifier
+   * @throws IllegalAccessException when user is not allowed to update event,
+   *           or moves it to another calendar in which they can't create events
+   * @throws ObjectNotFoundException when the event identified by its technical
+   *           identifier is not found
+   * @throws AgendaException when the event attribute isn't valid
+   * @throws IllegalArgumentException with the message code
+   *           {@code agenda.capacity.invalid},
+   *           {@code agenda.capacity.notAllowed} or
+   *           {@code agenda.capacity.belowAccepted} when the capacity asked is
+   *           refused, the latter a {@link CapacityBelowAcceptedException}
+   *           naming the date of a series that blocks,
+   *           {@code agenda.capacity.closeNeedsConfirmation} when the patch
+   *           closes an event with a waiting list without confirmClose
+   */
   void updateEventFields(long eventId,
                          Map<String, List<String>> fields,
                          boolean updateAllOccurrences,
                          boolean sendInvitation,
+                         boolean confirmClose,
                          long userIdentityId) throws IllegalAccessException, ObjectNotFoundException, AgendaException;
 
   /**

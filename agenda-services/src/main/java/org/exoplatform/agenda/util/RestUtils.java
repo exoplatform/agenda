@@ -29,8 +29,10 @@ import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
+import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.agenda.rest.model.*;
 import org.exoplatform.agenda.service.*;
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.security.ConversationState;
@@ -75,6 +77,73 @@ public class RestUtils {
     return "/" + PortalContainer.getCurrentPortalContainerName();
   }
 
+  /**
+   * A participant given by an e-mail address that the platform recognises, and
+   * that the client typed rather than read back from the server, is invited as
+   * the user whose address it is, never as a guest from outside the platform
+   * (eXIP 7.3.0.21, US06), when the user who saves is not an external user:
+   * an external user is told no owner, so the address stays a guest's. A guest already invited comes back with the id of
+   * its identity and stays one: a save never turns them into someone else. A
+   * user given twice, picked and typed, is invited once.
+   *
+   * @param attendees the participants of a write, changed in place
+   * @param identityManager resolves the ids given
+   * @param attendeeService resolves an address to its user
+   * @param callerIdentityId the identity of the user who saves: an external
+   *          user resolves no address
+   * @throws IllegalStateException when the user directory cannot be read: the
+   *           write fails rather than invite a platform user as a guest
+   */
+  public static void resolveTypedAddresses(List<EventAttendeeEntity> attendees,
+                                           IdentityManager identityManager,
+                                           AgendaEventAttendeeService attendeeService,
+                                           long callerIdentityId) {
+    if (attendees == null || attendees.isEmpty()) {
+      return;
+    }
+    // The people given otherwise, by the id or the provider and remote id the
+    // client sent: a user picked in the suggester has no id yet
+    Set<String> givenKeys = new HashSet<>();
+    for (EventAttendeeEntity attendee : attendees) {
+      IdentityEntity identity = attendee == null ? null : attendee.getIdentity();
+      if (identity != null && !AgendaGuestUserIdentityProvider.NAME.equals(identity.getProviderId())) {
+        if (StringUtils.isNumeric(identity.getId())) {
+          givenKeys.add(identity.getId());
+        }
+        givenKeys.add(identity.getProviderId() + ":" + identity.getRemoteId());
+      }
+    }
+    Iterator<EventAttendeeEntity> iterator = attendees.iterator();
+    while (iterator.hasNext()) {
+      IdentityEntity identity = Optional.ofNullable(iterator.next()).map(EventAttendeeEntity::getIdentity).orElse(null);
+      if (identity == null || !AgendaGuestUserIdentityProvider.NAME.equals(identity.getProviderId())
+          || StringUtils.isBlank(identity.getRemoteId()) || namesAnIdentity(identity.getId(), identityManager)) {
+        continue;
+      }
+      Identity user = attendeeService.getUserIdentityByEmail(identity.getRemoteId(), callerIdentityId);
+      if (user == null) {
+        continue;
+      }
+      String userKey = user.getProviderId() + ":" + user.getRemoteId();
+      if (givenKeys.contains(user.getId()) || !givenKeys.add(userKey)) {
+        iterator.remove();
+        continue;
+      }
+      givenKeys.add(user.getId());
+      identity.setId(user.getId());
+      identity.setProviderId(user.getProviderId());
+      identity.setRemoteId(user.getRemoteId());
+    }
+  }
+
+  /**
+   * @return whether the id is the technical id of an identity: a participant
+   *         read from the server, rather than typed
+   */
+  private static boolean namesAnIdentity(String identityId, IdentityManager identityManager) {
+    return StringUtils.isNumeric(identityId) && identityManager.getIdentity(identityId) != null;
+  }
+
   public static String getIdentityId(IdentityEntity identityEntity, IdentityManager identityManager) {
     if (identityEntity == null) {
       return null;
@@ -117,14 +186,17 @@ public class RestUtils {
   public static Event createEventEntity(IdentityManager identityManager,
                                         AgendaCalendarService agendaCalendarService,
                                         AgendaEventService agendaEventService,
+                                        AgendaEventAttendeeService agendaEventAttendeeService,
                                         EventEntity eventEntity,
                                         long userIdentityId,
-                                        String timeZoneId) throws AgendaException,
-                                                           IllegalAccessException {
+                                        String timeZoneId,
+                                        boolean confirmClose) throws AgendaException,
+                                                              IllegalAccessException {
     checkCalendar(identityManager, agendaCalendarService, eventEntity);
 
     cleanupAttachedEntitiesIds(eventEntity);
 
+    resolveTypedAddresses(eventEntity.getAttendees(), identityManager, agendaEventAttendeeService, userIdentityId);
     List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
     List<EventAttendee> attendees = null;
     if (attendeeEntities != null && !attendeeEntities.isEmpty()) {
@@ -168,7 +240,134 @@ public class RestUtils {
                                           dateOptions,
                                           remoteEvent,
                                           eventEntity.isSendInvitation(),
+                                          confirmClose,
                                           userIdentityId);
+  }
+
+  /**
+   * Splits a recurring event as a "this and upcoming" body asks. A participant
+   * the body adds is resolved as an attendee of a new event is, an email
+   * guest's identity being created. One it removes is resolved among the
+   * attendees of the series only, by its identity's provider and remote ids,
+   * or by its identity id; a removal that matches none of them is ignored,
+   * and never creates an identity.
+   *
+   * @param identityManager {@link IdentityManager} service instance
+   * @param agendaEventService {@link AgendaEventService} service instance
+   * @param agendaEventAttendeeService {@link AgendaEventAttendeeService}
+   *          service instance
+   * @param seriesId the recurring event split
+   * @param splitEntity the body
+   * @param timeZoneId the zone the user read the series in, which the body
+   *          was written in (see {@link EventSplit#readZone()}); a body
+   *          without a zone is read in it and keeps the series' zone; null
+   *          when unknown
+   * @param confirmClose whether the user confirmed closing the event while
+   *          people are waiting
+   * @param userIdentityId who is splitting
+   * @return the continuing series
+   * @throws AgendaException when the series does not exist, or an attendee
+   *           added or the continuation is invalid
+   * @throws IllegalAccessException when the user may not split the series
+   */
+  public static Event splitEvent(IdentityManager identityManager,
+                                 AgendaEventService agendaEventService,
+                                 AgendaEventAttendeeService agendaEventAttendeeService,
+                                 long seriesId,
+                                 EventSplitEntity splitEntity,
+                                 String timeZoneId,
+                                 boolean confirmClose,
+                                 long userIdentityId) throws AgendaException, IllegalAccessException {
+    EventEntity eventEntity = splitEntity.getEvent();
+    if (eventEntity == null) {
+      throw new AgendaException(AgendaExceptionType.EVENT_MANDATORY);
+    }
+    List<EventReminder> reminders = null;
+    if (eventEntity.getReminders() != null) {
+      reminders = new ArrayList<>();
+      for (EventReminderEntity reminderEntity : eventEntity.getReminders()) {
+        reminders.add(RestEntityBuilder.toEventReminder(seriesId, reminderEntity));
+      }
+    }
+    List<Long> addedIdentityIds = new ArrayList<>();
+    resolveTypedAddresses(splitEntity.getAddedAttendees(), identityManager, agendaEventAttendeeService, userIdentityId);
+    if (splitEntity.getAddedAttendees() != null) {
+      for (EventAttendeeEntity attendeeEntity : splitEntity.getAddedAttendees()) {
+        IdentityEntity attendeeIdentity = attendeeEntity.getIdentity();
+        String attendeeIdString = RestUtils.getIdentityId(attendeeIdentity, identityManager);
+        if (StringUtils.isBlank(attendeeIdString)) {
+          throw new AgendaException(AgendaExceptionType.ATTENDEE_IDENTITY_NOT_FOUND);
+        }
+        attendeeIdentity.setId(attendeeIdString);
+        addedIdentityIds.add(RestEntityBuilder.toEventAttendee(identityManager, seriesId, attendeeEntity).getIdentityId());
+      }
+    }
+    Set<Long> removedIdentityIds = removedIdentityIds(identityManager,
+                                                      agendaEventAttendeeService,
+                                                      seriesId,
+                                                      splitEntity.getRemovedAttendees());
+    ZonedDateTime splitFrom = StringUtils.isBlank(splitEntity.getSplitFrom()) ? null
+                                                                              : AgendaDateUtils.parseRFC3339ToZonedDateTime(splitEntity.getSplitFrom(),
+                                                                                                                            ZoneOffset.UTC);
+    boolean givesNoZone = StringUtils.isBlank(eventEntity.getTimeZoneId());
+    if (givesNoZone) {
+      // Its dates, if any, are read in the zone the series was read in
+      eventEntity.setTimeZoneId(StringUtils.isBlank(timeZoneId) ? ZoneOffset.UTC.getId() : timeZoneId);
+    }
+    Event event = RestEntityBuilder.toEvent(eventEntity);
+    if (givesNoZone) {
+      // No zone chosen: the continuation keeps the series' own
+      event.setTimeZoneId(null);
+    }
+    return agendaEventService.splitEvent(seriesId,
+                                         new EventSplit(event,
+                                                        eventEntity.getConferences(),
+                                                        reminders,
+                                                        addedIdentityIds,
+                                                        removedIdentityIds,
+                                                        StringUtils.isBlank(timeZoneId) ? null : ZoneId.of(timeZoneId)),
+                                         splitFrom,
+                                         splitEntity.isSendInvitation(),
+                                         confirmClose,
+                                         userIdentityId);
+  }
+
+  /**
+   * @return the identities of the series' attendees the removals designate,
+   *         read by id, which never creates one
+   */
+  private static Set<Long> removedIdentityIds(IdentityManager identityManager,
+                                              AgendaEventAttendeeService agendaEventAttendeeService,
+                                              long seriesId,
+                                              List<EventAttendeeEntity> removedAttendees) {
+    if (removedAttendees == null || removedAttendees.isEmpty()) {
+      return Collections.emptySet();
+    }
+    Map<Long, Identity> attendeeIdentities = new HashMap<>();
+    for (EventAttendee attendee : agendaEventAttendeeService.getEventAttendees(seriesId).getEventAttendees()) {
+      attendeeIdentities.computeIfAbsent(attendee.getIdentityId(), identityManager::getIdentity);
+    }
+    Set<Long> removedIdentityIds = new HashSet<>();
+    for (EventAttendeeEntity removedAttendee : removedAttendees) {
+      IdentityEntity removedIdentity = removedAttendee.getIdentity();
+      if (removedIdentity == null) {
+        continue;
+      }
+      attendeeIdentities.entrySet()
+                        .stream()
+                        .filter(attendee -> designates(removedIdentity, attendee.getKey(), attendee.getValue()))
+                        .findFirst()
+                        .ifPresent(attendee -> removedIdentityIds.add(attendee.getKey()));
+    }
+    return removedIdentityIds;
+  }
+
+  private static boolean designates(IdentityEntity removedIdentity, long attendeeIdentityId, Identity attendeeIdentity) {
+    if (StringUtils.isNotBlank(removedIdentity.getProviderId()) && StringUtils.isNotBlank(removedIdentity.getRemoteId())) {
+      return attendeeIdentity != null && removedIdentity.getProviderId().equals(attendeeIdentity.getProviderId())
+          && removedIdentity.getRemoteId().equals(attendeeIdentity.getRemoteId());
+    }
+    return String.valueOf(attendeeIdentityId).equals(removedIdentity.getId());
   }
 
   /**
@@ -497,23 +696,65 @@ public class RestUtils {
     long eventId = computedOccurrence ? eventEntity.getParent().getId()
                                       : eventEntity.getId();
     EventAttendeeList eventAttendeeList = agendaEventAttendeeService.getEventAttendees(eventId);
-    if (userIdentityId > 0) {
-      EventAttendee eventAttendee = eventAttendeeList.getEventAttendee(userIdentityId, occurrenceId);
-      if (eventAttendee == null) {
-        eventEntity.setAttendees(Collections.emptyList());
+    // A series read with no date shows each attendee once, with the answer
+    // valid at the date its answers are read at, not a row per range
+    boolean seriesAsAWhole = occurrenceId == null && !computedOccurrence && eventEntity.getRecurrence() != null;
+    try {
+      if (userIdentityId > 0) {
+        EventAttendee eventAttendee = seriesAsAWhole ? agendaEventAttendeeService.getSeriesAttendee(eventId, userIdentityId)
+                                                     : eventAttendeeList.getEventAttendee(userIdentityId, occurrenceId);
+        if (eventAttendee == null) {
+          eventEntity.setAttendees(Collections.emptyList());
+        } else {
+          eventEntity.setAttendees(Collections.singletonList(RestEntityBuilder.fromEventAttendee(identityManager,
+                                                                                                 eventAttendee)));
+        }
       } else {
-        eventEntity.setAttendees(Collections.singletonList(RestEntityBuilder.fromEventAttendee(identityManager,
-                                                                                               eventAttendee)));
+        List<EventAttendee> eventAttendees = seriesAsAWhole ? agendaEventAttendeeService.getSeriesAttendees(eventId)
+                                                            : eventAttendeeList.getEventAttendees(occurrenceId);
+        eventEntity.setAttendees(eventAttendees.stream()
+                                               .map(eventAttendee -> RestEntityBuilder.fromEventAttendee(identityManager,
+                                                                                                         eventAttendee))
+                                               .collect(Collectors.toList()));
       }
-    } else {
-      List<EventAttendeeEntity> eventAttendeeEntities = eventAttendeeList.getEventAttendees(occurrenceId)
-                                                                         .stream()
-                                                                         .map(eventAttendee -> RestEntityBuilder.fromEventAttendee(identityManager,
-                                                                                                                                   eventAttendee))
-                                                                         .collect(Collectors.toList());
-      eventEntity.setAttendees(eventAttendeeEntities);
+    } catch (ObjectNotFoundException e) {
+      // The series was deleted since it was read
+      eventEntity.setAttendees(Collections.emptyList());
     }
     return eventAttendeeList;
+  }
+
+  /**
+   * Fills the seats of the date an event entity shows, on a detail read: a
+   * computed date is counted on its series at that date, an event or the row
+   * of a date on its own rows, and a series read with no date at the date its
+   * answers are read at. A masked event shows none.
+   *
+   * @param agendaEventAttendeeService the attendee service
+   * @param eventEntity the entity read
+   * @param userIdentityId the reader, whose rank on the waiting list is filled
+   * @throws ObjectNotFoundException when the event was deleted since it was
+   *           read
+   */
+  public static void fillSeatCounts(AgendaEventAttendeeService agendaEventAttendeeService,
+                                    EventEntity eventEntity,
+                                    long userIdentityId) throws ObjectNotFoundException {
+    if (eventEntity.isMasked()) {
+      return;
+    }
+    EventSeatCounts seatCounts;
+    if (isComputedOccurrence(eventEntity)) {
+      seatCounts = agendaEventAttendeeService.getSeatCounts(eventEntity.getParent().getId(),
+                                                            AgendaDateUtils.parseRFC3339ToZonedDateTime(eventEntity.getOccurrence()
+                                                                                                                   .getId(),
+                                                                                                        ZoneOffset.UTC),
+                                                            userIdentityId);
+    } else {
+      seatCounts = agendaEventAttendeeService.getSeatCounts(eventEntity.getId(), null, userIdentityId);
+    }
+    eventEntity.setAcceptedCount(seatCounts.acceptedCount());
+    eventEntity.setWaitingCount(seatCounts.waitingCount());
+    eventEntity.setWaitingListPosition(seatCounts.waitingListPosition());
   }
 
   public static void fillConferences(AgendaEventConferenceService agendaEventConferenceService,

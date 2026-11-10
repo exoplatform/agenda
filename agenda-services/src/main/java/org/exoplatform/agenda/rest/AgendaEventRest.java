@@ -47,6 +47,7 @@ import org.picocontainer.Startable;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
+import org.exoplatform.agenda.exception.CapacityBelowAcceptedException;
 import org.exoplatform.agenda.exception.EventInvitationExpiredException;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.rest.model.*;
@@ -415,6 +416,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       if (eventEntity == null) {
         return Response.status(Status.NOT_FOUND).build();
       } else {
+        RestUtils.fillSeatCounts(agendaEventAttendeeService, eventEntity, RestUtils.getCurrentUserIdentityId(identityManager));
         return Response.ok(eventEntity).build();
       }
     } catch (IllegalAccessException e) {
@@ -493,6 +495,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                                occurrenceDate,
                                                userTimeZone,
                                                expandProperties);
+      RestUtils.fillSeatCounts(agendaEventAttendeeService, eventEntity, identityId);
       return Response.ok(eventEntity).build();
     } catch (IllegalAccessException e) {
       // 403 like the other answers of this resource; a refusal is a normal
@@ -588,7 +591,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
           @ApiResponse(responseCode = "200", description = "Request fulfilled: the identifiers of the rows moved and kept"),
           @ApiResponse(
               responseCode = "400",
-              description = "Invalid query input: a missing or malformed parameter, or two events a split cannot join. The body carries the message code"
+              description = "Invalid query input: a missing or malformed parameter, two events a split cannot join, or a person from outside the platform the merge would leave on an open date. The body carries the message code"
           ),
           @ApiResponse(responseCode = "403", description = "Forbidden operation"),
           @ApiResponse(responseCode = "404", description = "Object not found"),
@@ -665,6 +668,12 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                 "timeZoneId"
                               )
                               String timeZoneId,
+                              @Parameter(
+                                  description = "Whether the user confirmed closing the date of a series saved, while people are waiting for a seat"
+                              )
+                              @Schema(defaultValue = "false")
+                              @QueryParam("confirmClose")
+                              boolean confirmClose,
                               @Parameter(description = "Event object to create", required = true)
                               EventEntity eventEntity) {
     if (eventEntity == null) {
@@ -679,9 +688,11 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       Event event = createEventEntity(identityManager,
                                       agendaCalendarService,
                                       agendaEventService,
+                                      agendaEventAttendeeService,
                                       eventEntity,
                                       userIdentityId,
-                                      timeZoneId);
+                                      timeZoneId,
+                                      confirmClose);
       return getEventById(event.getId(), "all", timeZoneId == null ? event.getTimeZoneId().getId() : timeZoneId, false);
     } catch (IllegalAccessException e) {
       LOG.warn("User '{}' attempts to create an event in calendar '{}'",
@@ -692,6 +703,11 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     } catch (AgendaException e) {
       LOG.debug("Error in event validation", e);
       return Response.serverError().entity(e.getAgendaExceptionType().getCompleteMessage()).build();
+    } catch (IllegalArgumentException e) {
+      // A value the event's invariants refuse is a caller error, its message a
+      // code, as for a patch
+      LOG.debug("Invalid event created", e);
+      return Response.status(Status.BAD_REQUEST).entity(badRequestEntity(e)).build();
     } catch (Exception e) {
       LOG.warn("Error creating an event", e);
       return Response.serverError().entity(e.getMessage()).build();
@@ -718,7 +734,13 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                               @QueryParam(
                                 "timeZoneId"
                               )
-                              String timeZoneId) {
+                              String timeZoneId,
+                              @Parameter(
+                                  description = "Whether the user confirmed that closing the event removes its capacity limit and confirms its waiting list"
+                              )
+                              @Schema(defaultValue = "false")
+                              @QueryParam("confirmClose")
+                              boolean confirmClose) {
     if (eventEntity == null) {
       return Response.status(Status.BAD_REQUEST).entity(AgendaExceptionType.EVENT_MANDATORY.getCompleteMessage()).build();
     }
@@ -737,6 +759,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                     eventEntity,
                     storedEvent);
 
+      RestUtils.resolveTypedAddresses(eventEntity.getAttendees(), identityManager, agendaEventAttendeeService, userIdentityId);
       List<EventAttendeeEntity> attendeeEntities = eventEntity.getAttendees();
       List<EventAttendee> attendees = null;
       if (attendeeEntities != null && !attendeeEntities.isEmpty()) {
@@ -775,11 +798,17 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                      dateOptions,
                                      remoteEvent,
                                      eventEntity.isSendInvitation(),
+                                     confirmClose,
                                      userIdentityId);
       return getEventById(event.getId(), "all", userTimeZoneId, false);
     } catch (AgendaException e) {
       LOG.debug("Error in event validation", e);
       return Response.serverError().entity(e.getAgendaExceptionType().getCompleteMessage()).build();
+    } catch (IllegalArgumentException e) {
+      // A value the event's invariants refuse is a caller error, its message a
+      // code, as for a patch
+      LOG.debug("Invalid update of event {}", eventEntity.getId(), e);
+      return Response.status(Status.BAD_REQUEST).entity(badRequestEntity(e)).build();
     } catch (IllegalAccessException e) {
       LOG.error("User '{}' attempts to update a non authorized event", RestUtils.getCurrentUser(), e);
       return Response.status(Status.UNAUTHORIZED).build();
@@ -801,7 +830,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
           @ApiResponse(responseCode = "404", description = "Object not found"),
           @ApiResponse(
               responseCode = "400",
-              description = "Invalid query input: unsupported field, or a value the event's invariants refuse. The body carries the message code"
+              description = "Invalid query input: unsupported field, or a value the event's invariants refuse. The body carries the message code; a limit of a series below the Yes answers of one of its dates is answered with an object carrying the code and that date"
           ),
           @ApiResponse(responseCode = "403", description = "Forbidden operation"),
           @ApiResponse(responseCode = "500", description = "Internal server error"),
@@ -829,6 +858,12 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                       "timeZoneId"
                                     )
                                     String timeZoneId,
+                                    @Parameter(
+                                        description = "Whether the user confirmed that closing the event removes its capacity limit and confirms its waiting list"
+                                    )
+                                    @Schema(defaultValue = "false")
+                                    @QueryParam("confirmClose")
+                                    boolean confirmClose,
                                     @Parameter(
                                         description = "Event fields to patch",
                                         required = true
@@ -878,6 +913,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                              eventFields,
                                              updateAllOccurrences,
                                              sendInvitations,
+                                             confirmClose,
                                              userIdentityId);
       }
 
@@ -905,7 +941,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       // error and not an incident: the message is a code the frontend and
       // third-party integrators can act on
       LOG.debug("Invalid field patched on event {}", eventId, e);
-      return Response.status(Status.BAD_REQUEST).entity(e.getMessage()).build();
+      return Response.status(Status.BAD_REQUEST).entity(badRequestEntity(e)).build();
     } catch (IllegalAccessException e) {
       // The platform REST contract answers 403 when the caller is
       // authenticated but not allowed (backend-spring.md §5)
@@ -1462,8 +1498,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       method = "GET")
   @ApiResponses(
       value = {
-          @ApiResponse(responseCode = "200", description = "Request fulfilled, answer acknowledged by an HTML page shown to an external attendee"),
-          @ApiResponse(responseCode = "204", description = "Request fulfilled"),
+          @ApiResponse(responseCode = "200", description = "Request fulfilled: without redirect, the answer stored at the date answered and the first date of a series it left waiting, in JSON; with a redirect, answer acknowledged by an HTML page shown to an external attendee"),
           @ApiResponse(responseCode = "400", description = "Invalid query input"),
           @ApiResponse(responseCode = "403", description = "Forbidden operation: not an attendee, and the event isn't open to the caller, or the caller could not be identified from the token"),
           @ApiResponse(responseCode = "404", description = "Event not found"),
@@ -1486,7 +1521,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
                                     )
                                     String occurrenceId,
                                     @Parameter(
-                                        description = "Response to event invitation. Possible values: ACCEPTED, DECLINED or TENTATIVE.",
+                                        description = "Response to event invitation. Possible values: ACCEPTED, DECLINED, TENTATIVE or WAITING, which asks for a seat as ACCEPTED does.",
                                         required = true
                                     )
                                     @QueryParam("response")
@@ -1517,6 +1552,8 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       return Response.status(Status.BAD_REQUEST).entity("Event response is mandatory").build();
     }
     EventAttendeeResponse response = EventAttendeeResponse.fromValue(responseString);
+    // WAITING is accepted: it asks for a seat as a Yes does, which the Service
+    // stores as a Yes when a seat is free
     if (response == null || response == EventAttendeeResponse.NEEDS_ACTION) {
       return Response.status(Status.BAD_REQUEST).entity("Event response is not recognized").build();
     }
@@ -1551,10 +1588,10 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       }
       currentUser = identity.getRemoteId();
       long identityId = Long.parseLong(identity.getId());
-      // Checked here, on the series, before anything is written: the
-      // occurrence branch below materialises an exceptional occurrence before
-      // it answers on it, and a refused caller must not leave one behind. The
-      // Service applies the same rule again on the event it writes.
+      // Checked here, on the series, before anything is written: answering
+      // one date may create the date's row, and a refused caller must not
+      // leave one behind. The Service applies the same rule again on the
+      // event it writes.
       Event event = agendaEventService.getEventById(eventId);
       if (event == null) {
         throw new ObjectNotFoundException("Event with id " + eventId + " wasn't found");
@@ -1564,22 +1601,21 @@ public class AgendaEventRest implements ResourceContainer, Startable {
             + ": not an attendee, and the event isn't open to them");
       }
 
+      EventResponseOutcome outcome;
       if (StringUtils.isBlank(occurrenceId)) {
-        agendaEventAttendeeService.sendEventResponse(eventId, identityId, response);
+        outcome = agendaEventAttendeeService.sendEventResponse(eventId, null, identityId, response, true);
       } else {
         ZonedDateTime occurrenceIdDateTime = AgendaDateUtils.parseRFC3339ToZonedDateTime(occurrenceId, ZoneOffset.UTC);
         if (upcoming) {
-          agendaEventAttendeeService.sendUpcomingEventResponse(eventId,
-                                                               occurrenceIdDateTime,
-                                                               identityId,
-                                                               response);
+          outcome = agendaEventAttendeeService.sendUpcomingEventResponse(eventId,
+                                                                         occurrenceIdDateTime,
+                                                                         identityId,
+                                                                         response,
+                                                                         true);
         } else {
-          Event occurrenceEvent = agendaEventService.getExceptionalOccurrenceEvent(eventId, occurrenceIdDateTime);
-          if (occurrenceEvent == null) { // Exceptional occurrence not yet
-                                         // created
-            occurrenceEvent = agendaEventService.saveEventExceptionalOccurrence(eventId, occurrenceIdDateTime);
-          }
-          agendaEventAttendeeService.sendEventResponse(occurrenceEvent.getId(), identityId, response);
+          // The Service finds or creates the date's row under the lock of
+          // the series, then answers on it
+          outcome = agendaEventAttendeeService.sendEventResponse(eventId, occurrenceIdDateTime, identityId, response, true);
         }
       }
       if (redirect) {
@@ -1593,13 +1629,19 @@ public class AgendaEventRest implements ResourceContainer, Startable {
         // a session still gets the event page, which shows their answer in
         // context and is better feedback than any static page.
         if (!authenticatedSession) {
+          // The page tells the answer stored, a place on the waiting list
+          // for a Yes given on a full date
           Locale locale = request == null ? null : request.getLocale();
-          return Response.ok(Utils.buildGuestResponseConfirmationPage(response, locale), MediaType.TEXT_HTML).build();
+          return Response.ok(Utils.buildGuestResponseConfirmationPage(outcome.response(), locale), MediaType.TEXT_HTML)
+                         .build();
         }
         URI location = new URI("/portal/" + this.defaultSite + "/" + AGENDA_APP_URI + "?eventId=" + eventId); // NOSONAR
         return Response.seeOther(location).build();
       } else {
-        return Response.noContent().build();
+        return Response.ok(new EventResponseOutcomeEntity(outcome.response(),
+                                                          AgendaDateUtils.toRFC3339Date(outcome.firstWaitingOccurrenceId())),
+                           MediaType.APPLICATION_JSON)
+                       .build();
       }
     } catch (EventInvitationExpiredException e) {
       // Not an incident and not an attack: somebody followed a link in good
@@ -2007,6 +2049,19 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     }
     List<String> spaceIdsString = spaceIds.stream().map(String::valueOf).toList();
     return SpaceUtils.getSpaceIdentityIds(getCurrentUser(), spaceIdsString).stream().map(Long::valueOf).toList();
+  }
+
+  /**
+   * @param e a value the event refuses
+   * @return the body of the 400 answering it: its code, with the date that
+   *         blocks when a limit of a series is below the Yes answers of one of
+   *         its dates (D16)
+   */
+  private static Object badRequestEntity(IllegalArgumentException e) {
+    if (e instanceof CapacityBelowAcceptedException refused && refused.getDate() != null) {
+      return new CapacityErrorEntity(refused.getMessage(), refused.getDate().toString());
+    }
+    return e.getMessage();
   }
 
 }

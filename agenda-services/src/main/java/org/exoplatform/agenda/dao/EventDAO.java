@@ -30,7 +30,9 @@ import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;
 
 public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
 
-  private static final int   DEFAULT_LIMIT = 10;
+  private static final int    DEFAULT_LIMIT      = 10;
+
+  private static final String EVENT_ID_PARAMETER = "eventId";
 
   private EventConferenceDAO eventConferenceDAO;
 
@@ -578,14 +580,6 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     return resultList == null ? Collections.emptyList() : resultList;
   }
 
-  public List<Long> getExceptionalOccurenceIdsByStart(long parentRecurrentEventId, Date startDate) {
-    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.getExceptionalOccurenceIdsByStart", Long.class);
-    query.setParameter("parentEventId", parentRecurrentEventId);
-    query.setParameter("start", startDate);
-    List<Long> resultList = query.getResultList();
-    return resultList == null ? Collections.emptyList() : resultList;
-  }
-
   public List<Long> getExceptionalOccurenceIds(long parentRecurrentEventId) {
     TypedQuery<Tuple> query = getEntityManager().createNamedQuery("AgendaEvent.getExceptionalOccurenceIds", Tuple.class);
     query.setParameter("parentEventId", parentRecurrentEventId);
@@ -611,6 +605,99 @@ public class EventDAO extends GenericDAOJPAImpl<EventEntity, Long> {
     if (entityManager.getTransaction().isActive()) {
       entityManager.flush();
     }
+    entityManager.clear();
+  }
+
+  /**
+   * Reads the exceptional occurrences of a recurrent event in one statement,
+   * ordered by start date, with their recurrence fetched.
+   *
+   * @param parentRecurrentEventId a parent recurrent event technical
+   *          identifier
+   * @return {@link List} of its exceptional occurrence rows
+   */
+  public List<EventEntity> getExceptionalOccurences(long parentRecurrentEventId) {
+    TypedQuery<EventEntity> query = getEntityManager().createNamedQuery("AgendaEvent.getExceptionalOccurences",
+                                                                        EventEntity.class);
+    query.setParameter("parentEventId", parentRecurrentEventId);
+    List<EventEntity> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
+  }
+
+  /**
+   * Locks an event row with a pessimistic write lock ({@code SELECT … FOR
+   * UPDATE}), held until the current transaction ends. It requires an active
+   * transaction, and every lock of the transaction must come before its first
+   * plain read: on MySQL and MariaDB, a plain read fixes the snapshot the
+   * following reads see. So it reads the row's identifier only, and loads no
+   * entity whose eager associations would be read right after it.
+   * <p>
+   * No lock timeout is set: a transaction asking for a locked row, on a
+   * request thread or in the {@code @Asynchronous}
+   * {@code ContentAgendaEventSyncListener}, waits until the holder's
+   * transaction ends. The holder's decide step is the intended bound: it
+   * holds the lock for its own reads and writes, and publishes its broadcasts
+   * and notifications after the commit, but for the metadata broadcast social
+   * makes while the event's properties are saved. Past it, the database's own
+   * limit applies: InnoDB fails the waiting statement after
+   * {@code innodb_lock_wait_timeout}, 50 seconds by default; PostgreSQL waits
+   * as long as {@code lock_timeout} allows, without limit by default.
+   *
+   * @param eventId event technical identifier
+   * @return whether the row exists, and so is locked
+   */
+  public boolean lockEvent(long eventId) {
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("AgendaEvent.lockEvent", Long.class);
+    query.setParameter(EVENT_ID_PARAMETER, eventId);
+    query.setLockMode(LockModeType.PESSIMISTIC_WRITE);
+    List<Long> resultList = query.getResultList();
+    return resultList != null && !resultList.isEmpty();
+  }
+
+  /**
+   * Reads when an event row's pool was marked as having reached its capacity,
+   * as the database holds it, not as an entity of the persistence context
+   * holds it. The changes of the persistence context are written first: on
+   * MySQL and MariaDB, whose plain reads see the snapshot of the
+   * transaction's first read, a row this transaction has updated is read
+   * with the mark last committed.
+   *
+   * @param eventId event technical identifier
+   * @return the instant, or null when the row is not marked or does not exist
+   */
+  public Date getCapacityReachedDate(long eventId) {
+    TypedQuery<Date> query = getEntityManager().createNamedQuery("AgendaEvent.getCapacityReachedDate", Date.class);
+    query.setParameter(EVENT_ID_PARAMETER, eventId);
+    query.setFlushMode(FlushModeType.AUTO);
+    List<Date> resultList = query.getResultList();
+    return resultList.isEmpty() ? null : resultList.get(0);
+  }
+
+  /**
+   * Writes when an event row's pool was marked as having reached its
+   * capacity, and nothing else of the row: the one update of a column a save
+   * of the whole row leaves as it is. It requires an active transaction: the
+   * mark is written under the event lock a decide step holds, never in a
+   * transaction of its own.
+   *
+   * @param eventId event technical identifier
+   * @param capacityReachedDate the instant, or null to clear the mark
+   */
+  public void saveCapacityReachedDate(long eventId, Date capacityReachedDate) {
+    Query query = getEntityManager().createNamedQuery("AgendaEvent.saveCapacityReachedDate");
+    query.setParameter(EVENT_ID_PARAMETER, eventId);
+    query.setParameter("capacityReachedDate", capacityReachedDate);
+    query.executeUpdate();
+  }
+
+  /**
+   * Writes the pending changes of the thread's persistence context, then
+   * detaches every entity it holds, so that the next read loads its rows
+   * afresh.
+   */
+  public void flushAndClear() {
+    EntityManager entityManager = getEntityManager();
+    entityManager.flush();
     entityManager.clear();
   }
 

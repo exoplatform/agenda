@@ -95,13 +95,27 @@ export default {
       return this.$eventService.getEventById(recurrentEvent.id, 'all')
         .then(parentRecurrentEvent => {
           recurrentEvent = JSON.parse(JSON.stringify(parentRecurrentEvent));
-          const untilDate = new Date(this.event.occurrence.id);
+          // The day before the date deleted, as the organiser reads it. A
+          // date's id takes its series' form, whatever the date itself became.
+          // An all-day series' id names its day at midnight UTC, the day before
+          // west of UTC when read as an instant, or, stored before TASK-39591,
+          // at the instant the day starts in the series' zone, the day before
+          // in UTC east of it: the day is the later of both, as the server
+          // reads it (Utils#getSeriesDate), the browser's zone standing for the
+          // series', which a read does not send. The series' start is a day
+          // alone (see AgendaUtils#toDate)
+          let untilDate = new Date(this.event.occurrence.id);
+          if (parentRecurrentEvent.allDay) {
+            const localDay = new Date(untilDate.getFullYear(), untilDate.getMonth(), untilDate.getDate());
+            const utcDay = new Date(untilDate.getUTCFullYear(), untilDate.getUTCMonth(), untilDate.getUTCDate());
+            untilDate = utcDay > localDay ? utcDay : localDay;
+          }
           untilDate.setDate(untilDate.getDate() - 1);
           untilDate.setHours(23);
           untilDate.setMinutes(59);
           untilDate.setSeconds(59);
 
-          const startDate = new Date(recurrentEvent.start);
+          const startDate = this.$agendaUtils.toDate(recurrentEvent.start);
 
           // If the deleted occurrence is the first occurrence of the recurring event
           // Then delete all current recurrent event
@@ -109,6 +123,14 @@ export default {
             return this.deleteRecurrentEvent();
           } else {
             parentRecurrentEvent.recurrence.until = this.$agendaUtils.toRFC3339(untilDate);
+            // A series ending after a number of dates ends there, not on that
+            // day: the number would keep the dates deleted
+            parentRecurrentEvent.recurrence.count = 0;
+            // Written as the forms write them: an all-day day sent as read is
+            // taken for midnight UTC, the day before west of UTC (see
+            // AgendaUtils#toDate)
+            parentRecurrentEvent.start = this.$agendaUtils.toRFC3339(this.$agendaUtils.toDate(parentRecurrentEvent.start));
+            parentRecurrentEvent.end = this.$agendaUtils.toRFC3339(this.$agendaUtils.toDate(parentRecurrentEvent.end));
             return this.$eventService.updateEvent(parentRecurrentEvent)
               .then((updatedEvent) => {
                 this.$root.$emit('agenda-event-deleted', updatedEvent, true);

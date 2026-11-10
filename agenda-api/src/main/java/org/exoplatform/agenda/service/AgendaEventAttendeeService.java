@@ -16,8 +16,10 @@
 */
 package org.exoplatform.agenda.service;
 
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
@@ -167,10 +169,12 @@ public interface AgendaEventAttendeeService {
   /**
    * Retrieves the event response of a user. If the user didn't responded to the
    * event, the default value {@link EventAttendeeResponse#NEEDS_ACTION} will be
-   * retrieved.
-   * 
+   * retrieved. Read with no occurrence id on a series, it is the user's answer
+   * to the series as a whole, as {@link #getSeriesResponse(long, long)} reads
+   * it.
+   *
    * @param eventId Technical identifier of {@link Event}
-   * @param occurrenceId event occurrence id
+   * @param occurrenceId event occurrence id, or null
    * @param identityId {@link Identity} technical identifier of user
    * @return {@link EventAttendeeResponse}, no null value is returned
    * @throws ObjectNotFoundException when event with provided identifier doesn't
@@ -223,6 +227,154 @@ public interface AgendaEventAttendeeService {
                                         EventAttendeeResponse response) throws ObjectNotFoundException, IllegalAccessException;
 
   /**
+   * Sends an event response for a recurrent event starting from a specific
+   * occurrence, and returns what it stored.
+   * <p>
+   * On a series with a capacity limit, a Yes, or
+   * {@link EventAttendeeResponse#WAITING} which asks for the same, is decided
+   * date by date: stored as a Yes over the dates with a seat free or already
+   * held, and as {@link EventAttendeeResponse#WAITING} over the others, one
+   * attendee row per run of dates with the same outcome. The answer reaches
+   * the row of each date individually modified the user attends, from the
+   * date answered from; on the row of one that is over, it is stored as with
+   * no limit, a {@link EventAttendeeResponse#WAITING} asked becoming a Yes:
+   * no seat is decided there.
+   *
+   * @param eventId Technical identifier of the series
+   * @param occurrenceId occurrence id of the date the answer starts from
+   * @param identityId {@link Identity} technical identifier of user
+   * @param response User response of type {@link EventAttendeeResponse} to the
+   *          event. The value {@link EventAttendeeResponse#NEEDS_ACTION} isn't
+   *          allowed.
+   * @param broadcast whether the answer is reported as sent by the user
+   * @return the answer stored at the date answered, and the first date it left
+   *         waiting
+   * @throws ObjectNotFoundException when event with provided identifier doesn't
+   *           exists
+   * @throws IllegalAccessException when the user may not answer the event: not
+   *           an attendee, and the event isn't open to them (see
+   *           {@link #canRespondToEvent(Event, long)})
+   */
+  EventResponseOutcome sendUpcomingEventResponse(long eventId,
+                                                 ZonedDateTime occurrenceId,
+                                                 long identityId,
+                                                 EventAttendeeResponse response,
+                                                 boolean broadcast) throws ObjectNotFoundException, IllegalAccessException;
+
+  /**
+   * Reads a user's answer to an event as a whole. On a series, where a user
+   * may hold several rows, each over a range of its dates, it is the answer
+   * valid at the next date the series carries, the first that is neither
+   * cancelled nor over; when none remains, at the last date it carries; when
+   * every date is cancelled, at the last date its rule produces. Validity is
+   * judged on the date's occurrence id. On an event of no series, it is the
+   * user's row.
+   * <p>
+   * It reads the stored answer and checks no right: the caller checks the
+   * right to read the event.
+   *
+   * @param seriesId Technical identifier of the series, or of the event
+   * @param identityId {@link Identity} technical identifier of user
+   * @return the answer, {@link EventAttendeeResponse#NEEDS_ACTION} when the
+   *         user holds none at that date
+   * @throws ObjectNotFoundException when event with provided identifier doesn't
+   *           exists
+   */
+  EventAttendeeResponse getSeriesResponse(long seriesId, long identityId) throws ObjectNotFoundException;
+
+  /**
+   * Reads the user's row {@link #getSeriesResponse(long, long)} reads the
+   * answer of: on a series, the row valid at the date its answer is read at,
+   * else, when the user's rows all lie elsewhere, a copy of their first row
+   * answering {@link EventAttendeeResponse#NEEDS_ACTION} with no answer date;
+   * on an event of no series, the user's row. It checks no right.
+   *
+   * @param seriesId Technical identifier of the series, or of the event
+   * @param identityId {@link Identity} technical identifier of user
+   * @return the row, null when the user holds none on the event
+   * @throws ObjectNotFoundException when event with provided identifier doesn't
+   *           exists
+   */
+  EventAttendee getSeriesAttendee(long seriesId, long identityId) throws ObjectNotFoundException;
+
+  /**
+   * Reads the attendees of an event as a whole, each once: on a series, every
+   * attendee's row as {@link #getSeriesAttendee(long, long)} reads it, an
+   * attendee with no row valid at the date its answers are read at being
+   * listed as answering {@link EventAttendeeResponse#NEEDS_ACTION}; on an
+   * event of no series, its rows. It checks no right.
+   *
+   * @param seriesId Technical identifier of the series, or of the event
+   * @return the rows, in the order the attendees' rows are stored
+   * @throws ObjectNotFoundException when event with provided identifier doesn't
+   *           exists
+   */
+  List<EventAttendee> getSeriesAttendees(long seriesId) throws ObjectNotFoundException;
+
+  /**
+   * Counts the seats of one date of an event: on a date with its own row, or
+   * on an event of no series, every row of it; on a date of a series with no
+   * row of its own, the series' rows valid at that date. With no date on a
+   * series, the date its answers are read at (see
+   * {@link #getSeriesResponse(long, long)}). It checks no right.
+   *
+   * @param eventId Technical identifier of the event, of a series, or of the
+   *          row of one of its dates
+   * @param occurrenceId the occurrence id of a date of the series, or null
+   * @param identityId {@link Identity} technical identifier of the user whose
+   *          rank on the waiting list is read, 0 for none
+   * @return the counts at the date, with the user's rank when they wait there
+   * @throws ObjectNotFoundException when event with provided identifier doesn't
+   *           exists
+   */
+  EventSeatCounts getSeatCounts(long eventId, ZonedDateTime occurrenceId, long identityId) throws ObjectNotFoundException;
+
+  /**
+   * Exports the participant list of one date of an event as a CSV file, the
+   * rows the participants drawer shows for that date, in its order.
+   * <ul>
+   * <li>The date's list: on a date with its own row, that row's attendees; on
+   * a date of a series with no row of its own, the series' attendees valid at
+   * that date; with no date on a series, its attendees as a whole (see
+   * {@link #getSeriesAttendees(long)}); on an event of no series, its
+   * attendees.</li>
+   * <li>The order: the event's creator first, then by name in the collation
+   * of the locale, the waiting list last in the order its people asked.</li>
+   * <li>One row per attendee, with their name, their email and their answer.
+   * A space invited as a whole is named after the space, has no email and
+   * answers No answer; an external guest is named after their address. The
+   * email column exists only while the platform displays the email profile
+   * property, and a user who hid theirs reads Hidden there.</li>
+   * <li>The header and the answers are labelled in the locale; every cell is
+   * quoted, and a cell starting with a character a spreadsheet would read as
+   * a formula is neutralised.</li>
+   * <li>The file is named after the day of the export in the zone and the
+   * event's title.</li>
+   * </ul>
+   *
+   * @param eventId Technical identifier of the event, of a series, or of the
+   *          row of one of its dates
+   * @param occurrenceId the occurrence id of a date of the series, or null
+   * @param identityId {@link Identity} technical identifier of the user who
+   *          exports, who must be allowed to update the date served (see
+   *          {@code AgendaEventService#canUpdateEvent})
+   * @param locale the user's locale, labelling the header and the answers
+   * @param zoneId the user's time zone, dating the file name
+   * @return the file
+   * @throws ObjectNotFoundException when the event doesn't exist, or the date
+   *           was cancelled
+   * @throws IllegalAccessException when the user may not update the date
+   *           served
+   * @throws IllegalArgumentException with the message
+   *           {@code agenda.export.datePoll} when the event is a date poll
+   */
+  EventAttendeesExport exportEventAttendees(long eventId,
+                                            ZonedDateTime occurrenceId,
+                                            long identityId,
+                                            Locale locale,
+                                            ZoneId zoneId) throws ObjectNotFoundException, IllegalAccessException;
+
+  /**
    * @param eventId Technical identifier of {@link Event}
    * @param identityId {@link Identity} technical identifier of user
    * @param response User response of type {@link EventAttendeeResponse} to the
@@ -239,6 +391,60 @@ public interface AgendaEventAttendeeService {
                                 long identityId,
                                 EventAttendeeResponse response,
                                 boolean broadcast) throws ObjectNotFoundException, IllegalAccessException;
+
+  /**
+   * Sends an event response for one date of a series, or for the whole event
+   * when no date is given. The date's own row is found, or created as a copy
+   * of the series when the date has none, under the lock of the series, then
+   * answered: a caller never creates the row itself before answering.
+   * <p>
+   * On an event with a capacity limit, a Yes, or
+   * {@link EventAttendeeResponse#WAITING} which asks for the same, is stored
+   * as a Yes when a seat is free at the date or the attendee already holds
+   * one, and as {@link EventAttendeeResponse#WAITING} otherwise. An answer to
+   * every date of a series reaches the row of each date individually modified
+   * the user attends; on the row of one that is over, it is stored as with no
+   * limit, a {@link EventAttendeeResponse#WAITING} asked becoming a Yes: no
+   * seat is decided there.
+   *
+   * @param eventId Technical identifier of the series, or of the event when
+   *          no date is given
+   * @param occurrenceId occurrence id of the date answered, null to answer
+   *          every date of the event
+   * @param identityId {@link Identity} technical identifier of user
+   * @param response User response of type {@link EventAttendeeResponse} to the
+   *          event. The value {@link EventAttendeeResponse#NEEDS_ACTION} isn't
+   *          allowed.
+   * @param broadcast whether the answer is reported as sent by the user
+   * @return the answer stored, and the first date it left waiting
+   * @throws ObjectNotFoundException when event with provided identifier doesn't
+   *           exists
+   * @throws IllegalAccessException when the user may not answer the event: not
+   *           an attendee, and the event isn't open to them (see
+   *           {@link #canRespondToEvent(Event, long)})
+   */
+  EventResponseOutcome sendEventResponse(long eventId,
+                                         ZonedDateTime occurrenceId,
+                                         long identityId,
+                                         EventAttendeeResponse response,
+                                         boolean broadcast) throws ObjectNotFoundException, IllegalAccessException;
+
+  /**
+   * Starts every answer of an event over, as a change of its dates does: each
+   * attendee's answer becomes {@link EventAttendeeResponse#NEEDS_ACTION}, a
+   * place on the waiting list included, on the event and, for a series, on
+   * the rows of its dates. A reset frees no seat: nobody is promoted, and no
+   * answer is reported as sent by its attendee. The pools forget that they
+   * reached their capacity, and so does the series through which a date
+   * holding the series' limit reports.
+   *
+   * @param eventId Technical identifier of {@link Event}
+   * @param keptIdentityIds identities whose answer is kept, typically the
+   *          user who made the change
+   * @throws ObjectNotFoundException when event with provided identifier doesn't
+   *           exists
+   */
+  void resetEventResponses(long eventId, Set<Long> keptIdentityIds) throws ObjectNotFoundException;
 
   /**
    * Checks whether the user is an attendee of the event or not
@@ -268,5 +474,31 @@ public interface AgendaEventAttendeeService {
    *         false
    */
   boolean canRespondToEvent(Event event, long identityId);
+
+  /**
+   * Resolves an e-mail address typed to invite someone to the platform user
+   * whose address it is: such a person is invited as themselves, never as a
+   * guest from outside the platform (eXIP 7.3.0.21, US06). Only an address the
+   * platform displays resolves: none when the platform displays no e-mail
+   * address, or when that user hid theirs, so that the lookup never tells who
+   * owns an address the platform keeps private. Nor for a caller who is an
+   * external user, whom the platform's people search tells no user beyond
+   * their connections.
+   *
+   * @param email an e-mail address, looked up as given and in lower case,
+   *          each compared as the database collation compares, ignoring case
+   *          or not; one holding a star never resolves
+   * @param callerIdentityId the {@link Identity} technical identifier of the
+   *          user who typed the address
+   * @return the {@link Identity} of the enabled user whose e-mail address it
+   *         is, or null when there is none, or when the caller is an external
+   *         user or no known identity
+   * @throws IllegalStateException when the user directory cannot be read: the
+   *           address is then neither a user nor a person from outside the
+   *           platform. The platform's directory also answers so for an
+   *           address two of its accounts hold, which its lookup by a unique
+   *           attribute refuses
+   */
+  Identity getUserIdentityByEmail(String email, long callerIdentityId);
 
 }

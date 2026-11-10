@@ -77,4 +77,22 @@ public class AgendaEventModel {
   @JsonProperty("is_open")
   private Boolean                        open;
 
+  // On a read of one event: the number of seats of an event with a capacity
+  // limit, omitted when it has none; a Yes given once every seat is taken
+  // joins the waiting list
+  private Integer                        capacity;
+
+  // On a read of one event: the Yes answers holding a seat on the date it shows
+  @JsonProperty("accepted_count")
+  private Integer                        acceptedCount;
+
+  // On a read of one event: the people on the waiting list of that date
+  @JsonProperty("waiting_count")
+  private Integer                        waitingCount;
+
+  // On a read of one event: the current user's place on that waiting list,
+  // omitted when they are not on it
+  @JsonProperty("waiting_list_position")
+  private Integer                        waitingListPosition;
+
 }

@@ -26,7 +26,9 @@ extensionRegistry.registerExtension('WebNotification', 'notification-group-exten
     'VoteNotificationPlugin',
     'EventReplyNotificationPlugin',
     'EventReminderNotificationPlugin',
-    'CalendarSharedNotificationPlugin'
+    'CalendarSharedNotificationPlugin',
+    'EventParticipationConfirmedNotificationPlugin',
+    'EventCapacityReachedNotificationPlugin'
   ],
   icon: 'fa-calendar',
 });
@@ -70,4 +72,16 @@ extensionRegistry.registerExtension('WebNotification', 'notification-content-ext
   type: 'CalendarSharedNotificationPlugin',
   rank: 10,
   vueComponent: Vue.options.components['user-notification-calendar-shared'],
+});
+
+extensionRegistry.registerExtension('WebNotification', 'notification-content-extension', {
+  type: 'EventParticipationConfirmedNotificationPlugin',
+  rank: 10,
+  vueComponent: Vue.options.components['user-notification-event-participation-confirmed'],
+});
+
+extensionRegistry.registerExtension('WebNotification', 'notification-content-extension', {
+  type: 'EventCapacityReachedNotificationPlugin',
+  rank: 10,
+  vueComponent: Vue.options.components['user-notification-event-capacity-reached'],
 });

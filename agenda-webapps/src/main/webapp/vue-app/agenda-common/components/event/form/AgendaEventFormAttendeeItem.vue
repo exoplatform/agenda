@@ -1,5 +1,5 @@
 <template>
-  <v-list-item class="px-0">
+  <v-list-item class="event-participant-item px-0">
     <v-list-item-avatar
       :tile="isSpace"
       :class="isSpace && 'rounded'"
@@ -30,7 +30,7 @@
         v-if="attendee.response"
         size="20"
         :color="responseColor"
-        :class="['me-1', responseColorClass]"
+        :class="['participant-response', responseStateClass, 'me-1', responseColorClass]"
         :title="responseLabel">
         {{ responseIcon }}
       </v-icon>
@@ -38,6 +38,7 @@
         v-if="editable"
         :disabled="isOwner"
         :title="isOwner ? $t('agenda.tooltip.cannotRemoveOwner') : $t('agenda.tooltip.removeParticipant')"
+        class="remove-participant-button"
         icon
         small
         @click="!isOwner && $emit('remove-attendee', attendee)">
@@ -107,6 +108,7 @@ export default {
       case 'ACCEPTED': return null;
       case 'TENTATIVE': return null;
       case 'DECLINED': return null;
+      case 'WAITING': return null;
       default: return 'grey';
       }
     },
@@ -115,14 +117,19 @@ export default {
       case 'ACCEPTED': return 'success-color';
       case 'TENTATIVE': return 'primary--text';
       case 'DECLINED': return 'error-color';
+      case 'WAITING': return 'warning--text';
       default: return null;
       }
+    },
+    responseStateClass() {
+      return `participant-response-${this.attendee.response.toLowerCase().replace('_', '-')}`;
     },
     responseLabel() {
       switch (this.attendee.response) {
       case 'ACCEPTED': return this.$t('agenda.attendee.title.accepted');
       case 'TENTATIVE': return this.$t('agenda.attendee.title.tentative');
       case 'DECLINED': return this.$t('agenda.attendee.title.declined');
+      case 'WAITING': return this.$t('agenda.attendee.title.waiting');
       default: return this.$t('agenda.attendee.title.needs.action');
       }
     },

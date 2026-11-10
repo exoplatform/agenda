@@ -94,8 +94,11 @@ public class RestEntityBuilder {
       ZonedDateTime untilDate = AgendaDateUtils.parseRFC3339ToZonedDateTime(recurrenceEntity.getUntil(),
                                                                             eventZoneId,
                                                                             false);
+      // The last day of the series is the day of its last second in the zone
+      // the client wrote it in, as a read writes it: the day it falls on in
+      // UTC is the next one, west of UTC
       recurrence = new EventRecurrence(recurrenceEntity.getId(),
-                                       untilDate == null ? null : untilDate.withZoneSameInstant(ZoneOffset.UTC).toLocalDate(),
+                                       untilDate == null ? null : untilDate.toLocalDate(),
                                        recurrenceEntity.getCount(),
                                        recurrenceEntity.getType(),
                                        recurrenceEntity.getFrequency(),
@@ -155,7 +158,11 @@ public class RestEntityBuilder {
                      eventEntity.getParameters(),
                      false,
                      null,
-                     eventEntity.getOpen());
+                     eventEntity.getOpen(),
+                     // null when the client did not state it, which keeps the
+                     // stored limit; the reached date is the server's own
+                     eventEntity.getCapacity(),
+                     null);
   }
 
   public static EventDateOption toEventDateOption(EventDateOptionEntity dateOptionEntity, ZoneId userTimeZone) {
@@ -213,7 +220,8 @@ public class RestEntityBuilder {
   public static final EventAttendeeEntity fromEventAttendee(IdentityManager identityManager, EventAttendee eventAttendee) {
     return new EventAttendeeEntity(eventAttendee.getId(),
                                    getIdentityEntity(identityManager, eventAttendee.getIdentityId()),
-                                   eventAttendee.getResponse());
+                                   eventAttendee.getResponse(),
+                                   AgendaDateUtils.toRFC3339Date(eventAttendee.getResponseDate()));
   }
 
   public static EventDateOptionEntity fromEventDateOption(ZoneId userTimeZone, EventDateOption dateOption) {
@@ -381,7 +389,14 @@ public class RestEntityBuilder {
                              false,
                              event.isMasked(),
                              // never null on read
-                             Boolean.TRUE.equals(open));
+                             Boolean.TRUE.equals(open),
+                             // the displayed date's pool: its own row's when
+                             // stored, its series' for a computed occurrence;
+                             // the counts are not computed here and stay 0
+                             effectiveCapacity(parentEvent, event),
+                             0,
+                             0,
+                             null);
     }
   }
 
@@ -421,6 +436,22 @@ public class RestEntityBuilder {
    */
   static Boolean effectiveOpen(EventEntity parentEvent, Event event) {
     return event.getId() > 0 || parentEvent == null ? event.getOpen() : parentEvent.getOpen();
+  }
+
+  /**
+   * The capacity limit an event reads as, by the same rule as
+   * {@link #effectiveOpen}: each stored row is its own pool, and a computed
+   * occurrence, which has no row, shows its series' limit. Never null, 0
+   * meaning no limit.
+   *
+   * @param parentEvent the parent entity already built for an occurrence,
+   *          null for a standalone event
+   * @param event the event being put on the wire
+   * @return the limit, 0 when none
+   */
+  static int effectiveCapacity(EventEntity parentEvent, Event event) {
+    Integer capacity = event.getId() > 0 || parentEvent == null ? event.getCapacity() : parentEvent.getCapacity();
+    return capacity == null ? 0 : capacity;
   }
 
   private static CalendarEntity getCalendarEntity(AgendaCalendarService agendaCalendarService,

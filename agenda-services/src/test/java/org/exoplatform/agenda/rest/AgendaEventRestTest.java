@@ -17,24 +17,32 @@
 package org.exoplatform.agenda.rest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.ListResourceBundle;
+import java.util.ResourceBundle;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.model.EventResponseOutcome;
+import org.exoplatform.agenda.rest.model.EventResponseOutcomeEntity;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.service.AgendaEventConferenceService;
@@ -42,14 +50,18 @@ import org.exoplatform.agenda.service.AgendaEventDatePollService;
 import org.exoplatform.agenda.service.AgendaEventReminderService;
 import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.agenda.service.AgendaRemoteEventService;
+import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
+import org.exoplatform.services.resources.ResourceBundleService;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.services.security.ConversationState;
+import org.exoplatform.services.security.IdentityConstants;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.manager.IdentityManager;
 
 import org.exoplatform.services.rest.impl.MultivaluedMapImpl;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
@@ -127,7 +139,7 @@ class AgendaEventRestTest {
     when(agendaEventService.getEventById(eq(EVENT_ID), any(), anyLong())).thenReturn(new Event());
     Mockito.doThrow(new IllegalAccessException("not allowed"))
            .when(agendaEventService)
-           .updateEventFields(eq(EVENT_ID), any(), anyBoolean(), anyBoolean(), anyLong());
+           .updateEventFields(eq(EVENT_ID), any(), anyBoolean(), anyBoolean(), anyBoolean(), anyLong());
 
     Response response = patch(fields("open", "true"));
 
@@ -139,12 +151,22 @@ class AgendaEventRestTest {
     when(agendaEventService.getEventById(eq(EVENT_ID), any(), anyLong())).thenReturn(new Event());
     Mockito.doThrow(new IllegalArgumentException("agenda.openEvent.notAllowed"))
            .when(agendaEventService)
-           .updateEventFields(eq(EVENT_ID), any(), anyBoolean(), anyBoolean(), anyLong());
+           .updateEventFields(eq(EVENT_ID), any(), anyBoolean(), anyBoolean(), anyBoolean(), anyLong());
 
     Response response = patch(fields("open", "true"));
 
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
     assertEquals("agenda.openEvent.notAllowed", response.getEntity());
+  }
+
+  @Test
+  void aPatchCarriesTheClosingConfirmationToTheService() throws Exception {
+    when(agendaEventService.getEventById(eq(EVENT_ID), any(), anyLong())).thenReturn(new Event());
+
+    eventRest.updateEventFields(EVENT_ID, false, false, null, true, fields("open", "false"));
+
+    Mockito.verify(agendaEventService)
+           .updateEventFields(eq(EVENT_ID), any(), eq(false), eq(false), eq(true), eq(USER_IDENTITY_ID));
   }
 
   @Test
@@ -169,11 +191,73 @@ class AgendaEventRestTest {
     when(agendaEventService.getEventById(EVENT_ID)).thenReturn(event);
     when(attendeeService.canRespondToEvent(event, USER_IDENTITY_ID)).thenReturn(true);
     // isEventAttendee stays unstubbed, false: the caller is a self-registrant
+    when(attendeeService.sendEventResponse(EVENT_ID, null, USER_IDENTITY_ID, EventAttendeeResponse.ACCEPTED, true))
+      .thenReturn(new EventResponseOutcome(EventAttendeeResponse.ACCEPTED, null));
 
     Response response = eventRest.sendEventResponse(null, EVENT_ID, null, "ACCEPTED", false, null, false);
 
-    assertEquals(Response.Status.NO_CONTENT.getStatusCode(), response.getStatus());
-    Mockito.verify(attendeeService).sendEventResponse(EVENT_ID, USER_IDENTITY_ID, EventAttendeeResponse.ACCEPTED);
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals(MediaType.APPLICATION_JSON, String.valueOf(response.getMetadata().getFirst("Content-Type")));
+    assertEquals(new EventResponseOutcomeEntity(EventAttendeeResponse.ACCEPTED, null), response.getEntity());
+  }
+
+  /**
+   * An answer from a date on returns the answer stored at that date, which is
+   * not always the one sent (a place on the waiting list asked for is a seat
+   * where one is free), and the first date it left waiting, in RFC 3339.
+   */
+  @Test
+  void anAnswerFromADateReturnsTheAnswerStoredAndTheFirstDateItLeftWaiting() throws Exception {
+    Event event = new Event();
+    when(agendaEventService.getEventById(EVENT_ID)).thenReturn(event);
+    when(attendeeService.canRespondToEvent(event, USER_IDENTITY_ID)).thenReturn(true);
+    ZonedDateTime date = ZonedDateTime.of(2026, 9, 18, 8, 0, 0, 0, ZoneOffset.UTC);
+    when(attendeeService.sendUpcomingEventResponse(EVENT_ID, date, USER_IDENTITY_ID, EventAttendeeResponse.WAITING, true))
+      .thenReturn(new EventResponseOutcome(EventAttendeeResponse.ACCEPTED, date.plusDays(2)));
+
+    Response response = eventRest.sendEventResponse(null, EVENT_ID, "2026-09-18T08:00:00.000Z", "WAITING", true, null, false);
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals(new EventResponseOutcomeEntity(EventAttendeeResponse.ACCEPTED, "2026-09-20T08:00:00.000Z"),
+                 response.getEntity());
+  }
+
+  /**
+   * An external attendee following a Yes link on a full date is told the
+   * answer stored, a place on the waiting list, not the Yes they clicked.
+   */
+  @Test
+  void aGuestWhoseYesWaitsIsToldSo() throws Exception {
+    ConversationState.setCurrent(new ConversationState(new org.exoplatform.services.security.Identity(IdentityConstants.ANONIM)));
+    Identity guest = Mockito.mock(Identity.class);
+    when(guest.getId()).thenReturn(String.valueOf(USER_IDENTITY_ID));
+    when(attendeeService.decryptUserIdentity(EVENT_ID, "token", EventAttendeeResponse.ACCEPTED)).thenReturn(guest);
+    Event event = new Event();
+    when(agendaEventService.getEventById(EVENT_ID)).thenReturn(event);
+    when(attendeeService.canRespondToEvent(event, USER_IDENTITY_ID)).thenReturn(true);
+    when(attendeeService.sendEventResponse(EVENT_ID, null, USER_IDENTITY_ID, EventAttendeeResponse.ACCEPTED, true))
+      .thenReturn(new EventResponseOutcome(EventAttendeeResponse.WAITING, null));
+
+    ResourceBundle bundle = new ListResourceBundle() {
+      @Override
+      protected Object[][] getContents() {
+        return new Object[][] { { "agenda.guestResponse.recorded", "Your answer has been recorded: {0}" },
+            { "agenda.accepted", "Accepted" }, { "agenda.waiting", "Waiting list" } };
+      }
+    };
+    ResourceBundleService bundles = Mockito.mock(ResourceBundleService.class);
+    when(bundles.getSharedResourceBundleNames()).thenReturn(new String[0]);
+    when(bundles.getResourceBundle(any(String[].class), any())).thenReturn(bundle);
+    Response response;
+    try (MockedStatic<ExoContainerContext> container = Mockito.mockStatic(ExoContainerContext.class)) {
+      container.when(() -> ExoContainerContext.getService(ResourceBundleService.class)).thenReturn(bundles);
+      response = eventRest.sendEventResponse(null, EVENT_ID, null, "ACCEPTED", false, "token", true);
+    }
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals(MediaType.TEXT_HTML, String.valueOf(response.getMetadata().getFirst("Content-Type")));
+    String page = String.valueOf(response.getEntity());
+    assertTrue(page.contains("Your answer has been recorded: Waiting list"), page);
   }
 
   @Test
@@ -188,6 +272,32 @@ class AgendaEventRestTest {
     assertEquals("Not allowed to answer this event", response.getEntity());
     Mockito.verify(agendaEventService, Mockito.never()).saveEventExceptionalOccurrence(anyLong(), any());
     Mockito.verify(attendeeService, Mockito.never()).sendEventResponse(anyLong(), anyLong(), any());
+    Mockito.verify(attendeeService, Mockito.never()).sendEventResponse(anyLong(), any(), anyLong(), any(), anyBoolean());
+  }
+
+  /**
+   * An answer to one date of a series goes to the Service with the date, a
+   * place on the waiting list included, which asks for a seat as a Yes does:
+   * the Service finds or creates the date's row under the lock of the
+   * series, and the endpoint writes no row itself.
+   */
+  @Test
+  void anAnswerToOneDateIsSentWithItsDateAndWritesNoRowHere() throws Exception {
+    Event event = new Event();
+    when(agendaEventService.getEventById(EVENT_ID)).thenReturn(event);
+    when(attendeeService.canRespondToEvent(event, USER_IDENTITY_ID)).thenReturn(true);
+    when(attendeeService.sendEventResponse(EVENT_ID,
+                                           ZonedDateTime.of(2026, 9, 18, 8, 0, 0, 0, ZoneOffset.UTC),
+                                           USER_IDENTITY_ID,
+                                           EventAttendeeResponse.WAITING,
+                                           true))
+      .thenReturn(new EventResponseOutcome(EventAttendeeResponse.WAITING, null));
+
+    Response response = eventRest.sendEventResponse(null, EVENT_ID, "2026-09-18T08:00:00.000Z", "WAITING", false, null, false);
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    assertEquals(new EventResponseOutcomeEntity(EventAttendeeResponse.WAITING, null), response.getEntity());
+    Mockito.verify(agendaEventService, Mockito.never()).saveEventExceptionalOccurrence(anyLong(), any());
   }
 
   @Test
@@ -251,7 +361,7 @@ class AgendaEventRestTest {
   }
 
   private Response patch(MultivaluedMap<String, String> fields) {
-    return eventRest.updateEventFields(EVENT_ID, false, false, null, fields);
+    return eventRest.updateEventFields(EVENT_ID, false, false, null, false, fields);
   }
 
   private MultivaluedMap<String, String> fields(String name, String value) {

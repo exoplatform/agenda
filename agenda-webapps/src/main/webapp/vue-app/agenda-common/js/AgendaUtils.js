@@ -249,6 +249,124 @@ export function toDate(date) {
     return new Date(date);
   }
 }
+
+/**
+ * @param {String} day a day as the server names it, yyyy-MM-dd
+ * @returns {String} that day as the user reads it, in the portal's language
+ */
+export function formatDay(day) {
+  return toDate(day).toLocaleDateString(eXo.env.portal.language, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+/**
+ * Says that an answer for several dates of a series got a seat on some of
+ * them only, and offers to open the first date where it waits (US02). An
+ * answer that got every seat it asked for says nothing.
+ *
+ * @param {Object} vm the component that answered, passed in for its
+ *        translations and its root: this module has no Vue prototype
+ * @param {Number} seriesId the series answered
+ * @param {String} firstWaitingOccurrenceId the first date the answer waits
+ *        for, if any
+ * @returns {void}
+ */
+export function announcePartlyWaiting(vm, seriesId, firstWaitingOccurrenceId) {
+  if (!firstWaitingOccurrenceId) {
+    return;
+  }
+  document.dispatchEvent(new CustomEvent('alert-message', {detail: {
+    alertType: 'info',
+    alertMessage: vm.$t('agenda.capacity.partlyWaiting'),
+    alertLinkText: vm.$t('agenda.capacity.view'),
+    alertLinkCallback: () => vm.$root.$emit('agenda-event-details', {
+      parent: {id: seriesId},
+      occurrence: {id: firstWaitingOccurrenceId},
+    }),
+  }}));
+}
+
+// One step above the platform stacking scale, whose planes are named in
+// platform-ui: drawer 1035, modal backdrop 1040, modal 1050, snackbar 1060 —
+// the plane a drawer takes when it opens over a dialog, as the participants
+// drawer does over the event's page. A blocking question is painted over all
+// of them, on two planes: its veil, then the question itself.
+//
+// Why a fixed plane rather than the skin rule meant to do this: that rule reads
+// `z-index: var(--allPagesZindexModal, 1050) !important` and, where the custom
+// property is declared EMPTY, a var() does not fall back — the substitution is
+// invalid at computed-value time and the whole declaration is dropped,
+// !important included: the popup then keeps z-index 3 while its own veil is
+// painted over it. Measuring the screen at open time is no alternative:
+// Vuetify writes that veil's plane in a requestAnimationFrame, so there is
+// nothing to measure when the popup opens.
+const ABOVE_STACKING_SCALE = 1070;
+
+/**
+ * Paints a popup and its veil above the platform stacking scale, once it is
+ * open: the popup on its plane and its veil on the plane below, so that
+ * nothing behind the popup takes a click until it is answered, neither the
+ * drawer it is asked from nor a message whose link shows another event.
+ *
+ * No CSS rule can do it: content-class lands on the inner .v-dialog while the
+ * z-index sits on .v-dialog__content, which carries no class of ours, and the
+ * skin pins an active veil to the modal backdrop plane with important. An
+ * inline value with important is the one step above a skin rule.
+ *
+ * The veil is raised in the frame after the opening: Vuetify creates it when
+ * the popup opens and writes its plane in a requestAnimationFrame, which runs
+ * before this one. lowerToSkin gives it back to the skin when the popup
+ * closes: a veil no longer active lets clicks through while it fades out,
+ * then Vuetify removes it.
+ *
+ * Known limit: Vuetify keeps the focus in a dialog only while the plane it
+ * computed at the opening is the highest on the screen, and this plane is
+ * higher. Raised over the event's page, the popup lets a keyboard user Tab
+ * out to the drawer behind it and to the link of a message.
+ *
+ * @param {Object} dialog the v-dialog of the popup
+ * @param {Number} step how many levels above the scale, two planes each (the
+ *        veil, then the popup): one for a question that can be asked from
+ *        another raised one, else none
+ * @returns {void}
+ */
+export function raiseAboveOverlays(dialog, step) {
+  const content = dialog && dialog.$refs.content;
+  if (!content) {
+    return;
+  }
+  const veilPlane = ABOVE_STACKING_SCALE + 2 * (step || 0);
+  content.style.setProperty('z-index', String(veilPlane + 1), 'important');
+  window.requestAnimationFrame(() => {
+    const veil = dialog.isActive && dialog.overlay && dialog.overlay.$el;
+    if (veil) {
+      veil.style.setProperty('z-index', String(veilPlane), 'important');
+    }
+  });
+}
+
+/**
+ * Gives a popup raised by raiseAboveOverlays back to the skin, with its veil:
+ * the next opening raises them again, and a value left behind would outlive
+ * the reason for it. The veil fading out goes back under the drawers at once,
+ * so that it does not dim a question opened or still open there.
+ *
+ * @param {Object} dialog the v-dialog of the popup
+ * @returns {void}
+ */
+export function lowerToSkin(dialog) {
+  const content = dialog && dialog.$refs.content;
+  if (content) {
+    content.style.removeProperty('z-index');
+  }
+  const veil = dialog && dialog.overlay && dialog.overlay.$el;
+  if (veil) {
+    veil.style.removeProperty('z-index');
+  }
+}
 export function convertDates(event) {
   event.startDate = event.start && toDate(event.start) || null;
   event.endDate = event.end && toDate(event.end) || null;
@@ -355,6 +473,18 @@ export function getSameTime(dateToChange, dateWithTime) {
   dateToChange.setMinutes(dateWithTime.getMinutes());
   dateToChange.setSeconds(dateWithTime.getSeconds());
   return returnDate && dateToChange || toRFC3339(dateToChange);
+}
+
+/**
+ * @param {Date} firstDate a date
+ * @param {Date} secondDate another date
+ * @returns {Number} the number of days from the day of the first date to the
+ *          day of the second, both read in the browser's zone
+ */
+export function daysBetween(firstDate, secondDate) {
+  const firstDay = Date.UTC(firstDate.getFullYear(), firstDate.getMonth(), firstDate.getDate());
+  const secondDay = Date.UTC(secondDate.getFullYear(), secondDate.getMonth(), secondDate.getDate());
+  return Math.round((secondDay - firstDay) / 86400000);
 }
 
 export function areDatesOnSameDay(firstDate, secondDate) {
@@ -804,6 +934,64 @@ export function participantKey(attendee) {
     return `${identity.providerId}:${identity.remoteId}`;
   }
   return identity.id && String(identity.id) || '';
+}
+
+/**
+ * @param {Object} event an event a page or a drawer shows
+ * @returns {String} what identifies it across the reads of its page: a date
+ *          of a series by its series and its date, since its row id appears
+ *          once the date is first answered. An all-day date by its day only:
+ *          computed on a zone's skipped midnight, it and the row it gets
+ *          differ by the hour, which the server ignores too. A timed date
+ *          keeps its instant, as its row does
+ */
+export function eventKey(event) {
+  if (!event.parent || !event.occurrence || !event.occurrence.id) {
+    return `${event.id}`;
+  }
+  const date = String(event.occurrence.id);
+  return `${event.parent.id}@${event.allDay ? date.slice(0, 10) : date}`;
+}
+
+/**
+ * What a host did to a participant list, as a delta rather than the list
+ * itself: a wider scope applies it to a list the host did not edit, the
+ * series' own, which may hold people the edited list does not.
+ *
+ * @param {Array} before the list as the host opened it
+ * @param {Array} after the list as the host leaves it
+ * @returns {Object} the attendees added and the participant keys removed
+ */
+export function attendeesDelta(before, after) {
+  const beforeKeys = (before || []).map(attendee => participantKey(attendee));
+  const afterKeys = (after || []).map(attendee => participantKey(attendee));
+  return {
+    added: (after || []).filter(attendee => !beforeKeys.includes(participantKey(attendee))),
+    removedParticipantKeys: beforeKeys.filter(key => !afterKeys.includes(key)),
+  };
+}
+
+/**
+ * Applies a host's participant change to another list, adding whoever was
+ * added and removing whoever was removed, and leaving everyone else where they
+ * are.
+ *
+ * @param {Array} attendees the list the change applies to
+ * @param {Object} delta what the host did to its own list, see attendeesDelta
+ * @returns {Array} the list changed
+ */
+export function withAttendeesDelta(attendees, delta) {
+  const removedKeys = delta && delta.removedParticipantKeys || [];
+  const kept = (attendees || []).filter(attendee => !removedKeys.includes(participantKey(attendee)));
+  const presentKeys = kept.map(attendee => participantKey(attendee));
+  (delta && delta.added || []).forEach(attendee => {
+    const key = participantKey(attendee);
+    if (!presentKeys.includes(key)) {
+      kept.push(attendee);
+      presentKeys.push(key);
+    }
+  });
+  return kept;
 }
 
 /**

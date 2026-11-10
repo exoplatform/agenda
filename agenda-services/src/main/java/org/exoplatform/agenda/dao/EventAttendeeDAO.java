@@ -28,6 +28,23 @@ import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;
 
 public class EventAttendeeDAO extends GenericDAOJPAImpl<EventAttendeeEntity, Long> {
 
+  /**
+   * Deletes an attendee row and sends the delete at once. A decide step that
+   * replaces an answer deletes a row and inserts one with the same key in its
+   * one transaction: without the flush, the insert would reach the database
+   * first. On an identity column (MySQL) Hibernate sends the insert when the
+   * row is persisted, and on a sequence it sends a flush's inserts before its
+   * deletes.
+   *
+   * @param entity the attendee row to delete
+   */
+  @Override
+  @ExoTransactional
+  public void delete(EventAttendeeEntity entity) {
+    super.delete(entity);
+    getEntityManager().flush();
+  }
+
   @ExoTransactional
   public void deleteCalendarAttendees(long calendarId) {
     Query deleteEventsQuery = getEntityManager().createNamedQuery("AgendaEventAttendee.deleteCalendarAttendees");
@@ -58,6 +75,42 @@ public class EventAttendeeDAO extends GenericDAOJPAImpl<EventAttendeeEntity, Lon
     query.setParameter("eventId", eventId);
     query.setParameter("responses", Arrays.asList(responses));
     List<EventAttendeeEntity> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
+  }
+
+  /**
+   * Reads the rows of an event that have one of the given answers, as scalar
+   * values: no entity is loaded, so the rows a seat decision counts do not
+   * enter the persistence context it writes through.
+   *
+   * @param eventId event identifier
+   * @param responses the answers to read
+   * @return per row: id, identity id, from occurrence id, until occurrence id,
+   *         answer and answer date, in that order
+   */
+  public List<Object[]> getSeatRows(long eventId, EventAttendeeResponse... responses) {
+    TypedQuery<Object[]> query = getEntityManager().createNamedQuery("AgendaEventAttendee.getSeatRows", Object[].class);
+    query.setParameter("eventId", eventId);
+    query.setParameter("responses", Arrays.asList(responses));
+    List<Object[]> resultList = query.getResultList();
+    return resultList == null ? Collections.emptyList() : resultList;
+  }
+
+  /**
+   * Reads the waiting rows of an event in the order they are promoted: the
+   * earliest answer date first, then the lowest id. Every waiting row is
+   * written with its answer date, so none sorts on a null.
+   *
+   * @param eventId event identifier
+   * @return the rows as {@link #getSeatRows(long, EventAttendeeResponse...)}
+   *         returns them
+   */
+  public List<Object[]> getWaitingAttendees(long eventId) {
+    TypedQuery<Object[]> query = getEntityManager().createNamedQuery("AgendaEventAttendee.getWaitingAttendees",
+                                                                     Object[].class);
+    query.setParameter("eventId", eventId);
+    query.setParameter("response", EventAttendeeResponse.WAITING);
+    List<Object[]> resultList = query.getResultList();
     return resultList == null ? Collections.emptyList() : resultList;
   }
 

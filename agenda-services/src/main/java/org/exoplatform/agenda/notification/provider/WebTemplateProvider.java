@@ -34,7 +34,9 @@ import org.exoplatform.container.xml.InitParams;
     @TemplateConfig(pluginId = AGENDA_DATE_POLL_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/push/DatePollPushPlugin.gtmpl"),
     @TemplateConfig(pluginId = AGENDA_VOTE_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/push/VotePushPlugin.gtmpl"),
     @TemplateConfig(pluginId = AGENDA_CALENDAR_SHARED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/push/CalendarSharedPushPlugin.gtmpl"),
-    @TemplateConfig(pluginId = AGENDA_CALENDAR_EDITED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/push/CalendarEditedPushPlugin.gtmpl")}
+    @TemplateConfig(pluginId = AGENDA_CALENDAR_EDITED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/push/CalendarEditedPushPlugin.gtmpl"),
+    @TemplateConfig(pluginId = AGENDA_PARTICIPATION_CONFIRMED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/push/EventParticipationConfirmedPushPlugin.gtmpl"),
+    @TemplateConfig(pluginId = AGENDA_CAPACITY_REACHED_NOTIFICATION_PLUGIN, template = "war:/conf/agenda/templates/notification/push/EventCapacityReachedPushPlugin.gtmpl")}
     )
 public class WebTemplateProvider extends TemplateProvider {
   public WebTemplateProvider(ExoContainer container, InitParams initParams) {
@@ -48,5 +50,8 @@ public class WebTemplateProvider extends TemplateProvider {
     this.templateBuilders.put(EVENT_DATE_VOTE_KEY, new VoteTemplateBuilder(this, container, EVENT_DATE_VOTE_KEY, false));
     this.templateBuilders.put(CALENDAR_SHARED_KEY, new CalendarSharedTemplateBuilder(this, container, CALENDAR_SHARED_KEY, false));
     this.templateBuilders.put(CALENDAR_EDITED_KEY, new CalendarEditedTemplateBuilder(this, container, CALENDAR_EDITED_KEY, false));
+    this.templateBuilders.put(PARTICIPATION_CONFIRMED_KEY,
+                              new ParticipationConfirmedTemplateBuilder(this, container, PARTICIPATION_CONFIRMED_KEY, false, false));
+    this.templateBuilders.put(CAPACITY_REACHED_KEY, new CapacityReachedTemplateBuilder(this, container, CAPACITY_REACHED_KEY, false));
   }
 }

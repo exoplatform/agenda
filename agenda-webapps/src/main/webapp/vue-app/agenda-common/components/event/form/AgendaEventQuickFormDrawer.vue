@@ -387,10 +387,20 @@ export default {
         this.event.end = this.event.endDate || this.$agendaUtils.toRFC3339(new Date());
       }
 
-      this.$eventService.createEvent(this.event)
+      // An address entered (Enter or space) just before the save carries its
+      // participant once the platform answered whose address it is (US06)
+      Promise.resolve(this.$eventService.typedAddressLookupsSettled())
+        .then(() => this.$eventService.createEvent(this.event))
         .then(event => {
           this.$root.$emit('agenda-event-saved', event);
           this.close();
+        })
+        // A failed save is said, as a split's is: by the refusal's own label
+        // when the server names one, else as a save that failed. The drawer
+        // stays open with what was typed
+        .catch(error => {
+          const message = error && error.code && this.$te(error.code) ? this.$t(error.code) : this.$t('agenda.eventSave.error');
+          this.$root.$emit('alert-message', message, 'error');
         })
         .finally(() => {
           this.saving = false;

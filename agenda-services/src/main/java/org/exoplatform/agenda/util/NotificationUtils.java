@@ -5,6 +5,8 @@ import java.net.*;
 import java.nio.charset.Charset;
 import java.time.*;
 import java.util.*;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.stream.Collectors;
 
 import net.fortuna.ical4j.data.CalendarOutputter;
@@ -17,6 +19,7 @@ import net.fortuna.ical4j.util.RandomUidGenerator;
 import net.fortuna.ical4j.util.UidGenerator;
 import org.apache.commons.lang3.LocaleUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
 
 import org.exoplatform.agenda.constant.AgendaEventModificationType;
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
@@ -124,6 +127,38 @@ public class NotificationUtils {
                                                                             new ArgumentLiteral<>(CalendarEditorChange.class,
                                                                                                   "calendar_editor_change");
 
+  /**
+   * Plugin id of "your participation is confirmed", sent to an attendee who
+   * got a seat from the waiting list (EXO-90315).
+   */
+  public static final String                                 AGENDA_PARTICIPATION_CONFIRMED_NOTIFICATION_PLUGIN =
+                                                                                                                "EventParticipationConfirmedNotificationPlugin";
+
+  /** The promotion handed to the participation-confirmed notification (EXO-90315). */
+  public static final ArgumentLiteral<EventAttendeePromotion> EVENT_PROMOTION                               =
+                                                                              new ArgumentLiteral<>(EventAttendeePromotion.class,
+                                                                                                    "event_promotion");
+
+  /**
+   * Plugin id of "your event has reached its capacity limit", sent to the
+   * creator of an event and the managers of its space when an answer fills
+   * its last seat (EXO-90320).
+   */
+  public static final String                                 AGENDA_CAPACITY_REACHED_NOTIFICATION_PLUGIN   =
+                                                                                                           "EventCapacityReachedNotificationPlugin";
+
+  /**
+   * The identifier of the event row whose mark reports a pool of seats that
+   * reached its capacity, handed to the capacity-reached notification
+   * (EXO-90320): a series, for a date it carries or a confirmed stored date
+   * holding its limit and not over; the row of a date whose limit is its
+   * own, of a cancelled date or of a date over; or an event that is not
+   * recurring.
+   */
+  public static final ArgumentLiteral<Long>                  CAPACITY_REACHED_EVENT_ID                     =
+                                                                                       new ArgumentLiteral<>(Long.class,
+                                                                                                             "capacity_reached_event_id");
+
   /** Stored parameter: full name of the colleague who made the change (EXO-90378). */
   public static final String                                 STORED_PARAMETER_MODIFIER_NAME                 = "modifierName";
 
@@ -198,6 +233,14 @@ public class NotificationUtils {
   public static final PluginKey                              CALENDAR_EDITED_KEY                            =
                                                                                  PluginKey.key(AGENDA_CALENDAR_EDITED_NOTIFICATION_PLUGIN);
 
+  /** Plugin key of "your participation is confirmed" (EXO-90315). */
+  public static final PluginKey                              PARTICIPATION_CONFIRMED_KEY                    =
+                                                                                         PluginKey.key(AGENDA_PARTICIPATION_CONFIRMED_NOTIFICATION_PLUGIN);
+
+  /** Plugin key of "your event has reached its capacity limit" (EXO-90320). */
+  public static final PluginKey                              CAPACITY_REACHED_KEY                           =
+                                                                                      PluginKey.key(AGENDA_CAPACITY_REACHED_NOTIFICATION_PLUGIN);
+
   public static final String                                 STORED_PARAMETER_EVENT_TITLE                   = "eventTitle";
 
   public static final String                                 STORED_PARAMETER_EVENT_CALENDAR_NAME           = "calendarName";
@@ -252,6 +295,18 @@ public class NotificationUtils {
 
   public static final String                                STORED_PARAMETER_EVENT_IS_CREATOR = "isCreator";
 
+  /** "true" on an all-day date, whose start and end are then stored as days */
+  public static final String                                 STORED_PARAMETER_EVENT_ALL_DAY                 = "allDay";
+
+  /** The number of dates promoted after the first one */
+  public static final String                                 STORED_PARAMETER_OTHER_DATES                   = "otherDates";
+
+  /** "true" when the dates promoted have no last one */
+  public static final String                                 STORED_PARAMETER_OPEN_ENDED                    = "openEnded";
+
+  /** "true" when the recipient is a guest without an account */
+  public static final String                                 STORED_PARAMETER_IS_GUEST                      = "isGuest";
+
   private static final String                                TEMPLATE_VARIABLE_EVENT_START_DATE             = "startDate";
 
   private static final String                                TEMPLATE_VARIABLE_EVENT_END_DATE               = "endDate";
@@ -280,6 +335,14 @@ public class NotificationUtils {
   private static final String                                TEMPLATE_VARIABLE_EVENT_ATTENDEES              = "attendees";
 
   private static final String                                TEMPLATE_VARIABLE_EVENT_IS_GUEST               = "isGuest";
+
+  private static final String                                TEMPLATE_VARIABLE_PROMOTED_DAY                 = "promotedDay";
+
+  private static final String                                TEMPLATE_VARIABLE_PROMOTED_TIME                = "promotedTime";
+
+  private static final String                                TEMPLATE_VARIABLE_OTHER_DATES                  = "otherDates";
+
+  private static final String                                TEMPLATE_VARIABLE_OPEN_ENDED                   = "openEnded";
 
   /**
    * Name the CalDAV connector registers itself under in a user's connected
@@ -442,6 +505,105 @@ public class NotificationUtils {
     storeCalendarName(notification, calendar);
   }
 
+  /**
+   * Stores what the "Participation confirmation" notification shows: the
+   * event, and on a recurring event the first date promoted, which its links
+   * open, and the number of the other dates promoted.
+   *
+   * @param notification the notification
+   * @param event the event whose row holds the first date promoted: a series,
+   *          the row of one of its dates, or an event that is not recurring
+   * @param date the first date promoted, as served: an occurrence of the
+   *          series, or the event itself
+   * @param occurrenceId the id of that date on a recurring event, null
+   *          otherwise
+   * @param calendar the event's calendar
+   * @param promotion the seats the attendee got
+   * @param guest whether the recipient is a guest without an account
+   */
+  public static final void storeParticipationConfirmedParameters(NotificationInfo notification,
+                                                                 Event event,
+                                                                 Event date,
+                                                                 ZonedDateTime occurrenceId,
+                                                                 Calendar calendar,
+                                                                 EventAttendeePromotion promotion,
+                                                                 boolean guest) {
+    notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
+                .with(STORED_PARAMETER_EVENT_TITLE, event.getSummary())
+                .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
+                .with(STORED_PARAMETER_EVENT_URL, getEventURL(event, occurrenceId))
+                .with(STORED_PARAMETER_WEB_EVENT_URL, getWebEventURL(event, occurrenceId))
+                .with(STORED_PARAMETER_EVENT_ALL_DAY, String.valueOf(date.isAllDay()))
+                .with(STORED_PARAMETER_EVENT_START_DATE, storedDate(date, date.getStart()))
+                .with(STORED_PARAMETER_EVENT_END_DATE, storedDate(date, date.getEnd()))
+                .with(STORED_PARAMETER_OTHER_DATES, String.valueOf(promotion.otherDates()))
+                .with(STORED_PARAMETER_OPEN_ENDED, String.valueOf(promotion.openEnded()))
+                .with(STORED_PARAMETER_IS_GUEST, String.valueOf(guest));
+    if (occurrenceId != null) {
+      notification.with(STORED_PARAMETER_EVENT_OCCURRENCE_ID, AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC));
+    }
+    storeCalendarName(notification, calendar);
+  }
+
+  /**
+   * @return the day of an all-day date, which is the same in every zone, or
+   *         the instant of a timed one
+   */
+  private static String storedDate(Event date, ZonedDateTime value) {
+    return date.isAllDay() ? value.toLocalDate().toString() : AgendaDateUtils.toRFC3339Date(value);
+  }
+
+  /**
+   * Stores what the "Event capacity reached" notification shows: the event
+   * and, on a recurring event, the date that filled up, which its links open.
+   *
+   * @param notification the notification
+   * @param event the event whose mark reports the pool of seats that filled
+   *          up: a series, the row of a date whose limit is its own or that
+   *          is over, or an event that is not recurring
+   * @param occurrenceId the id of the date that filled up on a recurring
+   *          event, null otherwise
+   * @param title the title shown: the date's own when the date that filled
+   *          up is stored with one, else the event's
+   * @param calendar the event's calendar
+   */
+  public static final void storeCapacityReachedParameters(NotificationInfo notification,
+                                                          Event event,
+                                                          ZonedDateTime occurrenceId,
+                                                          String title,
+                                                          Calendar calendar) {
+    notification.with(STORED_PARAMETER_EVENT_ID, String.valueOf(event.getId()))
+                .with(STORED_PARAMETER_EVENT_TITLE, title)
+                .with(STORED_PARAMETER_EVENT_OWNER_ID, String.valueOf(calendar.getOwnerId()))
+                .with(STORED_PARAMETER_EVENT_URL, getEventURL(event, occurrenceId))
+                .with(STORED_PARAMETER_WEB_EVENT_URL, getWebEventURL(event, occurrenceId));
+    if (occurrenceId != null) {
+      notification.with(STORED_PARAMETER_EVENT_OCCURRENCE_ID, AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC));
+    }
+    storeCalendarName(notification, calendar);
+  }
+
+  /**
+   * The managers of the space owning a calendar, by username: who hears, with
+   * the event's creator, that an event of the space reached its capacity.
+   *
+   * @param identityManager the identity manager
+   * @param spaceService the space service
+   * @param ownerId the identity identifier of the calendar's owner
+   * @return the managers' usernames, none when the owner is not a space
+   */
+  public static List<String> getSpaceManagersByOwnerId(IdentityManager identityManager, SpaceService spaceService, long ownerId) {
+    Identity identity = Utils.getIdentityById(identityManager, ownerId);
+    if (identity == null || !SpaceIdentityProvider.NAME.equals(identity.getProviderId())) {
+      return Collections.emptyList();
+    }
+    Space space = spaceService.getSpaceByPrettyName(identity.getRemoteId());
+    if (space == null || space.getManagers() == null) {
+      return Collections.emptyList();
+    }
+    return Arrays.stream(space.getManagers()).filter(StringUtils::isNotBlank).toList();
+  }
+
   public static final void storeEventParameters(IdentityManager identityManager,
                                                 NotificationInfo notification,
                                                 Event event,
@@ -595,6 +757,89 @@ public class NotificationUtils {
     setIdentityName(spaceService, notification);
     setEventDetails(templateContext, notification, timeZone);
 
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
+    templateContext.put(TEMPLATE_VARIABLE_WEB_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_WEB_EVENT_URL));
+    return templateContext;
+  }
+
+  /**
+   * Builds the context of the "Participation confirmation" templates. On a
+   * recurring event, the first date promoted is given as a day and, on a
+   * timed event, a time, in the recipient's zone and language. A guest
+   * without an account is given no link to the event: the portal is closed to
+   * them.
+   *
+   * @param templateProvider the provider of the channel's template
+   * @param notification the notification
+   * @param timeZone the recipient's zone
+   * @return the template context
+   */
+  public static final TemplateContext buildTemplateParticipationConfirmedParameters(TemplateProvider templateProvider,
+                                                                                    NotificationInfo notification,
+                                                                                    ZoneId timeZone) {
+    String language = NotificationPluginUtils.getLanguage(notification.getTo());
+    TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
+
+    setFooter(notification, templateContext);
+    setRead(notification, templateContext);
+    setNotificationId(notification, templateContext);
+    setLasModifiedTime(notification, templateContext, language);
+
+    boolean guest = Boolean.parseBoolean(notification.getValueOwnerParameter(STORED_PARAMETER_IS_GUEST));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_ID, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ID));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_TITLE, getEventTitle(notification));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_IS_GUEST, guest);
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, guest ? "" : notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
+    templateContext.put(TEMPLATE_VARIABLE_WEB_EVENT_URL,
+                        guest ? "" : notification.getValueOwnerParameter(STORED_PARAMETER_WEB_EVENT_URL));
+
+    String promotedDay = "";
+    String promotedTime = "";
+    String start = notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_START_DATE);
+    if (StringUtils.isNotBlank(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_OCCURRENCE_ID))
+        && StringUtils.isNotBlank(start)) {
+      Locale locale = StringUtils.isBlank(language) ? Locale.ENGLISH : LocaleUtils.toLocale(language);
+      DateTimeFormatter dayFormat = DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale);
+      if (Boolean.parseBoolean(notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ALL_DAY))) {
+        // An all-day date is a calendar day, the same whatever the recipient's
+        // zone: never converted, or a westward recipient reads the day before
+        promotedDay = dayFormat.format(LocalDate.parse(start));
+      } else {
+        ZonedDateTime startDate = ZonedDateTime.parse(start).withZoneSameInstant(timeZone);
+        promotedDay = dayFormat.format(startDate);
+        promotedTime = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).format(startDate);
+      }
+    }
+    templateContext.put(TEMPLATE_VARIABLE_PROMOTED_DAY, promotedDay);
+    templateContext.put(TEMPLATE_VARIABLE_PROMOTED_TIME, promotedTime);
+    templateContext.put(TEMPLATE_VARIABLE_OTHER_DATES,
+                        NumberUtils.toInt(notification.getValueOwnerParameter(STORED_PARAMETER_OTHER_DATES), 0));
+    templateContext.put(TEMPLATE_VARIABLE_OPEN_ENDED,
+                        Boolean.parseBoolean(notification.getValueOwnerParameter(STORED_PARAMETER_OPEN_ENDED)));
+    return templateContext;
+  }
+
+  /**
+   * Builds the context of the "Event capacity reached" templates: the event's
+   * title and the link that opens it, on a recurring event at the date that
+   * filled up.
+   *
+   * @param templateProvider the provider of the channel's template
+   * @param notification the notification
+   * @return the template context
+   */
+  public static final TemplateContext buildTemplateCapacityReachedParameters(TemplateProvider templateProvider,
+                                                                             NotificationInfo notification) {
+    String language = NotificationPluginUtils.getLanguage(notification.getTo());
+    TemplateContext templateContext = getTemplateContext(templateProvider, notification, language);
+
+    setFooter(notification, templateContext);
+    setRead(notification, templateContext);
+    setNotificationId(notification, templateContext);
+    setLasModifiedTime(notification, templateContext, language);
+
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_ID, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ID));
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_TITLE, getEventTitle(notification));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_URL));
     templateContext.put(TEMPLATE_VARIABLE_WEB_EVENT_URL, notification.getValueOwnerParameter(STORED_PARAMETER_WEB_EVENT_URL));
     return templateContext;
@@ -804,13 +1049,20 @@ public class NotificationUtils {
     return eventsBaseURL() + "?eventId=" + eventId;
   }
 
+  /**
+   * The absolute link that opens an event, or one date of a series.
+   *
+   * @param event the event, a series or a stored date of a series
+   * @param occurrenceId the date to open, null for the event itself
+   * @return the link, naming the series and the date when a date is given
+   */
   public static String getEventURL(Event event, ZonedDateTime occurrenceId) {
     String notificationURL = "";
     if (event != null) {
       if (occurrenceId == null) {
         notificationURL = getEventURL(event.getId());
       } else {
-        notificationURL = eventsBaseURL() + "?parentId=" + event.getId() + "&occurrenceId="
+        notificationURL = eventsBaseURL() + "?parentId=" + seriesIdOf(event) + "&occurrenceId="
             + AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC);
       }
     } else {
@@ -839,6 +1091,14 @@ public class NotificationUtils {
     return currentDomain + "portal/" + getDefaultSite() + "/agenda";
   }
 
+  /**
+   * The link, relative to the server, that opens an event, or one date of a
+   * series.
+   *
+   * @param event the event, a series or a stored date of a series
+   * @param occurrenceId the date to open, null for the event itself
+   * @return the link, naming the series and the date when a date is given
+   */
   public static String getWebEventURL(Event event, ZonedDateTime occurrenceId) {
     String currentSite = getDefaultSite();
     String notificationURL = "";
@@ -846,13 +1106,25 @@ public class NotificationUtils {
       if (occurrenceId == null) {
         notificationURL = "/portal/" + currentSite + "/agenda?eventId=" + event.getId();
       } else {
-        notificationURL = "/portal/" + currentSite + "/agenda?parentId=" + event.getId() + "&occurrenceId="
+        notificationURL = "/portal/" + currentSite + "/agenda?parentId=" + seriesIdOf(event) + "&occurrenceId="
                 + AgendaDateUtils.toRFC3339Date(occurrenceId, ZoneOffset.UTC);
       }
     } else {
       notificationURL = "/portal/" + currentSite + "/agenda";
     }
     return notificationURL;
+  }
+
+  /**
+   * The series a date is read on: a date the series stores has a row of its
+   * own, which the page cannot read as a series, so a link to it names its
+   * series, where the date finds its row again.
+   *
+   * @param event a series, or a stored date of a series
+   * @return the series' identifier
+   */
+  private static long seriesIdOf(Event event) {
+    return event.getParentId() > 0 ? event.getParentId() : event.getId();
   }
 
 

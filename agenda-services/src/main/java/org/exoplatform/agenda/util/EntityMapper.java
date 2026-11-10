@@ -176,6 +176,8 @@ public class EntityMapper {
                      eventEntity.isAllowAttendeeToInvite());
     // Not part of the positional constructor: set explicitly or it is lost
     event.setOpen(eventEntity.isOpen());
+    event.setCapacity(eventEntity.getCapacity());
+    event.setCapacityReachedDate(AgendaDateUtils.fromDate(eventEntity.getCapacityReachedDate()));
     return event;
   }
 
@@ -211,6 +213,10 @@ public class EntityMapper {
     eventEntity.setAllowAttendeeToInvite(event.isAllowAttendeeToInvite());
     eventEntity.setAllowAttendeeToUpdate(event.isAllowAttendeeToUpdate());
     eventEntity.setOpen(Boolean.TRUE.equals(event.getOpen()));
+    // A capacity not specified is no limit: the Service resolves it from the
+    // stored row before an update reaches this point
+    eventEntity.setCapacity(event.getCapacity() == null ? 0 : event.getCapacity());
+    eventEntity.setCapacityReachedDate(AgendaDateUtils.toDate(event.getCapacityReachedDate()));
     eventEntity.setTimeZoneId(eventZoneId.getId());
 
     ZonedDateTime start = event.getStart();
@@ -403,11 +409,7 @@ public class EntityMapper {
     recurrence.setInterval(recur.getInterval());
     recurrence.setCount(recur.getCount() > 0 ? recur.getCount() : 0);
     if (recur.getUntil() != null) {
-      LocalDate untilDate = recur.getUntil()
-                                 .toInstant()
-                                 .atZone(ZoneId.systemDefault())
-                                 .toLocalDate();
-      recurrence.setUntil(untilDate);
+      recurrence.setUntil(untilDay(recur.getUntil(), eventTimeZoneId));
     }
 
     if (recur.getSecondList() != null && !recur.getSecondList().isEmpty()) {
@@ -458,6 +460,28 @@ public class EntityMapper {
     return recurrence;
   }
 
+  /**
+   * The last day of a series, as its stored rule states it. The rule writes
+   * the last second of that day in the event's zone, as a UTC time (see
+   * Utils#getICalendarRecur): read in that zone, since in the server's a
+   * series behind it would end a day later. Some earlier versions stored it
+   * as a floating time, which ical4j reads in the JVM's zone: its local fields
+   * are what was written. ical4j keeps a DATE value at UTC midnight.
+   *
+   * @param until the UNTIL of the stored rule
+   * @param eventZoneId the event's zone, null for UTC
+   * @return the last day of the series
+   */
+  private static LocalDate untilDay(Date until, ZoneId eventZoneId) {
+    Instant instant = Instant.ofEpochMilli(until.getTime());
+    if (!(until instanceof DateTime dateTime)) {
+      return instant.atZone(ZoneOffset.UTC).toLocalDate();
+    } else if (!dateTime.isUtc() && dateTime.getTimeZone() == null) {
+      return LocalDateTime.ofInstant(instant, ZoneId.systemDefault()).toLocalDate();
+    }
+    return instant.atZone(eventZoneId == null ? ZoneOffset.UTC : eventZoneId).toLocalDate();
+  }
+
   public static EventRecurrenceEntity toEntity(Event event, EventRecurrence recurrence) {
     Recur recur = Utils.getICalendarRecur(recurrence, event.getTimeZoneId());
     EventRecurrenceEntity eventRecurrenceEntity = new EventRecurrenceEntity();
@@ -477,7 +501,8 @@ public class EntityMapper {
                              eventAttendeeEntity.getIdentityId(),
                              AgendaDateUtils.fromDate(eventAttendeeEntity.getFromOccurrenceId()),
                              AgendaDateUtils.fromDate(eventAttendeeEntity.getUntilOccurrenceId()),
-                             eventAttendeeEntity.getResponse());
+                             eventAttendeeEntity.getResponse(),
+                             AgendaDateUtils.fromDate(eventAttendeeEntity.getResponseDate()));
   }
 
   public static EventAttendeeEntity toEntity(EventAttendee eventAttendee) {
@@ -487,6 +512,7 @@ public class EntityMapper {
     eventAttendeeEntity.setResponse(eventAttendee.getResponse());
     eventAttendeeEntity.setFromOccurrenceId(AgendaDateUtils.toDate(eventAttendee.getFromOccurrenceId()));
     eventAttendeeEntity.setUntilOccurrenceId(AgendaDateUtils.toDate(eventAttendee.getUntilOccurrenceId()));
+    eventAttendeeEntity.setResponseDate(AgendaDateUtils.toDate(eventAttendee.getResponseDate()));
     return eventAttendeeEntity;
   }
 

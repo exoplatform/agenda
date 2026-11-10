@@ -33,4 +33,10 @@ public enum AgendaEventModificationType {
   ALLOW_INVITE_UPDATED,
   ALLOW_MODIFY_UPDATED,
   OPEN_UPDATED,
+  CAPACITY_UPDATED,
+  /**
+   * The event is the continuation a "this and upcoming" change created from a
+   * series, its answers already carried over or started again
+   */
+  SPLIT,
 }

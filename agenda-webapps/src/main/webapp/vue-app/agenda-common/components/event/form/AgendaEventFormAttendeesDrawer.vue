@@ -2,10 +2,37 @@
   <exo-drawer
     ref="attendeesDrawer"
     right
+    class="event-participants-drawer"
     body-classes="hide-scroll decrease-z-index-more"
     @closed="$emit('closed')">
     <template slot="title">
       {{ $t('agenda.label.participants') }}
+    </template>
+    <!--
+      The export of the list (eXIP 7.3.0.21, US05), in the drawer's header as
+      the design places it. Only the host knows whether the list it shows is
+      a stored one that may be exported: the drawer renders and emits. The
+      tooltip hangs on a wrapper, since a disabled button takes no pointer
+      event.
+    -->
+    <template v-if="exportable" slot="titleIcons">
+      <v-tooltip bottom>
+        <template #activator="{ on, attrs }">
+          <div
+            v-bind="attrs"
+            v-on="on">
+            <v-btn
+              icon
+              :disabled="exportDisabled"
+              :aria-label="exportLabel"
+              class="participants-export-button"
+              @click="$emit('export')">
+              <v-icon size="20" class="icon-default-color">fas fa-download</v-icon>
+            </v-btn>
+          </div>
+        </template>
+        <span>{{ exportLabel }}</span>
+      </v-tooltip>
     </template>
     <template slot="content">
       <div class="pa-4">
@@ -66,15 +93,17 @@
             PATCH on the detail page, a form value saved with the event in the
             creation / edit form). A viewer who cannot edit gets the icon and
             its title, no button: nothing to click, no hover background. So
-            does an editor while the participants may modify the event: an
-            open event excludes that permission, and the title says what to
-            deactivate first.
+            does an editor while the participants may modify the event, or
+            while a person from outside the platform is invited: an open
+            event excludes both, so the icon takes the disabled icon colour
+            and the title says what to change first.
           -->
           <template v-if="showOpenToggle">
             <v-btn
               v-if="editable && !openToggleBlocked"
               icon
-              class="flex-shrink-0 me-1"
+              class="open-event-toggle flex-shrink-0 me-1"
+              :class="openToggleStateClass"
               :title="openToggleTitle"
               @click="$emit('toggle-open')">
               <v-icon size="20" :class="openIconClass">{{ openIcon }}</v-icon>
@@ -82,8 +111,8 @@
             <v-icon
               v-else
               size="20"
-              class="flex-shrink-0 me-3"
-              :class="openIconClass"
+              class="open-event-toggle flex-shrink-0 me-3"
+              :class="[openIconClass, openToggleStateClass]"
               :title="openToggleTitle">
               {{ openIcon }}
             </v-icon>
@@ -155,6 +184,17 @@
             </v-list>
           </v-menu>
         </div>
+        <!--
+          The limit of an open event (eXIP 7.3.0.21), for whoever can edit it.
+          Like the padlock, the drawer only renders it and emits: the host
+          decides when the value is saved.
+        -->
+        <agenda-event-capacity-stepper
+          v-if="showCapacity"
+          :value="capacity"
+          :accepted-count="acceptedCount"
+          class="mb-4"
+          @input="$emit('change-capacity', $event)" />
         <div v-if="event && event.attendees" class="mt-2">
           <agenda-event-form-attendee-item
             v-for="attendee in displayedAttendees"
@@ -190,6 +230,24 @@ export default {
       type: Boolean,
       default: true,
     },
+    /**
+     * Whether the header offers the export of the list: the event page sets
+     * it for whoever may edit a confirmed event; the forms, whose list is not
+     * saved yet, never do.
+     */
+    exportable: {
+      type: Boolean,
+      default: false,
+    },
+    /**
+     * Whether the export waits for the list to be saved: the file is built
+     * from the stored list, so while the visit holds unsaved additions or
+     * removals it would not be the list the drawer shows.
+     */
+    exportDisabled: {
+      type: Boolean,
+      default: false,
+    },
   },
   data() {
     return {
@@ -198,9 +256,15 @@ export default {
       showFilterBar: false,
       filterText: '',
       responseFilter: 'ALL',
+      // The seats as the drawer found them, which its changes are measured
+      // against (see seatsGivenByChanges)
+      seatReference: null,
     };
   },
   computed: {
+    exportLabel() {
+      return this.exportDisabled ? this.$t('agenda.label.exportAfterSave') : this.$t('agenda.label.exportParticipants');
+    },
     isSpaceCalendarEvent() {
       const owner = this.event && this.event.calendar && this.event.calendar.owner;
       return !!(owner && (owner.providerId === 'space' || !!owner.space));
@@ -229,8 +293,9 @@ export default {
      * One date of a series is not a case of its own any more: since US06 the
      * flag is a property of each date, and both hosts of this drawer ask the
      * organiser how far a change reaches — the form through the scope dialog
-     * of its own save, the event page through the same popup, asked once when
-     * the drawer closes, over everything the visit changed.
+     * of its own save, the event page through the same popup, asked over what
+     * the visit changed when the drawer closes, or when a removal or the date
+     * closed gives a seat from the waiting list.
      *
      * @returns {Boolean} whether the open-event padlock is rendered
      */
@@ -240,29 +305,70 @@ export default {
     isOpenEvent() {
       return !!(this.event && this.event.open);
     },
+    showCapacity() {
+      return this.editable && this.showOpenToggle && this.isOpenEvent;
+    },
+    capacity() {
+      return this.event && this.event.capacity || 0;
+    },
+    acceptedCount() {
+      return this.event && this.event.acceptedCount || 0;
+    },
     /**
      * An open event excludes "participants can modify the event" and
      * "participants can invite": while "can modify" is on, the padlock is
-     * shown but not clickable, and its title says what to deactivate first.
+     * shown disabled, not clickable, and its title says what to deactivate
+     * first.
      * Only that option blocks: it is the one the forms show, while "can
      * invite" — set by its watcher, never shown — is cleared by the opening
-     * itself in both hosts. The server refuses a toggle that breaks the rule
-     * with a 400, so this only spares the click.
+     * itself in both hosts. An open event never holds a person from outside
+     * the platform either: while one is invited, the padlock is blocked the
+     * same way, until the last one is removed. The server refuses a toggle
+     * that breaks either rule with a 400, so this only spares the click.
      *
-     * @returns {Boolean} whether the modify permission blocks the padlock
+     * @returns {Boolean} whether the modify permission or a person from
+     *          outside the platform blocks the padlock
      */
     openToggleBlocked() {
-      return !this.isOpenEvent && !!(this.event && this.event.allowAttendeeToUpdate);
+      return !this.isOpenEvent && (!!(this.event && this.event.allowAttendeeToUpdate) || this.holdsExternalGuest);
+    },
+    /**
+     * @returns {Boolean} whether a person from outside the platform, a guest
+     *          invited by e-mail address, is among the participants
+     */
+    holdsExternalGuest() {
+      return !!(this.event && this.event.attendees
+        && this.event.attendees.some(attendee => attendee.identity
+          && attendee.identity.providerId === this.$agendaUtils.GUEST_USER_PROVIDER_ID));
     },
     openIcon() {
       return this.isOpenEvent ? 'fas fa-lock-open' : 'fas fa-lock';
     },
+    /**
+     * A padlock an editor cannot click takes the platform's disabled icon
+     * colour, so it does not read as the closed padlock they could open. A
+     * viewer who cannot edit sees the event's state, not a control: their
+     * icon keeps the default colour.
+     *
+     * @returns {String} the padlock icon's colour class
+     */
     openIconClass() {
+      if (this.editable && this.openToggleBlocked) {
+        return 'icon-disabled-color';
+      }
       return this.isOpenEvent ? 'primary--text' : 'icon-default-color';
+    },
+    openToggleStateClass() {
+      return [
+        this.isOpenEvent ? 'open-event-toggle-open' : 'open-event-toggle-locked',
+        this.editable && this.openToggleBlocked && 'open-event-toggle-blocked',
+      ];
     },
     openToggleTitle() {
       if (this.editable && this.openToggleBlocked) {
-        return this.$t('agenda.openEvent.blockedByAttendeePermission.tooltip');
+        return this.holdsExternalGuest
+          ? this.$t('agenda.openEvent.externalGuestsInvited')
+          : this.$t('agenda.openEvent.blockedByAttendeePermission.tooltip');
       }
       if (this.editable) {
         return this.isOpenEvent
@@ -280,6 +386,7 @@ export default {
         {value: 'TENTATIVE', icon: 'fas fa-question-circle', label: this.$t('agenda.tentative'), title: this.$t('agenda.filter.title.tentative'), color: null, colorClass: 'primary--text'},
         {value: 'DECLINED', icon: 'fas fa-times-circle', label: this.$t('agenda.declined'), title: this.$t('agenda.filter.title.declined'), color: null, colorClass: 'error-color'},
         {value: 'NEEDS_ACTION', icon: 'fas fa-info-circle', label: this.$t('agenda.needs_action'), title: this.$t('agenda.filter.title.needs.action'), color: 'grey', colorClass: null},
+        {value: 'WAITING', icon: 'fas fa-info-circle', label: this.$t('agenda.waiting'), title: this.$t('agenda.filter.title.waiting'), color: null, colorClass: 'warning--text'},
       ];
     },
     activeStatusOption() {
@@ -327,8 +434,47 @@ export default {
       }
       return attendees;
     },
-    sortedAttendees() {
+    /**
+     * The people on the waiting list that the drawer's changes give a seat
+     * to, before they are saved (EXO-91879): a Yes removed from the list, the
+     * limit raised or set to no limit, the date closed. The server gives
+     * those seats when the changes are saved, in the order the people asked,
+     * as here, and the answers it reads back then replace this. The event
+     * page saves at once a change that shows another person seated (see
+     * givesAnotherSeat): a removal, the date closed, and a limit raised on
+     * an event of its own. A limit removed, which seats the whole list, and
+     * a limit on a date wait for the close or for the next of those changes
+     * (see AgendaEventAttendees#changeCapacity). The event form saves with
+     * the form. A series displayed as itself counts its seats date by date:
+     * nobody is shown seated there.
+     *
+     * @returns {Set} the participant keys of the people shown with a seat
+     */
+    seatsGivenByChanges() {
+      const reference = this.seatReference;
       const attendees = this.event && this.event.attendees || [];
+      const waiting = attendees.filter(attendee => attendee.response === 'WAITING');
+      if (!reference || !waiting.length || (this.event.recurrence && !this.event.parent)) {
+        return new Set();
+      }
+      const keys = new Set(attendees.map(this.$agendaUtils.participantKey));
+      const seatsFreed = reference.seatedKeys.filter(key => !keys.has(key)).length;
+      if (!seatsFreed && this.capacity === reference.capacity && this.isOpenEvent === reference.open) {
+        return new Set();
+      }
+      // Closing the event or removing its limit seats the whole list
+      const limit = this.isOpenEvent && this.capacity || 0;
+      const seats = limit ? limit - (reference.acceptedCount - seatsFreed) : waiting.length;
+      return new Set(waiting
+        .sort((a1, a2) => (new Date(a1.responseDate).getTime() - new Date(a2.responseDate).getTime())
+          || ((a1.id || 0) - (a2.id || 0)))
+        .slice(0, Math.max(seats, 0))
+        .map(this.$agendaUtils.participantKey));
+    },
+    sortedAttendees() {
+      const seatsGiven = this.seatsGivenByChanges;
+      const attendees = (this.event && this.event.attendees || [])
+        .map(attendee => (seatsGiven.has(this.$agendaUtils.participantKey(attendee)) ? {...attendee, response: 'ACCEPTED'} : attendee));
       if (!attendees.length) {
         return [];
       }
@@ -338,6 +484,17 @@ export default {
       const others = attendees
         .filter(a => Number(a.identity.id) !== Number(creatorId))
         .sort((a1, a2) => {
+          // The waiting list closes the list, in the order its people asked:
+          // the order its seats are given in (US02)
+          const waits1 = a1.response === 'WAITING';
+          const waits2 = a2.response === 'WAITING';
+          if (waits1 !== waits2) {
+            return waits1 ? 1 : -1;
+          }
+          const askedFirst = waits1 && new Date(a1.responseDate).getTime() - new Date(a2.responseDate).getTime();
+          if (askedFirst) {
+            return askedFirst;
+          }
           const n1 = (a1.identity.profile && (a1.identity.profile.fullname || a1.identity.profile.fullName))
             || (a1.identity.space && a1.identity.space.displayName) || '';
           const n2 = (a2.identity.profile && (a2.identity.profile.fullname || a2.identity.profile.fullName))
@@ -475,8 +632,40 @@ export default {
       this.showFilterBar = false;
       this.filterText = '';
       this.responseFilter = responseFilter || 'ALL';
+      // In the event form, the changes of every visit are saved together with
+      // the form: the seats are measured against the event as it was loaded.
+      // The event page, which saves at each close, takes them again itself
+      if (!this.seatReference || this.seatReference.event !== this.event) {
+        this.rememberSeats();
+      }
       this.$refs.attendeesDrawer.open();
       this.$nextTick(() => this.$refs.invitedAttendeeAutoComplete && this.$refs.invitedAttendeeAutoComplete.focus());
+    },
+    /**
+     * Closes the drawer as its own close button does, the closed event
+     * included.
+     *
+     * @returns {void}
+     */
+    close() {
+      this.$refs.attendeesDrawer.close();
+    },
+    /**
+     * Takes the seats as they stand as the reference the drawer's changes are
+     * measured against: when it first opens on an event, and when its host
+     * has saved the changes or read the event again.
+     *
+     * @returns {void}
+     */
+    rememberSeats() {
+      const attendees = this.event && this.event.attendees || [];
+      this.seatReference = {
+        event: this.event,
+        acceptedCount: this.acceptedCount,
+        capacity: this.capacity,
+        open: this.isOpenEvent,
+        seatedKeys: attendees.filter(attendee => attendee.response === 'ACCEPTED').map(this.$agendaUtils.participantKey),
+      };
     },
     loadMore() {
       this.displayedCount += PAGE_SIZE;
@@ -488,6 +677,15 @@ export default {
     closeFilterBar() {
       this.showFilterBar = false;
     },
+    /**
+     * A removal that shows another person from the waiting list seated is
+     * told to the host, with the participant removed and where it was, which
+     * decides when it is saved (EXO-91879): the event page saves it at once,
+     * for that person to get the seat at the same time.
+     *
+     * @param {Object} attendee the participant removed
+     * @returns {void}
+     */
     removeAttendee(attendee) {
       if (!this.event || !this.event.attendees) {
         return;
@@ -497,8 +695,27 @@ export default {
         && a.identity.providerId === attendee.identity.providerId
       );
       if (index >= 0) {
-        this.event.attendees.splice(index, 1);
+        const seatedBefore = this.seatsGivenByChanges;
+        const removed = this.event.attendees.splice(index, 1)[0];
+        if (this.givesAnotherSeat(seatedBefore)) {
+          this.$emit('seats-given', {attendee: removed, index});
+        }
       }
+    },
+    /**
+     * The seats the visit's changes give are counted from the drawer's
+     * opening, or from the last answers read: a change that shows nobody
+     * else seated, after one that did, is not a reason to save at once. The
+     * people compared, not their number: someone shown seated by a change
+     * already on its way to the server holds the seat there, and removing
+     * them gives it to the next person waiting.
+     *
+     * @param {Set} seatedBefore the people shown seated before the change
+     *          (see seatsGivenByChanges)
+     * @returns {Boolean} whether the change shows someone else seated
+     */
+    givesAnotherSeat(seatedBefore) {
+      return Array.from(this.seatsGivenByChanges).some(key => !seatedBefore.has(key));
     },
     checkGuestInvitation(evt) {
       const self = this;
@@ -523,20 +740,76 @@ export default {
       const words = input !== null ? input.split(' ') : '';
       const email = words[words.length - 1];
       if (reg.test(email)) {
-        this.event.attendees.push({
-          identity: {
-            id: `${email}`,
-            remoteId: email,
-            identityId: email,
-            providerId: 'GUEST_USER',
-            profile: {
-              fullName: email,
-              avatarUrl: '/portal/rest/v1/social/users/default-image/avatar',
-            },
-          },
-        });
+        // Looked up as typed: the user directory may compare its case
+        const typedWords = this.$refs.invitedAttendeeAutoComplete.searchTerm.split(' ');
+        this.inviteTypedAddress(email, typedWords[typedWords.length - 1]);
       }
       this.$refs.invitedAttendeeAutoComplete.clear();
+    },
+    /**
+     * An address the platform recognises is the user whose address it is,
+     * invited as themselves, on any event (US06). Any other one is a person
+     * from outside the platform: invited as a guest on a locked event, refused
+     * on an open one, which never holds one, as the server would refuse the
+     * save. Settled once the platform answered: on the event the drawer shows
+     * then, the same event read again included, or else on the one the
+     * address was typed on, which the event page saves when the drawer was
+     * closed on it and it is an event of its own or a series shown as itself;
+     * a date's changes need its scope question, which the page left with
+     * that date (see AgendaEventAttendees#drawerClosed). An address the
+     * platform could not be asked about is told, and added to nobody. A save
+     * of the event, and the opening of an event of its own on the event page,
+     * wait for it (see EventService#typedAddressLookupsSettled).
+     *
+     * @param {String} email the address, in lower case, as a guest is stored
+     * @param {String} typed the address as typed
+     * @returns {Promise} settled once the participant is added or refused
+     */
+    inviteTypedAddress(email, typed) {
+      const typedOn = this.event;
+      const lookup = this.$eventService.getAttendeeUserByEmail(typed)
+        .then(user => {
+          const shown = this.$agendaUtils.eventKey(this.event) === this.$agendaUtils.eventKey(typedOn);
+          this.addTypedAddress(shown ? this.event : typedOn, email, user);
+        }, () => this.$root.$emit('alert-message', this.$t('agenda.attendees.lookupError'), 'error'));
+      return this.$eventService.trackTypedAddressLookup(lookup);
+    },
+    /**
+     * @param {Object} event the event the address is added to
+     * @param {String} email the address typed, in lower case
+     * @param {Object} user the platform user whose address it is, as the
+     *          platform answered, or null for a person from outside it
+     * @returns {void}
+     */
+    addTypedAddress(event, email, user) {
+      if (!event.attendees) {
+        this.$set(event, 'attendees', []);
+      }
+      // A user as the suggester adds one, a guest as one was always added
+      const identity = user ? {
+        id: user.id,
+        providerId: user.providerId,
+        remoteId: user.remoteId,
+        profile: {
+          fullname: user.fullName,
+          avatar: user.avatarUrl,
+        },
+      } : {
+        id: `${email}`,
+        remoteId: email,
+        identityId: email,
+        providerId: this.$agendaUtils.GUEST_USER_PROVIDER_ID,
+        profile: {
+          fullName: email,
+          avatarUrl: '/portal/rest/v1/social/users/default-image/avatar',
+        },
+      };
+      if (!user && event.open) {
+        this.$root.$emit('alert-message', this.$t('agenda.openEvent.externalGuestNotAllowed'), 'warning');
+      } else if (!event.attendees.some(attendee => attendee.identity
+          && attendee.identity.remoteId === identity.remoteId && attendee.identity.providerId === identity.providerId)) {
+        event.attendees.push(user ? {identity, response: 'NEEDS_ACTION'} : {identity});
+      }
     },
   },
 };

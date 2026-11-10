@@ -29,12 +29,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.agenda.constant.*;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
+import org.exoplatform.agenda.exception.CapacityBelowAcceptedException;
 import org.exoplatform.agenda.model.CalendarEditorChange;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.search.AgendaSearchConnector;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.AgendaDateUtils;
+import org.exoplatform.agenda.util.DecideContext;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.services.listener.ListenerService;
@@ -53,7 +55,17 @@ import static org.exoplatform.agenda.util.Utils.EVENT_METADATA_KEY;
 
 public class AgendaEventServiceImpl implements AgendaEventService {
 
-  private static final Log             LOG = ExoLogger.getLogger(AgendaEventServiceImpl.class);
+  private static final Log             LOG                                = ExoLogger.getLogger(AgendaEventServiceImpl.class);
+
+  private static final String          CAPACITY_FIELD                     = "capacity";
+
+  private static final String          CAPACITY_INVALID                   = "agenda.capacity.invalid";
+
+  private static final String          CAPACITY_NOT_ALLOWED               = "agenda.capacity.notAllowed";
+
+  private static final String          CAPACITY_CLOSE_NEEDS_CONFIRMATION  = "agenda.capacity.closeNeedsConfirmation";
+
+  private static final String          SERIES_SPLIT_NOT_ALLOWED           = "agenda.seriesSplit.notAllowed";
 
   private AgendaCalendarService        agendaCalendarService;
 
@@ -83,6 +95,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
   private CalendarSubscriptionAccess   calendarSubscriptionAccess = new CalendarSubscriptionAccess();
 
+  private DecideSteps                  decideSteps;
+
   public AgendaEventServiceImpl(AgendaCalendarService agendaCalendarService,
                                 AgendaEventAttendeeService attendeeService,
                                 AgendaEventConferenceService conferenceService,
@@ -107,6 +121,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     this.spaceService = spaceService;
     this.listenerService = listenerService;
     this.metadataService = metadataService;
+    this.decideSteps = new DecideSteps(agendaEventStorage);
   }
 
   /**
@@ -161,7 +176,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (recurrentEvent == null) {
       return null;
     }
-    Event exceptionalOccurrenceEvent = agendaEventStorage.getExceptionalOccurrenceEvent(parentEventId, occurrenceId);
+    Event exceptionalOccurrenceEvent = agendaEventStorage.findExceptionalOccurrence(recurrentEvent, occurrenceId);
     // Access is read on the event actually served, before anything else is
     // computed: a stored exceptional occurrence through its own row (its own
     // attendee list), a computed occurrence through the parent it inherits
@@ -252,7 +267,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    */
   @Override
   public Event getExceptionalOccurrenceEvent(long eventId, ZonedDateTime occurrenceId) {
-    return agendaEventStorage.getExceptionalOccurrenceEvent(eventId, occurrenceId);
+    Event series = agendaEventStorage.getEventById(eventId);
+    return series == null ? null : agendaEventStorage.findExceptionalOccurrence(series, occurrenceId);
   }
 
   /**
@@ -266,6 +282,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                            List<EventDateOption> dateOptions,
                            RemoteEvent remoteEvent,
                            boolean sendInvitation,
+                           boolean confirmClose,
                            long userIdentityId) throws IllegalAccessException, AgendaException {
     if (userIdentityId <= 0) {
       throw new IllegalArgumentException("userIdentityId is mandatory");
@@ -314,6 +331,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         throw new AgendaException(AgendaExceptionType.EVENT_RECURRENCE_INTERVAL_MANDATORY);
       }
     }
+    checkCapacityValue(event.getCapacity());
 
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
@@ -340,6 +358,194 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       event.setRecurrence(null);
     }
 
+    if (parentEvent != null && occurrence != null && occurrence.getId() != null) {
+      // "This occurrence only" saved on a date that had no row of its own when
+      // the form was opened: decided under the lock of the series, so that a
+      // row the date got meanwhile, from the reminder job or an answer, is
+      // updated instead of doubled
+      long seriesId = parentEvent.getId();
+      List<EventDateOption> eventDateOptions = dateOptions;
+      try {
+        return decideSteps.<Event, IllegalAccessException, AgendaException> decide(DecideSteps.targetOfSeries(seriesId),
+                                                                                   () -> writeDateOfSeries(seriesId,
+                                                                                                           event,
+                                                                                                           attendees,
+                                                                                                           conferences,
+                                                                                                           reminders,
+                                                                                                           eventDateOptions,
+                                                                                                           remoteEvent,
+                                                                                                           sendInvitation,
+                                                                                                           confirmClose,
+                                                                                                           userIdentityId,
+                                                                                                           calendar));
+      } catch (ResolveAgainException e) {
+        throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+      }
+    }
+    return writeNewEvent(event,
+                         attendees,
+                         conferences,
+                         reminders,
+                         dateOptions,
+                         remoteEvent,
+                         sendInvitation,
+                         userIdentityId,
+                         calendar,
+                         parentEvent);
+  }
+
+  private Event writeDateOfSeries(long seriesId,
+                                  Event event,
+                                  List<EventAttendee> attendees,
+                                  List<EventConference> conferences,
+                                  List<EventReminder> reminders,
+                                  List<EventDateOption> dateOptions,
+                                  RemoteEvent remoteEvent,
+                                  boolean sendInvitation,
+                                  boolean confirmClose,
+                                  long userIdentityId,
+                                  Calendar calendar) throws IllegalAccessException, AgendaException {
+    // The date is matched with the series as locked: its zone and its all-day
+    // flag decide which row is the date's
+    Event lockedSeries = agendaEventStorage.getEventById(seriesId);
+    if (lockedSeries == null) {
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+    }
+    ZonedDateTime occurrenceId = Utils.getOccurrenceId(lockedSeries.isAllDay(),
+                                                       event.getOccurrence().getId(),
+                                                       lockedSeries.getTimeZoneId());
+    Event existingOccurrence = agendaEventStorage.findExceptionalOccurrence(lockedSeries, occurrenceId);
+    if (existingOccurrence == null && isExceptionalOccurrenceOf(event, lockedSeries)) {
+      // One of the series' dates saved alone for the first time: its row is
+      // first the series' copy at that date, as when somebody answers that
+      // date alone, its attendees' answers, seats and waiting list included,
+      // and the save then changes it as it changes a date that already has
+      // one. Created by the save instead, the row would start every answer
+      // over but the saver's (AgendaReplyOnSaveListener), giving a waiting
+      // saver the seat of somebody seated there
+      existingOccurrence = findOrCreateEventExceptionalOccurrence(seriesId, occurrenceId);
+      if (attendees == null || attendees.isEmpty()) {
+        // Named by no attendee, the date keeps the ones the series has there
+        attendees = attendeeService.getEventAttendees(existingOccurrence.getId()).getEventAttendees();
+      }
+    }
+    if (existingOccurrence == null) {
+      markMovedWhenSavedAtOtherDates(lockedSeries, event, occurrenceId);
+      return writeNewEvent(event,
+                           attendees,
+                           conferences,
+                           reminders,
+                           dateOptions,
+                           remoteEvent,
+                           sendInvitation,
+                           userIdentityId,
+                           calendar,
+                           lockedSeries);
+    }
+    event.setId(existingOccurrence.getId());
+    return updateEvent(event, attendees, conferences, reminders, dateOptions, remoteEvent, sendInvitation, confirmClose, userIdentityId);
+  }
+
+  /**
+   * Marks a date of a series saved alone for the first time as moved when the
+   * dates posted are not the ones its series gives it (under an identifier its
+   * rule gives no date for, the dates the seat rule reads an unmarked row at),
+   * as the update of a stored row marks a move: the mark is what every reader
+   * of a row's dates relies on (the seat rule and the capacity report through
+   * {@link SeriesDates}, the propagation of a series change, the user's intent
+   * on a series rewrite), and a date created at other dates is a moved date
+   * from its first save on. Compared as written: the posted dates adjusted as
+   * the creation adjusts them, against the date the series' rule gives, read
+   * in the series' zone and adjusted the same way.
+   *
+   * @param lockedSeries the series, as locked
+   * @param event the date as posted, whose occurrence is marked
+   * @param occurrenceId the date's identifier, normalised on the series
+   */
+  private void markMovedWhenSavedAtOtherDates(Event lockedSeries, Event event, ZonedDateTime occurrenceId) {
+    Event atSeriesDates = dateOfRule(lockedSeries, occurrenceId);
+    if (atSeriesDates == null) {
+      return;
+    }
+    Event posted = event.clone();
+    adjustEventDatesForWrite(posted);
+    adjustEventDatesForWrite(atSeriesDates);
+    if (lockedSeries.isAllDay() != event.isAllDay()
+        || !isSameInstant(atSeriesDates.getStart(), posted.getStart())
+        || !isSameInstant(atSeriesDates.getEnd(), posted.getEnd())) {
+      event.getOccurrence().setDatesModified(true);
+    }
+  }
+
+  /**
+   * The date of a series its rule gives for an occurrence id, as the rule
+   * computes it in the series' zone, the reading {@link SeriesDates} relies
+   * on: the id's UTC fields name another day where the series' local start
+   * falls on another UTC day.
+   *
+   * @param series the series
+   * @param occurrenceId the date's identifier, normalised on the series
+   * @return the rule's date, or the dates an unmarked row is read at when the
+   *         rule gives none for the identifier; null when the parent is no
+   *         series (a date posted on an event with no rule)
+   */
+  private Event dateOfRule(Event series, ZonedDateTime occurrenceId) {
+    if (series.getRecurrence() == null) {
+      return null;
+    }
+    LocalDate day = Utils.getSeriesDate(series, occurrenceId);
+    return Utils.getOccurrences(series, day.minusDays(1), day.plusDays(1), 0)
+                .stream()
+                .filter(date -> Utils.isSameSeriesDate(series, date.getOccurrence().getId(), occurrenceId))
+                .findFirst()
+                .orElseGet(() -> dateReadUnmarked(series, occurrenceId));
+  }
+
+  /**
+   * The dates an unmarked row of a series is read at under an identifier its
+   * rule gives no date for (a day it does not give; on a series with several
+   * dates a day, any instant that is none of its dates), as
+   * {@link SeriesDates} reads it for the seat rule: its identifier for the
+   * series' length on a series with several dates a day, else the series' time
+   * of day on the identifier's day for its length, or all day for its days.
+   *
+   * @param series the series
+   * @param occurrenceId the date's identifier, normalised on the series
+   * @return the dates an unmarked row of that identifier is read at
+   */
+  private Event dateReadUnmarked(Event series, ZonedDateTime occurrenceId) {
+    ZoneId zone = series.getTimeZoneId() == null ? ZoneOffset.UTC : series.getTimeZoneId();
+    Duration length = Duration.between(series.getStart(), series.getEnd());
+    Event date = series.clone();
+    if (!series.isAllDay() && Utils.hasSeveralDatesADay(series.getRecurrence())) {
+      date.setStart(occurrenceId.withZoneSameInstant(zone));
+      date.setEnd(occurrenceId.withZoneSameInstant(zone).plus(length));
+      return date;
+    }
+    LocalDate day = Utils.getSeriesDate(series, occurrenceId);
+    if (series.isAllDay()) {
+      long days = Math.max(1, Math.round(length.getSeconds() / (double) Duration.ofDays(1).getSeconds()));
+      date.setStart(day.atStartOfDay(zone));
+      date.setEnd(day.plusDays(days).atStartOfDay(zone).minusSeconds(1));
+    } else {
+      ZonedDateTime start = day.atTime(series.getStart().withZoneSameInstant(zone).toLocalTime()).atZone(zone);
+      date.setStart(start);
+      date.setEnd(start.plus(length));
+    }
+    return date;
+  }
+
+  private Event writeNewEvent(Event event,
+                              List<EventAttendee> attendees,
+                              List<EventConference> conferences,
+                              List<EventReminder> reminders,
+                              List<EventDateOption> dateOptions,
+                              RemoteEvent remoteEvent,
+                              boolean sendInvitation,
+                              long userIdentityId,
+                              Calendar calendar,
+                              Event parentEvent) throws IllegalAccessException, AgendaException {
+    long calendarId = event.getCalendarId();
     adjustEventDatesForWrite(event);
 
     Event eventToCreate = new Event(0,
@@ -370,14 +576,34 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // invariant (canBeOpen) is enforced here, not only by the UI hiding the
     // padlock: a date poll, a personal calendar event and an event whose
     // participants may modify it or invite are never open; asked together with
-    // such a permission, the flag yields and the permission is kept. This
-    // is also the path the form's "this occurrence only" takes — it posts the
-    // computed occurrence with its parent — so the padlock the organiser left
-    // on that date is what the new row carries, its own from then on (US06).
+    // such a permission, the flag yields and the permission is kept. The
+    // form's "this occurrence only" takes this path only for a date its series
+    // does not give, or a date of a series with several dates a day that has
+    // no row yet, which writeDateOfSeries cannot tell from the first: the
+    // padlock posted for that date is what the new row carries, its own from
+    // then on (US06).
     // The status read is the one checkAndComputeDateOptions just derived from
     // the date options.
     eventToCreate.setOpen(Boolean.TRUE.equals(event.getOpen())
         && canBeOpen(eventToCreate, calendar));
+    // An open event never holds a person from outside the platform: unlike
+    // the invariant above, the flag does not yield, the creation is refused.
+    // A date of a series given no list takes the series' attendees for it
+    if (Boolean.TRUE.equals(eventToCreate.getOpen())
+        && Utils.holdsExternalGuest(identityManager,
+                                    attendees != null && !attendees.isEmpty() ? attendees
+                                                                             : inheritedSeriesAttendees(eventToCreate,
+                                                                                                        event,
+                                                                                                        parentEvent))) {
+      throw new IllegalArgumentException(Utils.EXTERNAL_GUEST_NOT_ALLOWED);
+    }
+    // The limit follows the flag: not stated, or asked on an event that may
+    // have none, it is no limit. No floor applies: the attendees saved below
+    // hold no Yes yet but the creator's, which takes its seat through the
+    // seat rule. A date of a series that takes the series' attendees takes
+    // their answers too, but the creation broadcast below starts them over,
+    // the creator's aside (AgendaReplyOnSaveListener), so nobody waits there
+    eventToCreate.setCapacity(canHaveCapacity(eventToCreate, calendar) ? SeatRule.capacityOf(event) : 0);
 
     Event createdEvent = agendaEventStorage.createEvent(eventToCreate);
     createOrUpdateEventProperties(event.getParameters(), createdEvent);
@@ -542,11 +768,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * {@code ACCEPTED} for the one who is — the modifier's own copied answer no
    * more survives than anybody else's. That is the same end state an
    * occurrence whose payload names attendees already reaches, so the two doors
-   * agree — but it is the listener that decides it, not these arguments. The
-   * pins therefore assert that end state and name the listener; the two
-   * arguments themselves have no observable effect here, so nothing pins them,
-   * and a change to the listener would change this contract with the suite
-   * still green.
+   * agree — but it is the listener that decides it, not these arguments. Only
+   * a date the series does not give, or one of a series with several dates a
+   * day that has no row yet, comes here (see below), and no test pins that end
+   * state on it; the two arguments themselves have no observable
+   * effect here either, so a change to the listener would change this
+   * contract with the suite still green.
    * {@code resetResponses} is kept as
    * {@code status != CONFIRMED} to mirror the sibling; note the sibling reads
    * the <b>parent's</b> status, its event being a clone of it, while this path
@@ -560,11 +787,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * <b>not</b> the same set {@link #checkCanCreateEvent} relaxes the creation
    * right for, and deliberately so: the relaxation asks two further things —
    * the date must be one the series has, and it must not already be amended —
-   * and this is a <b>superset</b> of it. Everything it covers and the
-   * relaxation does not is a row a caller who <b>holds</b> the creation right
-   * has legitimately created: a second amendment of the same date, one filed
-   * into another calendar, one whose identifier the date check could not
-   * resolve. Each of those is an exceptional occurrence and each owes its
+   * and this is a <b>superset</b> of it. One of the series' dates never comes
+   * here, whatever calendar it is filed in and whether it has a row already:
+   * {@link #writeDateOfSeries} saves it on its row, the series' copy at that
+   * date when it has none, its answers kept. What still comes here and the
+   * relaxation does not cover is a row a caller who <b>holds</b> the creation
+   * right has legitimately created under an identifier the date check could
+   * not resolve: an exceptional occurrence all the same, which owes its
    * attendees; withholding them would leave the orphan this method exists to
    * prevent. An ordinary event created with no attendee is a legitimate event
    * with no attendee and is left exactly as it was.
@@ -575,18 +804,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    *          when it names none
    */
   private void inheritSeriesAttendees(Event occurrence, Event event, Event parentEvent) {
-    if (occurrence == null || parentEvent == null || !isAmendmentOfADateOf(event, parentEvent)) {
+    if (occurrence == null) {
       return;
     }
-    EventOccurrence eventOccurrence = occurrence.getOccurrence();
-    if (eventOccurrence == null || eventOccurrence.getId() == null) {
-      return;
-    }
-    EventAttendeeList seriesAttendees = attendeeService.getEventAttendees(occurrence.getParentId());
-    if (seriesAttendees == null) {
-      return;
-    }
-    List<EventAttendee> inherited = cleanupAttendeeIds(seriesAttendees.getEventAttendees(eventOccurrence.getId()));
+    List<EventAttendee> inherited = cleanupAttendeeIds(inheritedSeriesAttendees(occurrence, event, parentEvent));
     if (inherited.isEmpty()) {
       return;
     }
@@ -599,11 +820,36 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   /**
+   * @param date the date of a series being created, before or after it is
+   *          stored: its occurrence id says which date
+   * @param event the event the creation was asked with
+   * @param parentEvent its series, null when it has none
+   * @return the series&#39; attendees for that date, which a date created with
+   *         no list of its own takes; empty when it takes none
+   */
+  private List<EventAttendee> inheritedSeriesAttendees(Event date, Event event, Event parentEvent) {
+    if (parentEvent == null || !isAmendmentOfADateOf(event, parentEvent)) {
+      return Collections.emptyList();
+    }
+    EventOccurrence eventOccurrence = date.getOccurrence();
+    if (eventOccurrence == null || eventOccurrence.getId() == null) {
+      return Collections.emptyList();
+    }
+    EventAttendeeList seriesAttendees = attendeeService.getEventAttendees(parentEvent.getId());
+    if (seriesAttendees == null) {
+      return Collections.emptyList();
+    }
+    return attendeesOfDate(seriesAttendees, eventOccurrence.getId());
+  }
+
+  /**
    * Anchors the dates of one occurrence on the dates of its series: the
-   * occurrence keeps its own day and takes the series&#39; time of day and
-   * duration. Shared by the creation of an exceptional occurrence and by the
-   * propagation of a series change to the occurrences that did not customise
-   * their dates, so both compute the same instant for the same date.
+   * occurrence keeps its own day, in the series&#39; zone when timed, and takes
+   * the series&#39; time of day and duration, or keeps its own time on a series
+   * with several dates a day. Shared by the creation of an exceptional
+   * occurrence and by the propagation of a series change to the occurrences
+   * that did not customise their dates, so both compute the same instant for
+   * the same date.
    *
    * @param seriesEvent the recurrent parent, source of the time and duration
    * @param occurrenceEvent the occurrence whose dates are written
@@ -621,16 +867,39 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                              .withMonth(occurrenceStartTime.getMonthValue())
                              .withDayOfMonth(occurrenceStartTime.getDayOfMonth());
     } else {
-      ZonedDateTime startStartTime = start.withZoneSameInstant(seriesEvent.getTimeZoneId());
-      occurrenceStart = startStartTime.withYear(occurrenceId.getYear())
-                                      .withMonth(occurrenceId.getMonthValue())
-                                      .withDayOfMonth(occurrenceId.getDayOfMonth())
-                                      .withHour(startStartTime.getHour())
-                                      .withMinute(startStartTime.getMinute());
+      // Where an unmarked row of that identifier is read: the series' time of
+      // day on the identifier's day in the series' zone, never on its UTC
+      // day, which is another day where the series' local start falls on
+      // another UTC day. At an hour the zone skips or repeats that day, the
+      // date the rule gives instead, as the rule resolves it: read there
+      // only, since expanding the rule walks it from its first date, and a
+      // change of the series anchors every row it keeps
+      Event ruleDate = isAtAnOffsetChange(seriesEvent, occurrenceId) ? dateOfRule(seriesEvent, occurrenceId) : null;
+      occurrenceStart = (ruleDate == null ? dateReadUnmarked(seriesEvent, occurrenceId) : ruleDate).getStart();
     }
     occurrenceEvent.setStart(occurrenceStart);
     occurrenceEvent.setEnd(occurrenceStart.plusSeconds(diffInSeconds));
     adjustEventDatesForWrite(occurrenceEvent);
+  }
+
+  /**
+   * Whether the series' time of day falls, on the day of an identifier in the
+   * series' zone, in an hour that zone skips or repeats, where the instant of
+   * that time is the rule's to resolve. Never on a series with several dates
+   * a day, whose identifier is the instant of its date.
+   *
+   * @param series the timed series
+   * @param occurrenceId the date's identifier, normalised on the series
+   * @return whether the zone's offset changes at that time of that day
+   */
+  private boolean isAtAnOffsetChange(Event series, ZonedDateTime occurrenceId) {
+    if (Utils.hasSeveralDatesADay(series.getRecurrence())) {
+      return false;
+    }
+    ZoneId zone = series.getTimeZoneId() == null ? ZoneOffset.UTC : series.getTimeZoneId();
+    LocalDateTime time = Utils.getSeriesDate(series, occurrenceId)
+                              .atTime(series.getStart().withZoneSameInstant(zone).toLocalTime());
+    return zone.getRules().getTransition(time) != null;
   }
 
   /**
@@ -684,8 +953,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                          List<EventConference> previousSeriesConferences,
                                                          long modifierIdentityId) {
     long seriesId = updatedSeries.getId();
-    List<Long> occurrenceEventIds = agendaEventStorage.getExceptionalOccurenceIds(seriesId);
-    if (CollectionUtils.isEmpty(occurrenceEventIds)) {
+    List<Event> occurrences = readExceptionalOccurrences(seriesId);
+    if (occurrences.isEmpty()) {
       return;
     }
     // The series as the rows were cloned from it: a row equal to it carries
@@ -718,15 +987,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // Expanding a recurrence costs more than everything else in this loop, and
     // only a change of the rule or of the times can make a date disappear from
     // it: a corrected summary cannot, so it does not pay for the expansion
-    boolean datesOrRuleChanged = !sameRecurrenceRule(storedSeries, updatedSeries)
-        || !isSameInstant(storedSeries.getStart(), updatedSeries.getStart())
-        || !isSameInstant(storedSeries.getEnd(), updatedSeries.getEnd());
+    boolean datesOrRuleChanged = datesOrRuleChanged(storedSeries, updatedSeries);
     // Read once: every occurrence lives in the calendar of its series, and the
     // open invariant is evaluated against it for each of them below
     Calendar seriesCalendar = agendaCalendarService.getCalendarById(updatedSeries.getCalendarId());
-    for (Long occurrenceEventId : occurrenceEventIds) {
-      Event occurrence = agendaEventStorage.getEventById(occurrenceEventId);
-      if (occurrence == null || occurrence.getOccurrence() == null || occurrence.getOccurrence().getId() == null) {
+    // A date over keeps its limit and its answers: a change of the series
+    // decides nothing there
+    SeriesDates seriesDates = new SeriesDates(storedSeries, () -> occurrences, ZonedDateTime.now(ZoneOffset.UTC));
+    for (Event occurrence : occurrences) {
+      long occurrenceEventId = occurrence.getId();
+      if (occurrence.getOccurrence() == null || occurrence.getOccurrence().getId() == null) {
         continue;
       }
       Event occurrenceBeforeMerge = occurrence.clone();
@@ -785,31 +1055,24 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       occurrence.setVisibility(mergeOccurrenceProperty(visibilityOf(occurrence),
                                                        visibilityOf(storedSeries),
                                                        visibilityOf(updatedSeries)));
-      occurrence.setStatus(mergeOccurrenceProperty(occurrence.getStatus(),
-                                                   storedSeries.getStatus(),
-                                                   updatedSeries.getStatus()));
       occurrence.setTimeZoneId(mergeOccurrenceProperty(occurrence.getTimeZoneId(),
                                                        storedSeries.getTimeZoneId(),
                                                        updatedSeries.getTimeZoneId()));
       occurrence.setAllDay(mergeOccurrenceProperty(occurrence.isAllDay(),
                                                    storedSeries.isAllDay(),
                                                    updatedSeries.isAllDay()));
-      occurrence.setAllowAttendeeToUpdate(mergeOccurrenceProperty(occurrence.isAllowAttendeeToUpdate(),
-                                                                  storedSeries.isAllowAttendeeToUpdate(),
-                                                                  updatedSeries.isAllowAttendeeToUpdate()));
-      occurrence.setAllowAttendeeToInvite(mergeOccurrenceProperty(occurrence.isAllowAttendeeToInvite(),
-                                                                  storedSeries.isAllowAttendeeToInvite(),
-                                                                  updatedSeries.isAllowAttendeeToInvite()));
-      // 'open' is merged like the rest, then clamped: it is the flag
-      // canRespondToEvent reads, so a value customised on one date must not
-      // survive a change to the series that has to lock it — a series turned
-      // into a date poll, moved to a personal calendar, or whose participants
-      // may now modify it or invite. The status and the two permissions are
-      // the ones merged just above, the calendar the series' own.
-      occurrence.setOpen(Boolean.TRUE.equals(mergeOccurrenceProperty(occurrence.getOpen(),
-                                                                    storedSeries.getOpen(),
-                                                                    updatedSeries.getOpen()))
-          && canBeOpen(occurrence, seriesCalendar));
+      mergeOpenRuleProperties(occurrence, storedSeries, updatedSeries);
+      boolean over = seriesDates.isOver(occurrence);
+      mergeOpenAndCapacity(occurrence, storedSeries, updatedSeries, seriesCalendar, over, attendeesRemovedFromSeries);
+      keepLimitAboveAccepted(occurrenceBeforeMerge, occurrence, attendeesRemovedFromSeries, updatedSeries.getId());
+      if (closes(occurrenceBeforeMerge, occurrence)) {
+        // Said here: a move of dates under another series closes them with no
+        // confirmation asked (K8)
+        LOG.info("Event {}: the exceptional occurrence {} saved for {} is closed by the change, its limit removed",
+                 updatedSeries.getId(),
+                 occurrenceEventId,
+                 occurrenceId);
+      }
       // The dates have the one explicit marker the model carries, so they need
       // no comparison: an occurrence that was moved keeps its own dates, one
       // that was not follows the series' time and duration on its own day
@@ -848,7 +1111,132 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                   rowLists.attendees(),
                                   attendeesAddedToSeries,
                                   attendeesRemovedFromSeries,
-                                  modifierIdentityId);
+                                  modifierIdentityId,
+                                  over);
+      if (!over) {
+        applyCapacityChange(occurrenceBeforeMerge, storedOccurrence);
+      }
+    }
+  }
+
+  /**
+   * Merges the open flag and the limit of a date individually modified like
+   * its other properties, then clamps both. The flag is the one
+   * canRespondToEvent reads, so a value customised on one date must not
+   * survive a change to the series that has to lock it — a series turned into
+   * a date poll, moved to a personal calendar, or whose participants may now
+   * modify it or invite — and a date that cannot be open holds no limit: a
+   * series change closing it removes it, its waiting list then confirmed
+   * (D15). A date whose limit is its own keeps it (D16), and so does a date
+   * over. The status and the two permissions read are the ones already
+   * merged, the calendar the series' own.
+   *
+   * @param occurrence the date's row, its other properties merged
+   * @param storedSeries the series before the change
+   * @param updatedSeries the series after the change
+   * @param seriesCalendar the series' calendar
+   * @param over whether the date is over
+   * @param removedFromSeries the identities the change removes from the
+   *          series, which leave the date with it (applySeriesMembershipChange)
+   */
+  private void mergeOpenAndCapacity(Event occurrence,
+                                    Event storedSeries,
+                                    Event updatedSeries,
+                                    Calendar seriesCalendar,
+                                    boolean over,
+                                    Set<Long> removedFromSeries) {
+    occurrence.setOpen(openAfterMerge(occurrence, storedSeries, updatedSeries, seriesCalendar, removedFromSeries));
+    int capacity = over ? SeatRule.capacityOf(occurrence)
+                        : mergeOccurrenceProperty(SeatRule.capacityOf(occurrence),
+                                                  SeatRule.capacityOf(storedSeries),
+                                                  SeatRule.capacityOf(updatedSeries));
+    occurrence.setCapacity(canHaveCapacity(occurrence, seriesCalendar) ? capacity : 0);
+  }
+
+  /**
+   * Merges into a date individually modified the properties of a series
+   * change that canBeOpen reads: its status and the two participant
+   * permissions.
+   *
+   * @param occurrence the date's row
+   * @param storedSeries the series before the change
+   * @param updatedSeries the series after the change
+   */
+  private void mergeOpenRuleProperties(Event occurrence, Event storedSeries, Event updatedSeries) {
+    occurrence.setStatus(mergeOccurrenceProperty(occurrence.getStatus(), storedSeries.getStatus(), updatedSeries.getStatus()));
+    occurrence.setAllowAttendeeToUpdate(mergeOccurrenceProperty(occurrence.isAllowAttendeeToUpdate(),
+                                                                storedSeries.isAllowAttendeeToUpdate(),
+                                                                updatedSeries.isAllowAttendeeToUpdate()));
+    occurrence.setAllowAttendeeToInvite(mergeOccurrenceProperty(occurrence.isAllowAttendeeToInvite(),
+                                                                storedSeries.isAllowAttendeeToInvite(),
+                                                                updatedSeries.isAllowAttendeeToInvite()));
+  }
+
+  /**
+   * Whether a date individually modified is open once a series change is
+   * merged into it, before the people the series gains reach it: the merged
+   * flag, the open invariant holding.
+   *
+   * @param occurrence the date's row, its flag not merged yet, its status and
+   *          participant permissions merged (mergeOpenRuleProperties)
+   * @param storedSeries the series before the change
+   * @param updatedSeries the series after the change
+   * @param seriesCalendar the series' calendar
+   * @param removedFromSeries the identities the change removes from the
+   *          series, which leave the date with it (applySeriesMembershipChange)
+   * @return whether the merge leaves the date open
+   */
+  private boolean openAfterMerge(Event occurrence,
+                                 Event storedSeries,
+                                 Event updatedSeries,
+                                 Calendar seriesCalendar,
+                                 Set<Long> removedFromSeries) {
+    boolean open = Boolean.TRUE.equals(mergeOccurrenceProperty(occurrence.getOpen(),
+                                                               storedSeries.getOpen(),
+                                                               updatedSeries.getOpen()))
+        && canBeOpen(occurrence, seriesCalendar);
+    // A date holding a person from outside the platform is not opened with its
+    // series: it stays closed, as when the invariant fails. One already open
+    // is not closed here, which would be a closing path of its own. The list
+    // read is the one the change leaves the date with: a guest the series
+    // removes in the same change leaves the date too
+    return open && (Boolean.TRUE.equals(occurrence.getOpen())
+        || !Utils.holdsExternalGuest(identityManager,
+                                     attendeeService.getEventAttendees(occurrence.getId())
+                                                    .getEventAttendees()
+                                                    .stream()
+                                                    .filter(attendee -> !removedFromSeries.contains(attendee.getIdentityId()))
+                                                    .toList()));
+  }
+
+  /**
+   * Keeps the limit of a date individually modified when a change of its
+   * series would lower it below the Yes answers the date holds, the attendees
+   * the change removes not counted. A save of the series refuses such a limit
+   * before writing anything, so only the move of dates under another series
+   * reaches it: its dialog chains it between two other writes, where a refusal
+   * would leave two series overlapping. Logged.
+   *
+   * @param before the date's row before the merge
+   * @param merged the date's row, its limit merged
+   * @param removedIdentityIds the attendees the change removes from the series
+   * @param seriesId the series the date is merged into
+   */
+  private void keepLimitAboveAccepted(Event before, Event merged, Set<Long> removedIdentityIds, long seriesId) {
+    int capacityBefore = SeatRule.capacityOf(before);
+    int capacity = SeatRule.capacityOf(merged);
+    if (!tightens(capacityBefore, capacity)) {
+      return;
+    }
+    int accepted = SeatRule.acceptedAt(keptRows(before.getId(), EventAttendeeResponse.ACCEPTED, removedIdentityIds), null, 0);
+    if (accepted > capacity) {
+      merged.setCapacity(capacityBefore);
+      LOG.info("Event {}: the exceptional occurrence {} keeps its own limit ({}, 0 for none), the limit {} being below its {} accepted participants",
+               seriesId,
+               before.getId(),
+               capacityBefore,
+               capacity,
+               accepted);
     }
   }
 
@@ -863,12 +1251,15 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * @param addedToSeries identities the series gained
    * @param removedFromSeries identities the series lost
    * @param modifierIdentityId who is saving
+   * @param over whether the date is over: it keeps its answers, the seat a
+   *          removal frees there going to nobody
    */
   private void applySeriesMembershipChange(Event occurrence,
                                            List<EventAttendee> occurrenceAttendees,
                                            Set<Long> addedToSeries,
                                            Set<Long> removedFromSeries,
-                                           long modifierIdentityId) {
+                                           long modifierIdentityId,
+                                           boolean over) {
     if (addedToSeries.isEmpty() && removedFromSeries.isEmpty()) {
       return;
     }
@@ -885,14 +1276,19 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (attendeeIdentityIds(merged).equals(attendeesBefore)) {
       return;
     }
-    attendeeService.saveEventAttendees(occurrence,
-                                       merged,
-                                       modifierIdentityId,
-                                       false,
-                                       false,
-                                       new AgendaEventModification(occurrence.getId(),
-                                                                   occurrence.getCalendarId(),
-                                                                   modifierIdentityId));
+    if (over) {
+      // Not part of the attendee service's contract, as the promotion
+      ((AgendaEventAttendeeServiceImpl) attendeeService).saveOverDateAttendees(occurrence, merged, modifierIdentityId);
+    } else {
+      attendeeService.saveEventAttendees(occurrence,
+                                         merged,
+                                         modifierIdentityId,
+                                         false,
+                                         false,
+                                         new AgendaEventModification(occurrence.getId(),
+                                                                     occurrence.getCalendarId(),
+                                                                     modifierIdentityId));
+    }
     // Removing the attendee row does not remove the reminders that person set
     // on that date: nothing listens to the attendee-deleted event, and a
     // reminder is sent from its own stored trigger date with no attendance
@@ -937,10 +1333,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         || row.isAllDay() != storedSeries.isAllDay()
         || row.isAllowAttendeeToUpdate() != storedSeries.isAllowAttendeeToUpdate()
         || row.isAllowAttendeeToInvite() != storedSeries.isAllowAttendeeToInvite()
-        || Boolean.TRUE.equals(row.getOpen()) != Boolean.TRUE.equals(storedSeries.getOpen())) {
+        || Boolean.TRUE.equals(row.getOpen()) != Boolean.TRUE.equals(storedSeries.getOpen())
+        || SeatRule.capacityOf(row) != SeatRule.capacityOf(storedSeries)) {
       return true;
     }
-    List<EventAttendee> seriesAttendeesOnThatDate = new EventAttendeeList(seriesLists.attendees()).getEventAttendees(occurrenceId);
+    // Compared with the series' attendee rows valid at that date, the ones the
+    // row was built with
+    List<EventAttendee> seriesAttendeesOnThatDate = attendeesOfDate(new EventAttendeeList(seriesLists.attendees()), occurrenceId);
     // Reminders are compared with the series' reminders that apply to that
     // date, the ones the row was built with: one turned off on the date alone
     // is intent, and so is one set there, even when the series carries the
@@ -1098,6 +1497,21 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   /**
+   * Whether a series change can make a date disappear from the recurrence:
+   * only a change of the rule or of the times can.
+   *
+   * @param storedSeries the series before the change
+   * @param updatedSeries the series after the change
+   * @return whether the dates the change keeps are to be checked against the
+   *         new recurrence (seriesStillProducesOccurrence)
+   */
+  private boolean datesOrRuleChanged(Event storedSeries, Event updatedSeries) {
+    return !sameRecurrenceRule(storedSeries, updatedSeries)
+        || !isSameInstant(storedSeries.getStart(), updatedSeries.getStart())
+        || !isSameInstant(storedSeries.getEnd(), updatedSeries.getEnd());
+  }
+
+  /**
    * Whether the recurrence of the series still produces the date of a stored
    * occurrence. Deleting a row is the consequence of answering no, so the match
    * is the <strong>same predicate</strong> that decides elsewhere whether a row
@@ -1152,7 +1566,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                ZonedDateTime fromDate,
                                                long userIdentityId) throws IllegalAccessException, AgendaException {
     if (fromDate == null) {
-      throw new IllegalArgumentException("agenda.seriesSplit.notAllowed");
+      throw new IllegalArgumentException(SERIES_SPLIT_NOT_ALLOWED);
     }
     Event fromSeries = agendaEventStorage.getEventById(fromEventId);
     Event toSeries = agendaEventStorage.getEventById(toEventId);
@@ -1165,20 +1579,41 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new IllegalAccessException("User " + userIdentityId + " is not allowed to move the exceptional occurrences of event "
           + fromEventId + " under event " + toEventId);
     }
-    if (fromEventId == toEventId || fromSeries.getRecurrence() == null || toSeries.getRecurrence() == null
-        || fromSeries.getParentId() > 0 || toSeries.getParentId() > 0
-        || fromSeries.getCalendarId() != toSeries.getCalendarId()) {
-      throw new IllegalArgumentException("agenda.seriesSplit.notAllowed");
+    checkSeriesSplit(fromSeries, toSeries);
+    // Both series are locked, in ascending identifier order, so that two moves
+    // between them cannot deadlock
+    try {
+      return decideSteps.decide(DecideSteps.targetOfSeries(fromEventId, toEventId), () -> {
+        logUnguardedClosings(fromEventId, toEventId, fromDate);
+        return writeMovedExceptionalOccurrences(fromEventId, toEventId, fromDate, userIdentityId);
+      });
+    } catch (ResolveAgainException e) {
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
     }
+  }
+
+  private List<Long> writeMovedExceptionalOccurrences(long fromEventId,
+                                                      long toEventId,
+                                                      ZonedDateTime fromDate,
+                                                      long userIdentityId) {
+    Event fromSeries = agendaEventStorage.getEventById(fromEventId);
+    Event toSeries = agendaEventStorage.getEventById(toEventId);
+    checkSeriesSplit(fromSeries, toSeries);
+    // The dates moved take the people the second series holds that the first
+    // did not (applySeriesMembershipChange), on a date that is over as well,
+    // where the attendee service decides nothing: refused before the first
+    // write, as a split refuses it, when one of them is from outside the
+    // platform and such a date stays open on its own
+    checkExternalGuests(fromSeries, toSeries, attendeeService.getEventAttendees(toEventId).getEventAttendees(), fromDate);
     // The occurrence tolerance rather than the UTC day: on the night daylight
     // saving starts, two daily dates 23 hours apart can share a UTC day, and
     // the one before the split, which the first series keeps producing, would
     // move and be dropped by a continuation that does not produce it
     ZonedDateTime firstOccurrence = fromDate.minusHours(12);
     List<Long> movedIds = new ArrayList<>();
-    for (Long rowId : agendaEventStorage.getExceptionalOccurenceIds(fromEventId)) {
-      Event row = agendaEventStorage.getEventById(rowId);
-      if (row == null || row.getOccurrence() == null || row.getOccurrence().getId() == null
+    for (Event row : readExceptionalOccurrences(fromEventId)) {
+      long rowId = row.getId();
+      if (row.getOccurrence() == null || row.getOccurrence().getId() == null
           || row.getOccurrence().getId().isBefore(firstOccurrence)) {
         continue;
       }
@@ -1217,6 +1652,656 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   /**
+   * A move of dates under another series asks no confirmation of a closing:
+   * its callers, an older client or an integrator splitting in three calls,
+   * do not send one, and the split that replaces them asks it. Each date the
+   * merge closes while people wait for a seat on it, which confirms them, is
+   * logged instead.
+   */
+  private void logUnguardedClosings(long fromEventId, long toEventId, ZonedDateTime fromDate) {
+    Event fromSeries = agendaEventStorage.getEventById(fromEventId);
+    Event toSeries = agendaEventStorage.getEventById(toEventId);
+    if (fromSeries == null || toSeries == null || fromSeries.getRecurrence() == null || toSeries.getRecurrence() == null) {
+      return;
+    }
+    Calendar calendar = agendaCalendarService.getCalendarById(toSeries.getCalendarId());
+    // Logged only: the dates a removal opens with their series are not read
+    for (DateCapacity date : mergedDateCapacities(fromSeries, toSeries, calendar, fromDate, Collections.emptySet())) {
+      if (closes(date.before(), date.after())
+          && gainsSeats(SeatRule.capacityOf(date.before()), SeatRule.capacityOf(date.after()))
+          && hasWaitingAttendees(date.before(), Collections.emptySet(), false)) {
+        LOG.info("Event {}: moving its date {} under event {} closes it and confirms the people waiting, with no confirmation asked",
+                 fromEventId,
+                 date.before().getOccurrence().getId(),
+                 toEventId);
+      }
+    }
+  }
+
+  /**
+   * Refuses a move of dates between two events that are not two distinct
+   * series of one calendar.
+   *
+   * @param fromSeries the series the dates move away from
+   * @param toSeries the series receiving them
+   */
+  private static void checkSeriesSplit(Event fromSeries, Event toSeries) {
+    if (fromSeries.getId() == toSeries.getId() || fromSeries.getRecurrence() == null || toSeries.getRecurrence() == null
+        || fromSeries.getParentId() > 0 || toSeries.getParentId() > 0
+        || fromSeries.getCalendarId() != toSeries.getCalendarId()) {
+      throw new IllegalArgumentException(SERIES_SPLIT_NOT_ALLOWED);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Event splitEvent(long seriesId,
+                          EventSplit split,
+                          ZonedDateTime splitFrom,
+                          boolean sendInvitation,
+                          boolean confirmClose,
+                          long userIdentityId) throws IllegalAccessException, AgendaException {
+    if (userIdentityId <= 0) {
+      throw new IllegalArgumentException("userIdentityId is mandatory");
+    }
+    if (split == null || split.event() == null) {
+      throw new IllegalArgumentException("Event is mandatory");
+    }
+    if (splitFrom == null) {
+      throw new IllegalArgumentException(SERIES_SPLIT_NOT_ALLOWED);
+    }
+    checkCapacityValue(split.event().getCapacity());
+    Event series = agendaEventStorage.getEventById(seriesId);
+    if (series == null) {
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+    }
+    // The continuation is created in the series' calendar, whatever the
+    // change names: the right to create one there is asked as for any event
+    Calendar calendar = agendaCalendarService.getCalendarById(series.getCalendarId());
+    if (calendar == null) {
+      throw new AgendaException(AgendaExceptionType.CALENDAR_NOT_FOUND);
+    }
+    if (!canUpdateEvent(series, userIdentityId) || !canCreateEvent(calendar, userIdentityId)) {
+      throw new IllegalAccessException("User " + userIdentityId + " is not allowed to split event " + seriesId);
+    }
+    try {
+      return decideSteps.<Event, IllegalAccessException, AgendaException> decide(DecideSteps.targetOfSeries(seriesId),
+                                                                                 () -> writeSplit(seriesId,
+                                                                                                  split,
+                                                                                                  splitFrom,
+                                                                                                  sendInvitation,
+                                                                                                  confirmClose,
+                                                                                                  calendar,
+                                                                                                  userIdentityId));
+    } catch (ResolveAgainException e) {
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+    }
+  }
+
+  /**
+   * Splits a series in the decide step that locked it. Everything that may
+   * refuse the split is decided before the first write; the writes follow in
+   * an order where each finds what it needs: the continuation and its
+   * attendees, then the dates customised from the split on, merged into it,
+   * then the series shortened. A failure anywhere rolls all of them back.
+   */
+  private Event writeSplit(long seriesId,
+                           EventSplit split,
+                           ZonedDateTime requestedSplitFrom,
+                           boolean sendInvitation,
+                           boolean confirmClose,
+                           Calendar calendar,
+                           long userIdentityId) throws IllegalAccessException, AgendaException {
+    Event series = agendaEventStorage.getEventById(seriesId);
+    if (series == null) {
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+    }
+    if (series.getRecurrence() == null || series.getParentId() > 0) {
+      throw new IllegalArgumentException(SERIES_SPLIT_NOT_ALLOWED);
+    }
+    ZonedDateTime splitFrom = splitDateOf(series, requestedSplitFrom);
+    Event continuation = toContinuation(series, split.event(), split.readZone(), splitFrom, calendar, userIdentityId);
+    boolean keepsTheDates = keepsTheDates(series, continuation, splitFrom);
+    Set<Long> removedIdentityIds = split.removedIdentityIds() == null ? Collections.emptySet() : split.removedIdentityIds();
+    List<Long> addedIdentityIds = split.addedIdentityIds() == null ? Collections.emptyList() : split.addedIdentityIds();
+    List<EventAttendee> rows = continuationRows(seriesId, splitFrom, addedIdentityIds, removedIdentityIds);
+    // Every refusal comes before the first write
+    checkSplitCapacity(series, continuation, rows, keepsTheDates, removedIdentityIds, splitFrom, confirmClose, calendar);
+    checkExternalGuests(series, continuation, rows, splitFrom);
+
+    if (keepsTheDates && SeatRule.capacityOf(continuation) == SeatRule.capacityOf(series)) {
+      // The same dates under the same limit: a date already full stays so,
+      // and is not reported as reached again
+      continuation.setCapacityReachedDate(series.getCapacityReachedDate());
+    }
+    long continuationId = agendaEventStorage.createEvent(continuation).getId();
+    decideSteps.joinInsertedEvent(continuationId);
+    createOrUpdateEventProperties(eventProperties(seriesId), agendaEventStorage.getEventById(continuationId));
+    Event createdEvent = readCreatedEvent(continuationId, continuation.getTimeZoneId(), userIdentityId);
+    conferenceService.saveEventConferences(continuationId,
+                                           copiesOf(split.conferences() == null ? conferenceService.getEventConferences(seriesId)
+                                                                                : split.conferences()));
+
+    AgendaEventModification eventModifications = new AgendaEventModification(continuationId,
+                                                                              createdEvent.getCalendarId(),
+                                                                              userIdentityId);
+    eventModifications.addModificationType(AgendaEventModificationType.ADDED);
+    eventModifications.addModificationType(AgendaEventModificationType.SPLIT);
+    if (keepsTheDates) {
+      // Every answer and every place on the waiting list is carried over
+      saveContinuationRows(continuationId, rows);
+    } else {
+      // A new date is a new question (D19): every answer but the user's starts
+      // over, the waiting list included; the user's own Yes takes a seat
+      attendeeService.saveEventAttendees(createdEvent,
+                                         startedOver(rows, userIdentityId),
+                                         userIdentityId,
+                                         sendInvitation,
+                                         false,
+                                         eventModifications);
+    }
+    saveContinuationReminders(seriesId, createdEvent, rows, keepsTheDates, split.reminders(), splitFrom, userIdentityId);
+
+    writeMovedExceptionalOccurrences(seriesId, continuationId, splitFrom, userIdentityId);
+    if (keepsTheDates) {
+      // The waiting list takes the seats the change frees, once the customised
+      // dates are under the continuation: a date with a row of its own decides
+      // its seats there
+      promoteWaitingAttendees(continuationId);
+      if (SeatRule.capacityOf(continuation) != SeatRule.capacityOf(series)) {
+        // The same dates under a new limit: the mark is written from the
+        // answers carried over, reporting nothing (D7)
+        writeCapacityReachedDate(continuationId);
+      }
+    }
+    shortenSeries(series, splitFrom, userIdentityId);
+
+    // Published once the step commits. The answers are already carried over
+    // or started over: the listener that starts them over on a creation
+    // skips a split
+    if (createdEvent.getStatus() == EventStatus.TENTATIVE) {
+      Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_POLL, eventModifications, null);
+    } else if (createdEvent.getStatus() == EventStatus.CONFIRMED) {
+      Utils.broadcastEvent(listenerService, Utils.POST_CREATE_AGENDA_EVENT_EVENT, eventModifications, null);
+    }
+    if (keepsTheDates && sendInvitation) {
+      // Nobody who answered is asked to answer again: every participant is
+      // told the event changed, the ones the change adds included (G5)
+      AgendaEventModification update = new AgendaEventModification(continuationId,
+                                                                    createdEvent.getCalendarId(),
+                                                                    userIdentityId);
+      update.addModificationType(AgendaEventModificationType.UPDATED);
+      update.addModificationType(AgendaEventModificationType.SPLIT);
+      attendeeService.sendInvitations(createdEvent,
+                                      onePerIdentity(attendeeService.getEventAttendees(continuationId).getEventAttendees()),
+                                      update);
+    }
+    notifyOwnerOfEditorChange(createdEvent,
+                              userIdentityId,
+                              CalendarEditorChangeKind.ADDED,
+                              writeRightOf(createdEvent, userIdentityId));
+    return createdEvent;
+  }
+
+  /**
+   * @param series the series split, as read under its lock
+   * @param splitFrom the occurrence id a split was asked from
+   * @return the occurrence id of the series' date it designates, normalised
+   *         once
+   * @throws IllegalArgumentException when it designates no date of the
+   *           series, or its first one, which a whole-series change covers
+   */
+  private ZonedDateTime splitDateOf(Event series, ZonedDateTime splitFrom) {
+    ZoneId zone = series.getTimeZoneId() == null ? ZoneOffset.UTC : series.getTimeZoneId();
+    ZonedDateTime occurrenceId = Utils.getOccurrenceId(series.isAllDay(), splitFrom, zone);
+    LocalDate day = Utils.getSeriesDate(series, occurrenceId);
+    ZonedDateTime firstDate = new SeriesDates(series,
+                                              () -> agendaEventStorage.getExceptionalOccurrences(series.getId()),
+                                              ZonedDateTime.now(ZoneOffset.UTC)).firstDate();
+    return Utils.getOccurrences(series, day.minusDays(1), day.plusDays(1), 0)
+                .stream()
+                .map(occurrence -> occurrence.getOccurrence().getId())
+                .filter(date -> Utils.isSameSeriesDate(series, date, occurrenceId)
+                    && !Utils.isSameSeriesDate(series, date, firstDate) && date.isAfter(firstDate))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(SERIES_SPLIT_NOT_ALLOWED));
+  }
+
+  /**
+   * The series continuing a series from a date on: the series itself, with
+   * the fields the change edits. Its creator, calendar and status stay the
+   * series'; its participant permissions, open flag and limit are resolved
+   * against the series as an update resolves them, so that an editor who is
+   * not the creator neither raises a permission nor keeps the invite one
+   * while opening the event. A count the change keeps becomes the count of
+   * the dates left from the split on, the dates cancelled or customised
+   * before it included, so that the two series hold as many dates as the
+   * series did.
+   */
+  private Event toContinuation(Event series,
+                               Event edits,
+                               ZoneId readZone,
+                               ZonedDateTime splitFrom,
+                               Calendar calendar,
+                               long userIdentityId) throws AgendaException {
+    Event edited = series.clone();
+    edited.setSummary(ObjectUtils.firstNonNull(edits.getSummary(), series.getSummary()));
+    edited.setDescription(ObjectUtils.firstNonNull(edits.getDescription(), series.getDescription()));
+    edited.setLocation(ObjectUtils.firstNonNull(edits.getLocation(), series.getLocation()));
+    // The zone the series was read in, like no zone, is not one the user
+    // chose: the continuation keeps the series' own, or its dates would move
+    boolean writtenInReadZone = readZone != null
+        && (edits.getTimeZoneId() == null || readZone.normalized().equals(edits.getTimeZoneId().normalized()));
+    edited.setTimeZoneId(edits.getTimeZoneId() == null || writtenInReadZone ? series.getTimeZoneId() : edits.getTimeZoneId());
+    if (edits.getStart() != null && edits.getEnd() != null) {
+      edited.setStart(edits.getStart());
+      edited.setEnd(edits.getEnd());
+      edited.setAllDay(edits.isAllDay());
+      adjustEventDatesForWrite(edited);
+    } else {
+      // No date given: the continuation starts on the split date, at the
+      // series' times
+      edited.setStart(splitFrom);
+      edited.setEnd(splitFrom.plus(Duration.between(series.getStart(), series.getEnd())));
+    }
+    if (edited.getStart().isAfter(edited.getEnd())) {
+      throw new AgendaException(AgendaExceptionType.EVENT_START_DATE_BEFORE_END_DATE);
+    }
+    EventRecurrence recurrence = edits.getRecurrence() == null ? series.getRecurrence().clone()
+                                                               : edits.getRecurrence().clone();
+    if (recurrence.getFrequency() == null) {
+      throw new AgendaException(AgendaExceptionType.EVENT_RECURRENCE_FREQUENCY_MANDATORY);
+    }
+    if (recurrence.getInterval() <= 0) {
+      throw new AgendaException(AgendaExceptionType.EVENT_RECURRENCE_INTERVAL_MANDATORY);
+    }
+    if (edits.getRecurrence() == null) {
+      // The series' own rule follows a first date moved to another day, in
+      // the shapes movePatternDay moves: the day of the split date moves,
+      // among the others the rule names
+      movePatternDay(recurrence, Utils.getSeriesDate(series, splitFrom), firstDayOf(edited), true);
+    } else if (writtenInReadZone) {
+      // A rule the event form derives from the date names its day as the
+      // date falls in the zone it was read in, which the series' zone may
+      // date otherwise; a list of weekdays names the event's own
+      movePatternDay(recurrence, dayIn(edited, readZone), firstDayOf(edited), false);
+    }
+    int seriesCount = series.getRecurrence().getCount();
+    if (seriesCount > 0 && recurrence.getCount() == seriesCount) {
+      recurrence.setCount(seriesCount - datesBefore(series, splitFrom));
+      recurrence.setUntil(null);
+    }
+    recurrence.setId(0);
+    edited.setRecurrence(recurrence);
+    edited.setOpen(edits.getOpen());
+    edited.setCapacity(edits.getCapacity());
+    edited.setAllowAttendeeToUpdate(edits.isAllowAttendeeToUpdate());
+    edited.setAllowAttendeeToInvite(edits.isAllowAttendeeToInvite());
+
+    Event continuation = toEventToUpdate(edited, series, calendar, userIdentityId);
+    continuation.setId(0);
+    continuation.setParentId(0);
+    continuation.setOccurrence(null);
+    continuation.setCreated(ZonedDateTime.now());
+    continuation.setUpdated(null);
+    continuation.setModifierId(0);
+    return continuation;
+  }
+
+  /**
+   * Moves a day a rule names from the day its first date falls on to
+   * another: a weekday of a weekly rule or, in a rule naming no weekday and
+   * counting its days from the first of the month, a day of the month a
+   * monthly rule names or the one day of a yearly rule; any other rule is
+   * left as it is. In the series' own rule the first date stands for the
+   * day of the split date, which moves among the others the rule names. In a
+   * rule the change gives, only a rule naming that single day moves: which
+   * of several days it stands for is not the server's to guess, and a list
+   * as it is stored names them in the series' zone already. A rule with an
+   * interval of 2 or more counts it from the period of its frequency the
+   * first date falls in, such as its week or its month.
+   *
+   * @param from the day the first date falls on, as the rule names it
+   * @param to the day the rule must name instead
+   * @param amongOthers whether the day moves among others the rule names
+   */
+  private static void movePatternDay(EventRecurrence recurrence, LocalDate from, LocalDate to, boolean amongOthers) {
+    if (from.equals(to)) {
+      return;
+    }
+    if (recurrence.getFrequency() == EventRecurrenceFrequency.WEEKLY) {
+      recurrence.setByDay(moveDay(recurrence.getByDay(),
+                                  weekdayOf(from.getDayOfWeek()),
+                                  weekdayOf(to.getDayOfWeek()),
+                                  amongOthers));
+    } else if (recurrence.getFrequency() == EventRecurrenceFrequency.MONTHLY
+        && CollectionUtils.isEmpty(recurrence.getByDay())) {
+      recurrence.setByMonthDay(moveDay(recurrence.getByMonthDay(),
+                                       String.valueOf(from.getDayOfMonth()),
+                                       String.valueOf(to.getDayOfMonth()),
+                                       amongOthers));
+    } else if (recurrence.getFrequency() == EventRecurrenceFrequency.YEARLY && CollectionUtils.isEmpty(recurrence.getByDay())
+        && List.of(String.valueOf(from.getDayOfMonth())).equals(recurrence.getByMonthDay())) {
+      recurrence.setByMonthDay(new ArrayList<>(List.of(String.valueOf(to.getDayOfMonth()))));
+      if (List.of(String.valueOf(from.getMonthValue())).equals(recurrence.getByMonth())) {
+        recurrence.setByMonth(new ArrayList<>(List.of(String.valueOf(to.getMonthValue()))));
+      }
+    }
+  }
+
+  /**
+   * @return the days with the one moved, in their order; the days as they
+   *         are when they do not name it, or when it may not move among
+   *         others they name
+   */
+  private static List<String> moveDay(List<String> days, String from, String to, boolean amongOthers) {
+    if (days == null || !days.contains(from) || (!amongOthers && days.size() > 1)) {
+      return days;
+    }
+    Set<String> moved = new LinkedHashSet<>();
+    days.forEach(day -> moved.add(day.equals(from) ? to : day));
+    return new ArrayList<>(moved);
+  }
+
+  private static String weekdayOf(DayOfWeek day) {
+    return day.name().substring(0, 2);
+  }
+
+  /**
+   * @return the day an event starts on, in its own zone; an all-day event's
+   *         start is that day at midnight UTC
+   */
+  private static LocalDate firstDayOf(Event event) {
+    return dayIn(event, zoneOf(event));
+  }
+
+  /**
+   * @return the day an event starts on in the zone given; an all-day event's
+   *         start is its day, whatever the zone
+   */
+  private static LocalDate dayIn(Event event, ZoneId zone) {
+    return event.isAllDay() ? event.getStart().toLocalDate() : event.getStart().withZoneSameInstant(zone).toLocalDate();
+  }
+
+  /**
+   * @return the zone of an event, UTC when it has none, in its normalised
+   *         form: {@code UTC} and {@code Z} are one zone
+   */
+  private static ZoneId zoneOf(Event event) {
+    return (event.getTimeZoneId() == null ? ZoneOffset.UTC : event.getTimeZoneId()).normalized();
+  }
+
+  /**
+   * @return the number of dates the rule of a series produces before a date of
+   *         it, cancelled or customised ones included
+   */
+  private static int datesBefore(Event series, ZonedDateTime splitFrom) {
+    ZoneId zone = series.getTimeZoneId() == null ? ZoneOffset.UTC : series.getTimeZoneId();
+    LocalDate firstDay = Utils.getSeriesDate(series, Utils.getOccurrenceId(series.isAllDay(), series.getStart(), zone));
+    return (int) Utils.getOccurrences(series, firstDay, Utils.getSeriesDate(series, splitFrom), 0)
+                      .stream()
+                      .filter(occurrence -> occurrence.getOccurrence().getId().isBefore(splitFrom))
+                      .count();
+  }
+
+  /**
+   * Whether a continuation keeps the dates of the series from the split on:
+   * its first date is the split date, and it keeps the series' times,
+   * duration, time zone, all-day flag and recurrence pattern. Its end, or
+   * its count, may differ: it ends sooner or later, and the dates it keeps
+   * keep their answers.
+   */
+  private static boolean keepsTheDates(Event series, Event continuation, ZonedDateTime splitFrom) {
+    ZoneId zone = series.getTimeZoneId() == null ? ZoneOffset.UTC : series.getTimeZoneId();
+    return series.isAllDay() == continuation.isAllDay()
+        && zoneOf(series).equals(zoneOf(continuation))
+        && Utils.getOccurrenceId(continuation.isAllDay(), continuation.getStart(), zone).isEqual(splitFrom)
+        && Duration.between(series.getStart(), series.getEnd())
+                   .equals(Duration.between(continuation.getStart(), continuation.getEnd()))
+        && hasSamePattern(series.getRecurrence(), continuation.getRecurrence());
+  }
+
+  /**
+   * Compares two recurrences field by field, never as a whole: their equality
+   * also compares their identifiers, rules, ends and counts, which differ
+   * between a series and its continuation by construction. The lists are
+   * compared as sets, a missing one being an empty one.
+   */
+  private static boolean hasSamePattern(EventRecurrence recurrence, EventRecurrence other) {
+    return recurrence.getFrequency() == other.getFrequency() && recurrence.getInterval() == other.getInterval()
+        && hasSameValues(recurrence.getBySecond(), other.getBySecond())
+        && hasSameValues(recurrence.getByMinute(), other.getByMinute())
+        && hasSameValues(recurrence.getByHour(), other.getByHour())
+        && hasSameValues(recurrence.getByDay(), other.getByDay())
+        && hasSameValues(recurrence.getByMonthDay(), other.getByMonthDay())
+        && hasSameValues(recurrence.getByYearDay(), other.getByYearDay())
+        && hasSameValues(recurrence.getByWeekNo(), other.getByWeekNo())
+        && hasSameValues(recurrence.getByMonth(), other.getByMonth())
+        && hasSameValues(recurrence.getBySetPos(), other.getBySetPos());
+  }
+
+  private static boolean hasSameValues(List<String> values, List<String> otherValues) {
+    return new HashSet<>(values == null ? Collections.emptyList() : values).equals(new HashSet<>(otherValues == null ? Collections.emptyList()
+                                                                                                                      : otherValues));
+  }
+
+  /**
+   * Refuses a split whose limits are below the Yes answers they keep, or
+   * that closes the event while people wait for a seat and is not
+   * confirmed. The continuation counts when it keeps the dates, the answers
+   * then being carried over; the dates customised from the split on count
+   * as the merge into the continuation leaves them.
+   */
+  private void checkSplitCapacity(Event series,
+                                  Event continuation,
+                                  List<EventAttendee> rows,
+                                  boolean keepsTheDates,
+                                  Set<Long> removedIdentityIds,
+                                  ZonedDateTime splitFrom,
+                                  boolean confirmClose,
+                                  Calendar calendar) {
+    int capacity = SeatRule.capacityOf(continuation);
+    LocalDate blockingDate = null;
+    boolean confirmsWaitingList = false;
+    if (keepsTheDates) {
+      if (tightens(SeatRule.capacityOf(series), capacity)) {
+        blockingDate = firstDateBelowFloor(series, rowsAnswering(rows, EventAttendeeResponse.ACCEPTED), splitFrom, capacity);
+      }
+      confirmsWaitingList = closes(series, continuation) && waitsFrom(series, rows, splitFrom);
+    }
+    for (DateCapacity date : mergedDateCapacities(series, continuation, calendar, splitFrom, removedIdentityIds)) {
+      int dateCapacity = SeatRule.capacityOf(date.after());
+      if (tightens(SeatRule.capacityOf(date.before()), dateCapacity)
+          && isBelowPoolFloor(date.before().getId(), dateCapacity, removedIdentityIds)) {
+        LocalDate day = dayOf(series, date.before());
+        blockingDate = blockingDate == null || day.isBefore(blockingDate) ? day : blockingDate;
+      }
+      confirmsWaitingList = confirmsWaitingList
+          || closes(date.before(), date.after())
+              && gainsSeats(SeatRule.capacityOf(date.before()), SeatRule.capacityOf(date.after()))
+              && hasWaitingAttendees(date.before(), removedIdentityIds, false);
+    }
+    if (blockingDate != null) {
+      throw new CapacityBelowAcceptedException(blockingDate);
+    }
+    if (confirmsWaitingList && !confirmClose) {
+      throw new IllegalArgumentException(CAPACITY_CLOSE_NEEDS_CONFIRMATION);
+    }
+  }
+
+  /**
+   * @return whether one of the rows carried over waits for a seat at a date
+   *         from the split on, still to come and with no row of its own
+   */
+  private boolean waitsFrom(Event series, List<EventAttendee> rows, ZonedDateTime splitFrom) {
+    List<EventAttendee> waitingRows = rowsAnswering(rows, EventAttendeeResponse.WAITING);
+    if (waitingRows.isEmpty()) {
+      return false;
+    }
+    SeriesDates seriesDates = new SeriesDates(series,
+                                              () -> agendaEventStorage.getExceptionalOccurrences(series.getId()),
+                                              ZonedDateTime.now(ZoneOffset.UTC));
+    return waitingRows.stream()
+                      .anyMatch(row -> seriesDates.firstCountedDate(row.getFromOccurrenceId() == null ? splitFrom
+                                                                                                      : row.getFromOccurrenceId(),
+                                                                    row.getUntilOccurrenceId()) != null);
+  }
+
+  private static List<EventAttendee> rowsAnswering(List<EventAttendee> rows, EventAttendeeResponse response) {
+    return rows.stream().filter(row -> row.getResponse() == response).toList();
+  }
+
+  /**
+   * @return one attendee per identity, answering nothing but the user's Yes
+   */
+  private static List<EventAttendee> startedOver(List<EventAttendee> rows, long userIdentityId) {
+    return rows.stream()
+               .map(EventAttendee::getIdentityId)
+               .distinct()
+               .map(identityId -> new EventAttendee(0,
+                                                    identityId,
+                                                    identityId == userIdentityId ? EventAttendeeResponse.ACCEPTED
+                                                                                 : EventAttendeeResponse.NEEDS_ACTION))
+               .toList();
+  }
+
+  /**
+   * @return the first row of each identity, so that an attendee holding
+   *         several rows of a series is notified once
+   */
+  private static List<EventAttendee> onePerIdentity(List<EventAttendee> rows) {
+    Map<Long, EventAttendee> attendees = new LinkedHashMap<>();
+    rows.forEach(row -> attendees.putIfAbsent(row.getIdentityId(), row));
+    return new ArrayList<>(attendees.values());
+  }
+
+  private static List<EventConference> copiesOf(List<EventConference> conferences) {
+    return conferences.stream().map(conference -> {
+      EventConference copy = conference.clone();
+      copy.setId(0);
+      return copy;
+    }).toList();
+  }
+
+  /**
+   * @return the properties stored for an event, empty when it has none
+   */
+  private Map<String, String> eventProperties(long eventId) {
+    List<MetadataItem> metadataItems =
+                                     metadataService.getMetadataItemsByMetadataAndObject(EVENT_METADATA_KEY,
+                                                                                         new MetadataObject(EVENT_METADATA_NAME,
+                                                                                                            String.valueOf(eventId)));
+    if (CollectionUtils.isEmpty(metadataItems) || metadataItems.getFirst().getProperties() == null) {
+      return new HashMap<>();
+    }
+    return new HashMap<>(metadataItems.getFirst().getProperties());
+  }
+
+  /**
+   * The reminders of the continuation. The user keeps the reminders they
+   * hold on the series from the split on, as does, when the continuation
+   * keeps the dates, each attendee carried over; when it moves them, the
+   * others have no answer left, and no reminder. The reminders the change
+   * gives replace the user's.
+   */
+  private void saveContinuationReminders(long seriesId,
+                                         Event continuation,
+                                         List<EventAttendee> rows,
+                                         boolean keepsTheDates,
+                                         List<EventReminder> userReminders,
+                                         ZonedDateTime splitFrom,
+                                         long userIdentityId) {
+    Set<Long> receiverIds = new HashSet<>();
+    receiverIds.add(userIdentityId);
+    if (keepsTheDates) {
+      rows.forEach(row -> receiverIds.add(row.getIdentityId()));
+    }
+    List<EventReminder> reminders = new ArrayList<>();
+    for (EventReminder reminder : reminderService.getEventReminders(seriesId)) {
+      ZonedDateTime until = reminder.getUntilOccurrenceId();
+      if (!receiverIds.contains(reminder.getReceiverId()) || until != null && !until.isAfter(splitFrom)
+          || userReminders != null && reminder.getReceiverId() == userIdentityId) {
+        continue;
+      }
+      EventReminder copy = reminder.clone();
+      copy.setId(0);
+      copy.setEventId(continuation.getId());
+      if (copy.getFromOccurrenceId() != null && !copy.getFromOccurrenceId().isAfter(splitFrom)) {
+        copy.setFromOccurrenceId(null);
+      }
+      reminders.add(copy);
+    }
+    if (userReminders != null) {
+      for (EventReminder reminder : userReminders) {
+        EventReminder copy = reminder.clone();
+        copy.setId(0);
+        copy.setEventId(continuation.getId());
+        copy.setReceiverId(userIdentityId);
+        copy.setFromOccurrenceId(null);
+        copy.setUntilOccurrenceId(null);
+        reminders.add(copy);
+      }
+    }
+    if (!reminders.isEmpty()) {
+      reminderService.saveEventReminders(continuation, reminders);
+    }
+  }
+
+  /**
+   * Ends a split series the day before its continuation starts, in its own
+   * zone: its count goes, the count winning over the end, and the rows of
+   * its attendees end at the split date. The change is published as an
+   * update of the series.
+   */
+  private void shortenSeries(Event series, ZonedDateTime splitFrom, long userIdentityId) {
+    Event shortened = series.clone();
+    EventRecurrence recurrence = series.getRecurrence().clone();
+    recurrence.setCount(0);
+    recurrence.setUntil(Utils.getSeriesDate(series, splitFrom).minusDays(1));
+    recurrence.setRrule(Utils.getICalendarRecur(recurrence, series.getTimeZoneId()).toString());
+    shortened.setRecurrence(recurrence);
+    shortened.setModifierId(userIdentityId);
+    shortened.setUpdated(ZonedDateTime.now());
+
+    AgendaEventModification eventModifications = new AgendaEventModification(series.getId(),
+                                                                             series.getCalendarId(),
+                                                                             userIdentityId);
+    eventModifications.addModificationType(AgendaEventModificationType.UPDATED);
+    Utils.detectEventModifiedFields(shortened, series, eventModifications);
+    Event updatedEvent = agendaEventStorage.updateEvent(shortened);
+    endSeriesRowsAt(series.getId(), splitFrom);
+    Utils.broadcastEvent(listenerService,
+                         Utils.POST_UPDATE_AGENDA_EVENT_EVENT,
+                         eventModifications,
+                         attendeeService.getEventAttendees(series.getId()));
+    notifyOwnerOfEditorChange(updatedEvent,
+                              userIdentityId,
+                              CalendarEditorChangeKind.CHANGED,
+                              writeRightOf(updatedEvent, userIdentityId));
+  }
+
+  /**
+   * Reads the exceptional occurrences of a series, ordered by start date.
+   * While a decide step runs, they are read after its lock in one query, the
+   * event cache being bypassed anyway; otherwise each through the cache.
+   *
+   * @param seriesId the series technical identifier
+   * @return its exceptional occurrences
+   */
+  private List<Event> readExceptionalOccurrences(long seriesId) {
+    if (DecideContext.current() != null) {
+      return agendaEventStorage.getExceptionalOccurrences(seriesId);
+    }
+    return agendaEventStorage.getExceptionalOccurenceIds(seriesId)
+                             .stream()
+                             .map(agendaEventStorage::getEventById)
+                             .filter(Objects::nonNull)
+                             .toList();
+  }
+
+  /**
    * After a split, one row per date under the continuing series. The series
    * may already hold its own row for a date a kept row moved to: its creation
    * broadcasts {@code exo.agenda.event.created}, and the reminder computing
@@ -1234,12 +2319,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
     List<Event> keptRows = keptIds.stream().map(agendaEventStorage::getEventById).filter(Objects::nonNull).toList();
     OccurrenceLists seriesLists = null;
-    for (Long otherId : agendaEventStorage.getExceptionalOccurenceIds(toSeries.getId())) {
-      if (keptIds.contains(otherId)) {
-        continue;
-      }
-      Event other = agendaEventStorage.getEventById(otherId);
-      if (other == null || other.getOccurrence() == null || other.getOccurrence().getId() == null) {
+    for (Event other : readExceptionalOccurrences(toSeries.getId())) {
+      long otherId = other.getId();
+      if (keptIds.contains(otherId) || other.getOccurrence() == null || other.getOccurrence().getId() == null) {
         continue;
       }
       ZonedDateTime otherOccurrenceId = other.getOccurrence().getId();
@@ -1281,16 +2363,29 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    */
   @Override
   public Event saveEventExceptionalOccurrence(long eventId, ZonedDateTime occurrenceId) throws AgendaException {
+    // The date's row is found or created under the series' lock, so that two
+    // first writes on one date end on the same row
+    try {
+      return decideSteps.decide(DecideSteps.targetOfSeries(eventId),
+                                () -> findOrCreateEventExceptionalOccurrence(eventId, occurrenceId));
+    } catch (ResolveAgainException e) {
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+    }
+  }
+
+  private Event findOrCreateEventExceptionalOccurrence(long eventId, ZonedDateTime occurrenceId) throws AgendaException {
     Event parentEvent = agendaEventStorage.getEventById(eventId);
     if (parentEvent != null && parentEvent.getRecurrence() != null && occurrenceId != null) {
       occurrenceId = Utils.getOccurrenceId(parentEvent.isAllDay(), occurrenceId, parentEvent.getTimeZoneId());
     }
-    Event exceptionalOccurrenceEvent = getExceptionalOccurrenceEvent(eventId, occurrenceId);
+    Event exceptionalOccurrenceEvent = occurrenceId == null || parentEvent == null ? null
+                                                                                 : agendaEventStorage.findExceptionalOccurrence(parentEvent,
+                                                                                                                                occurrenceId);
     if (exceptionalOccurrenceEvent != null) {
       return exceptionalOccurrenceEvent;
     }
 
-    List<EventAttendee> attendees = attendeeService.getEventAttendees(eventId).getEventAttendees(occurrenceId);
+    List<EventAttendee> attendees = attendeesOfDate(attendeeService.getEventAttendees(eventId), occurrenceId);
     cleanupAttendeeIds(attendees);
     List<EventConference> conferences = conferenceService.getEventConferences(eventId);
     cleanupConferenceIds(conferences);
@@ -1309,6 +2404,19 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    */
   @Override
   public Event createEventExceptionalOccurrence(long eventId,
+                                                List<EventAttendee> attendees,
+                                                List<EventConference> conferences,
+                                                List<EventReminder> reminders,
+                                                ZonedDateTime occurrenceId) throws AgendaException {
+    try {
+      return decideSteps.decide(DecideSteps.targetOfSeries(eventId),
+                                () -> writeEventExceptionalOccurrence(eventId, attendees, conferences, reminders, occurrenceId));
+    } catch (ResolveAgainException e) {
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+    }
+  }
+
+  private Event writeEventExceptionalOccurrence(long eventId,
                                                 List<EventAttendee> attendees,
                                                 List<EventConference> conferences,
                                                 List<EventReminder> reminders,
@@ -1339,6 +2447,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (overAllEndDate != null && overAllEndDate.isBefore(occurrenceDateUTC)) {
       throw new IllegalStateException("Event with id " + eventId + " doesn't have an occurrence with id " + occurrenceId);
     }
+    // A date keeps one row: asked for a date that already has its own, under
+    // the lock of the series, the creation returns it
+    Event existingOccurrence = agendaEventStorage.findExceptionalOccurrence(parentEvent, occurrenceId);
+    if (existingOccurrence != null) {
+      return existingOccurrence;
+    }
 
     Event exceptionalEvent = parentEvent.clone();
     exceptionalEvent.setId(0);
@@ -1349,6 +2463,18 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // the clone, and may then be changed on this date alone (US06). It stays in
     // step with its series through applySeriesChangeToExceptionalOccurrences
     // until somebody changes it here.
+    // The capacity is inherited the same way: the new row becomes its date's
+    // own pool. Whether that pool has reached it is a fact about this date,
+    // never the series' marker, which another date may have set: computed
+    // from the answers copied, and reported to nobody, since no answer
+    // filled it. The answer filling it later is reported through the series
+    // while the row is confirmed, holds the series' limit and the date is
+    // not over, the date being one the series carries (D21); a limit of its
+    // own, or the date cancelled or over, makes it report on its own.
+    int capacity = SeatRule.capacityOf(exceptionalEvent);
+    boolean full = capacity > 0 && exceptionalEvent.getStatus() == EventStatus.CONFIRMED && attendees != null
+        && SeatRule.acceptedAt(attendees, null, 0) >= capacity;
+    exceptionalEvent.setCapacityReachedDate(full ? ZonedDateTime.now(ZoneOffset.UTC) : null);
     anchorOccurrenceDatesOnSeries(parentEvent, exceptionalEvent, occurrenceId);
     exceptionalEvent = agendaEventStorage.createEvent(exceptionalEvent);
     long exceptionalEventId = exceptionalEvent.getId();
@@ -1394,6 +2520,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                            List<EventDateOption> dateOptions,
                            RemoteEvent remoteEvent,
                            boolean sendInvitation,
+                           boolean confirmClose,
                            long userIdentityId) throws AgendaException, IllegalAccessException {
     if (userIdentityId <= 0) {
       throw new IllegalArgumentException("userIdentityId is mandatory");
@@ -1441,6 +2568,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         throw new AgendaException(AgendaExceptionType.EVENT_RECURRENCE_INTERVAL_MANDATORY);
       }
     }
+    checkCapacityValue(event.getCapacity());
 
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
@@ -1487,6 +2615,49 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     adjustEventDatesForWrite(event);
 
+    boolean decidesCapacity = reachesCapacity(storedEvent, toEventToUpdate(event, storedEvent, calendar, userIdentityId));
+    EventSave save = new EventSave(attendees,
+                                   conferences,
+                                   reminders,
+                                   dateOptions,
+                                   remoteEvent,
+                                   sendInvitation,
+                                   confirmClose,
+                                   decidesCapacity);
+    if (!decidesCapacity) {
+      return writeUpdatedEvent(event, storedEvent, save, calendar, userIdentityId);
+    }
+    // An event that holds a limit, or whose save gives it one, is saved in one
+    // decide step: the limit, the waiting list a closing confirms and the
+    // promotions are decided on the rows as locked, every refusal before the
+    // first write
+    try {
+      return decideSteps.<Event, AgendaException, IllegalAccessException> resolvingAgainOnce(() -> {
+        Event resolvedEvent = agendaEventStorage.getEventById(eventId);
+        DecideTarget target = DecideSteps.targetOf(resolvedEvent == null ? storedEvent : resolvedEvent);
+        return decideSteps.<Event, AgendaException, IllegalAccessException> decide(target, () -> {
+          Event lockedEvent = agendaEventStorage.getEventById(eventId);
+          if (lockedEvent == null) {
+            throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+          }
+          return writeUpdatedEvent(event, lockedEvent, save, calendar, userIdentityId);
+        });
+      });
+    } catch (ResolveAgainException e) {
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+    }
+  }
+
+  /**
+   * The row an update writes, built from the payload and the event as stored.
+   *
+   * @param event the event as the caller sent it, its dates adjusted
+   * @param storedEvent the event as stored
+   * @param calendar the calendar it is saved into
+   * @param userIdentityId who is saving
+   * @return the row to write, with the open flag and the limit resolved
+   */
+  private Event toEventToUpdate(Event event, Event storedEvent, Calendar calendar, long userIdentityId) {
     // The participant permissions are the creator's to grant: another editor
     // keeps the stored values. One lowering is let through: opening the event
     // clears the invite permission for whoever may open it, since the two
@@ -1540,19 +2711,62 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // the form is what decides which rows are written, not this method.
     boolean open = event.getOpen() == null ? Boolean.TRUE.equals(storedEvent.getOpen()) : event.getOpen();
     eventToUpdate.setOpen(open && canBeOpen(eventToUpdate, calendar));
+    // The limit is not part of the positional constructor above either. Not
+    // stated, it keeps the stored one, like the flag; it holds on an event
+    // that may have one only, so closing the event removes it (D15) and a
+    // reopened event starts with no limit (D6). The reached mark is not
+    // written by a save of the row at all
+    int capacity = event.getCapacity() == null ? SeatRule.capacityOf(storedEvent) : event.getCapacity();
+    eventToUpdate.setCapacity(canHaveCapacity(eventToUpdate, calendar) ? capacity : 0);
+    return eventToUpdate;
+  }
+
+  private Event writeUpdatedEvent(Event event,
+                                  Event storedEvent,
+                                  EventSave save,
+                                  Calendar calendar,
+                                  long userIdentityId) throws AgendaException, IllegalAccessException {
+    long eventId = event.getId();
+    List<EventAttendee> attendees = save.attendees();
+    List<EventConference> conferences = save.conferences();
+    List<EventReminder> reminders = save.reminders();
+    List<EventDateOption> dateOptions = save.dateOptions();
+    RemoteEvent remoteEvent = save.remoteEvent();
+    boolean sendInvitation = save.sendInvitation();
+
+    Event eventToUpdate = toEventToUpdate(event, storedEvent, calendar, userIdentityId);
+    if (save.decidesCapacity()) {
+      // Every refusal comes before the first write
+      checkCapacityChange(storedEvent,
+                          eventToUpdate,
+                          removedIdentityIds(eventId, attendees),
+                          save.confirmClose(),
+                          calendar,
+                          true);
+    }
+    checkExternalGuests(storedEvent, eventToUpdate, attendees, null);
 
     AgendaEventModification eventModifications = new AgendaEventModification(eventId, event.getCalendarId(), userIdentityId);
     eventModifications.addModificationType(AgendaEventModificationType.UPDATED);
     // The modification is detected on the incoming event, whose 'open' is what
     // the client asked for (null when it did not ask at all); the audit must
     // report what was written instead, or it would announce a toggle on every
-    // partial payload and stay silent when a move actually locked the event
+    // partial payload and stay silent when a move actually locked the event.
+    // The limit likewise
     event.setOpen(eventToUpdate.getOpen());
+    event.setCapacity(eventToUpdate.getCapacity());
     Utils.detectEventModifiedFields(event, storedEvent, eventModifications);
     if (eventToUpdate.getOccurrence() != null && eventModifications.hasModifiedDate()) {
       eventToUpdate.getOccurrence().setDatesModified(true);
     }
     Event updatedEvent = agendaEventStorage.updateEvent(eventToUpdate);
+    // A limit written clears the mark first, so that an answer this save
+    // stores can report the new limit it fills (D7); the mark is written
+    // again from the answers once the attendees are saved below
+    boolean capacityChanged = SeatRule.capacityOf(storedEvent) != SeatRule.capacityOf(updatedEvent);
+    if (capacityChanged && storedEvent.getCapacityReachedDate() != null) {
+      agendaEventStorage.saveCapacityReachedDate(eventId, null);
+    }
 
     createOrUpdateEventProperties(event.getParameters(), updatedEvent);
     // Snapshotted before saving, like the attendees below: a date whose
@@ -1599,6 +2813,16 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                                 previousConferences,
                                                 userIdentityId);
     }
+    // The waiting lists this limit gives seats to were promoted by the attendee
+    // save above, after the ones the save removes, and on the dates a series
+    // stores by the merge above: the reached mark is written now, from the
+    // answers the row holds, a series' from the dates it reports (D7). A
+    // stored date the save brings, full, among the dates its series reports
+    // marks the series silently
+    if (capacityChanged) {
+      writeCapacityReachedDate(eventId);
+    }
+    markSeriesReachedByDateJoined(storedEvent, updatedEvent);
 
     if (eventModifications.hasModification(AgendaEventModificationType.START_DATE_UPDATED)) {
       List<EventReminder> allReminders = reminderService.getEventReminders(eventId);
@@ -1636,6 +2860,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
                                 Map<String, List<String>> fields,
                                 boolean updateAllOccurrences,
                                 boolean sendInvitations,
+                                boolean confirmClose,
                                 long userIdentityId) throws IllegalAccessException, ObjectNotFoundException, AgendaException {
     if (userIdentityId <= 0) {
       throw new IllegalArgumentException("userIdentityId is mandatory");
@@ -1651,8 +2876,6 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
     }
 
-    Event originalEvent = event.clone();
-
     Identity userIdentity = identityManager.getIdentity(String.valueOf(userIdentityId));
     if (userIdentity == null) {
       throw new IllegalAccessException("User '" + userIdentityId + "' doesn't exist");
@@ -1661,6 +2884,40 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (!canUpdateEvent(event, userIdentityId)) {
       throw new IllegalAccessException("User '" + userIdentityId + "' can't update event " + eventId);
     }
+
+    FieldsPatch patch = new FieldsPatch(fields, updateAllOccurrences, sendInvitations, confirmClose);
+    if (!holdsCapacityState(event) && !fields.containsKey(CAPACITY_FIELD)
+        && !(updateAllOccurrences && datesHoldCapacityState(event))) {
+      writeEventFields(event, patch, false, userIdentityId);
+      return;
+    }
+    // Decided like a full save of such an event, on the rows as locked
+    try {
+      decideSteps.<Void, AgendaException, IllegalAccessException> resolvingAgainOnce(() -> {
+        Event resolvedEvent = agendaEventStorage.getEventById(eventId);
+        DecideTarget target = DecideSteps.targetOf(resolvedEvent == null ? event : resolvedEvent);
+        return decideSteps.<Void, AgendaException, IllegalAccessException> decide(target, () -> {
+          Event lockedEvent = agendaEventStorage.getEventById(eventId);
+          if (lockedEvent == null) {
+            throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+          }
+          writeEventFields(lockedEvent, patch, true, userIdentityId);
+          return null;
+        });
+      });
+    } catch (ResolveAgainException e) {
+      throw new AgendaException(AgendaExceptionType.EVENT_NOT_FOUND);
+    }
+  }
+
+  private void writeEventFields(Event event,
+                                FieldsPatch patch,
+                                boolean decidesCapacity,
+                                long userIdentityId) throws AgendaException, IllegalAccessException {
+    long eventId = event.getId();
+    Map<String, List<String>> fields = patch.fields();
+    boolean updateAllOccurrences = patch.updateAllOccurrences();
+    Event originalEvent = event.clone();
 
     Set<Entry<String, List<String>>> fieldsEntrySet = fields.entrySet();
     for (Entry<String, List<String>> entry : fieldsEntrySet) {
@@ -1719,8 +2976,33 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
       event.setOpen(false);
     }
+    // An open event never holds a person from outside the platform: a patch
+    // that opens one that does is refused. Opened with all its dates, a series
+    // leaves closed a date holding one of its own (mergeOpenAndCapacity)
+    if (Boolean.TRUE.equals(event.getOpen()) && !Boolean.TRUE.equals(originalEvent.getOpen())
+        && Utils.holdsExternalGuest(identityManager, attendeeService.getEventAttendees(eventId).getEventAttendees())) {
+      throw new IllegalArgumentException(Utils.EXTERNAL_GUESTS_INVITED);
+    }
+    // The limit holds on an event that may have one only: a patch that asks
+    // for one on any other is refused, and one that closes the event removes
+    // it (D15)
+    if (!canHaveCapacity(event, targetCalendar)) {
+      if (fields.containsKey(CAPACITY_FIELD)) {
+        throw new IllegalArgumentException(CAPACITY_NOT_ALLOWED);
+      }
+      event.setCapacity(0);
+    }
+    if (decidesCapacity) {
+      // No attendee list travels on this path: nobody is removed
+      checkCapacityChange(originalEvent,
+                          event,
+                          Collections.emptySet(),
+                          patch.confirmClose(),
+                          targetCalendar,
+                          updateAllOccurrences);
+    }
 
-    event.setModifierId(Long.parseLong(userIdentity.getId()));
+    event.setModifierId(userIdentityId);
     AgendaEventModification eventModifications = new AgendaEventModification(eventId, event.getCalendarId(), userIdentityId);
     eventModifications.addModificationType(AgendaEventModificationType.UPDATED);
     Utils.detectEventModifiedFields(event, originalEvent, eventModifications);
@@ -1728,15 +3010,35 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       event.getOccurrence().setDatesModified(true);
     }
     event = agendaEventStorage.updateEvent(event);
+    boolean reachesTheStoredDates = updateAllOccurrences && event.getParentId() <= 0 && event.getRecurrence() != null;
+    if (reachesTheStoredDates) {
+      // The series' reached mark is written below, once the dates it stores
+      // have decided their seats under the limit
+      promoteOnCapacityChange(originalEvent, event);
+    } else {
+      applyCapacityChange(originalEvent, event);
+      markSeriesReachedByDateJoined(originalEvent, event);
+    }
+    // A switch to a date poll starts every answer over but the modifier's, the
+    // waiting list included, in the step that switches it, atomic with the
+    // limit it removes (D19): nobody is promoted, and the listener of the
+    // update finds nothing left to reset. A poll, never open nor limited, and
+    // an event that holds no capacity state leave the reset to that listener.
+    if (decidesCapacity && becomesDatePoll(originalEvent, event)) {
+      resetResponses(eventId, Collections.singleton(userIdentityId));
+    }
 
     // A patch meant for the whole series reaches the dates individually
     // modified instead of deleting them, and leaves the properties customised
     // there untouched. Run on the stored event for the same reasons as the
     // full-save path.
-    if (updateAllOccurrences && event.getParentId() <= 0 && event.getRecurrence() != null) {
+    if (reachesTheStoredDates) {
       // No attendee list travels on this path: a patch changes fields, never
       // the people invited
       applySeriesChangeToExceptionalOccurrences(originalEvent, event, null, null, userIdentityId);
+      if (SeatRule.capacityOf(originalEvent) != SeatRule.capacityOf(event)) {
+        writeCapacityReachedDate(eventId);
+      }
     }
 
     if (fields.containsKey("start")) {
@@ -1744,7 +3046,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       reminderService.saveEventReminders(event, reminders);
     }
 
-    if (sendInvitations) {
+    if (patch.sendInvitations()) {
       List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(eventId).getEventAttendees();
       attendeeService.sendInvitations(event, eventAttendees, eventModifications);
     }
@@ -2276,6 +3578,499 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   }
 
   /**
+   * Whether an event may hold a capacity limit: an open event, the open
+   * invariant holding, a series and a date of it alike (D5).
+   *
+   * @param eventToStore the event as it is about to be stored
+   * @param calendar the calendar it is saved into
+   * @return whether its limit may be stored above 0
+   */
+  private boolean canHaveCapacity(Event eventToStore, Calendar calendar) {
+    return Boolean.TRUE.equals(eventToStore.getOpen()) && canBeOpen(eventToStore, calendar);
+  }
+
+  private static void checkCapacityValue(Integer capacity) {
+    if (capacity != null && capacity < 0) {
+      throw new IllegalArgumentException(CAPACITY_INVALID);
+    }
+  }
+
+  private static int parseCapacity(String value) {
+    int capacity;
+    try {
+      capacity = Integer.parseInt(StringUtils.trim(value));
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException(CAPACITY_INVALID);
+    }
+    checkCapacityValue(capacity);
+    return capacity;
+  }
+
+  /**
+   * @param row a stored row
+   * @return whether it holds anything a limit decides: it is open, or has a
+   *         limit
+   */
+  private static boolean holdsCapacityState(Event row) {
+    return Boolean.TRUE.equals(row.getOpen()) || SeatRule.capacityOf(row) > 0;
+  }
+
+  /**
+   * Whether a save of an event decides anything about a limit: the event, as
+   * stored or as saved, holds one, or, for a series, one of its dates
+   * individually modified does, which the series change is merged into.
+   */
+  private boolean reachesCapacity(Event storedEvent, Event eventToStore) {
+    return holdsCapacityState(storedEvent) || holdsCapacityState(eventToStore)
+        || datesHoldCapacityState(storedEvent);
+  }
+
+  private boolean datesHoldCapacityState(Event storedEvent) {
+    return storedEvent.getParentId() <= 0 && storedEvent.getRecurrence() != null
+        && readExceptionalOccurrences(storedEvent.getId()).stream().anyMatch(AgendaEventServiceImpl::holdsCapacityState);
+  }
+
+  /**
+   * Refuses, before the first write, a change of limit that the answers do
+   * not allow, and a closing that would confirm a waiting list the user did
+   * not confirm (D15, M2). A limit is lowered no further than the Yes answers
+   * it holds (D2); on a series, than the most Yes answers given at one of its
+   * dates still to come, and at each date individually modified whose limit
+   * follows the series' (D16), the refusal naming the first date that blocks.
+   * A switch to a date poll is not a closing: it confirms nobody (F1).
+   *
+   * @param storedEvent the event as stored, read under the lock
+   * @param eventToStore the event as it is about to be stored
+   * @param removedIdentityIds the attendees the save removes, who hold no seat
+   *          once it is done
+   * @param confirmClose whether the user confirmed the closing
+   * @param calendar the calendar the event is saved into
+   * @param reachesDates whether the change of a series is merged into its
+   *          dates individually modified
+   */
+  private void checkCapacityChange(Event storedEvent,
+                                   Event eventToStore,
+                                   Set<Long> removedIdentityIds,
+                                   boolean confirmClose,
+                                   Calendar calendar,
+                                   boolean reachesDates) {
+    int capacity = SeatRule.capacityOf(eventToStore);
+    boolean series = eventToStore.getParentId() <= 0 && eventToStore.getRecurrence() != null;
+    LocalDate blockingDate = null;
+    if (tightens(SeatRule.capacityOf(storedEvent), capacity)) {
+      if (series && storedEvent.getRecurrence() != null) {
+        blockingDate = firstDateBelowSeriesFloor(storedEvent, capacity, removedIdentityIds);
+      } else if (isBelowPoolFloor(storedEvent.getId(), capacity, removedIdentityIds)) {
+        throw new CapacityBelowAcceptedException(null);
+      }
+    }
+    // A save that changes the dates or the rule of a series, or removes the
+    // rule, confirms its waiting list at dates the stored rule does not give:
+    // every waiting row then counts
+    boolean datesChanged = storedEvent.getParentId() <= 0 && storedEvent.getRecurrence() != null
+        && changesDates(storedEvent, eventToStore);
+    boolean confirmsWaitingList = closes(storedEvent, eventToStore)
+        && hasWaitingAttendees(storedEvent, removedIdentityIds, datesChanged);
+    if (series && reachesDates) {
+      for (DateCapacity date : mergedDateCapacities(storedEvent, eventToStore, calendar, null, removedIdentityIds)) {
+        int dateCapacity = SeatRule.capacityOf(date.after());
+        if (tightens(SeatRule.capacityOf(date.before()), dateCapacity)
+            && isBelowPoolFloor(date.before().getId(), dateCapacity, removedIdentityIds)) {
+          LocalDate day = dayOf(storedEvent, date.before());
+          blockingDate = blockingDate == null || day.isBefore(blockingDate) ? day : blockingDate;
+        }
+        // A date's closing confirms its waiting list as its merge does: only
+        // when it removes a limit, a date over, left out above, confirming
+        // nobody
+        confirmsWaitingList = confirmsWaitingList
+            || closes(date.before(), date.after())
+                && gainsSeats(SeatRule.capacityOf(date.before()), SeatRule.capacityOf(date.after()))
+                && hasWaitingAttendees(date.before(), removedIdentityIds, false);
+      }
+    }
+    if (blockingDate != null) {
+      throw new CapacityBelowAcceptedException(blockingDate);
+    }
+    if (confirmsWaitingList && !confirmClose) {
+      throw new IllegalArgumentException(CAPACITY_CLOSE_NEEDS_CONFIRMATION);
+    }
+  }
+
+  /**
+   * The open flag and the limit each date individually modified of a series,
+   * not over yet, holds once a change of the series is merged into it,
+   * computed as the merge computes them, before any write. A date over keeps
+   * its limit and its answers.
+   *
+   * @param from the first date a split moves under its continuation, which the
+   *          merge reaches alone, compared as the move compares it; null for a
+   *          change of the whole series
+   * @param removedFromSeries the identities the change removes from the
+   *          series, as the merge reads them (see mergeOpenAndCapacity)
+   */
+  private List<DateCapacity> mergedDateCapacities(Event storedSeries,
+                                                  Event updatedSeries,
+                                                  Calendar seriesCalendar,
+                                                  ZonedDateTime from,
+                                                  Set<Long> removedFromSeries) {
+    List<DateCapacity> dateCapacities = new ArrayList<>();
+    List<Event> rows = readExceptionalOccurrences(storedSeries.getId());
+    SeriesDates seriesDates = new SeriesDates(storedSeries, () -> rows, ZonedDateTime.now(ZoneOffset.UTC));
+    for (Event row : rows) {
+      if (row.getOccurrence() == null || row.getOccurrence().getId() == null || seriesDates.isOver(row)
+          || from != null && row.getOccurrence().getId().isBefore(from.minusHours(12))) {
+        continue;
+      }
+      Event merged = row.clone();
+      merged.setStatus(mergeOccurrenceProperty(row.getStatus(), storedSeries.getStatus(), updatedSeries.getStatus()));
+      merged.setAllowAttendeeToUpdate(mergeOccurrenceProperty(row.isAllowAttendeeToUpdate(),
+                                                              storedSeries.isAllowAttendeeToUpdate(),
+                                                              updatedSeries.isAllowAttendeeToUpdate()));
+      merged.setAllowAttendeeToInvite(mergeOccurrenceProperty(row.isAllowAttendeeToInvite(),
+                                                              storedSeries.isAllowAttendeeToInvite(),
+                                                              updatedSeries.isAllowAttendeeToInvite()));
+      mergeOpenAndCapacity(merged, storedSeries, updatedSeries, seriesCalendar, false, removedFromSeries);
+      dateCapacities.add(new DateCapacity(row, merged));
+    }
+    return dateCapacities;
+  }
+
+  /**
+   * @return whether a limit is below the Yes answers of one pool: an event of
+   *         no series, or one date's own row
+   */
+  private boolean isBelowPoolFloor(long poolId, int capacity, Set<Long> removedIdentityIds) {
+    int accepted = SeatRule.acceptedAt(keptRows(poolId, EventAttendeeResponse.ACCEPTED, removedIdentityIds), null, 0);
+    if (accepted > capacity) {
+      LOG.debug("Event {}: a limit of {} is below its {} accepted participants", poolId, capacity, accepted);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * @return the day, in the series' zone, of the first date of a series still
+   *         to come that has no row of its own and holds more Yes answers than
+   *         the limit (D16), or null when there is none
+   */
+  private LocalDate firstDateBelowSeriesFloor(Event series, int capacity, Set<Long> removedIdentityIds) {
+    List<EventAttendee> acceptedRows = keptRows(series.getId(), EventAttendeeResponse.ACCEPTED, removedIdentityIds);
+    return firstDateBelowFloor(series, acceptedRows, null, capacity);
+  }
+
+  /**
+   * @param series the series whose dates are counted
+   * @param acceptedRows the Yes rows counted on its dates
+   * @param from the first date counted, null for the series' first one
+   * @param capacity the limit
+   * @return the day, in the series' zone, of the first date from the one
+   *         given, still to come and with no row of its own, that holds more
+   *         Yes answers than the limit (D16), or null when there is none
+   */
+  private LocalDate firstDateBelowFloor(Event series, List<EventAttendee> acceptedRows, ZonedDateTime from, int capacity) {
+    long seriesId = series.getId();
+    if (acceptedRows.isEmpty()) {
+      return null;
+    }
+    SeriesDates seriesDates = new SeriesDates(series,
+                                              () -> agendaEventStorage.getExceptionalOccurrences(seriesId),
+                                              ZonedDateTime.now(ZoneOffset.UTC));
+    // The stretches come in order: the first that blocks holds the first date
+    for (SeatStretch stretch : SeatRule.stretches(acceptedRows, from, null)) {
+      ZonedDateTime date = seriesDates.firstCountedDate(stretch.from(), stretch.until());
+      int accepted = date == null ? 0 : SeatRule.acceptedAt(acceptedRows, date, 0);
+      if (accepted > capacity) {
+        LOG.debug("Event {}: a limit of {} is below the {} accepted participants of its date {}",
+                  seriesId,
+                  capacity,
+                  accepted,
+                  date);
+        return Utils.getSeriesDate(series, date);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * @return the day, in the series' zone, a date of a series with a row of its
+   *         own stands on: a date moved at its own start, any other where its
+   *         id puts it
+   */
+  private static LocalDate dayOf(Event series, Event dateRow) {
+    return Utils.getSeriesDate(series,
+                               dateRow.getOccurrence().isDatesModified() ? dateRow.getStart()
+                                                                         : dateRow.getOccurrence().getId());
+  }
+
+  /**
+   * @param pool the pool as stored
+   * @param removedIdentityIds the attendees the save removes
+   * @param datesChanged whether the save changes the dates or the rule of the
+   *          series
+   * @return whether a closing of the pool would confirm someone waiting: on a
+   *         series whose dates the save keeps, a waiting row is confirmed only
+   *         at a date of its range still to come with no row of its own, as
+   *         its promotion reads it
+   */
+  private boolean hasWaitingAttendees(Event pool, Set<Long> removedIdentityIds, boolean datesChanged) {
+    List<EventAttendee> waitingRows = keptRows(pool.getId(), EventAttendeeResponse.WAITING, removedIdentityIds);
+    if (waitingRows.isEmpty() || pool.getParentId() > 0 || pool.getRecurrence() == null || datesChanged) {
+      return !waitingRows.isEmpty();
+    }
+    SeriesDates seriesDates = new SeriesDates(pool,
+                                              () -> agendaEventStorage.getExceptionalOccurrences(pool.getId()),
+                                              ZonedDateTime.now(ZoneOffset.UTC));
+    return waitingRows.stream()
+                      .anyMatch(row -> seriesDates.firstCountedDate(row.getFromOccurrenceId(), row.getUntilOccurrenceId()) != null);
+  }
+
+  /**
+   * @return whether a save of a series changes its dates: its rule, as the
+   *         storage writes it, its times, its zone or its all-day flag
+   */
+  private boolean changesDates(Event storedSeries, Event series) {
+    String storedRule = storedSeries.getRecurrence() == null ? null : storedSeries.getRecurrence().getRrule();
+    String rule = series.getRecurrence() == null ? null
+                                                 : Utils.getICalendarRecur(series.getRecurrence(), series.getTimeZoneId())
+                                                        .toString();
+    return !StringUtils.equals(storedRule, rule) || !isSameInstant(storedSeries.getStart(), series.getStart())
+        || !isSameInstant(storedSeries.getEnd(), series.getEnd())
+        || !Objects.equals(storedSeries.getTimeZoneId(), series.getTimeZoneId())
+        || storedSeries.isAllDay() != series.isAllDay();
+  }
+
+  private List<EventAttendee> keptRows(long poolId, EventAttendeeResponse response, Set<Long> removedIdentityIds) {
+    return attendeeService.getEventAttendees(poolId, response)
+                          .getEventAttendees()
+                          .stream()
+                          .filter(row -> !removedIdentityIds.contains(row.getIdentityId()))
+                          .toList();
+  }
+
+  /**
+   * @return the identities a save of the attendee list given removes from the
+   *         event: everyone when it gives none, as saving it does
+   */
+  private Set<Long> removedIdentityIds(long eventId, List<EventAttendee> attendees) {
+    Set<Long> removedIdentityIds = attendeeIdentityIds(attendeeService.getEventAttendees(eventId).getEventAttendees());
+    removedIdentityIds.removeAll(attendeeIdentityIds(attendees));
+    return removedIdentityIds;
+  }
+
+  /**
+   * Refuses, before the first write, a save that would leave a person from
+   * outside the platform on an open row: the row the save writes, or a date of
+   * the series opened on its own, which every person the series gains reaches
+   * (applySeriesMembershipChange). An event already open is refused as an
+   * addition, one the save opens as an opening. A move of dates writes no
+   * series: only its dates are judged.
+   *
+   * @param storedRow the row as stored, the series for a split or a move of
+   *          its dates
+   * @param rowToWrite the row the save writes, the continuation for a split,
+   *          the series the dates move under for a move
+   * @param attendees the attendees the row written will hold, the series the
+   *          dates move under holds for a move
+   * @param datesFrom the first date the people the series gains reach, null
+   *          for every date; unused when the row written is no series
+   */
+  private void checkExternalGuests(Event storedRow,
+                                   Event rowToWrite,
+                                   List<EventAttendee> attendees,
+                                   ZonedDateTime datesFrom) {
+    boolean move = rowToWrite.getId() > 0 && rowToWrite.getId() != storedRow.getId();
+    if (!move && Boolean.TRUE.equals(rowToWrite.getOpen()) && Utils.holdsExternalGuest(identityManager, attendees)) {
+      throw new IllegalArgumentException(Boolean.TRUE.equals(storedRow.getOpen()) ? Utils.EXTERNAL_GUEST_NOT_ALLOWED
+                                                                                 : Utils.EXTERNAL_GUESTS_INVITED);
+    }
+    if (rowToWrite.getParentId() > 0 || rowToWrite.getRecurrence() == null && storedRow.getRecurrence() == null) {
+      return;
+    }
+    Set<Long> held = attendeeIdentityIds(attendeeService.getEventAttendees(storedRow.getId()).getEventAttendees());
+    Set<Long> gained = attendeeIdentityIds(attendees);
+    gained.removeAll(held);
+    if (gained.stream().noneMatch(identityId -> Utils.isExternalGuest(Utils.getIdentityById(identityManager, identityId)))) {
+      return;
+    }
+    Set<Long> removed = new HashSet<>(held);
+    removed.removeAll(attendeeIdentityIds(attendees));
+    Calendar seriesCalendar = agendaCalendarService.getCalendarById(rowToWrite.getCalendarId());
+    List<Event> datesReached = readExceptionalOccurrences(storedRow.getId()).stream()
+                                                                            .filter(date -> reachedFrom(date, datesFrom))
+                                                                            .collect(Collectors.toCollection(ArrayList::new));
+    if (move && !datesReached.isEmpty()) {
+      // A move of dates that moves one: the merge then goes over every date
+      // the series they move under holds, its own ones as well, and gives
+      // each the same people
+      datesReached.addAll(readExceptionalOccurrences(rowToWrite.getId()));
+    }
+    // A date is judged as the merge leaves it, before the people the series
+    // gains reach it: one the new recurrence no longer produces is deleted;
+    // one that follows the series takes its new flag, and one the change makes
+    // a poll's or lets participants modify or invite is closed. A date the
+    // merge deletes for carrying nothing of its own is judged as kept: it
+    // follows the series, which a guest can only reach open stored so before
+    // such guests were kept out of open events, and then shows that open date
+    // The rules are compared as the merge compares them, as stored: the rule
+    // string of a row the save writes is the one the storage writes from its
+    // fields, whatever string the caller sent with them (none from REST, the
+    // one read before an edit made in place); a move writes no series, whose
+    // rule is compared as it is stored
+    Event written = rowToWrite.clone();
+    if (!move && written.getRecurrence() != null) {
+      written.getRecurrence().setRrule(Utils.getICalendarRecur(written.getRecurrence(), written.getTimeZoneId()).toString());
+    }
+    boolean datesOrRuleChanged = datesOrRuleChanged(storedRow, written);
+    if (datesReached.stream().anyMatch(date -> {
+      if (date.getOccurrence() == null || date.getOccurrence().getId() == null
+          || datesOrRuleChanged && !seriesStillProducesOccurrence(rowToWrite, date.getOccurrence().getId())) {
+        return false;
+      }
+      Event merged = date.clone();
+      mergeOpenRuleProperties(merged, storedRow, rowToWrite);
+      return openAfterMerge(merged, storedRow, rowToWrite, seriesCalendar, removed);
+    })) {
+      throw new IllegalArgumentException(Utils.EXTERNAL_GUEST_NOT_ALLOWED);
+    }
+  }
+
+  private boolean reachedFrom(Event date, ZonedDateTime datesFrom) {
+    if (datesFrom == null) {
+      return true;
+    }
+    // Matched as the dates a split moves are: within 12 hours, which an all-day
+    // date stored at its UTC midnight needs
+    return date.getOccurrence() != null && date.getOccurrence().getId() != null
+        && !date.getOccurrence().getId().isBefore(datesFrom.minusHours(12));
+  }
+
+  /**
+   * After a row's limit changed: the waiting list takes the seats the change
+   * gives; then the row's reached mark is written from the answers it holds,
+   * a limit written never reporting itself reached (D7): set while the row is
+   * full, so that no Yes given again reports it, cleared while a seat is
+   * free, so that the answer filling it does. For a series whose change
+   * reaches the dates it stores, the caller writes the mark instead, once
+   * those dates have decided their seats under the limit.
+   *
+   * @param before the row before the change
+   * @param after the row as stored
+   */
+  private void applyCapacityChange(Event before, Event after) {
+    promoteOnCapacityChange(before, after);
+    if (SeatRule.capacityOf(before) != SeatRule.capacityOf(after)) {
+      writeCapacityReachedDate(after.getId());
+    }
+  }
+
+  /**
+   * After a row's limit changed: the waiting list takes the seats a higher
+   * limit, no limit or a closing gives (D4, D15), unless the row became a
+   * date poll, which confirms nobody (F1).
+   *
+   * @param before the row before the change
+   * @param after the row as stored
+   */
+  private void promoteOnCapacityChange(Event before, Event after) {
+    if (gainsSeats(SeatRule.capacityOf(before), SeatRule.capacityOf(after)) && after.getStatus() != EventStatus.TENTATIVE) {
+      promoteWaitingAttendees(after.getId());
+    }
+  }
+
+  /**
+   * After a stored date's write moved it into the dates its series reports
+   * (D21), a limit of its own taken back or the date confirmed again: full
+   * under the series' limit, the series is marked silently, a limit written
+   * never reporting itself reached (D7). A write that leaves the date where
+   * it was, or takes it out of those dates, a limit of its own given or the
+   * date cancelled, leaves the series' mark alone: the series' limit stands,
+   * and only a write of that limit or a reset clears its mark (D7). Under
+   * the series' lock, which a date's write takes.
+   *
+   * @param before the row before the write
+   * @param after the row as stored
+   */
+  private void markSeriesReachedByDateJoined(Event before, Event after) {
+    if (after.getParentId() <= 0) {
+      return;
+    }
+    Event series = agendaEventStorage.getEventById(after.getParentId());
+    if (series == null) {
+      return;
+    }
+    int seriesCapacity = SeatRule.capacityOf(series);
+    if (!AgendaEventAttendeeServiceImpl.reportsThroughSeries(before, seriesCapacity)
+        && AgendaEventAttendeeServiceImpl.reportsThroughSeries(after, seriesCapacity)) {
+      ((AgendaEventAttendeeServiceImpl) attendeeService).markSeriesReachedByDateJoined(series, after);
+    }
+  }
+
+  private void promoteWaitingAttendees(long eventId) {
+    // Not part of the attendee service's contract: a promotion runs only
+    // inside the decide step that gave the seats
+    ((AgendaEventAttendeeServiceImpl) attendeeService).promoteWaitingAttendees(eventId);
+  }
+
+  private void writeCapacityReachedDate(long eventId) {
+    // Not part of the attendee service's contract either: the mark is written
+    // inside the decide step that wrote the limit
+    ((AgendaEventAttendeeServiceImpl) attendeeService).writeCapacityReachedDate(eventId);
+  }
+
+  private void resetResponses(long eventId, Set<Long> keptIdentityIds) {
+    // The step's own reset, not the service's, which would take the lock this
+    // step already holds
+    ((AgendaEventAttendeeServiceImpl) attendeeService).resetResponses(eventId, keptIdentityIds);
+  }
+
+  private List<EventAttendee> continuationRows(long seriesId,
+                                               ZonedDateTime splitFrom,
+                                               List<Long> addedIdentityIds,
+                                               Set<Long> removedIdentityIds) {
+    return ((AgendaEventAttendeeServiceImpl) attendeeService).continuationRows(seriesId,
+                                                                                splitFrom,
+                                                                                addedIdentityIds,
+                                                                                removedIdentityIds);
+  }
+
+  private void saveContinuationRows(long continuationId, List<EventAttendee> rows) {
+    ((AgendaEventAttendeeServiceImpl) attendeeService).saveContinuationRows(continuationId, rows);
+  }
+
+  private void endSeriesRowsAt(long seriesId, ZonedDateTime splitFrom) {
+    ((AgendaEventAttendeeServiceImpl) attendeeService).endSeriesRowsAt(seriesId, splitFrom);
+  }
+
+  /**
+   * @return whether a save turns an event into a date poll
+   */
+  private static boolean becomesDatePoll(Event before, Event after) {
+    return before.getStatus() != EventStatus.TENTATIVE && after.getStatus() == EventStatus.TENTATIVE;
+  }
+
+  /**
+   * @return whether a limit is set, or lowered: no limit holds no floor
+   */
+  private static boolean tightens(int capacityBefore, int capacityAfter) {
+    return capacityAfter > 0 && (capacityBefore == 0 || capacityAfter < capacityBefore);
+  }
+
+  /**
+   * @return whether a limit is raised or removed
+   */
+  private static boolean gainsSeats(int capacityBefore, int capacityAfter) {
+    return capacityBefore > 0 && (capacityAfter == 0 || capacityAfter > capacityBefore);
+  }
+
+  /**
+   * @return whether a save closes an open row, a switch to a date poll aside
+   */
+  private static boolean closes(Event before, Event after) {
+    return Boolean.TRUE.equals(before.getOpen()) && !Boolean.TRUE.equals(after.getOpen())
+        && after.getStatus() != EventStatus.TENTATIVE;
+  }
+
+  /**
    * {@inheritDoc}
    */
   @Override
@@ -2391,6 +4186,25 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (dateOption.getEventId() != eventId) {
       throw new IllegalStateException("Event Date Option with id " + dateOptionId + " has different event id than " + eventId);
     }
+    try {
+      decideSteps.<Void, ObjectNotFoundException, IllegalAccessException> decide(DecideSteps.targetOf(event), () -> {
+        writeSelectedEventDateOption(eventId, dateOption, userIdentityId);
+        return null;
+      });
+    } catch (ResolveAgainException e) {
+      throw new ObjectNotFoundException("Event with id " + eventId + " not found");
+    }
+  }
+
+  private void writeSelectedEventDateOption(long eventId,
+                                            EventDateOption dateOption,
+                                            long userIdentityId) throws ObjectNotFoundException, IllegalAccessException {
+    Event event = agendaEventStorage.getEventById(eventId);
+    if (event.getStatus() != EventStatus.TENTATIVE) {
+      throw new IllegalStateException("Event with id " + eventId + " has a different event status than 'TENTATIVE': "
+          + event.getStatus());
+    }
+    long dateOptionId = dateOption.getId();
     event.setStart(dateOption.getStart());
     event.setEnd(dateOption.getEnd());
     event.setAllDay(dateOption.isAllDay());
@@ -2402,14 +4216,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     List<EventReminder> allReminders = reminderService.getEventReminders(eventId);
     reminderService.saveEventReminders(updatedEvent, allReminders);
 
-    EventAttendeeList eventAttendeeList = attendeeService.getEventAttendees(eventId);
-    List<EventAttendee> eventAttendees = eventAttendeeList.getEventAttendees();
-    for (EventAttendee eventAttendee : eventAttendees) {
-      if (eventAttendee.getIdentityId() != userIdentityId) {
-        attendeeService.sendEventResponse(eventId, eventAttendee.getIdentityId(), EventAttendeeResponse.NEEDS_ACTION);
-      }
-    }
+    attendeeService.resetEventResponses(eventId, Collections.singleton(userIdentityId));
     attendeeService.sendEventResponse(eventId, userIdentityId, EventAttendeeResponse.ACCEPTED);
+    List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(eventId).getEventAttendees();
     datePollService.selectEventDateOption(dateOptionId);
 
     Set<AgendaEventModificationType> modificationTypes = new HashSet<>();
@@ -2759,9 +4568,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * another user's personal calendar. Both update paths go through this
    * method: {@code updateEvent} and the {@code calendarId} field of
    * {@code updateEventFields}. An exceptional occurrence created through
-   * {@code createEvent} is checked by {@link #checkCanCreateEvent} instead,
+   * {@code createEvent} is checked by {@link #checkCanCreateEvent} first,
    * which asks the creation right and the move right only when that occurrence
-   * is filed into a calendar other than its series' (EXO-90382, EXO-90149).
+   * is filed into a calendar other than its series' (EXO-90382, EXO-90149);
+   * one of the series' dates is then saved as an update of its row, which
+   * comes through this method too.
    *
    * @param storedEvent the event as it is stored, carrying the calendar it is
    *          currently filed in
@@ -3016,30 +4827,35 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   /**
    * Whether a series really has an occurrence on the date an identifier names.
    * <p>
-   * The series is expanded around that date and the identifier is matched
-   * against what comes out <b>on the UTC date</b>, which is the granularity the
-   * rest of the exceptional-occurrence machinery already works at:
-   * {@code AgendaEventStorage.getExceptionalOccurrenceEvent} queries the
-   * identifier's UTC day, and {@code filterExceptionalEvents} matches on
-   * {@code withZoneSameInstant(UTC).toLocalDate()}. Matching the instant alone
-   * would be stricter than either, and would refuse the case
-   * {@code filterExceptionalEvents} names in its own comment — an identifier
-   * computed by the previous algorithm, on the right date at another
-   * time of day. Because the row still replaces the computed occurrence at
-   * that granularity, an identifier this admits costs the series its date in
-   * exchange rather than adding to it. The window is the day before to the day
-   * after, with a limit of three, the same window and limit
-   * {@link #getEventOccurrence} expands for a reader — enough for every
-   * frequency the recurrence editor offers, since none of them yields more than
-   * three occurrences over three days.
+   * The series is expanded around that date. An identifier it computes is one
+   * of its dates. Any other one — computed by the previous algorithm, on the
+   * right date at another time of day, the case {@link #isSameOccurrenceDate}
+   * names, which matching the instant alone would refuse —
+   * must be matched by the occurrence list ({@code isSameOccurrenceDate}, how
+   * {@code filterExceptionalEvents} takes computed occurrences out of the
+   * series for a row) to computed occurrences of one date only: the date it
+   * designates in the series' zone ({@code Utils#isSameSeriesDate}, how
+   * {@link #hasExceptionalOccurrence} counts the one row a date may get).
+   * Matched to none, the row would add a date the list still shows; matched to
+   * a computed occurrence of another date as well, it would take two dates out
+   * of the list while counting as the row of one. A computed identifier is
+   * spared that second test: across a change of offset two dates of a daily
+   * series can share a UTC day, and the list then matches each to both, a fault
+   * of its rule the identifier the client sends does not make. The window is
+   * the day before to the day after the date it designates, with the limit of
+   * three {@link #getEventOccurrence} also expands with for a reader — enough
+   * for every frequency the recurrence editor offers, since none of them
+   * yields more than three occurrences over three days.
    * <p>
    * The range test {@code createEventExceptionalOccurrence} makes
    * ({@code overallStart - 1 day <= date <= overallEnd}) is deliberately not
    * reused: it admits any date inside the span — every Wednesday of a Monday
    * series, and every future date of a series with no end at all.
    * <p>
-   * It <b>fails closed</b>: a frequency this window cannot resolve — an hourly
-   * or finer rule — is asked for the creation right rather than let through.
+   * It <b>fails closed</b>: a rule this window cannot resolve — an hourly or
+   * finer one, or one listing several hours, minutes or seconds, whose dates
+   * share a day ({@code Utils#hasSeveralDatesADay}) — is asked for the
+   * creation right rather than let through.
    * Such a rule is <b>not</b> only an import artefact, which is worth saying
    * because the shorter sentence invites the next reader to decide the case
    * cannot happen: {@code EventRecurrenceFrequency} carries {@code HOURLY},
@@ -3047,8 +4863,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * them, but a plain REST payload reaches them through
    * {@code RestEntityBuilder}, and {@code create_agenda_event} advertises them
    * to the model in {@code ai-tool-definitions.json}.
-   * {@link #getEventOccurrence} expands the same window with the same limit, so
-   * <i>reading</i> one of those occurrences is already broken the same way; and
+   * {@link #getEventOccurrence} expands with the same limit, so <i>reading</i>
+   * one of those occurrences is already broken the same way; and
    * {@link #inheritSeriesAttendees} asks a different question, so such a row
    * still gets its attendees and is not left an orphan.
    *
@@ -3058,14 +4874,19 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * @return true when the series has an occurrence on that date
    */
   private boolean seriesHasOccurrence(Event parentEvent, ZonedDateTime occurrenceId) {
-    LocalDate occurrenceDateUTC = occurrenceId.withZoneSameInstant(ZoneOffset.UTC).toLocalDate();
-    List<Event> occurrences = Utils.getOccurrences(parentEvent,
-                                                   occurrenceDateUTC.minusDays(1),
-                                                   occurrenceDateUTC.plusDays(1),
-                                                   3);
-    return occurrences.stream()
-                      .map(occurrence -> occurrence.getOccurrence().getId().withZoneSameInstant(ZoneOffset.UTC))
-                      .anyMatch(id -> id.toLocalDate().equals(occurrenceDateUTC));
+    if (Utils.hasSeveralDatesADay(parentEvent.getRecurrence())) {
+      return false;
+    }
+    LocalDate occurrenceDate = Utils.getSeriesDate(parentEvent, occurrenceId);
+    List<ZonedDateTime> computedIds = Utils.getOccurrences(parentEvent, occurrenceDate.minusDays(1), occurrenceDate.plusDays(1), 3)
+                                           .stream()
+                                           .map(occurrence -> occurrence.getOccurrence().getId())
+                                           .toList();
+    if (computedIds.stream().anyMatch(id -> id.toEpochSecond() == occurrenceId.toEpochSecond())) {
+      return true;
+    }
+    List<ZonedDateTime> listedWith = computedIds.stream().filter(id -> isSameOccurrenceDate(id, occurrenceId)).toList();
+    return !listedWith.isEmpty() && listedWith.stream().allMatch(id -> Utils.isSameSeriesDate(parentEvent, id, occurrenceId));
   }
 
   /**
@@ -3089,7 +4910,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
    * @return true when an exceptional occurrence already exists for that date
    */
   private boolean hasExceptionalOccurrence(Event parentEvent, ZonedDateTime occurrenceId) {
-    return agendaEventStorage.getExceptionalOccurrenceEvent(parentEvent.getId(), occurrenceId) != null;
+    return agendaEventStorage.findExceptionalOccurrence(parentEvent, occurrenceId) != null;
   }
 
   /**
@@ -3204,6 +5025,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
         // is applied, so that a patch changing the calendar and the flag at
         // once is evaluated on the calendar it lands in
         event.setOpen(Boolean.parseBoolean(fieldValue));
+        break;
+      case CAPACITY_FIELD:
+        // Checked against the open invariant and the Yes answers once the
+        // whole field set is applied, for the same reason
+        event.setCapacity(parseCapacity(fieldValue));
         break;
       default:
         throw new IllegalArgumentException("agenda.eventFieldNotSupported");
@@ -3351,6 +5177,22 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
     }
     return 0;
+  }
+
+  /**
+   * The attendee rows of a series valid at one of its dates, by the range
+   * {@link SeatRule#coversDate(EventAttendee, ZonedDateTime)} reads: a copy
+   * onto the date never takes the answer of an attendee whose rows start later.
+   *
+   * @param seriesAttendees the series' rows
+   * @param occurrenceId the date's occurrence id
+   * @return the rows valid at the date
+   */
+  private List<EventAttendee> attendeesOfDate(EventAttendeeList seriesAttendees, ZonedDateTime occurrenceId) {
+    return seriesAttendees.getEventAttendees()
+                          .stream()
+                          .filter(attendee -> SeatRule.coversDate(attendee, occurrenceId))
+                          .collect(Collectors.toList());
   }
 
   private List<EventAttendee> cleanupAttendeeIds(List<EventAttendee> attendees) {

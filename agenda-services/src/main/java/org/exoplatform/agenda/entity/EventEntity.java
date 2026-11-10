@@ -55,12 +55,6 @@ import jakarta.persistence.Table;
         + " AND ev.occurrenceId >= :start"
 )
 @NamedQuery(
-    name = "AgendaEvent.getExceptionalOccurenceIdsByStart",
-    query = "SELECT ev.id FROM AgendaEvent ev"
-        + " WHERE ev.parent.id = :parentEventId"
-        + " AND ev.occurrenceId >= :start"
-)
-@NamedQuery(
     name = "AgendaEvent.getExceptionalOccurenceIds",
     query = "SELECT ev.id, ev.startDate FROM AgendaEvent ev"
         + " WHERE ev.parent.id = :parentEventId"
@@ -70,8 +64,25 @@ import jakarta.persistence.Table;
 @NamedQuery(
     name = "AgendaEvent.getExceptionalOccurences",
     query = "SELECT ev FROM AgendaEvent ev"
+        + " LEFT JOIN FETCH ev.recurrence"
         + " WHERE ev.parent.id = :parentEventId"
         + " AND ev.occurrenceId IS NOT NULL"
+        + " ORDER BY ev.startDate ASC"
+)
+@NamedQuery(
+    name = "AgendaEvent.lockEvent",
+    query = "SELECT ev.id FROM AgendaEvent ev"
+        + " WHERE ev.id = :eventId"
+)
+@NamedQuery(
+    name = "AgendaEvent.getCapacityReachedDate",
+    query = "SELECT ev.capacityReachedDate FROM AgendaEvent ev"
+        + " WHERE ev.id = :eventId"
+)
+@NamedQuery(
+    name = "AgendaEvent.saveCapacityReachedDate",
+    query = "UPDATE AgendaEvent ev SET ev.capacityReachedDate = :capacityReachedDate"
+        + " WHERE ev.id = :eventId"
 )
 @NamedQuery(
     name = "AgendaEvent.getChildEvents",
@@ -352,6 +363,23 @@ public class EventEntity implements Serializable {
   @Column(name = "IS_OPEN", nullable = false)
   private boolean                   open;
 
+  /**
+   * How many attendees may answer Yes on each date of this row's pool; 0
+   * means no limit. Each stored row carries its own, like {@link #open}.
+   */
+  @Column(name = "CAPACITY", nullable = false)
+  private int                       capacity;
+
+  /**
+   * When this row's pool was marked as having reached {@link #capacity}, null
+   * while it is not marked. Only written when the row is created and by the
+   * targeted update {@code AgendaEvent.saveCapacityReachedDate}: a save of the
+   * whole row, which reads it without the event's lock, would write back a
+   * mark set or cleared meanwhile under that lock.
+   */
+  @Column(name = "CAPACITY_REACHED_DATE", updatable = false)
+  private Date                      capacityReachedDate;
+
   public Long getId() {
     return id;
   }
@@ -555,6 +583,22 @@ public class EventEntity implements Serializable {
 
   public void setOpen(boolean open) {
     this.open = open;
+  }
+
+  public int getCapacity() {
+    return capacity;
+  }
+
+  public void setCapacity(int capacity) {
+    this.capacity = capacity;
+  }
+
+  public Date getCapacityReachedDate() {
+    return capacityReachedDate;
+  }
+
+  public void setCapacityReachedDate(Date capacityReachedDate) {
+    this.capacityReachedDate = capacityReachedDate;
   }
 
 }

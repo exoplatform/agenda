@@ -84,6 +84,12 @@
   <component>
     <type>org.exoplatform.agenda.notification.pwa.EventReplyNotificationPwaPlugin</type>
   </component>
+  <component>
+    <type>org.exoplatform.agenda.notification.pwa.EventParticipationConfirmedNotificationPwaPlugin</type>
+  </component>
+  <component>
+    <type>org.exoplatform.agenda.notification.pwa.EventCapacityReachedNotificationPwaPlugin</type>
+  </component>
 
   <component>
     <type>org.exoplatform.agenda.notification.pwa.EventVoteNotificationPwaPlugin</type>

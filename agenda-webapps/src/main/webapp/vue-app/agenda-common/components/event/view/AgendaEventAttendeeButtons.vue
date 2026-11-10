@@ -5,19 +5,19 @@
     </div>
     <div class="event-attendees-responses d-flex ms-auto">
       <v-btn
-        :loading="savingResponse === 'ACCEPTED'"
+        :loading="savingResponse === seatResponse"
         :disabled="savingResponse"
-        :class="eventResponse === 'ACCEPTED' && 'btn-primary'"
-        value="ACCEPTED"
+        :class="seatButtonClass"
+        :value="seatResponse"
         class="btn border-radius"
-        @click="changeResponse('ACCEPTED')">
-        <v-icon size="20" class="me-4">fas fa-check-circle</v-icon>
-        {{ $t('agenda.button.yes') }}
+        @click="changeResponse(seatResponse)">
+        <v-icon size="20" class="me-4">{{ waits ? 'fas fa-info-circle' : 'fas fa-check-circle' }}</v-icon>
+        {{ waits ? $t('agenda.button.waitingList') : $t('agenda.button.yes') }}
       </v-btn>
       <v-btn
         :loading="savingResponse === 'DECLINED'"
         :disabled="savingResponse"
-        :class="eventResponse === 'DECLINED' && 'btn-primary'"
+        :class="eventResponse === 'DECLINED' && ['btn-primary', 'event-response-selected']"
         value="DECLINED"
         class="btn border-radius mx-2"
         @click="changeResponse('DECLINED')">
@@ -27,7 +27,7 @@
       <v-btn
         :loading="savingResponse === 'TENTATIVE'"
         :disabled="savingResponse"
-        :class="eventResponse === 'TENTATIVE' && 'btn-primary'"
+        :class="eventResponse === 'TENTATIVE' && ['btn-primary', 'event-response-selected']"
         value="TENTATIVE"
         class="btn border-radius"
         @click="changeResponse('TENTATIVE')">
@@ -73,6 +73,31 @@ export default {
     eventResponse() {
       return this.userAttendee && this.userAttendee.response || 'NEEDS_ACTION';
     },
+    /**
+     * @returns {Boolean} whether the seat answer is the waiting list: the
+     *          event is full for someone who holds no seat there, or they wait
+     *          already. The counts are the displayed date's.
+     */
+    waits() {
+      return this.eventResponse === 'WAITING'
+        || this.event.capacity > 0 && this.event.acceptedCount >= this.event.capacity && this.eventResponse !== 'ACCEPTED';
+    },
+    seatResponse() {
+      return this.waits ? 'WAITING' : 'ACCEPTED';
+    },
+    /**
+     * @returns {Array|null} the chosen look of the seat answer: orange for
+     *          a viewer on the waiting list, as the waiting answer reads
+     *          everywhere else, the primary colour for a Yes, beside the
+     *          event-response-selected class every chosen answer carries;
+     *          null when the seat answer is not the chosen one
+     */
+    seatButtonClass() {
+      if (this.eventResponse !== this.seatResponse) {
+        return null;
+      }
+      return [this.waits ? 'waiting-response-selected' : 'btn-primary', 'event-response-selected'];
+    },
   },
   methods: {
     changeResponse(response) {
@@ -84,7 +109,13 @@ export default {
       } else {
         this.savingResponse = response;
         this.$eventService.sendEventResponse(this.event.id, null, response)
-          .then(() => this.$root.$emit('agenda-event-response-sent', this.event, null, response))
+          .then(outcome => {
+            // The server decides the seat: what follows reads its answer
+            this.$root.$emit('agenda-event-response-sent', this.event, null, outcome && outcome.response || response);
+            if (this.event.recurrence) {
+              this.$agendaUtils.announcePartlyWaiting(this, this.event.id, outcome && outcome.firstWaitingOccurrenceId);
+            }
+          })
           .finally(() => this.savingResponse = false);
       }
     },

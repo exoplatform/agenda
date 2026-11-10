@@ -18,11 +18,14 @@ package org.exoplatform.agenda.storage;
 
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.agenda.constant.EventAttendeeResponse;
 import org.exoplatform.agenda.dao.*;
@@ -30,6 +33,7 @@ import org.exoplatform.agenda.entity.*;
 import org.exoplatform.agenda.model.*;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.agenda.util.EntityMapper;
+import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -227,9 +231,53 @@ public class AgendaEventStorage {
                                                        AgendaDateUtils.toDate(end));
   }
 
-  public List<Long> getExceptionalOccurenceIds(long parentRecurrentEventId, ZonedDateTime occurrenceId) {
-    return eventDAO.getExceptionalOccurenceIdsByStart(parentRecurrentEventId,
-                                                      AgendaDateUtils.toDate(occurrenceId));
+  /**
+   * Reads the exceptional occurrences of a recurrent event in one statement,
+   * ordered by start date.
+   *
+   * @param parentRecurrentEventId a parent recurrent {@link Event} technical
+   *          identifier
+   * @return {@link List} of its exceptional occurrence events
+   */
+  public List<Event> getExceptionalOccurrences(long parentRecurrentEventId) {
+    return eventDAO.getExceptionalOccurences(parentRecurrentEventId)
+                   .stream()
+                   .map(EntityMapper::fromEntity)
+                   .collect(Collectors.toList());
+  }
+
+  /**
+   * Locks event rows until the current transaction ends, as its first reads:
+   * every row is locked before any of them is read. The persistence context
+   * is flushed then cleared first, so that no entity loaded before the lock
+   * is served after it with the state it had then. The rows are locked in
+   * ascending identifier order, so that two transactions locking the same
+   * rows cannot deadlock.
+   *
+   * @param eventIds the technical identifiers of the events to lock
+   * @return whether every row exists, and so is locked; false as soon as one
+   *         does not
+   */
+  public boolean lockEvents(long... eventIds) {
+    eventDAO.flushAndClear();
+    long[] sortedEventIds = eventIds.clone();
+    Arrays.sort(sortedEventIds);
+    for (long eventId : sortedEventIds) {
+      if (!eventDAO.lockEvent(eventId)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Evicts events from the cache this storage reads through, once the
+   * transaction that read or wrote them has ended. This storage has no cache.
+   *
+   * @param eventIds the technical identifiers of the events to evict
+   */
+  public void evictEvents(Collection<Long> eventIds) {
+    // No cache to evict from
   }
 
   public Event createEvent(Event event) {
@@ -273,25 +321,53 @@ public class AgendaEventStorage {
     return deletedEventIds;
   }
 
-  public Event getExceptionalOccurrenceEvent(long parentRecurrentEventId, ZonedDateTime occurrenceId) {
-    ZonedDateTime start = occurrenceId.withZoneSameInstant(ZoneOffset.UTC).toLocalDate().atStartOfDay(ZoneOffset.UTC);
-    ZonedDateTime end = occurrenceId.withZoneSameInstant(ZoneOffset.UTC)
-                                    .toLocalDate()
-                                    .atStartOfDay(ZoneOffset.UTC)
-                                    .plusDays(1)
-                                    .minusSeconds(1);
-    List<Long> exceptionalOccurenceEventIds = eventDAO.getExceptionalOccurenceIdsByPeriod(parentRecurrentEventId,
-                                                                                          AgendaDateUtils.toDate(start),
-                                                                                          AgendaDateUtils.toDate(end));
-    if (exceptionalOccurenceEventIds == null || exceptionalOccurenceEventIds.isEmpty()) {
-      return null;
-    } else if (exceptionalOccurenceEventIds.size() > 1) {
-      LOG.warn("More than one exceptional event on parent event {} is found for occurrence of day {}. Occurrence ids found: {}",
-               parentRecurrentEventId,
-               occurrenceId,
-               StringUtils.join(exceptionalOccurenceEventIds, ","));
+  /**
+   * Finds the row a series holds for one of its dates: the row whose
+   * occurrence id designates the same date of the series
+   * ({@link Utils#isSameSeriesDate}), the first created when the date has
+   * several.
+   * <p>
+   * The occurrence list hides the computed dates a row stands for with a rule
+   * of its own, the same UTC day or less than twelve hours apart, which knows
+   * neither the series' zone nor its several dates a day.
+   *
+   * @param series the series
+   * @param occurrenceId the date's occurrence id
+   * @return the date's row, or null when it has none
+   */
+  public Event findExceptionalOccurrence(Event series, ZonedDateTime occurrenceId) {
+    List<Long> rowIds;
+    if (Utils.hasSeveralDatesADay(series.getRecurrence())) {
+      // A date of a series with several dates a day is its instant: only the
+      // rows stored within that second are read
+      ZonedDateTime second = occurrenceId.truncatedTo(ChronoUnit.SECONDS);
+      rowIds = getExceptionalOccurenceIdsByPeriod(series.getId(), second, second.plusNanos(999_000_000));
+    } else {
+      // A row of the date is stored within the date's UTC day widened by the
+      // largest offset of a zone, fourteen hours on either side
+      ZonedDateTime dateStart = Utils.getSeriesDate(series, occurrenceId).atStartOfDay(ZoneOffset.UTC);
+      rowIds = getExceptionalOccurenceIdsByPeriod(series.getId(), dateStart.minusHours(14), dateStart.plusDays(1).plusHours(14));
     }
-    return getEventById(exceptionalOccurenceEventIds.get(0));
+    List<Event> dateRows = new ArrayList<>();
+    for (long rowId : rowIds) {
+      Event row = getEventById(rowId);
+      ZonedDateTime rowOccurrenceId = row == null || row.getOccurrence() == null ? null : row.getOccurrence().getId();
+      if (rowOccurrenceId != null && Utils.isSameSeriesDate(series, occurrenceId, rowOccurrenceId)) {
+        dateRows.add(row);
+      }
+    }
+    if (dateRows.isEmpty()) {
+      return null;
+    }
+    dateRows.sort(Comparator.comparing(Event::getId));
+    if (dateRows.size() > 1) {
+      LOG.warn("Event {} holds {} rows for its date {}, the first created is used: {}",
+               series.getId(),
+               dateRows.size(),
+               occurrenceId,
+               dateRows.stream().map(Event::getId).toList());
+    }
+    return dateRows.get(0);
   }
 
   public Event updateEvent(Event event) {
@@ -303,7 +379,32 @@ public class AgendaEventStorage {
 
     eventEntity = eventDAO.update(eventEntity);
     eventEntity = eventDAO.find(eventEntity.getId());
+    // The save leaves the capacity mark as stored, which an answer may have
+    // set, or a reset cleared, since the model saved, or the row the
+    // persistence context holds, was read: the row read back carries the
+    // stored one
+    eventEntity.setCapacityReachedDate(eventDAO.getCapacityReachedDate(eventEntity.getId()));
     return EntityMapper.fromEntity(eventEntity);
+  }
+
+  /**
+   * Writes the mark of an event row's pool having reached its capacity, and
+   * nothing else of the row: once the row exists, the only write of that
+   * mark, which a save of the whole row leaves as it is. It requires an
+   * active transaction, the one of the decide step holding the event lock.
+   *
+   * @param eventId event identifier
+   * @param capacityReachedDate the instant the pool is marked as having
+   *          reached its capacity, or null to clear the mark
+   */
+  public void saveCapacityReachedDate(long eventId, ZonedDateTime capacityReachedDate) {
+    Date date = AgendaDateUtils.toDate(capacityReachedDate);
+    eventDAO.saveCapacityReachedDate(eventId, date);
+    // The row the persistence context may already hold reads the mark written
+    EventEntity eventEntity = eventDAO.find(eventId);
+    if (eventEntity != null) {
+      eventEntity.setCapacityReachedDate(date);
+    }
   }
 
   public boolean isRecurrentEvent(long eventId) {

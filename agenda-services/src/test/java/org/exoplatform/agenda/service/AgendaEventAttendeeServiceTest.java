@@ -603,6 +603,79 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
                  agendaEventAttendeeService.getEventResponse(event.getId(), null, otherIdentityId));
   }
 
+  /**
+   * A place on a waiting list asks for a seat as a Yes does: on an event with
+   * no limit it is stored as a Yes, sent on the event, sent on a series'
+   * upcoming dates, or carried by a saver who adds themself.
+   * <p>
+   * The saver's case goes through an update that changes no date: on a
+   * creation or a date change, {@code AgendaReplyOnSaveListener} answers
+   * ACCEPTED for a listed saver right after the save, which would hide it.
+   *
+   * @throws Exception when a write fails unexpectedly
+   */
+  @Test
+  public void testWaitingAsksForASeatLikeAYes() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now().withNano(0);
+    long creatorIdentityId = Long.parseLong(testuser1Identity.getId());
+    long attendeeIdentityId = Long.parseLong(testuser2Identity.getId());
+    long otherIdentityId = Long.parseLong(testuser3Identity.getId());
+
+    Event event = createEvent(newEventInstance(start, start, false),
+                              creatorIdentityId,
+                              testuser2Identity,
+                              testuser3Identity);
+    long eventId = event.getId();
+
+    List<EventAttendee> attendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees();
+    attendees.add(new EventAttendee(0, eventId, creatorIdentityId, EventAttendeeResponse.WAITING));
+    Event toSave = agendaEventService.getEventById(eventId, null, creatorIdentityId);
+    toSave.setSummary("Renamed");
+    agendaEventService.updateEvent(toSave, attendees, null, null, null, null, false, creatorIdentityId);
+
+    assertEquals("the save is applied", "Renamed", agendaEventService.getEventById(eventId).getSummary());
+    assertEquals("a saver's place on the waiting list is a Yes on an event with no limit",
+                 EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(eventId, null, creatorIdentityId));
+
+    agendaEventAttendeeService.sendEventResponse(eventId, attendeeIdentityId, EventAttendeeResponse.WAITING);
+    assertEquals(EventAttendeeResponse.ACCEPTED, agendaEventAttendeeService.getEventResponse(eventId, null, attendeeIdentityId));
+
+    agendaEventAttendeeService.sendUpcomingEventResponse(eventId, start, otherIdentityId, EventAttendeeResponse.WAITING);
+    assertEquals(EventAttendeeResponse.ACCEPTED, agendaEventAttendeeService.getEventResponse(eventId, start, otherIdentityId));
+  }
+
+  /**
+   * The rows a date copies from its series keep the answer they had, a
+   * waiting one included, and the date of that answer, which orders the
+   * waiting list: what the server copies (creatorUserId 0) is not decided
+   * again. The series starts in sixty days, so that no date of it is
+   * materialised before the copy.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void testADateCopiesAWaitingAnswerFromItsSeries() throws Exception { // NOSONAR
+    ZonedDateTime start = ZonedDateTime.now().plusDays(60).withNano(0);
+    long creatorIdentityId = Long.parseLong(testuser1Identity.getId());
+    long attendeeIdentityId = Long.parseLong(testuser2Identity.getId());
+    Event series = createEvent(newEventInstance(start, start, false), creatorIdentityId, testuser2Identity);
+
+    ZonedDateTime askedAt = ZonedDateTime.now().minusHours(3).withNano(0);
+    List<EventAttendee> copied = new ArrayList<>();
+    copied.add(new EventAttendee(0, 0, attendeeIdentityId, null, null, EventAttendeeResponse.WAITING, askedAt));
+    Event occurrence = agendaEventService.createEventExceptionalOccurrence(series.getId(),
+                                                                           copied,
+                                                                           null,
+                                                                           null,
+                                                                           start.plusDays(1));
+
+    EventAttendee copy = agendaEventAttendeeService.getEventAttendees(occurrence.getId())
+                                                   .getEventAttendee(attendeeIdentityId, null);
+    assertEquals(EventAttendeeResponse.WAITING, copy.getResponse());
+    assertEquals(askedAt.toInstant(), copy.getResponseDate().toInstant());
+  }
+
   @Test
   public void testSaveEventAttendeesWithResponseOfOtherAttendees() throws Exception { // NOSONAR
     ZonedDateTime start = ZonedDateTime.now().withNano(0);
@@ -1045,9 +1118,14 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
     assertFalse(agendaEventAttendeeService.isEventAttendee(occurrence.getId(), memberId));
   }
 
+  /**
+   * A self-registration on the series joins the dates it already stores, as
+   * the reminders store the next days of every confirmed series, as well as
+   * the dates it stores afterwards (EXO-91877).
+   */
   @Test
-  public void testSelfRegistrationOnTheSeriesCreatesNoRowOnExistingExceptionalOccurrences() throws Exception { // NOSONAR
-    ZonedDateTime start = getDate().withNano(0);
+  public void testSelfRegistrationOnTheSeriesJoinsItsExistingExceptionalOccurrences() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().plusDays(7).withNano(0);
     long memberId = Long.parseLong(testuser2Identity.getId());
 
     Event series = createSpaceEvent(start, true, true, testuser1Identity);
@@ -1055,12 +1133,140 @@ public class AgendaEventAttendeeServiceTest extends BaseAgendaEventTest {
 
     agendaEventAttendeeService.sendEventResponse(series.getId(), memberId, EventAttendeeResponse.ACCEPTED);
     assertTrue(agendaEventAttendeeService.isEventAttendee(series.getId(), memberId));
-    // Stated consequence (spec, Propagation): an exceptional occurrence that
-    // already exists is joined by answering on it, occurrence by occurrence
-    assertFalse(agendaEventAttendeeService.isEventAttendee(existingOccurrence.getId(), memberId));
-    // whereas one created afterwards copies the series list, self-registrant included
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(existingOccurrence.getId(), null, memberId));
     Event laterOccurrence = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start.plusDays(1));
     assertTrue(agendaEventAttendeeService.isEventAttendee(laterOccurrence.getId(), memberId));
+  }
+
+  /**
+   * A self-registration from one date on joins the stored dates from that
+   * one on, never those before it (EXO-91877).
+   */
+  @Test
+  public void testSelfRegistrationFromOneDateOnJoinsTheStoredDatesFromIt() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().plusDays(7).withNano(0);
+    long memberId = Long.parseLong(testuser2Identity.getId());
+
+    Event series = createSpaceEvent(start, true, true, testuser1Identity);
+    Event dateBefore = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start);
+    Event dateAfter = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start.plusDays(2));
+
+    agendaEventAttendeeService.sendUpcomingEventResponse(series.getId(),
+                                                         start.plusDays(1),
+                                                         memberId,
+                                                         EventAttendeeResponse.ACCEPTED);
+
+    assertFalse(agendaEventAttendeeService.isEventAttendee(dateBefore.getId(), memberId));
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(dateAfter.getId(), null, memberId));
+  }
+
+  /**
+   * An answer from one date on gives the series a row from that date only:
+   * an answer to every date given next still joins the stored dates before
+   * it, which the series did not carry them at (EXO-91877).
+   */
+  @Test
+  public void testAnAnswerToEveryDateJoinsTheStoredDatesBeforeAnEarlierAnswerFromOneDateOn() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().plusDays(7).withNano(0);
+    long memberId = Long.parseLong(testuser2Identity.getId());
+
+    Event series = createSpaceEvent(start, true, true, testuser1Identity);
+    Event storedDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start);
+    agendaEventAttendeeService.sendUpcomingEventResponse(series.getId(),
+                                                         start.plusDays(2),
+                                                         memberId,
+                                                         EventAttendeeResponse.TENTATIVE);
+    assertFalse("precondition: the stored date is before the answer",
+                agendaEventAttendeeService.isEventAttendee(storedDate.getId(), memberId));
+
+    agendaEventAttendeeService.sendEventResponse(series.getId(), memberId, EventAttendeeResponse.ACCEPTED);
+
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(storedDate.getId(), null, memberId));
+  }
+
+  /**
+   * A self-registration on the series joins the stored dates it may answer
+   * itself, never one the organiser locked.
+   */
+  @Test
+  public void testSelfRegistrationOnTheSeriesDoesNotJoinALockedDate() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().plusDays(7).withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    long memberId = Long.parseLong(testuser2Identity.getId());
+
+    Event series = createSpaceEvent(start, true, true, testuser1Identity);
+    Event lockedDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start);
+    Event openDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start.plusDays(1));
+    Event dateToLock = agendaEventService.getEventById(lockedDate.getId(), ZoneOffset.UTC, creatorId).clone();
+    dateToLock.setOpen(false);
+    agendaEventService.updateEvent(dateToLock,
+                                   agendaEventAttendeeService.getEventAttendees(lockedDate.getId()).getEventAttendees(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    restartTransaction();
+    assertFalse("precondition: that date is locked",
+                agendaEventAttendeeService.canRespondToEvent(agendaEventService.getEventById(lockedDate.getId()), memberId));
+
+    agendaEventAttendeeService.sendEventResponse(series.getId(), memberId, EventAttendeeResponse.ACCEPTED);
+
+    assertFalse(agendaEventAttendeeService.isEventAttendee(lockedDate.getId(), memberId));
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(openDate.getId(), null, memberId));
+  }
+
+  /**
+   * A self-registration on the series joins the stored dates to come, never a
+   * date over, which keeps the list it was held with; an attendee's answer
+   * still reaches it (EXO-91877).
+   */
+  @Test
+  public void testSelfRegistrationOnTheSeriesDoesNotJoinADateOver() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().minusDays(1).withNano(0);
+    long memberId = Long.parseLong(testuser2Identity.getId());
+    long attendeeId = Long.parseLong(testuser3Identity.getId());
+
+    Event series = createSpaceEvent(start, true, true, testuser1Identity, testuser3Identity);
+    Event dateOver = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start);
+    Event dateToCome = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start.plusDays(2));
+
+    agendaEventAttendeeService.sendEventResponse(series.getId(), memberId, EventAttendeeResponse.ACCEPTED);
+    agendaEventAttendeeService.sendEventResponse(series.getId(), attendeeId, EventAttendeeResponse.DECLINED);
+
+    assertFalse(agendaEventAttendeeService.isEventAttendee(dateOver.getId(), memberId));
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventResponse(dateToCome.getId(), null, memberId));
+    assertEquals(EventAttendeeResponse.DECLINED,
+                 agendaEventAttendeeService.getEventResponse(dateOver.getId(), null, attendeeId));
+  }
+
+  /**
+   * A member of a space the series invites stays off a stored date the space
+   * was removed from when they answer every date: the series carried them
+   * there through the space (eXIP 7.3.0.20 D6).
+   */
+  @Test
+  public void testAnAnswerToEveryDateDoesNotPutBackAMemberOfASpaceRemovedFromADate() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().plusDays(7).withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    long memberId = Long.parseLong(testuser2Identity.getId());
+
+    Event series = createSpaceEvent(start, true, true, testuser1Identity, spaceIdentity);
+    Event storedDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(), start);
+    removeAttendee(storedDate.getId(), Long.parseLong(spaceIdentity.getId()), creatorId);
+    assertFalse("precondition: the space is off that date",
+                agendaEventAttendeeService.isEventAttendee(storedDate.getId(), memberId));
+
+    agendaEventAttendeeService.sendEventResponse(series.getId(), memberId, EventAttendeeResponse.ACCEPTED);
+
+    assertFalse(agendaEventAttendeeService.isEventAttendee(storedDate.getId(), memberId));
+    assertTrue(agendaEventAttendeeService.isEventAttendee(series.getId(), memberId));
   }
 
   /**

@@ -4,7 +4,7 @@
     {
       "name": "get_agenda_events",
       "title": "Get agenda events",
-      "description": "Retrieve agenda events for the current user, optionally filtered by RFC3339 start/end, space, and limit.",
+      "description": "Retrieve agenda events for the current user, optionally filtered by RFC3339 start/end, space, and limit: the events they accepted, may attend or have not answered yet, and the ones whose waiting list they are on (user_answer WAITING), and the events that invite one of their spaces, whatever they answered: user_answer is then their own answer, left out when they gave none. Without a space, the events of the calendars other users shared with them come too, whatever their answer: user_answer is then left out when they are not invited.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -36,7 +36,7 @@
     {
       "name": "get_agenda_event_by_id",
       "title": "Get agenda event",
-      "description": "Fetch a single agenda event by its id.",
+      "description": "Fetch a single agenda event by its id. Each attendee is listed once; on a recurring event read as a whole, with the answer valid at its next date, or at its last one once all its dates have passed. user_answer is the current user's answer: WAITING when they are on the waiting list. On an event with a capacity limit, capacity gives its number of seats, accepted_count the Yes answers holding a seat, waiting_count the people on the waiting list, and waiting_list_position the current user's place on it; on a recurring event read as a whole, the two counts and the place are those of that same date, while capacity stays the series' limit, even when that date was given a limit of its own. When that date has a row of its own (for instance once it was answered, changed or given reminders on its own, or once the reminders created it ahead for the next days), its seats are decided on it alone: its counts and place can then differ from the series' answers that user_answer and the attendees show, and only a read of that date gives its own answers.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -222,7 +222,7 @@
     {
       "name": "accept_agenda_event_invitation",
       "title": "Accept an agenda event invitation",
-      "description": "Accept an agenda event invitation by the current user.",
+      "description": "Accept an agenda event invitation by the current user, and return the event as they now read it. On an event with a capacity limit, a Yes given once every seat is taken puts the user on the waiting list: user_answer then reads WAITING, with their waiting_list_position, and they get a seat in the order the list was joined as soon as one frees up. On a recurring event, each date decides its own seat.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -602,7 +602,7 @@
     {
       "name": "get_event_attendees",
       "title": "Get event attendees",
-      "description": "List an event's attendees together with each one's response (ACCEPTED, DECLINED, TENTATIVE or NEEDS_ACTION).",
+      "description": "List an event's attendees, each once, together with their response: ACCEPTED, DECLINED, TENTATIVE, NEEDS_ACTION, or WAITING for someone on the waiting list of an event with a capacity limit. On a recurring event read as a whole, each attendee's response is the one valid at its next date, or at its last one once all its dates have passed.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -625,7 +625,7 @@
     {
       "name": "respond_to_agenda_event",
       "title": "Respond to an agenda event",
-      "description": "Respond to an event as the current user with ACCEPTED, DECLINED or TENTATIVE: as an invited attendee, or, when the event is open (is_open true), as any user who can access it. The optional comment is accepted but not persisted (no backend storage for response comments).",
+      "description": "Respond to an event as the current user with ACCEPTED, DECLINED or TENTATIVE: as an invited attendee, or, when the event is open (is_open true), as any user who can access it. On an event with a capacity limit, a Yes (ACCEPTED) given once every seat is taken puts the user on the waiting list: their answer then reads WAITING, and they get a seat in the order the list was joined as soon as one frees up. On a recurring event, each date decides its own seat. WAITING and NEEDS_ACTION are not answers to give. The optional comment is accepted but not persisted (no backend storage for response comments).",
       "input_schema": {
         "type": "object",
         "properties": {

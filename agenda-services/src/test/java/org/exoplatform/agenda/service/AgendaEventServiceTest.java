@@ -33,9 +33,13 @@ import org.exoplatform.services.mail.Attachment;
 import org.junit.Test;
 
 import org.exoplatform.agenda.constant.*;
+import org.exoplatform.agenda.dao.EventRecurrenceDAO;
+import org.exoplatform.agenda.entity.EventRecurrenceEntity;
 import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.*;
+import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
+import org.exoplatform.agenda.storage.AgendaEventAttendeeStorage;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.social.core.identity.model.Identity;
@@ -743,6 +747,625 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                  storedDate.getOpen());
     assertFalse("so the member of the space who could answer a moment ago no longer can",
                 agendaEventAttendeeService.canRespondToEvent(storedDate, spaceMemberNotInvited));
+  }
+
+  /**
+   * An open event never holds a person from outside the platform, a guest
+   * invited by e-mail address (US06 of eXip 7.3.0.21). A creation or a save
+   * that would leave one on an open event is refused, before it writes; a
+   * locked event invites one, and opens once the last one is removed. An
+   * already open event takes no new one, from a full save or from any other
+   * caller of the attendee service.
+   */
+  @Test
+  public void testAnOpenEventNeverHoldsAPersonFromOutsideThePlatform() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    Identity guest = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, "outside-open@example.com");
+    long guestId = Long.parseLong(guest.getId());
+
+    Event openEvent = newEventInstance(start, start, true);
+    openEvent.setCalendarId(spaceCalendar.getId());
+    openEvent.setRecurrence(null);
+    openEvent.setOpen(true);
+    try {
+      createEvent(openEvent.clone(), creatorId, testuser2Identity, guest);
+      fail("An open event should not be created with a person from outside the platform");
+    } catch (IllegalArgumentException e) {
+      assertEquals("agenda.openEvent.externalGuestNotAllowed", e.getMessage());
+    }
+
+    Event lockedEvent = openEvent.clone();
+    lockedEvent.setOpen(false);
+    long eventId = createEvent(lockedEvent, creatorId, testuser2Identity, guest).getId();
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(eventId).getOpen());
+    assertTrue("a locked event invites a person from outside the platform",
+               agendaEventAttendeeService.isEventAttendee(eventId, guestId));
+
+    try {
+      agendaEventService.updateEventFields(eventId, getFields("open", "true"), false, false, creatorId);
+      fail("An event a person from outside the platform is invited to should not be opened by a patch");
+    } catch (IllegalArgumentException e) {
+      assertEquals("agenda.openEvent.externalGuestsInvited", e.getMessage());
+    }
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(eventId).getOpen());
+
+    List<EventAttendee> attendees = agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees();
+    try {
+      updateOpen(eventId, attendees, creatorId);
+      fail("An event a person from outside the platform is invited to should not be opened by a full save");
+    } catch (IllegalArgumentException e) {
+      assertEquals("agenda.openEvent.externalGuestsInvited", e.getMessage());
+    }
+    assertEquals(Boolean.FALSE, agendaEventService.getEventById(eventId).getOpen());
+
+    List<EventAttendee> withoutGuest = attendees.stream().filter(attendee -> attendee.getIdentityId() != guestId).toList();
+    updateOpen(eventId, withoutGuest, creatorId);
+    assertEquals("the last one removed, the event opens", Boolean.TRUE, agendaEventService.getEventById(eventId).getOpen());
+
+    List<EventAttendee> withGuest = new ArrayList<>(agendaEventAttendeeService.getEventAttendees(eventId).getEventAttendees());
+    withGuest.add(new EventAttendee(0, eventId, guestId, null));
+    try {
+      updateOpen(eventId, withGuest, creatorId);
+      fail("An open event should not take a person from outside the platform from a full save");
+    } catch (IllegalArgumentException e) {
+      assertEquals("agenda.openEvent.externalGuestNotAllowed", e.getMessage());
+    }
+    try {
+      agendaEventAttendeeService.saveEventAttendees(agendaEventService.getEventById(eventId), withGuest, creatorId, false, false, null);
+      fail("An open event should not take a person from outside the platform from the attendee service");
+    } catch (IllegalArgumentException e) {
+      assertEquals("agenda.openEvent.externalGuestNotAllowed", e.getMessage());
+    }
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(eventId).getOpen());
+    assertFalse(agendaEventAttendeeService.isEventAttendee(eventId, guestId));
+  }
+
+  /**
+   * The people a series gains reach each of its dates: a save of the series
+   * that would take a person from outside the platform to a date opened on its
+   * own is refused, and a series opened with all its dates leaves locked a
+   * date that holds one of its own. A date of a locked series that invites one
+   * is not created open with the series' attendees.
+   */
+  @Test
+  public void testASeriesTakesAPersonFromOutsideThePlatformToNoOpenDate() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    Identity guest = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, "outside-dates@example.com");
+    long guestId = Long.parseLong(guest.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(false);
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(3), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 3);
+    Event openDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                      occurrences.get(0).getOccurrence().getId());
+    Event guestDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                       occurrences.get(1).getOccurrence().getId());
+    agendaEventService.updateEventFields(openDate.getId(), getFields("open", "true"), false, false, creatorId);
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(openDate.getId()).getOpen());
+
+    List<EventAttendee> seriesWithGuest = new ArrayList<>(agendaEventAttendeeService.getEventAttendees(series.getId())
+                                                                                    .getEventAttendees());
+    seriesWithGuest.add(new EventAttendee(0, series.getId(), guestId, null));
+    Event seriesUpdate = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
+    try {
+      agendaEventService.updateEvent(seriesUpdate,
+                                     seriesWithGuest,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     null,
+                                     null,
+                                     false,
+                                     creatorId);
+      fail("A series should not take a person from outside the platform to a date opened on its own");
+    } catch (IllegalArgumentException e) {
+      assertEquals("agenda.openEvent.externalGuestNotAllowed", e.getMessage());
+    }
+    assertFalse(agendaEventAttendeeService.isEventAttendee(series.getId(), guestId));
+    assertFalse(agendaEventAttendeeService.isEventAttendee(openDate.getId(), guestId));
+
+    List<EventAttendee> dateWithGuest = new ArrayList<>(agendaEventAttendeeService.getEventAttendees(guestDate.getId())
+                                                                                  .getEventAttendees());
+    dateWithGuest.add(new EventAttendee(0, guestDate.getId(), guestId, null));
+    agendaEventService.updateEvent(agendaEventService.getEventById(guestDate.getId(), ZoneOffset.UTC, creatorId).clone(),
+                                   dateWithGuest,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   creatorId);
+    agendaEventService.updateEventFields(series.getId(), getFields("open", "true"), true, false, creatorId);
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(series.getId()).getOpen());
+    assertEquals("a date holding a person from outside the platform stays locked",
+                 Boolean.FALSE,
+                 agendaEventService.getEventById(guestDate.getId()).getOpen());
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(openDate.getId()).getOpen());
+  }
+
+  /**
+   * A date that is over keeps its answers, and the attendee service decides
+   * nothing there: the series itself refuses, before it writes, to take a
+   * person from outside the platform to such a date opened on its own.
+   */
+  @Test
+  public void testASeriesTakesAPersonFromOutsideThePlatformToNoOpenDateThatIsOver() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().minusDays(5).withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    Identity guest = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, "outside-over@example.com");
+    long guestId = Long.parseLong(guest.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(false);
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(3), ZoneOffset.UTC, 0);
+    Event overDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                      occurrences.get(0).getOccurrence().getId());
+    agendaEventService.updateEventFields(overDate.getId(), getFields("open", "true"), false, false, creatorId);
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(overDate.getId()).getOpen());
+
+    List<EventAttendee> seriesWithGuest = new ArrayList<>(agendaEventAttendeeService.getEventAttendees(series.getId())
+                                                                                    .getEventAttendees());
+    seriesWithGuest.add(new EventAttendee(0, series.getId(), guestId, null));
+    try {
+      agendaEventService.updateEvent(agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone(),
+                                     seriesWithGuest,
+                                     Collections.emptyList(),
+                                     Collections.emptyList(),
+                                     null,
+                                     null,
+                                     false,
+                                     creatorId);
+      fail("A series should not take a person from outside the platform to a date over opened on its own");
+    } catch (IllegalArgumentException e) {
+      assertEquals("agenda.openEvent.externalGuestNotAllowed", e.getMessage());
+    }
+    assertFalse(agendaEventAttendeeService.isEventAttendee(overDate.getId(), guestId));
+  }
+
+  /**
+   * A move of dates under a second series, the split of an older client or of
+   * an integrator in three calls, takes to the dates it moves the people of
+   * the second series the first did not hold, on a date that is over too: it
+   * is refused before it writes when one of them is from outside the platform
+   * and such a date was opened on its own, which keeps its series and never
+   * holds them.
+   */
+  @Test
+  public void testAMoveOfDatesTakesAPersonFromOutsideThePlatformToNoDateOpenedOnItsOwn() throws Exception { // NOSONAR
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    Identity guest = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, "outside-moved@example.com");
+    long guestId = Long.parseLong(guest.getId());
+    for (boolean over : new boolean[] { false, true }) {
+      ZonedDateTime day = over ? ZonedDateTime.now(ZoneOffset.UTC).minusDays(5) : ZonedDateTime.now(ZoneOffset.UTC).plusDays(3);
+      ZonedDateTime start = day.withHour(9).withMinute(0).withSecond(0).withNano(0);
+      Event event = newEventInstance(start, start.plusHours(1), false);
+      event.setCalendarId(spaceCalendar.getId());
+      event.setOpen(false);
+      event.getRecurrence().setUntil(start.plusDays(6).toLocalDate());
+      Event first = createEvent(event.clone(), creatorId, testuser1Identity);
+      List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(first, start, start.plusDays(7), ZoneOffset.UTC, 0);
+      ZonedDateTime splitDate = occurrences.get(3).getOccurrence().getId();
+      Event openDate = agendaEventService.saveEventExceptionalOccurrence(first.getId(), splitDate);
+      agendaEventService.updateEventFields(openDate.getId(), getFields("open", "true"), false, false, creatorId);
+      Event continuation = agendaEventService.getEventById(first.getId(), ZoneOffset.UTC, creatorId).clone();
+      continuation.setId(0);
+      continuation.setStart(occurrences.get(3).getStart());
+      continuation.setEnd(occurrences.get(3).getEnd());
+      Event second = createEvent(continuation, creatorId, testuser1Identity, guest);
+      restartTransaction();
+      String context = "over: " + over;
+      assertEquals(context, Boolean.FALSE, agendaEventService.getEventById(second.getId()).getOpen());
+
+      RecordingStatementInspector.start();
+      List<RecordingStatementInspector.RecordedStatement> statements;
+      try {
+        agendaEventService.moveExceptionalOccurrences(first.getId(), second.getId(), splitDate, creatorId);
+        fail(context + ": a move should not take a person from outside the platform to a date opened on its own");
+      } catch (IllegalArgumentException e) {
+        assertEquals(context, "agenda.openEvent.externalGuestNotAllowed", e.getMessage());
+      } finally {
+        statements = RecordingStatementInspector.stop();
+      }
+      restartTransaction();
+
+      List<String> writes = statements.stream()
+                                      .map(statement -> statement.sql().trim().toLowerCase())
+                                      .filter(sql -> sql.startsWith("insert") || sql.startsWith("update") || sql.startsWith("delete"))
+                                      .toList();
+      assertTrue(context + ", written before the refusal: " + writes, writes.isEmpty());
+      Event stored = agendaEventService.getEventById(openDate.getId());
+      assertEquals(context, first.getId(), stored.getParentId());
+      assertEquals(context, Boolean.TRUE, stored.getOpen());
+      assertFalse(context, agendaEventAttendeeService.isEventAttendee(openDate.getId(), guestId));
+    }
+  }
+
+  /**
+   * The merge of the dates moved goes over the dates the second series holds
+   * of its own as well, and gives each the people it holds that the first
+   * did not: a date of the second series the person from outside the
+   * platform was removed from alone, then opened on its own, would get them
+   * back. Refused before the first write, on a date that is over too.
+   */
+  @Test
+  public void testAMoveOfDatesTakesAPersonFromOutsideThePlatformToNoDateOfTheSecondSeriesOpenedOnItsOwn() throws Exception { // NOSONAR
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    Identity guest = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, "outside-second@example.com");
+    long guestId = Long.parseLong(guest.getId());
+    for (boolean over : new boolean[] { false, true }) {
+      ZonedDateTime day = over ? ZonedDateTime.now(ZoneOffset.UTC).minusDays(8) : ZonedDateTime.now(ZoneOffset.UTC).plusDays(3);
+      ZonedDateTime start = day.withHour(9).withMinute(0).withSecond(0).withNano(0);
+      Event event = newEventInstance(start, start.plusHours(1), false);
+      event.setCalendarId(spaceCalendar.getId());
+      event.setOpen(false);
+      event.getRecurrence().setUntil(start.plusDays(6).toLocalDate());
+      Event first = createEvent(event.clone(), creatorId, testuser1Identity);
+      List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(first, start, start.plusDays(7), ZoneOffset.UTC, 0);
+      ZonedDateTime splitDate = occurrences.get(3).getOccurrence().getId();
+      Event continuation = agendaEventService.getEventById(first.getId(), ZoneOffset.UTC, creatorId).clone();
+      continuation.setId(0);
+      continuation.setStart(occurrences.get(3).getStart());
+      continuation.setEnd(occurrences.get(3).getEnd());
+      Event second = createEvent(continuation, creatorId, testuser1Identity, guest);
+      Event ownDate = agendaEventService.saveEventExceptionalOccurrence(second.getId(), occurrences.get(5).getOccurrence().getId());
+      List<EventAttendee> withoutGuest = new ArrayList<>(agendaEventAttendeeService.getEventAttendees(ownDate.getId())
+                                                                                  .getEventAttendees());
+      withoutGuest.removeIf(attendee -> attendee.getIdentityId() == guestId);
+      updateOpen(ownDate.getId(), withoutGuest, creatorId);
+      restartTransaction();
+      String context = "over: " + over;
+      // With no date to move, there is no merge, and nothing reaches that date
+      assertEquals(context,
+                   Collections.emptyList(),
+                   agendaEventService.moveExceptionalOccurrences(first.getId(), second.getId(), splitDate, creatorId));
+      restartTransaction();
+      // A date of the first series the move takes along, customised, not open
+      Event movedDate = agendaEventService.saveEventExceptionalOccurrence(first.getId(), splitDate);
+      agendaEventService.updateEventFields(movedDate.getId(), getFields("summary", "A date of its own"), false, false, creatorId);
+      restartTransaction();
+      assertEquals(context, Boolean.TRUE, agendaEventService.getEventById(ownDate.getId()).getOpen());
+      assertFalse(context, agendaEventAttendeeService.isEventAttendee(ownDate.getId(), guestId));
+      assertEquals(context, Boolean.FALSE, agendaEventService.getEventById(movedDate.getId()).getOpen());
+
+      RecordingStatementInspector.start();
+      List<RecordingStatementInspector.RecordedStatement> statements;
+      try {
+        agendaEventService.moveExceptionalOccurrences(first.getId(), second.getId(), splitDate, creatorId);
+        fail(context + ": a move should not take a person from outside the platform to a date of the second series opened on its own");
+      } catch (IllegalArgumentException e) {
+        assertEquals(context, "agenda.openEvent.externalGuestNotAllowed", e.getMessage());
+      } finally {
+        statements = RecordingStatementInspector.stop();
+      }
+      restartTransaction();
+
+      List<String> writes = statements.stream()
+                                      .map(statement -> statement.sql().trim().toLowerCase())
+                                      .filter(sql -> sql.startsWith("insert") || sql.startsWith("update") || sql.startsWith("delete"))
+                                      .toList();
+      assertTrue(context + ", written before the refusal: " + writes, writes.isEmpty());
+      assertEquals(context, first.getId(), agendaEventService.getEventById(movedDate.getId()).getParentId());
+      Event stored = agendaEventService.getEventById(ownDate.getId());
+      assertEquals(context, second.getId(), stored.getParentId());
+      assertEquals(context, Boolean.TRUE, stored.getOpen());
+      assertFalse(context, agendaEventAttendeeService.isEventAttendee(ownDate.getId(), guestId));
+    }
+  }
+
+  /**
+   * A series stored open with a person from outside the platform, as one
+   * could be before such people were kept out of open events, is not written
+   * by a move of dates under it: a move that moves nothing is not refused,
+   * and one that moves a date following the series, which would open it
+   * with that person, is, the person from outside the platform the date held
+   * leaving it with the first series.
+   */
+  @Test
+  public void testAMoveOfDatesUnderASeriesStoredOpenWithAPersonFromOutsideThePlatformJudgesOnlyItsDates() throws Exception { // NOSONAR
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    Identity guest = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, "outside-stored-open@example.com");
+    long guestId = Long.parseLong(guest.getId());
+    Identity firstGuest = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, "outside-first-series@example.com");
+    ZonedDateTime start = ZonedDateTime.now(ZoneOffset.UTC).plusDays(3).withHour(9).withMinute(0).withSecond(0).withNano(0);
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(false);
+    event.getRecurrence().setUntil(start.plusDays(6).toLocalDate());
+    Event first = createEvent(event.clone(), creatorId, testuser1Identity, firstGuest);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(first, start, start.plusDays(7), ZoneOffset.UTC, 0);
+    ZonedDateTime splitDate = occurrences.get(3).getOccurrence().getId();
+    Event continuation = agendaEventService.getEventById(first.getId(), ZoneOffset.UTC, creatorId).clone();
+    continuation.setId(0);
+    continuation.setStart(occurrences.get(3).getStart());
+    continuation.setEnd(occurrences.get(3).getEnd());
+    Event second = createEvent(continuation, creatorId, testuser1Identity, guest);
+    Event storedOpen = agendaEventStorage.getEventById(second.getId());
+    storedOpen.setOpen(true);
+    agendaEventStorage.updateEvent(storedOpen);
+    restartTransaction();
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(second.getId()).getOpen());
+    assertTrue(agendaEventAttendeeService.isEventAttendee(second.getId(), guestId));
+
+    assertEquals(Collections.emptyList(),
+                 agendaEventService.moveExceptionalOccurrences(first.getId(), second.getId(), splitDate, creatorId));
+    restartTransaction();
+
+    Event movedDate = agendaEventService.saveEventExceptionalOccurrence(first.getId(), splitDate);
+    agendaEventService.updateEventFields(movedDate.getId(), getFields("summary", "A date of its own"), false, false, creatorId);
+    restartTransaction();
+    assertTrue(agendaEventAttendeeService.isEventAttendee(movedDate.getId(), Long.parseLong(firstGuest.getId())));
+    RecordingStatementInspector.start();
+    List<RecordingStatementInspector.RecordedStatement> statements;
+    try {
+      agendaEventService.moveExceptionalOccurrences(first.getId(), second.getId(), splitDate, creatorId);
+      fail("a move should not take a person from outside the platform to a date it opens with its series");
+    } catch (IllegalArgumentException e) {
+      assertEquals("agenda.openEvent.externalGuestNotAllowed", e.getMessage());
+    } finally {
+      statements = RecordingStatementInspector.stop();
+    }
+    restartTransaction();
+    List<String> writes = statements.stream()
+                                    .map(statement -> statement.sql().trim().toLowerCase())
+                                    .filter(sql -> sql.startsWith("insert") || sql.startsWith("update") || sql.startsWith("delete"))
+                                    .toList();
+    assertTrue("written before the refusal: " + writes, writes.isEmpty());
+    assertEquals(first.getId(), agendaEventService.getEventById(movedDate.getId()).getParentId());
+    assertFalse(agendaEventAttendeeService.isEventAttendee(movedDate.getId(), guestId));
+  }
+
+  /**
+   * A move of dates writes no series: the merge compares the two rules as
+   * they are stored, and so does the guard, a rule stored in a form the
+   * storage no longer writes included. Two series with the same times and
+   * the same rule stored so keep a date opened on its own under a day the
+   * rule does not give, which the person from outside the platform the
+   * second holds would reach: refused before any write.
+   */
+  @Test
+  public void testAMoveOfDatesComparesTheRulesAsStored() throws Exception { // NOSONAR
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    Identity guest = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, "outside-rule-stored@example.com");
+    long guestId = Long.parseLong(guest.getId());
+    ZonedDateTime start = ZonedDateTime.now(ZoneOffset.UTC).plusDays(3).withHour(9).withMinute(0).withSecond(0).withNano(0);
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(false);
+    event.getRecurrence().setUntil(null);
+    event.getRecurrence().setCount(7);
+    Event first = createEvent(event.clone(), creatorId, testuser1Identity);
+    Event second = createEvent(event.clone(), creatorId, testuser1Identity, guest);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(first, start, start.plusDays(7), ZoneOffset.UTC, 0);
+    Event openDate = agendaEventService.saveEventExceptionalOccurrence(first.getId(), occurrences.get(5).getOccurrence().getId());
+    agendaEventService.updateEventFields(openDate.getId(), getFields("open", "true"), false, false, creatorId);
+    // Stored under a day the rule does not give
+    Event row = agendaEventStorage.getEventById(openDate.getId());
+    row.getOccurrence().setId(occurrences.get(5).getOccurrence().getId().plusDays(9));
+    agendaEventStorage.updateEvent(row);
+    // Both rules stored in a form the storage no longer writes, the same one
+    EventRecurrenceDAO recurrenceDAO = container.getComponentInstanceOfType(EventRecurrenceDAO.class);
+    for (Event series : List.of(first, second)) {
+      EventRecurrenceEntity recurrence = recurrenceDAO.find(agendaEventService.getEventById(series.getId()).getRecurrence().getId());
+      recurrence.setRrule(recurrence.getRrule() + ";WKST=MO");
+      recurrenceDAO.update(recurrence);
+      // Drops the series read before from the cache
+      saveCapacityReachedDate(series.getId(), null);
+    }
+    restartTransaction();
+    String firstRule = agendaEventService.getEventById(first.getId()).getRecurrence().getRrule();
+    assertTrue(firstRule, firstRule.endsWith(";WKST=MO"));
+    assertEquals(firstRule, agendaEventService.getEventById(second.getId()).getRecurrence().getRrule());
+
+    RecordingStatementInspector.start();
+    List<RecordingStatementInspector.RecordedStatement> statements;
+    try {
+      agendaEventService.moveExceptionalOccurrences(first.getId(),
+                                                    second.getId(),
+                                                    occurrences.get(3).getOccurrence().getId(),
+                                                    creatorId);
+      fail("a move should not take a person from outside the platform to a date opened on its own the merge keeps");
+    } catch (IllegalArgumentException e) {
+      assertEquals("agenda.openEvent.externalGuestNotAllowed", e.getMessage());
+    } finally {
+      statements = RecordingStatementInspector.stop();
+    }
+    restartTransaction();
+    List<String> writes = statements.stream()
+                                    .map(statement -> statement.sql().trim().toLowerCase())
+                                    .filter(sql -> sql.startsWith("insert") || sql.startsWith("update") || sql.startsWith("delete"))
+                                    .toList();
+    assertTrue("written before the refusal: " + writes, writes.isEmpty());
+    assertEquals(first.getId(), agendaEventService.getEventById(openDate.getId()).getParentId());
+    assertFalse(agendaEventAttendeeService.isEventAttendee(openDate.getId(), guestId));
+  }
+
+  /**
+   * A full save of a locked series judges its dates against the rule the
+   * storage writes from the fields sent, whatever rule string came with them:
+   * none, as from REST, on a series whose rule is unchanged, so that a date
+   * opened on its own under an identifier the rule gives no date for, which
+   * the merge keeps, refuses the person from outside the platform added; the
+   * one read before the series was cut in place, so that the date opened on
+   * its own the series no longer gives, which the merge deletes, lets the
+   * save add them.
+   */
+  @Test
+  public void testASeriesSaveJudgesItsDatesOnTheRuleItWrites() throws Exception { // NOSONAR
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    Identity guest = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, "outside-rule-written@example.com");
+    long guestId = Long.parseLong(guest.getId());
+    for (boolean cut : new boolean[] { false, true }) {
+      ZonedDateTime start = ZonedDateTime.now(ZoneOffset.UTC).plusDays(3).withHour(9).withMinute(0).withSecond(0).withNano(0);
+      Event event = newEventInstance(start, start.plusHours(1), false);
+      event.setCalendarId(spaceCalendar.getId());
+      event.setOpen(false);
+      event.getRecurrence().setUntil(null);
+      event.getRecurrence().setCount(7);
+      Event series = createEvent(event.clone(), creatorId, testuser1Identity);
+      List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(7), ZoneOffset.UTC, 0);
+      Event openDate = agendaEventService.saveEventExceptionalOccurrence(series.getId(), occurrences.get(5).getOccurrence().getId());
+      agendaEventService.updateEventFields(openDate.getId(), getFields("open", "true"), false, false, creatorId);
+      if (!cut) {
+        // Stored under a day the rule does not give
+        Event row = agendaEventStorage.getEventById(openDate.getId());
+        row.getOccurrence().setId(occurrences.get(5).getOccurrence().getId().plusDays(9));
+        agendaEventStorage.updateEvent(row);
+      }
+      restartTransaction();
+      String context = cut ? "cut in place" : "no rule sent";
+
+      Event update = agendaEventService.getEventById(series.getId(), ZoneOffset.UTC, creatorId).clone();
+      if (cut) {
+        update.getRecurrence().setCount(4);
+      } else {
+        update.getRecurrence().setRrule(null);
+      }
+      List<EventAttendee> attendees = new ArrayList<>(agendaEventAttendeeService.getEventAttendees(series.getId())
+                                                                                .getEventAttendees());
+      attendees.add(new EventAttendee(0, series.getId(), guestId, null));
+      RecordingStatementInspector.start();
+      List<RecordingStatementInspector.RecordedStatement> statements;
+      try {
+        agendaEventService.updateEvent(update,
+                                       attendees,
+                                       Collections.emptyList(),
+                                       Collections.emptyList(),
+                                       null,
+                                       null,
+                                       false,
+                                       creatorId);
+        assertTrue(context + ": the save should be refused", cut);
+      } catch (IllegalArgumentException e) {
+        assertFalse(context + ": refused with " + e.getMessage(), cut);
+        assertEquals(context, "agenda.openEvent.externalGuestNotAllowed", e.getMessage());
+      } finally {
+        statements = RecordingStatementInspector.stop();
+      }
+      restartTransaction();
+
+      if (cut) {
+        assertNull(context, agendaEventService.getEventById(openDate.getId()));
+        assertTrue(context, agendaEventAttendeeService.isEventAttendee(series.getId(), guestId));
+      } else {
+        List<String> writes = statements.stream()
+                                        .map(statement -> statement.sql().trim().toLowerCase())
+                                        .filter(sql -> sql.startsWith("insert") || sql.startsWith("update")
+                                            || sql.startsWith("delete"))
+                                        .toList();
+        assertTrue(context + ", written before the refusal: " + writes, writes.isEmpty());
+        assertEquals(context, Boolean.TRUE, agendaEventService.getEventById(openDate.getId()).getOpen());
+        assertFalse(context, agendaEventAttendeeService.isEventAttendee(openDate.getId(), guestId));
+      }
+    }
+  }
+
+  /**
+   * A save of a locked series that removes its person from outside the
+   * platform and opens it opens with it a date individually modified that
+   * held a copy of them: the guest leaves that date in the same save.
+   */
+  @Test
+  public void testASeriesOpenedWithoutItsPersonFromOutsideThePlatformOpensItsDates() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    Identity guest = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, "outside-removed@example.com");
+    long guestId = Long.parseLong(guest.getId());
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(false);
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity, guest);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(3), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 2);
+    Event date = agendaEventService.saveEventExceptionalOccurrence(series.getId(),
+                                                                  occurrences.get(1).getOccurrence().getId());
+    agendaEventService.updateEventFields(date.getId(), getFields("summary", "A date of its own"), false, false, creatorId);
+    assertTrue(agendaEventAttendeeService.isEventAttendee(date.getId(), guestId));
+
+    List<EventAttendee> seriesWithoutGuest = new ArrayList<>(agendaEventAttendeeService.getEventAttendees(series.getId())
+                                                                                      .getEventAttendees());
+    seriesWithoutGuest.removeIf(attendee -> attendee.getIdentityId() == guestId);
+    updateOpen(series.getId(), seriesWithoutGuest, creatorId);
+
+    assertEquals(Boolean.TRUE, agendaEventService.getEventById(series.getId()).getOpen());
+    assertFalse(agendaEventAttendeeService.isEventAttendee(date.getId(), guestId));
+    assertEquals("a date whose guest leaves with the series' is opened with it",
+                 Boolean.TRUE,
+                 agendaEventService.getEventById(date.getId()).getOpen());
+  }
+
+  /**
+   * A date of a locked series that invites a person from outside the platform,
+   * saved on its own with the padlock open and no list of its own, takes the
+   * series' attendees for that date: it is not opened. One of the series'
+   * dates first gets its row, the series' copy, and its save is refused as an
+   * opening; a date the series does not give is created with the series'
+   * attendees, and refused as an addition, before any row is written.
+   */
+  @Test
+  public void testADateTakingAPersonFromOutsideThePlatformFromItsSeriesIsNotOpened() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorId = Long.parseLong(testuser1Identity.getId());
+    Identity guest = identityManager.getOrCreateIdentity(AgendaGuestUserIdentityProvider.NAME, "outside-date@example.com");
+
+    Event event = newEventInstance(start, start, true);
+    event.setCalendarId(spaceCalendar.getId());
+    event.setOpen(false);
+    Event series = createEvent(event.clone(), creatorId, testuser1Identity, guest);
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series, start, start.plusDays(3), ZoneOffset.UTC, 0);
+    assertTrue(occurrences.size() >= 2);
+
+    try {
+      createOpenDate(series, occurrences.get(1).getOccurrence().getId(), creatorId);
+      fail("A date taking a person from outside the platform from its series should not be opened");
+    } catch (IllegalArgumentException e) {
+      assertEquals("agenda.openEvent.externalGuestsInvited", e.getMessage());
+    }
+
+    ZonedDateTime otherDate = occurrences.get(occurrences.size() - 1).getOccurrence().getId().plusDays(5);
+    try {
+      createOpenDate(series, otherDate, creatorId);
+      fail("A date taking a person from outside the platform from its series should not be created open");
+    } catch (IllegalArgumentException e) {
+      assertEquals("agenda.openEvent.externalGuestNotAllowed", e.getMessage());
+    }
+    assertNull(agendaEventService.getExceptionalOccurrenceEvent(series.getId(), otherDate));
+  }
+
+  private void createOpenDate(Event series, ZonedDateTime occurrenceId, long userIdentityId) throws Exception {
+    Event date = agendaEventService.getEventById(series.getId()).clone();
+    date.setId(0);
+    date.setParentId(series.getId());
+    date.setRecurrence(null);
+    date.setOccurrence(new EventOccurrence(occurrenceId));
+    date.setOpen(true);
+    agendaEventService.createEvent(date,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
+  }
+
+  private void updateOpen(long eventId, List<EventAttendee> attendees, long userIdentityId) throws Exception {
+    Event update = agendaEventService.getEventById(eventId, ZoneOffset.UTC, userIdentityId).clone();
+    update.setOpen(true);
+    agendaEventService.updateEvent(update,
+                                   attendees,
+                                   Collections.emptyList(),
+                                   Collections.emptyList(),
+                                   null,
+                                   null,
+                                   false,
+                                   userIdentityId);
   }
 
   /**
@@ -3304,6 +3927,88 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     assertEquals("a stated availability is stored", EventAvailability.BUSY, stored.getAvailability());
   }
 
+  /**
+   * An event is created without a capacity limit, and a save that states
+   * neither the capacity nor its reached marker keeps the stored ones:
+   * {@code updateEvent} rebuilds the row it writes positionally, and the
+   * capacity is not part of that constructor, so without its explicit copy
+   * any edit of the title would remove the limit; the marker is not written
+   * by a save of the row at all. The caller shape is caldav-integration's
+   * inbound sync, which builds a fresh Event.
+   * <p>
+   * The event is open in a space's calendar, the only event a save keeps a
+   * limit on; the limit is seeded through the storage, with its marker.
+   * <p>
+   * Mutation note: with the capacity copy line removed from
+   * {@code updateEvent}, the limit assertion after the save fails.
+   *
+   * @throws Exception when the save fails
+   */
+  @Test
+  public void testUpdateEventWithoutCapacityKeepsTheStoredOneAndItsReachedMarker() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorIdentityId = Long.parseLong(testuser1Identity.getId());
+    Event openEvent = newEventInstance(start, start, false);
+    openEvent.setCalendarId(spaceCalendar.getId());
+    openEvent.setOpen(true);
+    Event createdEvent = createEvent(openEvent, creatorIdentityId, testuser2Identity);
+    long eventId = createdEvent.getId();
+
+    Event created = agendaEventService.getEventById(eventId);
+    assertEquals("an event is created without a limit", Integer.valueOf(0), created.getCapacity());
+    assertNull("and without a reached marker", created.getCapacityReachedDate());
+
+    ZonedDateTime reached = ZonedDateTime.now(ZoneOffset.UTC).withNano(0);
+    Event seeded = agendaEventStorage.getEventById(eventId);
+    seeded.setCapacity(12);
+    agendaEventStorage.updateEvent(seeded);
+    saveCapacityReachedDate(eventId, reached);
+
+    Event event = agendaEventService.getEventById(eventId, null, creatorIdentityId);
+    event.setSummary("Renamed");
+    event.setCapacity(null);
+    event.setCapacityReachedDate(null);
+    agendaEventService.updateEvent(event, null, null, null, null, null, false, creatorIdentityId);
+
+    Event stored = agendaEventService.getEventById(eventId);
+    assertEquals("the save is applied", "Renamed", stored.getSummary());
+    assertEquals("a save that states no capacity keeps the stored limit", Integer.valueOf(12), stored.getCapacity());
+    assertNotNull("and the reached marker", stored.getCapacityReachedDate());
+    assertEquals(reached.toInstant(), stored.getCapacityReachedDate().toInstant());
+  }
+
+  /**
+   * A date materialised from its series is cloned from it: it carries the
+   * series' limit, as its own pool from then on, but not the series' reached
+   * marker, which another date of the series may have set.
+   * <p>
+   * Mutation note: with the marker reset removed from
+   * {@code createEventExceptionalOccurrence}, the new row carries the series'
+   * marker and the last assertion fails.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void testExceptionalOccurrenceCarriesTheSeriesCapacityButNotItsReachedMarker() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long creatorIdentityId = Long.parseLong(testuser1Identity.getId());
+    Event series = newEventInstance(start, start, false);
+    series.setCalendarId(spaceCalendar.getId());
+    long seriesId = createEvent(series, creatorIdentityId, testuser2Identity).getId();
+
+    Event seeded = agendaEventStorage.getEventById(seriesId);
+    seeded.setCapacity(12);
+    agendaEventStorage.updateEvent(seeded);
+    saveCapacityReachedDate(seriesId, ZonedDateTime.now(ZoneOffset.UTC).withNano(0));
+    assertNotNull("the series is marked", agendaEventService.getEventById(seriesId).getCapacityReachedDate());
+
+    Event occurrence = agendaEventService.createEventExceptionalOccurrence(seriesId, null, null, null, start.plusDays(1));
+
+    Event stored = agendaEventService.getEventById(occurrence.getId());
+    assertEquals("the date carries its series' limit", Integer.valueOf(12), stored.getCapacity());
+    assertNull("but not its series' reached marker", stored.getCapacityReachedDate());
+  }
+
   @Test
   public void testUpdateEvent_InSpace_AsMember() throws Exception { // NOSONAR
     ZonedDateTime start = getDate().withNano(0);
@@ -5186,11 +5891,13 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   /**
    * Amending one date of a space series does not buy the move right
    * (EXO-90149). An attendee allowed to update the series may file an
-   * exceptional occurrence in the series' own calendar, and storing it makes
-   * them that occurrence's creator; the move right must still be read on the
-   * series, or that creator title would take the date out of the space for
-   * every member. The series' own creator keeps the move, though they are not
-   * the creator of the date somebody else amended.
+   * exceptional occurrence in the series' own calendar, which keeps the
+   * series' creator, the date's row being the series' copy at that date. On
+   * a row whose creator is the attendee, as a date saved alone was written
+   * before EXO-91879, the move right must still be read on the series, or
+   * that creator title would take the date out of the space for every
+   * member. The series' own creator keeps the move, though they are not the
+   * creator of the date somebody else amended.
    *
    * @throws Exception when a service call fails unexpectedly
    */
@@ -5214,12 +5921,18 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                                              0);
     assertTrue("The series must have several occurrences", occurrences.size() > 1);
 
-    // The attendee amends one date in place: allowed, and it makes them the
-    // creator of the stored occurrence
+    // The attendee amends one date in place: allowed, and the date keeps the
+    // series' creator
     Event amended = createEvent(newOccurrenceInstance(seriesId, occurrences.get(1), spaceCalendar.getId()), user2IdentityId);
-    assertEquals("The amendment must be stored as the attendee's own",
-                 user2IdentityId,
+    assertEquals("The amendment must keep the series' creator",
+                 user1IdentityId,
                  amended.getCreatorId());
+    // A row whose creator is the attendee, as a date saved alone was written
+    // before EXO-91879
+    Event storedAmendment = agendaEventStorage.getEventById(amended.getId());
+    storedAmendment.setCreatorId(user2IdentityId);
+    agendaEventStorage.updateEvent(storedAmendment);
+    assertEquals(user2IdentityId, agendaEventService.getEventById(amended.getId()).getCreatorId());
 
     Event asAttendee = agendaEventService.getEventById(amended.getId(), null, user2IdentityId).clone();
     assertFalse("Amending a date must not give the attendee the move right the series denies them",
@@ -5663,6 +6376,181 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
   }
 
   /**
+   * A date of a series filed alone into another calendar of its organiser's
+   * keeps the answers its attendees had there, as one saved in the series'
+   * calendar: its row is the series' copy at that date, which the save moves.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateOccurrenceInAnotherCalendarKeepsTheAnswers() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user3IdentityId = Long.parseLong(testuser3Identity.getId());
+
+    Event series = createEvent(newEventInstance(start, start.plusHours(1), false),
+                               user1IdentityId,
+                               testuser1Identity,
+                               testuser2Identity,
+                               testuser3Identity);
+    long seriesId = series.getId();
+    agendaEventAttendeeService.sendEventResponse(seriesId, user3IdentityId, EventAttendeeResponse.DECLINED);
+    Event occurrence = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                     start.minusDays(1),
+                                                                     start.plusDays(5),
+                                                                     series.getTimeZoneId(),
+                                                                     0)
+                                         .get(1);
+    org.exoplatform.agenda.model.Calendar secondCalendar = new org.exoplatform.agenda.model.Calendar(0,
+                                                                                                    user1IdentityId,
+                                                                                                    false,
+                                                                                                    null,
+                                                                                                    null,
+                                                                                                    null,
+                                                                                                    null,
+                                                                                                    null,
+                                                                                                    null);
+    secondCalendar.setName("Second calendar");
+    secondCalendar = agendaCalendarService.createCalendar(secondCalendar, testuser1Identity.getRemoteId());
+    try {
+      Event created = createEvent(newOccurrenceInstance(seriesId, occurrence, secondCalendar.getId()),
+                                  user1IdentityId,
+                                  testuser1Identity,
+                                  testuser2Identity,
+                                  testuser3Identity);
+
+      assertEquals(secondCalendar.getId(), agendaEventService.getEventById(created.getId()).getCalendarId());
+      assertEquals(EventAttendeeResponse.DECLINED,
+                   agendaEventAttendeeService.getEventAttendees(created.getId())
+                                             .getEventAttendee(user3IdentityId, null)
+                                             .getResponse());
+    } finally {
+      agendaCalendarService.deleteCalendarById(secondCalendar.getId());
+    }
+  }
+
+  /**
+   * One date of a series saved alone is written by the right its user holds
+   * on that date: an attendee allowed to update the series who attends from
+   * a later date only, as a member who answered from it once the space they
+   * attended through was removed, may save that later date alone, not an
+   * earlier one, which keeps no row of its own.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateOccurrenceBeforeTheAttendeeAttendsIsRefused() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user3IdentityId = Long.parseLong(testuser3Identity.getId());
+
+    Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+    seriesInstance.setCalendarId(spaceCalendar.getId());
+    seriesInstance.setAllowAttendeeToUpdate(true);
+    Event series = createEvent(seriesInstance, user1IdentityId, testuser1Identity, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    List<Event> occurrences = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                             start.minusDays(1),
+                                                                             start.plusDays(5),
+                                                                             series.getTimeZoneId(),
+                                                                             0);
+    ZonedDateTime firstDate = occurrences.get(0).getOccurrence().getId();
+    ZonedDateTime secondDate = occurrences.get(1).getOccurrence().getId();
+    // Attends from the second date only
+    agendaEventAttendeeService.sendUpcomingEventResponse(seriesId, secondDate, user3IdentityId, EventAttendeeResponse.ACCEPTED);
+    AgendaEventAttendeeStorage attendeeStorage = container.getComponentInstanceOfType(AgendaEventAttendeeStorage.class);
+    for (EventAttendee row : agendaEventAttendeeService.getEventAttendees(seriesId).getEventAttendees(user3IdentityId)) {
+      if (row.getFromOccurrenceId() == null) {
+        attendeeStorage.removeEventAttendee(row.getId());
+      }
+    }
+    assertNull(agendaEventAttendeeService.getEventAttendees(seriesId).getEventAttendee(user3IdentityId, firstDate));
+    assertTrue("The attendee must be allowed to update the series",
+               agendaEventService.getEventById(seriesId, null, user3IdentityId).getAcl().isCanEdit());
+
+    Event earlierDate = newOccurrenceInstance(seriesId, occurrences.get(0), spaceCalendar.getId());
+    earlierDate.setSummary("Renamed");
+    assertThrows(IllegalAccessException.class,
+                 () -> agendaEventService.createEvent(earlierDate,
+                                                      Collections.emptyList(),
+                                                      null,
+                                                      null,
+                                                      null,
+                                                      null,
+                                                      false,
+                                                      user3IdentityId));
+    assertNull("A refused date must keep no row of its own",
+               agendaEventService.getExceptionalOccurrenceEvent(seriesId, firstDate));
+
+    Event laterDate = newOccurrenceInstance(seriesId, occurrences.get(1), spaceCalendar.getId());
+    laterDate.setSummary("Renamed");
+    long savedId = agendaEventService.createEvent(laterDate,
+                                                  Collections.emptyList(),
+                                                  null,
+                                                  null,
+                                                  null,
+                                                  null,
+                                                  false,
+                                                  user3IdentityId)
+                                     .getId();
+    Event saved = agendaEventService.getEventById(savedId);
+    assertEquals("Renamed", saved.getSummary());
+    assertEquals(user1IdentityId, saved.getCreatorId());
+    assertEquals(EventAttendeeResponse.ACCEPTED,
+                 agendaEventAttendeeService.getEventAttendees(savedId).getEventAttendee(user3IdentityId, null).getResponse());
+  }
+
+  /**
+   * One date of a series with no row of its own cancelled alone, as "delete
+   * only this event" posts it, by an attendee allowed to update the series:
+   * the date's row is the series' copy, cancelled, which keeps the series'
+   * creator and the date's answers, and the series no longer gives that date
+   * while it keeps the others.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCancelOccurrenceWithoutItsRowKeepsItsAnswers() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+    long user3IdentityId = Long.parseLong(testuser3Identity.getId());
+
+    Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+    seriesInstance.setAllowAttendeeToUpdate(true);
+    Event series = createEvent(seriesInstance, user1IdentityId, testuser1Identity, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    agendaEventAttendeeService.sendEventResponse(seriesId, user3IdentityId, EventAttendeeResponse.DECLINED);
+    List<Event> before = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                        start.minusDays(1),
+                                                                        start.plusDays(5),
+                                                                        series.getTimeZoneId(),
+                                                                        0);
+    ZonedDateTime cancelledDate = before.get(1).getOccurrence().getId();
+    assertNull(agendaEventService.getExceptionalOccurrenceEvent(seriesId, cancelledDate));
+
+    Event toCancel = newOccurrenceInstance(seriesId, before.get(1), series.getCalendarId());
+    toCancel.setStatus(EventStatus.CANCELLED);
+    long cancelledId = createEvent(toCancel, user2IdentityId, testuser1Identity, testuser2Identity, testuser3Identity).getId();
+
+    Event cancelled = agendaEventService.getEventById(cancelledId);
+    assertEquals(EventStatus.CANCELLED, cancelled.getStatus());
+    assertEquals(user1IdentityId, cancelled.getCreatorId());
+    assertEquals(cancelledId, agendaEventService.getExceptionalOccurrenceEvent(seriesId, cancelledDate).getId());
+    assertEquals(EventAttendeeResponse.DECLINED,
+                 agendaEventAttendeeService.getEventAttendees(cancelledId).getEventAttendee(user3IdentityId, null).getResponse());
+    List<Event> after = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                       start.minusDays(1),
+                                                                       start.plusDays(5),
+                                                                       series.getTimeZoneId(),
+                                                                       0);
+    assertEquals(before.size() - 1, after.size());
+    assertTrue("The cancelled date must be gone",
+               after.stream().noneMatch(occurrence -> occurrence.getOccurrence() != null
+                   && occurrence.getOccurrence().getId().toInstant().equals(cancelledDate.toInstant())));
+  }
+
+  /**
    * Naming a parent is not the same as amending one date of it, and only the
    * second relaxes the creation right.
    * <p>
@@ -5731,14 +6619,16 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
 
   /**
    * An exceptional occurrence created with no attendee in the payload takes the
-   * ones its series carries for that date (EXO-90408).
+   * ones its series carries for that date (EXO-90408), with their answers.
    * <p>
    * This is the invariant {@code saveEventExceptionalOccurrence} already keeps
    * when it detaches a date of a series: an occurrence is the series on one
    * day, so the people invited to the series are invited to it. Without it the
    * row is an orphan — no attendee, hence absent from every attendee-keyed
    * listing, while the series' own expansion drops that date because an
-   * exceptional occurrence exists for it.
+   * exceptional occurrence exists for it. The row is that detachment itself,
+   * which the save then changes as it changes a date that already has one: at
+   * the series' dates, nobody's answer starts over.
    *
    * @throws Exception when a service call fails unexpectedly
    */
@@ -5760,6 +6650,13 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                                                                             series.getTimeZoneId(),
                                                                             0);
     assertTrue("The series must have several occurrences", occurrences.size() > 1);
+    agendaEventAttendeeService.sendEventResponse(seriesId, user3IdentityId, EventAttendeeResponse.DECLINED);
+    ZonedDateTime occurrenceId = occurrences.get(1).getOccurrence().getId();
+    Map<Long, EventAttendeeResponse> answersBefore = new HashMap<>();
+    for (long identityId : new long[] { user1IdentityId, user2IdentityId, user3IdentityId }) {
+      answersBefore.put(identityId, agendaEventAttendeeService.getEventResponse(seriesId, occurrenceId, identityId));
+    }
+    assertEquals(EventAttendeeResponse.DECLINED, answersBefore.get(user3IdentityId));
 
     // The payload names nobody: the web UI sends the occurrence it read, but a
     // client that sends only the dates is just as legitimate
@@ -5776,20 +6673,107 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
                  Arrays.asList(user1IdentityId, user2IdentityId, user3IdentityId).stream().sorted().toList(),
                  inherited);
 
-    // And the state those copies end in, which is decided one frame later by
-    // AgendaReplyOnSaveListener on the creation event, not by the arguments
-    // this seeding passes: everyone is asked again, and the
-    // one who made the edit is on it
+    // And the state those copies end in, which no listener of the save starts
+    // over: every attendee keeps the answer they had on that date, the one
+    // who made the edit included
     List<EventAttendee> rows = agendaEventAttendeeService.getEventAttendees(created.getId()).getEventAttendees();
     for (EventAttendee row : rows) {
-      if (row.getIdentityId() == user2IdentityId) {
-        assertEquals("The attendee who edited the date is on it", EventAttendeeResponse.ACCEPTED, row.getResponse());
-      } else {
-        assertEquals("and everybody else is asked again for that date",
-                     EventAttendeeResponse.NEEDS_ACTION,
-                     row.getResponse());
-      }
+      assertEquals("Attendee " + row.getIdentityId() + " keeps their answer on that date",
+                   answersBefore.get(row.getIdentityId()),
+                   row.getResponse());
     }
+  }
+
+  /**
+   * One date of a series saved on its own for the first time, by an attendee
+   * allowed to update the series who did not create it, keeps the answers its
+   * attendees had there and takes none from the payload (EXO-87952): an
+   * answer posted for an attendee already listed is the stored one's, and an
+   * attendee the save adds is asked, whatever answer the payload gives them.
+   * The date keeps the series' creator, the save changing the series' copy at
+   * that date.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateOccurrenceKeepsTheAnswersAndTakesNoneFromThePayload() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+    long user3IdentityId = Long.parseLong(testuser3Identity.getId());
+    long user4IdentityId = Long.parseLong(testuser4Identity.getId());
+
+    Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+    seriesInstance.setAllowAttendeeToUpdate(true);
+    Event series = createEvent(seriesInstance, user1IdentityId, testuser1Identity, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    agendaEventAttendeeService.sendEventResponse(seriesId, user3IdentityId, EventAttendeeResponse.DECLINED);
+    Event occurrence = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                     start.minusDays(1),
+                                                                     start.plusDays(5),
+                                                                     series.getTimeZoneId(),
+                                                                     0)
+                                         .get(1);
+    ZonedDateTime occurrenceId = occurrence.getOccurrence().getId();
+    EventAttendeeResponse organiserAnswer = agendaEventAttendeeService.getEventResponse(seriesId, occurrenceId, user1IdentityId);
+    EventAttendeeResponse editorAnswer = agendaEventAttendeeService.getEventResponse(seriesId, occurrenceId, user2IdentityId);
+
+    Event date = newOccurrenceInstance(seriesId, occurrence, calendar.getId());
+    date.setSummary("A title of its own");
+    List<EventAttendee> posted = Arrays.asList(new EventAttendee(0, user1IdentityId, EventAttendeeResponse.DECLINED),
+                                               new EventAttendee(0, user2IdentityId, EventAttendeeResponse.ACCEPTED),
+                                               new EventAttendee(0, user3IdentityId, EventAttendeeResponse.ACCEPTED),
+                                               new EventAttendee(0, user4IdentityId, EventAttendeeResponse.ACCEPTED));
+    Event created = agendaEventService.createEvent(date, posted, null, null, null, null, false, user2IdentityId);
+
+    Event stored = agendaEventService.getEventById(created.getId());
+    assertEquals("A title of its own", stored.getSummary());
+    assertEquals("The date keeps the series' creator", user1IdentityId, stored.getCreatorId());
+    EventAttendeeList attendees = agendaEventAttendeeService.getEventAttendees(created.getId());
+    assertEquals(organiserAnswer, attendees.getEventAttendee(user1IdentityId, null).getResponse());
+    assertEquals(editorAnswer, attendees.getEventAttendee(user2IdentityId, null).getResponse());
+    assertEquals(EventAttendeeResponse.DECLINED, attendees.getEventAttendee(user3IdentityId, null).getResponse());
+    assertEquals("An attendee the save adds is asked",
+                 EventAttendeeResponse.NEEDS_ACTION,
+                 attendees.getEventAttendee(user4IdentityId, null).getResponse());
+  }
+
+  /**
+   * One date of a series saved on its own for the first time at other times
+   * asks every other attendee again, as a date that already has its row does
+   * when its times change, and the attendee who moved it is on it.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testCreateOccurrenceAtOtherTimesAsksTheOtherAttendeesAgain() throws Exception { // NOSONAR
+    ZonedDateTime start = getDate().withNano(0);
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    long user2IdentityId = Long.parseLong(testuser2Identity.getId());
+    long user3IdentityId = Long.parseLong(testuser3Identity.getId());
+
+    Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+    seriesInstance.setAllowAttendeeToUpdate(true);
+    Event series = createEvent(seriesInstance, user1IdentityId, testuser1Identity, testuser2Identity, testuser3Identity);
+    long seriesId = series.getId();
+    agendaEventAttendeeService.sendEventResponse(seriesId, user3IdentityId, EventAttendeeResponse.ACCEPTED);
+    Event occurrence = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                     start.minusDays(1),
+                                                                     start.plusDays(5),
+                                                                     series.getTimeZoneId(),
+                                                                     0)
+                                         .get(1);
+
+    Event date = newOccurrenceInstance(seriesId, occurrence, calendar.getId());
+    date.setStart(occurrence.getStart().plusHours(2));
+    date.setEnd(occurrence.getEnd().plusHours(2));
+    Event created = createEvent(date, user2IdentityId, testuser1Identity, testuser2Identity, testuser3Identity);
+
+    EventAttendeeList attendees = agendaEventAttendeeService.getEventAttendees(created.getId());
+    assertEquals(EventAttendeeResponse.ACCEPTED, attendees.getEventAttendee(user2IdentityId, null).getResponse());
+    assertEquals(EventAttendeeResponse.NEEDS_ACTION, attendees.getEventAttendee(user1IdentityId, null).getResponse());
+    assertEquals(EventAttendeeResponse.NEEDS_ACTION, attendees.getEventAttendee(user3IdentityId, null).getResponse());
+    assertTrue(agendaEventService.getEventById(created.getId()).getOccurrence().isDatesModified());
   }
 
   /**
@@ -6029,15 +7013,15 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
    * An identifier on a date the series has, at another time of day, is still
    * an amendment of that date.
    * <p>
-   * The date check matches on the UTC date, not on the instant, and this is
-   * the half of it that a match on the instant alone would refuse. It is not a
+   * The date check matches on the date, not on the instant, and this is the
+   * half of it that a match on the instant alone would refuse. It is not a
    * looseness: it is the granularity the rest of the machinery already works
-   * at — {@code getExceptionalOccurrenceEvent} queries the identifier's UTC
-   * day, and {@code filterExceptionalEvents} matches on the UTC date before
-   * anything else — which is why such a row still replaces the computed
+   * at — {@code getExceptionalOccurrenceEvent} finds a date's row by the date
+   * it designates, and {@code filterExceptionalEvents} matches on the UTC date
+   * before anything else — which is why such a row still replaces the computed
    * occurrence rather than being added beside it, asserted here through the
-   * organiser's own listing. {@code filterExceptionalEvents} names the case in
-   * its own comment: an identifier computed by the previous algorithm.
+   * organiser's own listing. {@code isSameOccurrenceDate} names the case: an
+   * identifier computed by the previous algorithm.
    *
    * @throws Exception when a service call fails unexpectedly
    */
@@ -6167,6 +7151,72 @@ public class AgendaEventServiceTest extends BaseAgendaEventTest {
     event.setRecurrence(null);
     event.setOccurrence(new EventOccurrence(occurrence.getOccurrence().getId()));
     return event;
+  }
+
+  /**
+   * A date of a timed series detached on its own, as when somebody answers it
+   * alone, starts when its series gives it: on its own day in the series'
+   * zone where the series' local start falls on another UTC day, east or west
+   * of UTC, on a day its zone's offset changes at the series' time, the hour
+   * it repeats or the hour it skips, and at its own time on a series with
+   * several dates a day. Its row is the series' copy at that date, unmarked,
+   * which a second detachment finds again, and which a change of its series
+   * leaves at that date.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void testSaveExceptionalOccurrenceStartsWhenItsSeriesGivesIt() throws Exception { // NOSONAR
+    long user1IdentityId = Long.parseLong(testuser1Identity.getId());
+    LocalDate day = LocalDate.now().plusDays(60);
+    ZoneId newYork = ZoneId.of("America/New_York");
+    List<ZonedDateTime> starts = List.of(day.atTime(8, 30).atZone(ZoneId.of("Asia/Tokyo")),
+                                         day.atTime(20, 30).atZone(newYork),
+                                         // The second date on the night the clocks go back, then forward
+                                         LocalDate.of(2026, 10, 31).atTime(1, 30).atZone(newYork),
+                                         LocalDate.of(2027, 3, 13).atTime(2, 30).atZone(newYork),
+                                         day.atTime(9, 0).atZone(ZoneOffset.UTC));
+    for (ZonedDateTime start : starts) {
+      Event seriesInstance = newEventInstance(start, start.plusHours(1), false);
+      seriesInstance.setTimeZoneId(start.getZone());
+      if (ZoneOffset.UTC.equals(start.getZone())) {
+        seriesInstance.getRecurrence().setFrequency(EventRecurrenceFrequency.HOURLY);
+        seriesInstance.getRecurrence().setUntil(null);
+        seriesInstance.getRecurrence().setCount(4);
+      }
+      Event series = createEvent(seriesInstance, user1IdentityId, testuser2Identity);
+      Event secondDate = agendaEventService.getEventOccurrencesInPeriod(series,
+                                                                        start.minusDays(1),
+                                                                        start.plusDays(5),
+                                                                        series.getTimeZoneId(),
+                                                                        0)
+                                           .get(1);
+
+      // Answered alone, the date gets its row, which carries that answer
+      agendaEventAttendeeService.sendEventResponse(series.getId(),
+                                                   secondDate.getOccurrence().getId(),
+                                                   Long.parseLong(testuser2Identity.getId()),
+                                                   EventAttendeeResponse.DECLINED,
+                                                   true);
+      Event row = agendaEventService.getExceptionalOccurrenceEvent(series.getId(), secondDate.getOccurrence().getId());
+
+      String zone = start.getZone().getId();
+      assertNotNull(zone, row);
+      assertEquals(zone, secondDate.getStart().toInstant(), row.getStart().toInstant());
+      assertEquals(zone, secondDate.getEnd().toInstant(), row.getEnd().toInstant());
+      assertFalse(zone, row.getOccurrence().isDatesModified());
+      assertEquals(zone,
+                   row.getId(),
+                   agendaEventService.saveEventExceptionalOccurrence(series.getId(), secondDate.getOccurrence().getId()).getId());
+
+      // A change of its series anchors its unmarked dates on the series again
+      agendaEventService.updateEventFields(series.getId(), getFields("summary", "Renamed"), true, false, user1IdentityId);
+
+      Event renamed = agendaEventService.getEventById(row.getId());
+      assertEquals(zone, "Renamed", renamed.getSummary());
+      assertEquals(zone, secondDate.getStart().toInstant(), renamed.getStart().toInstant());
+      assertFalse(zone, renamed.getOccurrence().isDatesModified());
+    }
   }
 
   @Test

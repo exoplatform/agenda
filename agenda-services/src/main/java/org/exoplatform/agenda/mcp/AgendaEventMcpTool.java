@@ -68,6 +68,7 @@ import org.exoplatform.agenda.model.Calendar;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
 import org.exoplatform.agenda.model.EventAttendeeList;
+import org.exoplatform.agenda.model.EventSeatCounts;
 import org.exoplatform.agenda.model.EventConference;
 import org.exoplatform.agenda.model.EventDateOption;
 import org.exoplatform.agenda.model.EventFilter;
@@ -91,6 +92,7 @@ import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.service.AgendaEventConferenceService;
 import org.exoplatform.agenda.service.AgendaEventDatePollService;
 import org.exoplatform.agenda.service.AgendaEventReminderService;
+import org.exoplatform.agenda.service.AgendaRemoteEventService;
 import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.agenda.service.AgendaScheduleConflictService;
 import org.exoplatform.agenda.service.AgendaUserSettingsService;
@@ -174,6 +176,8 @@ public class AgendaEventMcpTool implements McpToolPlugin {
 
   private final AgendaEventReminderService   agendaEventReminderService;
 
+  private final AgendaRemoteEventService     agendaRemoteEventService;
+
   private final AgendaUserSettingsService    agendaUserSettingsService;
 
   private final ProfilePropertyService       profilePropertyService;
@@ -195,6 +199,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                             AgendaEventAttendeeService agendaEventAttendeeService,
                             AgendaEventDatePollService agendaEventDatePollService,
                             AgendaEventReminderService agendaEventReminderService,
+                            AgendaRemoteEventService agendaRemoteEventService,
                             AgendaUserSettingsService agendaUserSettingsService,
                             UserPortalConfigService portalConfigService,
                             ProfilePropertyService profilePropertyService,
@@ -210,6 +215,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     this.agendaEventConferenceService = agendaEventConferenceService;
     this.agendaEventDatePollService = agendaEventDatePollService;
     this.agendaEventReminderService = agendaEventReminderService;
+    this.agendaRemoteEventService = agendaRemoteEventService;
     this.agendaUserSettingsService = agendaUserSettingsService;
     this.agendaCalendarService = agendaCalendarService;
     this.profilePropertyService = profilePropertyService;
@@ -242,11 +248,14 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     long userIdentityId = getCurrentUserIdentityId();
     List<Long> ownerIds = spaceId == null || spaceId.longValue() == 0 ? null :
                                                                       getSpaceIdentityIds(Collections.singletonList(spaceId));
+    // The answers the agenda page lists: a Yes given once every seat was
+    // taken reads WAITING, and its event stays in the user's agenda
     EventFilter eventFilter = new EventFilter(userIdentityId,
                                               ownerIds,
                                               List.of(EventAttendeeResponse.ACCEPTED,
                                                       EventAttendeeResponse.TENTATIVE,
-                                                      EventAttendeeResponse.NEEDS_ACTION),
+                                                      EventAttendeeResponse.NEEDS_ACTION,
+                                                      EventAttendeeResponse.WAITING),
                                               startDatetime,
                                               endDatetime,
                                               limit);
@@ -263,7 +272,9 @@ public class AgendaEventMcpTool implements McpToolPlugin {
     if (event == null) {
       throw new ObjectNotFoundException("Agenda Event with id %s not found".formatted(eventId));
     }
-    return toAgendaEventModel(event);
+    AgendaEventModel model = toAgendaEventModel(event);
+    fillSeats(model, event);
+    return model;
   }
 
   /**
@@ -424,7 +435,19 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                                          userIdentityId);
   }
 
-  public void acceptAgendaEventInvitation(Long eventId) throws IllegalAccessException, ObjectNotFoundException {
+  /**
+   * Answers Yes to an event as the current user, and reads the event back, as
+   * {@link #respondToAgendaEvent(Long, String, String)} does: on a date whose
+   * seats are all taken, the Yes joins the waiting list, which the answer read
+   * back says.
+   *
+   * @param eventId the event's identifier
+   * @return the event as the user now reads it
+   * @throws IllegalAccessException when the user may not access the event, or
+   *           may not answer it: not invited, and the event isn't open to them
+   * @throws ObjectNotFoundException when the event does not exist
+   */
+  public AgendaEventModel acceptAgendaEventInvitation(Long eventId) throws IllegalAccessException, ObjectNotFoundException {
     if (eventId == null || eventId == 0) {
       throw new IllegalArgumentException(MSG_PARAMETER_EVENT_ID_MANDATORY);
     } else if (!userAcl.hasAccessPermission(AgendaEventAclPlugin.OBJECT_TYPE,
@@ -433,6 +456,7 @@ public class AgendaEventMcpTool implements McpToolPlugin {
       throw new IllegalAccessException(MSG_USER_NOT_ALLOWED_TO_ACCESS_EVENT.formatted(eventId));
     }
     agendaEventAttendeeService.sendEventResponse(eventId, getCurrentUserIdentityId(), EventAttendeeResponse.ACCEPTED);
+    return getAgendaEventById(eventId);
   }
 
   public AgendaEventModel inviteUsersToAgendaEvent(Long eventId, List<String> attendeeUsernames) throws IllegalAccessException,
@@ -561,8 +585,19 @@ public class AgendaEventMcpTool implements McpToolPlugin {
       existingEvent.setStart(startDate);
       existingEvent.setEnd(endDate);
       existingEvent.setRecurrence(recurrence);
-      // Passing null for attendees/conferences/reminders keeps the existing ones untouched
-      agendaEventService.updateEvent(existingEvent, null, null, null, null, null, false, userIdentityId);
+      // A full update saves what it is given, and a null list, or a null
+      // remote copy, means none: the stored participants, conferences, the
+      // caller's reminders and the caller's link to the event's copy in a
+      // remote calendar are handed back, so that the save keeps them and the
+      // answers. Date options are kept when none are given
+      agendaEventService.updateEvent(existingEvent,
+                                     attendees,
+                                     agendaEventConferenceService.getEventConferences(eventId),
+                                     agendaEventReminderService.getEventReminders(eventId, userIdentityId),
+                                     null,
+                                     agendaRemoteEventService.findRemoteEvent(eventId, userIdentityId),
+                                     false,
+                                     userIdentityId);
     } else {
       Map<String, List<String>> fieldsToUpdate = new HashMap<>();
       if (summary != null) {
@@ -844,8 +879,10 @@ public class AgendaEventMcpTool implements McpToolPlugin {
       throw new IllegalArgumentException("Parameter 'response' is mandatory (ACCEPTED, DECLINED or TENTATIVE)");
     }
     EventAttendeeResponse attendeeResponse = EventAttendeeResponse.valueOf(response.trim().toUpperCase());
-    if (attendeeResponse == EventAttendeeResponse.NEEDS_ACTION) {
-      throw new IllegalArgumentException("Response NEEDS_ACTION isn't allowed, use ACCEPTED, DECLINED or TENTATIVE");
+    // WAITING is what a Yes becomes on a full date, never an answer to give
+    if (attendeeResponse == EventAttendeeResponse.NEEDS_ACTION || attendeeResponse == EventAttendeeResponse.WAITING) {
+      throw new IllegalArgumentException("Response " + attendeeResponse.name()
+          + " isn't allowed, use ACCEPTED, DECLINED or TENTATIVE");
     }
     if (!userAcl.hasAccessPermission(AgendaEventAclPlugin.OBJECT_TYPE, String.valueOf(eventId), getCurrentUserAclIdentity())) {
       throw new IllegalAccessException(MSG_USER_NOT_ALLOWED_TO_ACCESS_EVENT.formatted(eventId));
@@ -1153,17 +1190,15 @@ public class AgendaEventMcpTool implements McpToolPlugin {
 
   @SneakyThrows
   private AgendaEventModel toAgendaEventModel(Event event) {
-    List<AgendaEventAttendeeModel> eventAttendees = getEventAttendees(event);
-    String currentUsername = getCurrentUserName();
-    EventAttendeeResponse userAnswer = eventAttendees == null ? null :
-                                                              eventAttendees.stream()
-                                                                            .filter(eat -> eat.getUser() != null
-                                                                                           && StringUtils.equals(eat.getUser()
-                                                                                                                    .getUsername(),
-                                                                                                                 currentUsername))
-                                                                            .map(AgendaEventAttendeeModel::getResponse)
-                                                                            .findFirst()
-                                                                            .orElse(null);
+    List<EventAttendee> shownAttendees = getShownAttendees(event);
+    List<AgendaEventAttendeeModel> eventAttendees = toAttendeeModels(shownAttendees);
+    long currentIdentityId = getCurrentUserIdentityId();
+    // Each attendee is shown once, so the current user's entry is their answer
+    EventAttendeeResponse userAnswer = shownAttendees.stream()
+                                                     .filter(attendee -> attendee.getIdentityId() == currentIdentityId)
+                                                     .map(EventAttendee::getResponse)
+                                                     .findFirst()
+                                                     .orElse(null);
     return new AgendaEventModel(event.getId(),
                                 event.getParentId(),
                                 getCalendarSpaceId(event.getCalendarId()),
@@ -1181,7 +1216,37 @@ public class AgendaEventMcpTool implements McpToolPlugin {
                                 userAnswer,
                                 getUserModel(event.getCreatorId()),
                                 null,
-                                isEffectivelyOpen(event));
+                                isEffectivelyOpen(event),
+                                null,
+                                null,
+                                null,
+                                null);
+  }
+
+  /**
+   * Fills the capacity limit and the seats of the date a read of one event
+   * shows, as the event page does: the counts of its row, or of a series at
+   * the date its answers are read at, and the reader's place on its waiting
+   * list. A masked event shows none. Left to the reads of one event, which
+   * make one more query each.
+   *
+   * @param model the model of the event
+   * @param event the event read, a stored row
+   */
+  private void fillSeats(AgendaEventModel model, Event event) {
+    if (event.isMasked()) {
+      return;
+    }
+    Integer capacity = event.getCapacity();
+    model.setCapacity(capacity == null || capacity <= 0 ? null : capacity);
+    try {
+      EventSeatCounts seatCounts = agendaEventAttendeeService.getSeatCounts(event.getId(), null, getCurrentUserIdentityId());
+      model.setAcceptedCount(seatCounts.acceptedCount());
+      model.setWaitingCount(seatCounts.waitingCount());
+      model.setWaitingListPosition(seatCounts.waitingListPosition());
+    } catch (ObjectNotFoundException e) {
+      // The event was deleted since it was read: it shows no seat
+    }
   }
 
   /**
@@ -1368,22 +1433,50 @@ public class AgendaEventMcpTool implements McpToolPlugin {
   }
 
   private List<AgendaEventAttendeeModel> getEventAttendees(Event event) {
+    return toAttendeeModels(getShownAttendees(event));
+  }
+
+  /**
+   * The attendees an event shows, each once, as the event page shows them: a
+   * computed date the rows valid at that date, a series read as a whole each
+   * attendee with the answer valid at the date its answers are read at, and
+   * an event or the row of a date its own rows. A user may hold several rows
+   * of a series, each over a range of its dates.
+   *
+   * @param event the event read
+   * @return its attendees, none for a masked event
+   */
+  private List<EventAttendee> getShownAttendees(Event event) {
     if (event == null || event.isMasked()) {
       // A masked event (EXO-90357) names nobody: who attends is content
       return Collections.emptyList();
     }
-    long eventId = isComputedOccurrence(event) ? event.getParentId() : event.getId();
+    boolean computedOccurrence = isComputedOccurrence(event);
+    long eventId = computedOccurrence ? event.getParentId() : event.getId();
+    try {
+      if (!computedOccurrence && event.getRecurrence() != null) {
+        return agendaEventAttendeeService.getSeriesAttendees(eventId);
+      }
+    } catch (ObjectNotFoundException e) {
+      // The series was deleted since it was read
+      return Collections.emptyList();
+    }
     EventAttendeeList eventAttendeeList = agendaEventAttendeeService.getEventAttendees(eventId);
     if (eventAttendeeList == null || CollectionUtils.isEmpty(eventAttendeeList.getEventAttendees())) {
       return Collections.emptyList();
+    } else if (computedOccurrence && event.getOccurrence() != null && event.getOccurrence().getId() != null) {
+      return eventAttendeeList.getEventAttendees(event.getOccurrence().getId().withZoneSameInstant(ZoneOffset.UTC));
     } else {
-      return eventAttendeeList.getEventAttendees()
-                              .stream()
-                              .map(eat -> new AgendaEventAttendeeModel(getUserModel(eat.getIdentityId()),
-                                                                       getSpaceModel(eat.getIdentityId()),
-                                                                       eat.getResponse()))
-                              .toList();
+      return eventAttendeeList.getEventAttendees();
     }
+  }
+
+  private List<AgendaEventAttendeeModel> toAttendeeModels(List<EventAttendee> attendees) {
+    return attendees.stream()
+                    .map(eat -> new AgendaEventAttendeeModel(getUserModel(eat.getIdentityId()),
+                                                             getSpaceModel(eat.getIdentityId()),
+                                                             eat.getResponse()))
+                    .toList();
   }
 
   private List<EventReminder> getDefaultUserEventReminders() {
