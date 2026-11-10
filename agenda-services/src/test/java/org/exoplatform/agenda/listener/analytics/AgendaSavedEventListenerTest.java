@@ -126,6 +126,21 @@ public class AgendaSavedEventListenerTest {
     assertEquals(AgendaSavedEventListener.EVENT_UPDATED_OPERATION_NAME, recordedOperation());
   }
 
+  /**
+   * No update is broadcast with the split flag today: the series' update
+   * carries UPDATED and the fields it changes. The flag skips a creation only,
+   * so an update that would carry it one day is still recorded.
+   */
+  @Test
+  public void anUpdateCarryingTheSplitFlagIsStillRecorded() throws Exception {
+    new AgendaSavedEventListener().onEvent(new Event<>(UPDATED_EVENT,
+                                                       modification(AgendaEventModificationType.UPDATED,
+                                                                    AgendaEventModificationType.SPLIT),
+                                                       null));
+
+    assertEquals(AgendaSavedEventListener.EVENT_UPDATED_OPERATION_NAME, recordedOperation());
+  }
+
   private AgendaEventModification modification(AgendaEventModificationType... types) {
     AgendaEventModification modification = new AgendaEventModification(EVENT_ID, CALENDAR_ID, USER_ID);
     for (AgendaEventModificationType type : types) {
