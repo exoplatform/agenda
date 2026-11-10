@@ -75,6 +75,13 @@ import org.exoplatform.social.metadata.model.MetadataType;
 
 public class Utils {
 
+  /**
+   * Message code of the refusal of a web conference link
+   * {@link #isScriptUrl(String)} recognises, answered as the body of a 400 by
+   * the REST endpoints that save an event.
+   */
+  public static final String            CONFERENCE_URL_NOT_ALLOWED     = "agenda.conferenceUrlNotAllowed";
+
   private static final Log              LOG                            = ExoLogger.getLogger(Utils.class);
 
   private static final String           GUEST_RESPONSE_TITLE_LABEL     = "agenda.guestResponse.title";
@@ -894,12 +901,14 @@ public class Utils {
    * {@link #isScriptUrl(String)} recognises.
    *
    * @param conferences conferences to check, may be null
-   * @throws IllegalArgumentException when one of them has such a link
+   * @throws IllegalArgumentException with the message code
+   *           {@link #CONFERENCE_URL_NOT_ALLOWED} when one of them has such a
+   *           link
    */
   public static void checkConferenceUrls(Collection<EventConference> conferences) {
     if (conferences != null
         && conferences.stream().anyMatch(conference -> conference != null && isScriptUrl(conference.getUrl()))) {
-      throw new IllegalArgumentException("Web conference link scheme isn't allowed");
+      throw new IllegalArgumentException(CONFERENCE_URL_NOT_ALLOWED);
     }
   }
 
