@@ -132,6 +132,8 @@ export default {
     failedConnectors: [],
     agendaBaseLink: null,
     conferenceProviders: null,
+    // The last conference providers request, by refreshProviders
+    providersRequest: 0,
     selectedProviderType: null,
     remoteEventsLoaded: false,
     calendarType: 'month',
@@ -420,13 +422,18 @@ export default {
       return this.$agendaUtils.generateCalendarTitle(this.calendarType, this.$agendaUtils.toDate(period.start), period.title, this.$t('agenda.week'));
     },
     refreshProviders(spacePrettyName) {
+      // Only the last request sets the providers, and none are held until it
+      // answers: the providers of an owner the form left are never offered to
+      // the next one
+      const request = ++this.providersRequest;
+      this.conferenceProviders = null;
       if (spacePrettyName) {
         this.$webConferencingService.getAllProviders(spacePrettyName).then((providers) => {
-          this.conferenceProviders = providers;
+          if (request === this.providersRequest) {
+            this.conferenceProviders = providers;
+          }
           return this.$nextTick();
         });
-      } else {
-        this.conferenceProviders = null;
       }
     },
     showRemoteEvents(showRemoteEvents) {
