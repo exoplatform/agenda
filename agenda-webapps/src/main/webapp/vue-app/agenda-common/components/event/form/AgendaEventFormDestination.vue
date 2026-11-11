@@ -278,7 +278,10 @@ export default {
           providerId: 'organization',
           remoteId: eXo.env.portal.userName,
         });
-        this.$root.$emit('agenda-event-change-owner', null);
+        // The user who owns the calendar hosts the event's web conference, as
+        // a space hosts a space event's: the conference providers are the
+        // ones offered to that user, as when the event is opened again
+        this.$root.$emit('agenda-event-change-owner', this.event.calendar.owner.remoteId);
       }
     },
   },
