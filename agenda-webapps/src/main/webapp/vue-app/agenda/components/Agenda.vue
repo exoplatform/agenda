@@ -162,6 +162,8 @@ export default {
     filterCanceledEvents: true,
     loading: false,
     conferenceProviders: null,
+    // The last conference providers request, by refreshProviders
+    providersRequest: 0,
     connectors: [],
     ownerIds: [],
     searchTerm: null,
@@ -547,13 +549,18 @@ export default {
       }
     },
     refreshProviders(spacePrettyName) {
+      // Only the last request sets the providers, and none are held until it
+      // answers: the providers of an owner the form left are never offered to
+      // the next one
+      const request = ++this.providersRequest;
+      this.conferenceProviders = null;
       if (spacePrettyName) {
         this.$webConferencingService.getAllProviders(spacePrettyName).then(providers => {
-          this.conferenceProviders = providers;
+          if (request === this.providersRequest) {
+            this.conferenceProviders = providers;
+          }
           return this.$nextTick();
         });
-      } else {
-        this.conferenceProviders = null;
       }
     },
     /**
