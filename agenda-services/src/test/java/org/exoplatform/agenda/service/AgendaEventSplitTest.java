@@ -60,9 +60,11 @@ import org.exoplatform.agenda.model.EventAttendeePromotion;
 import org.exoplatform.agenda.model.EventOccurrence;
 import org.exoplatform.agenda.model.EventRecurrence;
 import org.exoplatform.agenda.model.EventReminder;
+import org.exoplatform.agenda.model.EventConference;
 import org.exoplatform.agenda.model.EventSplit;
 import org.exoplatform.agenda.plugin.AgendaGuestUserIdentityProvider;
 import org.exoplatform.agenda.service.RecordingStatementInspector.RecordedStatement;
+import org.exoplatform.agenda.storage.AgendaEventConferenceStorage;
 import org.exoplatform.agenda.storage.AgendaEventStorage;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.services.listener.Listener;
@@ -1763,6 +1765,76 @@ public class AgendaEventSplitTest extends BaseAgendaEventTest {
     event.setOpen(true);
     event.setCapacity(capacity);
     return event;
+  }
+
+  /**
+   * A split whose request names a web conference link that runs a script is
+   * refused with that link's message code, and the series keeps its dates.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aSplitNamingAScriptLinkIsRefusedAndKeepsTheSeries() throws Exception {
+    Event series = series(4, 0);
+    List<ZonedDateTime> dates = dates(series);
+    Event edits = agendaEventService.getEventById(series.getId()).clone();
+    Duration duration = Duration.between(edits.getStart(), edits.getEnd());
+    edits.setStart(dates.get(2));
+    edits.setEnd(dates.get(2).plus(duration));
+    EventSplit split = new EventSplit(edits,
+                                      List.of(conference("javascript:alert(1)")),
+                                      null,
+                                      List.of(),
+                                      new HashSet<>(),
+                                      null);
+
+    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class,
+                                                    () -> agendaEventService.splitEvent(series.getId(),
+                                                                                        split,
+                                                                                        dates.get(2),
+                                                                                        false,
+                                                                                        false,
+                                                                                        id(testuser1Identity)));
+
+    assertEquals(Utils.CONFERENCE_URL_NOT_ALLOWED, refusal.getMessage());
+    assertEquals(dates, dates(agendaEventService.getEventById(series.getId())));
+  }
+
+  /**
+   * A split whose request names no link gives the continuation the series'
+   * links as each of its dates gets them: a link stored before links that run
+   * a script were refused is left out, and the split goes ahead.
+   *
+   * @throws Exception when a write fails
+   */
+  @Test
+  public void aSplitWithoutLinksCopiesTheSeriesLinksWithoutAScriptLink() throws Exception {
+    Event series = series(4, 0);
+    agendaEventConferenceService.saveEventConferences(series.getId(), List.of(conference("https://meet.example.org/team")));
+    EventConference legacy = conference("javascript:alert(1)");
+    legacy.setEventId(series.getId());
+    container.getComponentInstanceOfType(AgendaEventConferenceStorage.class).saveEventConference(legacy);
+    List<ZonedDateTime> dates = dates(series);
+
+    Event continuation = split(series,
+                               dates.get(2),
+                               testuser1Identity,
+                               edits -> {
+                               },
+                               List.of(),
+                               List.of(),
+                               false,
+                               false);
+
+    assertEquals(List.of("https://meet.example.org/team"),
+                 agendaEventConferenceService.getEventConferences(continuation.getId())
+                                             .stream()
+                                             .map(EventConference::getUrl)
+                                             .toList());
+  }
+
+  private static EventConference conference(String url) {
+    return new EventConference(0, 0, "webrtc", url, null, null, null);
   }
 
   private Event series(int count, int capacity, Identity... attendees) throws Exception {

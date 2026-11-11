@@ -1801,6 +1801,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // Every refusal comes before the first write
     checkSplitCapacity(series, continuation, rows, keepsTheDates, removedIdentityIds, splitFrom, confirmClose, calendar);
     checkExternalGuests(series, continuation, rows, splitFrom);
+    // The links the request names are checked like any other save's. With
+    // none named, the continuation takes the series' links as each of its
+    // dates does, without a link that runs a script
+    List<EventConference> continuationConferences = split.conferences() == null ? withoutScriptUrls(conferenceService.getEventConferences(seriesId))
+                                                                                : split.conferences();
+    checkConferenceUrls(continuationConferences);
 
     if (keepsTheDates && SeatRule.capacityOf(continuation) == SeatRule.capacityOf(series)) {
       // The same dates under the same limit: a date already full stays so,
@@ -1811,9 +1817,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     decideSteps.joinInsertedEvent(continuationId);
     createOrUpdateEventProperties(eventProperties(seriesId), agendaEventStorage.getEventById(continuationId));
     Event createdEvent = readCreatedEvent(continuationId, continuation.getTimeZoneId(), userIdentityId);
-    conferenceService.saveEventConferences(continuationId,
-                                           copiesOf(split.conferences() == null ? conferenceService.getEventConferences(seriesId)
-                                                                                : split.conferences()));
+    conferenceService.saveEventConferences(continuationId, copiesOf(continuationConferences));
 
     AgendaEventModification eventModifications = new AgendaEventModification(continuationId,
                                                                               createdEvent.getCalendarId(),
