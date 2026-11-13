@@ -706,10 +706,10 @@ export default {
     updateSettings(settings) {
       this.settings = settings;
     },
-    savedEvent(event) {
+    savedEvent(event, seriesUpdated) {
       if (event && event.id) {
         const isDatePoll = event.status === 'TENTATIVE';
-        const isNew = !event.updated;
+        const isNew = !event.updated && !seriesUpdated;
         const message = isDatePoll && (isNew && this.$t('agenda.datePollCreationSuccess') || this.$t('agenda.datePollUpdateSuccess'))
                      || (isNew && this.$t('agenda.eventCreationSuccess') || this.$t('agenda.eventUpdateSuccess'));
         const clickMessage = isDatePoll && this.$t('agenda.viewDatePoll') || this.$t('agenda.viewEvent');
