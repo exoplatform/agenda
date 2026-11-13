@@ -42,6 +42,7 @@ import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventResponseOutcome;
+import org.exoplatform.agenda.rest.model.EventEntity;
 import org.exoplatform.agenda.rest.model.EventResponseOutcomeEntity;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
@@ -50,6 +51,7 @@ import org.exoplatform.agenda.service.AgendaEventDatePollService;
 import org.exoplatform.agenda.service.AgendaEventReminderService;
 import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.agenda.service.AgendaRemoteEventService;
+import org.exoplatform.agenda.util.RestUtils;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.resources.ResourceBundleService;
@@ -358,6 +360,56 @@ class AgendaEventRestTest {
     Response response = eventRest.moveEventExceptionalOccurrences(EVENT_ID, 43L, "2026-10-05T09:00:00.000Z");
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     assertEquals(kept, response.getEntity());
+  }
+
+  @Test
+  void aDeletionStillWaitingForItsDelayRunsWhenTheNodeStops() throws Exception {
+    eventRest.start();
+
+    Response response = deleteWithDelay();
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    Mockito.verify(agendaEventService, Mockito.never()).deleteEventById(anyLong(), anyLong());
+    eventRest.stop();
+    Mockito.verify(agendaEventService).deleteEventById(EVENT_ID, USER_IDENTITY_ID);
+  }
+
+  @Test
+  void anUndoneDeletionIsNotRunWhenTheNodeStops() throws Exception {
+    eventRest.start();
+    deleteWithDelay();
+
+    Response response = eventRest.undoDeleteEvent(EVENT_ID);
+
+    assertEquals(Response.Status.NO_CONTENT.getStatusCode(), response.getStatus());
+    eventRest.stop();
+    Mockito.verify(agendaEventService, Mockito.never()).deleteEventById(anyLong(), anyLong());
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), eventRest.undoDeleteEvent(EVENT_ID).getStatus());
+  }
+
+  /**
+   * Deletes the event with a delay of an hour: the event built for the answer
+   * reads the platform's metadata, out of this test's reach
+   */
+  private Response deleteWithDelay() {
+    try (MockedStatic<RestUtils> restUtils = Mockito.mockStatic(RestUtils.class, Mockito.CALLS_REAL_METHODS)) {
+      restUtils.when(() -> RestUtils.getEventByIdAndUser(any(),
+                                                         any(),
+                                                         any(),
+                                                         any(),
+                                                         any(),
+                                                         any(),
+                                                         any(),
+                                                         any(),
+                                                         anyLong(),
+                                                         anyBoolean(),
+                                                         anyLong(),
+                                                         any(),
+                                                         any(),
+                                                         any()))
+               .thenReturn(new EventEntity());
+      return eventRest.deleteEvent(EVENT_ID, 3600, null);
+    }
   }
 
   private Response patch(MultivaluedMap<String, String> fields) {
