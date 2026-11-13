@@ -327,7 +327,10 @@ export default {
             seriesFields), this.confirmClose)
             .then(createdEvent => Promise.resolve(this.beforePageClose && this.beforePageClose()).then(() => {
               this.close();
-              this.$root.$emit('agenda-event-saved', createdEvent);
+              // The continuing series is a new event with no update date,
+              // while the user updated a series: the save is announced as an
+              // update
+              this.$root.$emit('agenda-event-saved', createdEvent, true);
             }));
         })
         // Reaches both calls of this scope, the read and the split. The other
