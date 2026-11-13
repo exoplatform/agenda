@@ -76,6 +76,9 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
   private static final Log             LOG                 = ExoLogger.getLogger(AgendaEventRest.class);
 
+  /** Seconds a stop waits for a deletion running at that moment */
+  private static final long            STOP_TIMEOUT        = 10;
+
   private IdentityManager              identityManager;
 
   private AgendaCalendarService        agendaCalendarService;
@@ -96,7 +99,12 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
   private PortalContainer              container;
 
-  private Map<Long, Long>              eventsToDeleteQueue = new HashMap<>();
+  /**
+   * The events deleted with a delay, not yet deleted, by id, with the identity
+   * of the user who deleted each. Written by the request threads and by the
+   * delayed deletion: whichever removes an entry first owns it.
+   */
+  private final Map<Long, Long>        eventsToDeleteQueue = new ConcurrentHashMap<>();
 
   private String                       defaultSite         = null;
 
@@ -128,14 +136,28 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
   @Override
   public void start() {
-    scheduledExecutor = Executors.newScheduledThreadPool(1);
+    ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
+    // The deletions still waiting for their delay at stop are run by stop
+    executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+    scheduledExecutor = executor;
   }
 
   @Override
   public void stop() {
     if (scheduledExecutor != null) {
+      // A deletion running now ends: interrupted, it would be lost
       scheduledExecutor.shutdown();
+      try {
+        if (!scheduledExecutor.awaitTermination(STOP_TIMEOUT, TimeUnit.SECONDS)) {
+          LOG.warn("An event deletion did not end within {} seconds of the stop", STOP_TIMEOUT);
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
     }
+    // A deletion still waiting for its delay would be lost with this node: it
+    // runs now, its undo no longer possible
+    new ArrayList<>(eventsToDeleteQueue.keySet()).forEach(this::deletePendingEvent);
   }
 
   @GET
@@ -1009,22 +1031,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       }
       if (delay > 0) {
         eventsToDeleteQueue.put(eventId, userIdentityId);
-        scheduledExecutor.schedule(() -> {
-          if (eventsToDeleteQueue.containsKey(eventId)) {
-            ExoContainerContext.setCurrentContainer(container);
-            RequestLifeCycle.begin(container);
-            try {
-              eventsToDeleteQueue.remove(eventId);
-              agendaEventService.deleteEventById(eventId, userIdentityId);
-            } catch (IllegalAccessException e) {
-              LOG.error("User '{}' attempts to delete a non authorized event", userIdentityId, e);
-            } catch (Exception e) {
-              LOG.warn("Error deleting an event", e);
-            } finally {
-              RequestLifeCycle.end();
-            }
-          }
-        }, delay, TimeUnit.SECONDS);
+        scheduledExecutor.schedule(() -> deletePendingEvent(eventId), delay, TimeUnit.SECONDS);
       } else {
         eventsToDeleteQueue.remove(eventId);
         agendaEventService.deleteEventById(eventId, userIdentityId);
@@ -1036,6 +1043,25 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     } catch (Exception e) {
       LOG.warn("Error deleting an event", e);
       return Response.serverError().entity(e.getMessage()).build();
+    }
+  }
+
+  private void deletePendingEvent(long eventId) {
+    Long userIdentityId = eventsToDeleteQueue.remove(eventId);
+    if (userIdentityId == null) {
+      // Undone, or deleted already
+      return;
+    }
+    ExoContainerContext.setCurrentContainer(container);
+    RequestLifeCycle.begin(container);
+    try {
+      agendaEventService.deleteEventById(eventId, userIdentityId);
+    } catch (IllegalAccessException e) {
+      LOG.error("User '{}' attempts to delete a non authorized event", userIdentityId, e);
+    } catch (Exception e) {
+      LOG.warn("Error deleting an event", e);
+    } finally {
+      RequestLifeCycle.end();
     }
   }
 
@@ -1063,16 +1089,19 @@ public class AgendaEventRest implements ResourceContainer, Startable {
     if (eventId <= 0) {
       return Response.status(Status.BAD_REQUEST).entity("Event identifier must be a positive integer").build();
     }
-    if (eventsToDeleteQueue.containsKey(eventId)) {
+    Long originalModifierUserId = eventsToDeleteQueue.get(eventId);
+    if (originalModifierUserId != null) {
       long userIdentityId = RestUtils.getCurrentUserIdentityId(identityManager);
-      Long originalModifierUserId = eventsToDeleteQueue.get(eventId);
       if (originalModifierUserId != userIdentityId) {
         LOG.warn("User {} attempts to cancel deletion of an event deleted by user {}",
                  userIdentityId,
                  originalModifierUserId);
         return Response.status(Status.FORBIDDEN).build();
       }
-      eventsToDeleteQueue.remove(eventId);
+    }
+    // Removed here, the delayed deletion finds nothing to delete; removed there
+    // first, the event is deleted already
+    if (originalModifierUserId != null && eventsToDeleteQueue.remove(eventId, originalModifierUserId)) {
       return Response.noContent().build();
     } else {
       return Response.status(Status.BAD_REQUEST).entity("Event id was already deleted or isn't planned to be deleted").build();
