@@ -30,6 +30,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.ListResourceBundle;
 import java.util.ResourceBundle;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +45,7 @@ import org.exoplatform.agenda.exception.AgendaException;
 import org.exoplatform.agenda.exception.AgendaExceptionType;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventResponseOutcome;
+import org.exoplatform.agenda.rest.model.EventEntity;
 import org.exoplatform.agenda.rest.model.EventResponseOutcomeEntity;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
@@ -50,6 +54,7 @@ import org.exoplatform.agenda.service.AgendaEventDatePollService;
 import org.exoplatform.agenda.service.AgendaEventReminderService;
 import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.agenda.service.AgendaRemoteEventService;
+import org.exoplatform.agenda.util.RestUtils;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.resources.ResourceBundleService;
@@ -358,6 +363,81 @@ class AgendaEventRestTest {
     Response response = eventRest.moveEventExceptionalOccurrences(EVENT_ID, 43L, "2026-10-05T09:00:00.000Z");
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     assertEquals(kept, response.getEntity());
+  }
+
+  @Test
+  void aDeletionStillWaitingForItsDelayRunsWhenTheNodeStops() throws Exception {
+    eventRest.start();
+
+    Response response = deleteWithDelay(3600);
+
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    Mockito.verify(agendaEventService, Mockito.never()).deleteEventById(anyLong(), anyLong());
+    long stopStart = System.nanoTime();
+    eventRest.stop();
+    // The stop drops the waiting deletion from the executor rather than waiting
+    // for its delay up to the stop's timeout
+    assertTrue(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - stopStart) < 5);
+    Mockito.verify(agendaEventService).deleteEventById(EVENT_ID, USER_IDENTITY_ID);
+  }
+
+  @Test
+  void anUndoneDeletionIsNotRunWhenTheNodeStops() throws Exception {
+    eventRest.start();
+    deleteWithDelay(3600);
+
+    Response response = eventRest.undoDeleteEvent(EVENT_ID);
+
+    assertEquals(Response.Status.NO_CONTENT.getStatusCode(), response.getStatus());
+    eventRest.stop();
+    Mockito.verify(agendaEventService, Mockito.never()).deleteEventById(anyLong(), anyLong());
+    assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), eventRest.undoDeleteEvent(EVENT_ID).getStatus());
+  }
+
+  @Test
+  void aDeletionRunningWhenTheNodeStopsEnds() throws Exception {
+    CountDownLatch started = new CountDownLatch(1);
+    AtomicBoolean ended = new AtomicBoolean();
+    Mockito.doAnswer(invocation -> {
+      started.countDown();
+      Thread.sleep(500);
+      ended.set(true);
+      return null;
+    }).when(agendaEventService).deleteEventById(EVENT_ID, USER_IDENTITY_ID);
+    eventRest.start();
+    deleteWithDelay(1);
+    assertTrue(started.await(10, TimeUnit.SECONDS));
+
+    eventRest.stop();
+
+    assertTrue(ended.get());
+  }
+
+  /**
+   * Deletes the event after the given delay: the event built for the answer
+   * reads the platform's metadata, out of this test's reach
+   *
+   * @param delay the delay, in seconds
+   */
+  private Response deleteWithDelay(long delay) {
+    try (MockedStatic<RestUtils> restUtils = Mockito.mockStatic(RestUtils.class, Mockito.CALLS_REAL_METHODS)) {
+      restUtils.when(() -> RestUtils.getEventByIdAndUser(any(),
+                                                         any(),
+                                                         any(),
+                                                         any(),
+                                                         any(),
+                                                         any(),
+                                                         any(),
+                                                         any(),
+                                                         anyLong(),
+                                                         anyBoolean(),
+                                                         anyLong(),
+                                                         any(),
+                                                         any(),
+                                                         any()))
+               .thenReturn(new EventEntity());
+      return eventRest.deleteEvent(EVENT_ID, delay, null);
+    }
   }
 
   private Response patch(MultivaluedMap<String, String> fields) {

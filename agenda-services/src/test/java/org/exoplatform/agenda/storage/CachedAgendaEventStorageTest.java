@@ -39,6 +39,7 @@ import org.exoplatform.agenda.entity.CalendarEntity;
 import org.exoplatform.agenda.entity.EventEntity;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.storage.cached.CachedAgendaEventStorage;
+import org.exoplatform.agenda.storage.cached.CalendarEventsSelector;
 import org.exoplatform.agenda.util.DecideContext;
 import org.exoplatform.services.cache.CacheService;
 import org.exoplatform.services.cache.concurrent.ConcurrentFIFOExoCache;
@@ -220,6 +221,29 @@ public class CachedAgendaEventStorageTest {
                  2L,
                  agendaEventStorage.getEventById(eventId).getCalendarId());
     verify(eventDAO, times(2)).find(eventId);
+  }
+
+  /**
+   * The events of the calendar go from every node of a cluster: the selection
+   * is one the other nodes receive and apply to their own entries.
+   *
+   * @throws Exception when the cache cannot select
+   */
+  @Test
+  public void testMoveCalendarEventsSelectsTheEventsOfTheCalendarOnEveryNode() throws Exception {
+    ConcurrentFIFOExoCache<Long, Event> eventCache =
+                                                  spy(new ConcurrentFIFOExoCache<>(CachedAgendaEventStorage.EVENT_CACHE_NAME, 500));
+    CacheService cacheService = mock(CacheService.class);
+    doReturn(eventCache).when(cacheService).getCacheInstance(CachedAgendaEventStorage.EVENT_CACHE_NAME);
+    CachedAgendaEventStorage storage = new CachedAgendaEventStorage(cacheService,
+                                                                    mock(CalendarDAO.class),
+                                                                    eventDAO,
+                                                                    mock(EventRecurrenceDAO.class));
+    when(eventDAO.moveCalendarEvents(1L, 2L)).thenReturn(Arrays.asList(10L));
+
+    storage.moveCalendarEvents(1L, 2L);
+
+    verify(eventCache).select(new CalendarEventsSelector(1L));
   }
 
   /**

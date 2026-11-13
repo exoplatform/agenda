@@ -44,7 +44,7 @@
               <long>${exo.cache.agenda.calendar.TimeToLive:86400}</long>
             </field>
             <field name="cacheMode" profiles="cluster">
-              <string>${exo.cache.agenda.calendar.cacheMode:replication}</string>
+              <string>${exo.cache.agenda.calendar.cacheMode:asyncInvalidation}</string>
             </field>
           </object>
         </object-param>
@@ -65,7 +65,7 @@
               <long>${exo.cache.agenda.event.TimeToLive:86400}</long>
             </field>
             <field name="cacheMode" profiles="cluster">
-              <string>${exo.cache.agenda.event.cacheMode:replication}</string>
+              <string>${exo.cache.agenda.event.cacheMode:asyncInvalidation}</string>
             </field>
           </object>
         </object-param>
