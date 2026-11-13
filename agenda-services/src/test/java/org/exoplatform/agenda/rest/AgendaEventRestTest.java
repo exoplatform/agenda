@@ -373,7 +373,11 @@ class AgendaEventRestTest {
 
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     Mockito.verify(agendaEventService, Mockito.never()).deleteEventById(anyLong(), anyLong());
+    long stopStart = System.nanoTime();
     eventRest.stop();
+    // The stop drops the waiting deletion from the executor rather than waiting
+    // for its delay up to the stop's timeout
+    assertTrue(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - stopStart) < 5);
     Mockito.verify(agendaEventService).deleteEventById(EVENT_ID, USER_IDENTITY_ID);
   }
 
