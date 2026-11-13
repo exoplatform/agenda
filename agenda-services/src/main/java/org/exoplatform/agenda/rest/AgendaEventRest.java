@@ -76,6 +76,9 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
   private static final Log             LOG                 = ExoLogger.getLogger(AgendaEventRest.class);
 
+  /** Seconds a stop waits for a deletion running at that moment */
+  private static final long            STOP_TIMEOUT        = 10;
+
   private IdentityManager              identityManager;
 
   private AgendaCalendarService        agendaCalendarService;
@@ -91,9 +94,6 @@ public class AgendaEventRest implements ResourceContainer, Startable {
   private AgendaRemoteEventService     agendaRemoteEventService;
 
   private AgendaEventDatePollService   agendaEventDatePollService;
-
-  /** Seconds a stop waits for a deletion running at that moment */
-  private static final long            STOP_TIMEOUT        = 10;
 
   private ScheduledExecutorService     scheduledExecutor;
 
