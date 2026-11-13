@@ -30,6 +30,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.ListResourceBundle;
 import java.util.ResourceBundle;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -366,7 +369,7 @@ class AgendaEventRestTest {
   void aDeletionStillWaitingForItsDelayRunsWhenTheNodeStops() throws Exception {
     eventRest.start();
 
-    Response response = deleteWithDelay();
+    Response response = deleteWithDelay(3600);
 
     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
     Mockito.verify(agendaEventService, Mockito.never()).deleteEventById(anyLong(), anyLong());
@@ -377,7 +380,7 @@ class AgendaEventRestTest {
   @Test
   void anUndoneDeletionIsNotRunWhenTheNodeStops() throws Exception {
     eventRest.start();
-    deleteWithDelay();
+    deleteWithDelay(3600);
 
     Response response = eventRest.undoDeleteEvent(EVENT_ID);
 
@@ -387,11 +390,32 @@ class AgendaEventRestTest {
     assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), eventRest.undoDeleteEvent(EVENT_ID).getStatus());
   }
 
+  @Test
+  void aDeletionRunningWhenTheNodeStopsEnds() throws Exception {
+    CountDownLatch started = new CountDownLatch(1);
+    AtomicBoolean ended = new AtomicBoolean();
+    Mockito.doAnswer(invocation -> {
+      started.countDown();
+      Thread.sleep(500);
+      ended.set(true);
+      return null;
+    }).when(agendaEventService).deleteEventById(EVENT_ID, USER_IDENTITY_ID);
+    eventRest.start();
+    deleteWithDelay(1);
+    assertTrue(started.await(10, TimeUnit.SECONDS));
+
+    eventRest.stop();
+
+    assertTrue(ended.get());
+  }
+
   /**
-   * Deletes the event with a delay of an hour: the event built for the answer
+   * Deletes the event after the given delay: the event built for the answer
    * reads the platform's metadata, out of this test's reach
+   *
+   * @param delay the delay, in seconds
    */
-  private Response deleteWithDelay() {
+  private Response deleteWithDelay(long delay) {
     try (MockedStatic<RestUtils> restUtils = Mockito.mockStatic(RestUtils.class, Mockito.CALLS_REAL_METHODS)) {
       restUtils.when(() -> RestUtils.getEventByIdAndUser(any(),
                                                          any(),
@@ -408,7 +432,7 @@ class AgendaEventRestTest {
                                                          any(),
                                                          any()))
                .thenReturn(new EventEntity());
-      return eventRest.deleteEvent(EVENT_ID, 3600, null);
+      return eventRest.deleteEvent(EVENT_ID, delay, null);
     }
   }
 

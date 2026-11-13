@@ -92,6 +92,9 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
   private AgendaEventDatePollService   agendaEventDatePollService;
 
+  /** Seconds a stop waits for a deletion running at that moment */
+  private static final long            STOP_TIMEOUT        = 10;
+
   private ScheduledExecutorService     scheduledExecutor;
 
   private PortalContainer              container;
@@ -133,13 +136,24 @@ public class AgendaEventRest implements ResourceContainer, Startable {
 
   @Override
   public void start() {
-    scheduledExecutor = Executors.newScheduledThreadPool(1);
+    ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
+    // The deletions still waiting for their delay at stop are run by stop
+    executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+    scheduledExecutor = executor;
   }
 
   @Override
   public void stop() {
     if (scheduledExecutor != null) {
-      scheduledExecutor.shutdownNow();
+      // A deletion running now ends: interrupted, it would be lost
+      scheduledExecutor.shutdown();
+      try {
+        if (!scheduledExecutor.awaitTermination(STOP_TIMEOUT, TimeUnit.SECONDS)) {
+          LOG.warn("An event deletion did not end within {} seconds of the stop", STOP_TIMEOUT);
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
     }
     // A deletion still waiting for its delay would be lost with this node: it
     // runs now, its undo no longer possible
