@@ -71,12 +71,17 @@ import org.exoplatform.agenda.service.AgendaAvailabilityServiceImpl;
 import org.exoplatform.agenda.service.AgendaCalendarService;
 import org.exoplatform.agenda.service.AgendaEventAttendeeService;
 import org.exoplatform.agenda.service.AgendaEventConferenceService;
+import org.exoplatform.agenda.service.AgendaEventConferenceServiceImpl;
 import org.exoplatform.agenda.service.AgendaEventService;
 import org.exoplatform.agenda.service.AgendaScheduleConflictServiceImpl;
 import org.exoplatform.agenda.service.AgendaUserSettingsService;
+import org.exoplatform.agenda.storage.AgendaEventConferenceStorage;
+import org.exoplatform.agenda.util.ConferenceLinkSchemeTest;
+import org.exoplatform.commons.api.settings.SettingService;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.portal.config.UserPortalConfigService;
+import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.social.core.profileproperty.ProfilePropertyService;
@@ -1282,6 +1287,28 @@ class AgendaEventMcpToolTest {
     assertEquals("web", model.getType());
     assertEquals("https://meet.example/x", model.getUrl());
     verify(agendaEventConferenceService, times(1)).saveEventConferences(eq(EVENT_ID), any());
+  }
+
+  /**
+   * The tool hands the link to the conference service, which refuses a link
+   * running a script before anything is stored: the refusal reaches the
+   * agent, and the storage is never written.
+   */
+  @Test
+  void setEventConferenceWithAScriptLinkIsRefused() throws Exception {
+    when(userAcl.hasEditPermission(any(), eq(String.valueOf(EVENT_ID)), any(org.exoplatform.services.security.Identity.class))).thenReturn(true);
+    AgendaEventConferenceStorage conferenceStorage = Mockito.mock(AgendaEventConferenceStorage.class);
+    AgendaEventConferenceServiceImpl conferenceService = new AgendaEventConferenceServiceImpl(conferenceStorage,
+                                                                                              Mockito.mock(ListenerService.class),
+                                                                                              Mockito.mock(SettingService.class),
+                                                                                              null);
+    when(agendaEventConferenceService.saveEventConferences(anyLong(), any())).thenAnswer(invocation -> conferenceService.saveEventConferences(invocation.getArgument(0),
+                                                                                                                                          invocation.getArgument(1)));
+
+    for (String url : ConferenceLinkSchemeTest.SCRIPT_URLS) {
+      assertThrows(IllegalArgumentException.class, () -> tool.setEventConference(EVENT_ID, url, null), url);
+    }
+    verify(conferenceStorage, never()).saveEventConference(any());
   }
 
   @Test

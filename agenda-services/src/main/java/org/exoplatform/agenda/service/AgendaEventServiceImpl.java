@@ -352,6 +352,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     checkCanCreateEvent(event, parentEvent, calendar, userIdentityId);
+    // Before the event is written, so that a refused link leaves nothing behind
+    checkConferenceUrls(conferences);
 
     EventOccurrence occurrence = event.getOccurrence();
     if (occurrence != null && occurrence.getId() != null) {
@@ -1102,9 +1104,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       // the series had takes the series' new ones, a row with links of its own
       // keeps them. Without it a changed meeting link never reaches the dates
       // the reminder job materialised for the next days.
-      if (conferencesChanged && conferenceKeys(rowLists.conferences()).equals(conferenceKeys(seriesConferencesBefore))) {
+      if (conferencesChanged && hasSeriesConferences(rowLists.conferences(), seriesConferencesBefore)) {
         conferenceService.saveEventConferences(storedOccurrence.getId(),
-                                               copyConferencesTo(seriesConferencesAfter, storedOccurrence.getId()));
+                                               copyConferencesTo(withoutScriptUrls(seriesConferencesAfter),
+                                                                 storedOccurrence.getId()));
       }
 
       applySeriesMembershipChange(storedOccurrence,
@@ -1346,7 +1349,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // same reminder for another range of its dates
     List<EventReminder> seriesRemindersOnThatDate = remindersOnThatDate(seriesLists.reminders(), occurrenceId);
     return !attendeeResponses(rowLists.attendees()).equals(attendeeResponses(seriesAttendeesOnThatDate))
-        || !conferenceKeys(rowLists.conferences()).equals(conferenceKeys(seriesLists.conferences()))
+        || !hasSeriesConferences(rowLists.conferences(), seriesLists.conferences())
         || !reminderKeys(rowLists.reminders()).equals(reminderKeys(seriesRemindersOnThatDate));
   }
 
@@ -1402,6 +1405,34 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       }
     }
     return keys;
+  }
+
+  /**
+   * @param rowConferences the conferences of a date of the series
+   * @param seriesConferences the series' conferences
+   * @return whether the date holds the series' conferences, as they are or as
+   *         {@link #saveEventExceptionalOccurrence(long, ZonedDateTime)}
+   *         copies them, without the links it leaves out
+   */
+  private boolean hasSeriesConferences(List<EventConference> rowConferences, List<EventConference> seriesConferences) {
+    Set<String> rowKeys = conferenceKeys(rowConferences);
+    return rowKeys.equals(conferenceKeys(seriesConferences))
+        || rowKeys.equals(conferenceKeys(withoutScriptUrls(seriesConferences)));
+  }
+
+  /**
+   * @param conferences a conference list, may be null
+   * @return the conferences whose link is not one
+   *         {@link Utils#isScriptUrl(String)} recognises, which are the ones
+   *         the series' links are copied as to a date
+   */
+  private List<EventConference> withoutScriptUrls(List<EventConference> conferences) {
+    if (conferences == null) {
+      return new ArrayList<>();
+    }
+    return conferences.stream()
+                      .filter(conference -> !isScriptUrl(conference.getUrl()))
+                      .collect(Collectors.toList());
   }
 
   /**
@@ -1770,6 +1801,12 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     // Every refusal comes before the first write
     checkSplitCapacity(series, continuation, rows, keepsTheDates, removedIdentityIds, splitFrom, confirmClose, calendar);
     checkExternalGuests(series, continuation, rows, splitFrom);
+    // The links the request names are checked like any other save's. With
+    // none named, the continuation takes the series' links as each of its
+    // dates does, without a link that runs a script
+    List<EventConference> continuationConferences = split.conferences() == null ? withoutScriptUrls(conferenceService.getEventConferences(seriesId))
+                                                                                : split.conferences();
+    checkConferenceUrls(continuationConferences);
 
     if (keepsTheDates && SeatRule.capacityOf(continuation) == SeatRule.capacityOf(series)) {
       // The same dates under the same limit: a date already full stays so,
@@ -1780,9 +1817,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     decideSteps.joinInsertedEvent(continuationId);
     createOrUpdateEventProperties(eventProperties(seriesId), agendaEventStorage.getEventById(continuationId));
     Event createdEvent = readCreatedEvent(continuationId, continuation.getTimeZoneId(), userIdentityId);
-    conferenceService.saveEventConferences(continuationId,
-                                           copiesOf(split.conferences() == null ? conferenceService.getEventConferences(seriesId)
-                                                                                : split.conferences()));
+    conferenceService.saveEventConferences(continuationId, copiesOf(continuationConferences));
 
     AgendaEventModification eventModifications = new AgendaEventModification(continuationId,
                                                                               createdEvent.getCalendarId(),
@@ -2387,7 +2422,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
 
     List<EventAttendee> attendees = attendeesOfDate(attendeeService.getEventAttendees(eventId), occurrenceId);
     cleanupAttendeeIds(attendees);
-    List<EventConference> conferences = conferenceService.getEventConferences(eventId);
+    // Here the platform copies the series' stored links to the new date itself,
+    // whoever asked for the date: a stored link that is no longer accepted is
+    // left out of the copy rather than refused. A save posted by a client, the
+    // copy of a series included, is checked like any other in createEvent
+    List<EventConference> conferences = withoutScriptUrls(conferenceService.getEventConferences(eventId));
     cleanupConferenceIds(conferences);
     List<EventReminder> reminders = reminderService.getEventReminders(eventId);
     cleanupReminderIds(reminders);
@@ -2428,6 +2467,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     if (parentEvent.getRecurrence() == null) {
       throw new IllegalStateException("Event with id " + eventId + " isn't a recurrent event");
     }
+    checkConferenceUrls(conferences);
 
     boolean allDay = parentEvent.isAllDay();
     occurrenceId = Utils.getOccurrenceId(allDay, occurrenceId, parentEvent.getTimeZoneId());
@@ -2591,6 +2631,13 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     }
 
     checkCanMoveEvent(storedEvent, calendar, userIdentityId);
+    // Before the event is written, and on the links it does not hold yet, as
+    // saveEventConferences checks them
+    if (conferences != null) {
+      List<EventConference> newConferences = new ArrayList<>(conferences);
+      newConferences.removeAll(conferenceService.getEventConferences(eventId));
+      checkConferenceUrls(newConferences);
+    }
 
     if (event.getVisibility() == null) {
       // Not stated keeps what is stored, never DEFAULT: visibility decides what
