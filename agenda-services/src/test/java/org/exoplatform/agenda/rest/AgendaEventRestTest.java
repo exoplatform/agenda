@@ -17,6 +17,7 @@
 package org.exoplatform.agenda.rest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -394,6 +395,20 @@ class AgendaEventRestTest {
     // for its delay up to the stop's timeout
     assertTrue(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - stopStart) < 5);
     Mockito.verify(agendaEventService).deleteEventById(EVENT_ID, USER_IDENTITY_ID);
+  }
+
+  @Test
+  void theStopGivesItsThreadBackItsContainerOnceTheWaitingDeletionsRan() throws Exception {
+    eventRest.start();
+    deleteWithDelay(3600);
+    var callerContainer = ExoContainerContext.getCurrentContainerIfPresent();
+
+    eventRest.stop();
+
+    Mockito.verify(agendaEventService).deleteEventById(EVENT_ID, USER_IDENTITY_ID);
+    // The thread that stops goes on with its own container, not the one the
+    // deletion ran in
+    assertSame(callerContainer, ExoContainerContext.getCurrentContainerIfPresent());
   }
 
   @Test
