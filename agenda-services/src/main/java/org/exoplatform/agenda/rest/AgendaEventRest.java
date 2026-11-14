@@ -52,6 +52,7 @@ import org.exoplatform.agenda.rest.model.*;
 import org.exoplatform.agenda.service.*;
 import org.exoplatform.agenda.util.*;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.container.ExoContainer;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
@@ -894,6 +895,9 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       // Undone, or deleted already
       return;
     }
+    // The stop runs the waiting deletions on the thread that stops: its
+    // container is given back once the deletion ends
+    ExoContainer callerContainer = ExoContainerContext.getCurrentContainerIfPresent();
     ExoContainerContext.setCurrentContainer(container);
     RequestLifeCycle.begin(container);
     try {
@@ -904,6 +908,7 @@ public class AgendaEventRest implements ResourceContainer, Startable {
       LOG.warn("Error deleting an event", e);
     } finally {
       RequestLifeCycle.end();
+      ExoContainerContext.setCurrentContainer(callerContainer);
     }
   }
 
