@@ -1,0 +1,230 @@
+/**
+ * Copyright (C) 2026 eXo Platform SAS.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+package org.exoplatform.agenda.mcp;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.junit.jupiter.api.Test;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.meeds.mcp.server.util.McpToolUtils;
+
+/**
+ * The agenda add-on's {@code ai-tool-definition-upgrades.json}: an instance
+ * that stored a tool's definition at an earlier start keeps it unless this
+ * file lists that stored text's digest, so every definition of a changed tool
+ * the add-on ever shipped is listed, and the shipped one never is
+ * (EXO-94298). The digest is mcp-server's own,
+ * {@link McpToolUtils#definitionDigest(String, String)}.
+ */
+class AgendaToolDefinitionUpgradesTest {
+
+  private static final ObjectMapper        MAPPER              = new ObjectMapper();
+
+  /**
+   * Every definition of each changed tool that a sweep of every branch and
+   * pull request head of the repository found.
+   */
+  private static final Map<String, List<String>> EARLIER_DEFINITIONS = Map.ofEntries(
+      Map.entry("get_agenda_events",
+                List.of(
+                        "4eec61b664a8911fb609515b2cd80560303b7a3e702a72388de5c5f34f61a840",
+                        "5d5bd6f7b1639eb2ce5cebeed98c29098a9d41cd00ce883feb284db0aa1ff23e",
+                        "8b5670462601317028d0ef09e74c0c7ec5457ea3dfd5f6f534d280a52ddb33bd",
+                        "ee579de47b5e7fedaa2124458b39167b696163fd1f893931f0b9adbc0e19f786")),
+      Map.entry("search_agenda_events",
+                List.of(
+                        "047f22d9274ebd2002f97c12f6b9bdad4592e18d23dd909cade840ce3545fd44")),
+      Map.entry("create_agenda_event",
+                List.of(
+                        "229dda20ad9c187ee72b3646537b084c1f82a6c41479544cce211db085c1b84a",
+                        "4c1555e7ec370fce6fb7a8fd4aba7ec4e7c70be0aae7f686473ca132f660207b",
+                        "a39eaafd0a6ed603ce8dc33cd2a4a2156ae9b68defbd91d52154b9bb38bf1bee",
+                        "b2e8714336092892ffb49a110a1445911e941ad2569efd9834b610045ae3fada",
+                        "bca7ccf4154f6a914889a36cd88277125b4f98efc45e3fc8d7e78e6670acb1db",
+                        "c40f568f49faed91d44e4d0b1e0b7615b167ee0e6fa8a9e57e31070ce7072805",
+                        "d394288ed05842d5b23177fe3a6e2e63dd449a1605105983b95131e2e11012db")),
+      Map.entry("update_agenda_event",
+                List.of(
+                        "3752071eb14116f72248914de09547ac131fa08a5161240be3847103e067910c",
+                        "7695dd7178e2b1373ddd4430458299be747727f65327233ea045fef67e477111",
+                        "ab7cc3fe6f64ae913d43fb0f14049c91d6253becfbabb205de3bf257e9bd572d",
+                        "dd9e7d73c66dde42e2f470c8bf9441072e1701fcb675cd704e74fd1eb2227d56")),
+      Map.entry("cancel_agenda_event",
+                List.of(
+                        "5de9f5acf3e845eeb0578a56822eac19474039fed9f86e2102eb1f7908cbf69c",
+                        "9fb5f8da49db9e5d107f5d1bccda9b71afc9157c57d9ea1c1a800cd059561a5b",
+                        "ffaafa07f525e7e3de10aeb66aaa3d2d441a81566fd3db8d44b8d154da81e2f9")),
+      Map.entry("decline_agenda_event_invitation",
+                List.of(
+                        "54fd8dfacaae1dc5b423d86fcd927e5c77b8ffd5b20bbdc18ff95201a3885413",
+                        "a13fcd2e3983fa467afe4c7744c563f197102f8ba3383d66a401114dec910c1d",
+                        "d5a5ac5903d1bca6341045f52db6520ea2386ba66c431ea2632d6eaccc847840")),
+      Map.entry("create_date_poll",
+                List.of(
+                        "00868a8c37f54afc5612fb899406c15d6e98611e4e66d2c996cfe9b62e729285",
+                        "0f1308be9f30849abc6d6862b882f517f4e770b7575627f7c3713a0bd96a272e")),
+      Map.entry("get_availability",
+                List.of(
+                        "532f8f3b5a6c0903911054d1eebddd85103953bc5e965fa45bbbeedadb027a61",
+                        "7b0ef6ec93441d7077beff0244375f1ea3693fa46790245c057515c3b0f5a69b",
+                        "a551b4b00d7810aa15c7dfeb2249ff2affa219dc329e1cc4a9c6575af1fd8d08",
+                        "e8cd717813f0f85615899622847a644476b72a6114833737338399406a656924")),
+      Map.entry("suggest_meeting_time",
+                List.of(
+                        "2392a63794c57483e0e867d90eb5ec74204eb9d538b466bad609ae553e869a1e",
+                        "8f9aedfd5c69678db3c08865d0024941d4799247b47950baa9b5a1a64c94add5",
+                        "8fb26d16785cb0effcd822bd835f7b663ec01ca00979a60dbb272a2bad1ab53e",
+                        "d9900e99254793c0bee58f452f1d5fcf27c44f4cf2e12ccaea0ebace92edec98")),
+      Map.entry("get_schedule_conflicts",
+                List.of(
+                        "71239d23ba473a523e558c0b9fc961a06c91e0ec8530aa963d414a44596e0b3c")));
+
+  /**
+   * The definition of each changed tool on feature/rtd at 5ef3fd059, the one
+   * an instance of that line stored: a copy of the upgrades file that lists
+   * a wrong digest misses it.
+   */
+  private static final Map<String, String>       BASE_DEFINITIONS    = Map.ofEntries(
+      Map.entry("get_agenda_events",
+                "4eec61b664a8911fb609515b2cd80560303b7a3e702a72388de5c5f34f61a840"),
+      Map.entry("create_agenda_event",
+                "a39eaafd0a6ed603ce8dc33cd2a4a2156ae9b68defbd91d52154b9bb38bf1bee"),
+      Map.entry("update_agenda_event",
+                "ab7cc3fe6f64ae913d43fb0f14049c91d6253becfbabb205de3bf257e9bd572d"),
+      Map.entry("decline_agenda_event_invitation",
+                "54fd8dfacaae1dc5b423d86fcd927e5c77b8ffd5b20bbdc18ff95201a3885413"),
+      Map.entry("cancel_agenda_event",
+                "ffaafa07f525e7e3de10aeb66aaa3d2d441a81566fd3db8d44b8d154da81e2f9"),
+      Map.entry("create_date_poll",
+                "0f1308be9f30849abc6d6862b882f517f4e770b7575627f7c3713a0bd96a272e"),
+      Map.entry("get_availability",
+                "e8cd717813f0f85615899622847a644476b72a6114833737338399406a656924"),
+      Map.entry("suggest_meeting_time",
+                "d9900e99254793c0bee58f452f1d5fcf27c44f4cf2e12ccaea0ebace92edec98"),
+      Map.entry("get_schedule_conflicts",
+                "71239d23ba473a523e558c0b9fc961a06c91e0ec8530aa963d414a44596e0b3c"),
+      Map.entry("search_agenda_events",
+                "047f22d9274ebd2002f97c12f6b9bdad4592e18d23dd909cade840ce3545fd44"));
+
+  /**
+   * Each changed tool lists every earlier definition and not its shipped one,
+   * which an instance already holding it keeps anyway. Mutants: a digest
+   * removed; the shipped digest added; a tool's entry dropped; the base
+   * definition's digest miscopied.
+   *
+   * @throws Exception never
+   */
+  @Test
+  void eachChangedToolListsItsEarlierDefinitionsOnly() throws Exception {
+    Map<String, List<String>> replaced = replacedDefinitions();
+    Map<String, String> shipped = shippedDigests();
+
+    assertEquals(EARLIER_DEFINITIONS.keySet(), replaced.keySet());
+    EARLIER_DEFINITIONS.forEach((name, earlier) -> {
+      List<String> digests = replaced.get(name);
+      assertEquals(Set.copyOf(earlier), Set.copyOf(digests), name);
+      assertEquals(digests.size(), Set.copyOf(digests).size(), name);
+      assertFalse(digests.contains(shipped.get(name)), name + " lists its shipped definition");
+      assertTrue(digests.contains(BASE_DEFINITIONS.get(name)), name + " misses the definition feature/rtd shipped");
+    });
+  }
+
+  /**
+   * The parameters these tools read as a date and time ask for one with the
+   * user's own UTC offset, in the one form the agenda parser takes, and say
+   * what a value without one becomes: read as UTC, or refused, while the
+   * dates the tools return carry the user's offset. Mutant: a parameter back
+   * to a bare « RFC3339 ».
+   *
+   * @throws Exception never
+   */
+  @Test
+  void theDateTimeParametersAskForTheUsersOffset() throws Exception {
+    Map<String, List<String>> parameters = Map.of("get_agenda_events", List.of("start", "end"),
+                                                  "search_agenda_events", List.of("start", "end"),
+                                                  "create_agenda_event", List.of("start", "end"),
+                                                  "update_agenda_event", List.of("start", "end"),
+                                                  "get_availability", List.of("start", "end"),
+                                                  "suggest_meeting_time", List.of("window_start", "window_end"),
+                                                  "get_schedule_conflicts", List.of("start", "end"),
+                                                  "create_date_poll", List.of("proposed_slots"));
+    int checked = 0;
+    for (JsonNode tool : read("ai-tool-definitions.json").path("tools")) {
+      for (String parameter : parameters.getOrDefault(tool.path("name").asText(), List.of())) {
+        String description = tool.path("input_schema").path("properties").path(parameter).path("description").asText();
+        assertTrue(description.contains("with the user's own UTC offset, the one the dates this tool returns carry. "
+            + "A value without an offset is read as UTC, or refused."), description);
+        assertFalse(description.contains("RFC3339"), description);
+        checked++;
+      }
+    }
+    assertEquals(15, checked);
+  }
+
+  /**
+   * @return by tool name, the digests the upgrades file lists
+   * @throws Exception when the file can't be read
+   */
+  private static Map<String, List<String>> replacedDefinitions() throws Exception {
+    Map<String, List<String>> replaced = new HashMap<>();
+    for (JsonNode tool : read("ai-tool-definition-upgrades.json").path("tools")) {
+      List<String> digests = new ArrayList<>();
+      tool.path("replaced_definitions").forEach(digest -> digests.add(digest.asText()));
+      replaced.put(tool.path("name").asText(), digests);
+    }
+    return replaced;
+  }
+
+  /**
+   * @return by tool name, the digest of the definition the add-on ships, as
+   *         mcp-server computes it
+   * @throws Exception when the file can't be read
+   */
+  private static Map<String, String> shippedDigests() throws Exception {
+    Map<String, String> digests = new HashMap<>();
+    for (JsonNode tool : read("ai-tool-definitions.json").path("tools")) {
+      digests.put(tool.path("name").asText(),
+                  McpToolUtils.definitionDigest(tool.path("description").asText(),
+                                                MAPPER.writeValueAsString(tool.path("input_schema"))));
+    }
+    return digests;
+  }
+
+  /**
+   * @param resource a resource of the add-on's classpath
+   * @return its JSON tree
+   * @throws Exception when it can't be read
+   */
+  private static JsonNode read(String resource) throws Exception {
+    try (InputStream input = AgendaEventMcpTool.class.getClassLoader().getResourceAsStream(resource)) {
+      return MAPPER.readTree(input);
+    }
+  }
+
+}

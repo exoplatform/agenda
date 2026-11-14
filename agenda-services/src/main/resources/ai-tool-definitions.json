@@ -14,11 +14,11 @@
           },
           "start": {
             "type": "string",
-            "description": "RFC3339 datetime string."
+            "description": "Start of the window. Write it as 2026-11-16T09:00:00+01:00: a date and time with the user's own UTC offset, the one the dates this tool returns carry. A value without an offset is read as UTC, or refused."
           },
           "end": {
             "type": "string",
-            "description": "RFC3339 datetime string."
+            "description": "End of the window. Write it as 2026-11-16T09:00:00+01:00: a date and time with the user's own UTC offset, the one the dates this tool returns carry. A value without an offset is read as UTC, or refused."
           },
           "limit": {
             "type": "integer",
@@ -97,11 +97,11 @@
           },
           "start": {
             "type": "string",
-            "description": "Event start datetime in RFC3339 format."
+            "description": "Event start. Write it as 2026-11-16T09:00:00+01:00: a date and time with the user's own UTC offset, the one the dates this tool returns carry. A value without an offset is read as UTC, or refused."
           },
           "end": {
             "type": "string",
-            "description": "Event end datetime in RFC3339 format."
+            "description": "Event end. Write it as 2026-11-16T09:00:00+01:00: a date and time with the user's own UTC offset, the one the dates this tool returns carry. A value without an offset is read as UTC, or refused."
           },
           "attendee_usernames": {
             "type": "array",
@@ -186,11 +186,11 @@
           },
           "start": {
             "type": "string",
-            "description": "New event start datetime (RFC3339)."
+            "description": "New event start. Write it as 2026-11-16T09:00:00+01:00: a date and time with the user's own UTC offset, the one the dates this tool returns carry. A value without an offset is read as UTC, or refused."
           },
           "end": {
             "type": "string",
-            "description": "New event end datetime (RFC3339)."
+            "description": "New event end. Write it as 2026-11-16T09:00:00+01:00: a date and time with the user's own UTC offset, the one the dates this tool returns carry. A value without an offset is read as UTC, or refused."
           },
           "recurrence_frequency": {
             "type": "string",
@@ -308,7 +308,7 @@
           },
           "occurrence_id": {
             "type": "string",
-            "description": "Optional occurrence date (RFC3339) of a recurring event; when set, declines that occurrence AND every following one (this-and-future), not just that single date."
+            "description": "Optional occurrence date of a recurring event, copied as a tool returned it, offset included; when set, declines that occurrence AND every following one (this-and-future), not just that single date."
           }
         },
         "required": [
@@ -336,7 +336,7 @@
           },
           "occurrence_id": {
             "type": "string",
-            "description": "Optional occurrence date (RFC3339) of a recurring event; when set, cancels ONLY that single occurrence (the rest of the series, before and after, is preserved)."
+            "description": "Optional occurrence date of a recurring event, copied as a tool returned it, offset included; when set, cancels ONLY that single occurrence (the rest of the series, before and after, is preserved)."
           }
         },
         "required": [
@@ -442,7 +442,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Proposed slots, each as a single string '<startRFC3339>|<endRFC3339>' (e.g. '2026-02-01T14:00:00Z|2026-02-01T15:00:00Z')."
+            "description": "Proposed slots, each as a single string '<start>|<end>' (e.g. '2026-02-01T14:00:00+01:00|2026-02-01T15:00:00+01:00'). Write each as a date and time with the user's own UTC offset, the one the dates this tool returns carry. A value without an offset is read as UTC, or refused."
           },
           "attendee_usernames": {
             "type": "array",
@@ -580,11 +580,11 @@
           },
           "start": {
             "type": "string",
-            "description": "Window start (RFC3339)."
+            "description": "Window start. Write it as 2026-11-16T09:00:00+01:00: a date and time with the user's own UTC offset, the one the dates this tool returns carry. A value without an offset is read as UTC, or refused."
           },
           "end": {
             "type": "string",
-            "description": "Window end (RFC3339)."
+            "description": "Window end. Write it as 2026-11-16T09:00:00+01:00: a date and time with the user's own UTC offset, the one the dates this tool returns carry. A value without an offset is read as UTC, or refused."
           }
         },
         "required": [
@@ -620,11 +620,11 @@
           },
           "window_start": {
             "type": "string",
-            "description": "Earliest acceptable start (RFC3339)."
+            "description": "Earliest acceptable start. Write it as 2026-11-16T09:00:00+01:00: a date and time with the user's own UTC offset, the one the dates this tool returns carry. A value without an offset is read as UTC, or refused."
           },
           "window_end": {
             "type": "string",
-            "description": "Latest acceptable end (RFC3339)."
+            "description": "Latest acceptable end. Write it as 2026-11-16T09:00:00+01:00: a date and time with the user's own UTC offset, the one the dates this tool returns carry. A value without an offset is read as UTC, or refused."
           },
           "constraints": {
             "type": "string",
@@ -654,11 +654,11 @@
         "properties": {
           "start": {
             "type": "string",
-            "description": "Window start (RFC3339)."
+            "description": "Window start. Write it as 2026-11-16T09:00:00+01:00: a date and time with the user's own UTC offset, the one the dates this tool returns carry. A value without an offset is read as UTC, or refused."
           },
           "end": {
             "type": "string",
-            "description": "Window end (RFC3339), strictly after start and at most 92 days later."
+            "description": "Window end, strictly after start and at most 92 days later. Write it as 2026-11-16T09:00:00+01:00: a date and time with the user's own UTC offset, the one the dates this tool returns carry. A value without an offset is read as UTC, or refused."
           }
         },
         "required": [
@@ -844,11 +844,11 @@
           },
           "start": {
             "type": "string",
-            "description": "Optional lower bound (RFC3339); events ending before this are excluded."
+            "description": "Optional lower bound: events ending before it are excluded. Write it as 2026-11-16T09:00:00+01:00: a date and time with the user's own UTC offset, the one the dates this tool returns carry. A value without an offset is read as UTC, or refused."
           },
           "end": {
             "type": "string",
-            "description": "Optional upper bound (RFC3339); events starting after this are excluded."
+            "description": "Optional upper bound: events starting after it are excluded. Write it as 2026-11-16T09:00:00+01:00: a date and time with the user's own UTC offset, the one the dates this tool returns carry. A value without an offset is read as UTC, or refused."
           },
           "space_id": {
             "type": "integer",
