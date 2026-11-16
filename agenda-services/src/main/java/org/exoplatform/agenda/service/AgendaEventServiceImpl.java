@@ -4217,7 +4217,8 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     reminderService.saveEventReminders(updatedEvent, allReminders);
 
     attendeeService.resetEventResponses(eventId, Collections.singleton(userIdentityId));
-    attendeeService.sendEventResponse(eventId, userIdentityId, EventAttendeeResponse.ACCEPTED);
+    // The ACCEPTED answer given to the confirming user by the platform is saved, but it is not a user response, so it is not broadcast as one
+    attendeeService.sendEventResponse(eventId, userIdentityId, EventAttendeeResponse.ACCEPTED, false);
     List<EventAttendee> eventAttendees = attendeeService.getEventAttendees(eventId).getEventAttendees();
     datePollService.selectEventDateOption(dateOptionId);
 
