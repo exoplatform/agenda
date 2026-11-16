@@ -351,7 +351,17 @@ export default {
       };
     },
     webConferenceLink() {
-      return this.event?.conferences?.[0]?.url;
+      const url = this.event?.conferences?.[0]?.url;
+      if (!url) {
+        return null;
+      }
+      // The scheme read as the server reads it (Utils#isScriptUrl): without
+      // control characters, spaces nor case
+      const normalizedUrl = Array.from(url)
+        .filter(character => character.charCodeAt(0) > 0x20 && character.charCodeAt(0) !== 0x7F)
+        .join('')
+        .toLowerCase();
+      return ['javascript:', 'vbscript:', 'data:'].some(scriptScheme => normalizedUrl.startsWith(scriptScheme)) ? null : url;
     },
     eventLocation() {
       return this.event?.location;
