@@ -49,7 +49,7 @@
         -->
         <div class="agenda-mirror-calendar-choice mt-4">
           <v-icon
-            :color="calendarColor"
+            :color="iconColor"
             size="16"
             class="me-2">
             fa-circle
@@ -89,6 +89,7 @@ export default {
     applied: false,
     companyName: eXo.env.portal.companyName || '',
     calendarColor: '',
+    iconColor: '',
   }),
   computed: {
     /**
@@ -131,9 +132,11 @@ export default {
   },
   created() {
     this.$root.$on('agenda-connector-mirror-calendar-open', this.open);
+    document.addEventListener('displayModeChanged', this.refreshCalendarColor);
   },
   beforeDestroy() {
     this.$root.$off('agenda-connector-mirror-calendar-open', this.open);
+    document.removeEventListener('displayModeChanged', this.refreshCalendarColor);
   },
   methods: {
     /**
@@ -191,10 +194,22 @@ export default {
         .then(branding => {
           this.companyName = branding && branding.companyName || this.companyName;
           this.calendarColor = branding && branding.themeStyle && branding.themeStyle.primaryColor || '';
+          this.refreshCalendarColor();
         })
         .catch(() => {
           // the synchronous eXo.env.portal.companyName default remains
         });
+    },
+    /**
+     * Reads the brand colour of the version the page shows, light or dark, for the
+     * on-screen icon only: the colour sent to the calendar is the branding's, read at
+     * the opening, which is stored outside eXo.
+     *
+     * @returns {void}
+     */
+    refreshCalendarColor() {
+      const pageColor = window.getComputedStyle(document.documentElement).getPropertyValue('--allPagesPrimaryColor');
+      this.iconColor = pageColor && pageColor.trim() || this.calendarColor;
     },
     /**
      * Creates the branded calendar that will receive the meetings eXo pushes,

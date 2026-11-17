@@ -967,7 +967,9 @@ public class NotificationUtils {
     templateContext.put(TEMPLATE_VARIABLE_EVENT_ID, notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_ID));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_TITLE, getEventTitle(notification));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_LOCATION, getEventLocation(notification));
-    templateContext.put(TEMPLATE_VARIABLE_EVENT_DESCRIPTION, getEventDescription(notification));
+    // the description is user content: its black and white text follows the recipient's display mode, bound by setFooter
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_DESCRIPTION,
+                        SocialNotificationUtils.withContentColors(templateContext, getEventDescription(notification)));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_RECURRENT_DETAILS,
                         notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_RECURRENT_DETAILS));
 
@@ -999,7 +1001,9 @@ public class NotificationUtils {
                         notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_PARTICIPANT_AVATAR_URL));
 
     templateContext.put(TEMPLATE_VARIABLE_EVENT_LOCATION, getEventLocation(notification));
-    templateContext.put(TEMPLATE_VARIABLE_EVENT_DESCRIPTION, getEventDescription(notification));
+    // the description is user content: its black and white text follows the recipient's display mode, bound by setFooter
+    templateContext.put(TEMPLATE_VARIABLE_EVENT_DESCRIPTION,
+                        SocialNotificationUtils.withContentColors(templateContext, getEventDescription(notification)));
     templateContext.put(TEMPLATE_VARIABLE_EVENT_RECURRENT_DETAILS,
                         notification.getValueOwnerParameter(STORED_PARAMETER_EVENT_RECURRENT_DETAILS));
 
