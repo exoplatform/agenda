@@ -720,7 +720,7 @@
 
     caption {
       border-bottom: 1px solid @borderColor !important;
-      border-right: 2px solid #fff;
+      border-right: 2px solid @baseBackground;
       box-sizing: border-box;
       margin-right: -2px;
       text-align: ~'left;  /** orientation=lt */ ';
@@ -820,10 +820,10 @@
   }
 
   .event-date-option-cell-selected {
-    background-color: #d7e3f2 !important;
+    background-color: var(--allPagesBaseBackgroundDark, #d7e3f2) !important;
 
     .v-card {
-      background-color: #d7e3f2 !important;
+      background-color: var(--allPagesBaseBackgroundDark, #d7e3f2) !important;
     }
   }
 
@@ -1150,8 +1150,8 @@
   .agenda-left-panel {
     height: 100%;
     /* same background as the v-card hosting the calendar body */
-    background: #ffffff;
-    border-right: 1px solid #e1e8ee;
+    background: @baseBackground;
+    border-right: 1px solid var(--allPagesBorderColorDark, #e1e8ee);
     padding-top: 12px;
 
     /* Mini month calendar. Vuetify's stock picker is sized for a dialog: a
@@ -1297,7 +1297,7 @@
   /* RTL: the panel border must face the calendar body */
   .v-application--is-rtl .agenda-left-panel {
     border-right: none;
-    border-left: 1px solid #e1e8ee;
+    border-left: 1px solid var(--allPagesBorderColorDark, #e1e8ee);
   }
 }
 
