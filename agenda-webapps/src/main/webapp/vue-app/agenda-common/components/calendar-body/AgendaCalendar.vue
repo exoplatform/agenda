@@ -641,7 +641,7 @@ export default {
               interval.time >= this.workingTime.workingTimeEnd;
           const startOfHour = interval.minute === 0;
           return {
-            backgroundColor: inactive ? '#f8f8f8' : null,
+            backgroundColor: inactive ? 'var(--allPagesBaseBackgroundDark, #f8f8f8)' : null,
             borderTop: startOfHour ? null : '1px dashed rgba(0,0,0,0.1)',
           };
         }

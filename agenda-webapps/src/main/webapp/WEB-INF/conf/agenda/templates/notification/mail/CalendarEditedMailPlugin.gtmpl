@@ -1,23 +1,24 @@
-<table border="0" cellpadding="0" cellspacing="0" width="600" bgcolor="#ffffff" align="center" style="background-color: #ffffff; font-size: 12px;color:#333333;line-height: 18px;font-family: HelveticaNeue, Helvetica, Arial, sans-serif;">
+<% def palette = org.exoplatform.commons.notification.mail.MailPalette.of(_templateContext) %>
+<table border="0" cellpadding="0" cellspacing="0" width="600" bgcolor="${palette.surface}" align="center" style="background-color: ${palette.surface}; font-size: 12px;color:${palette.text};line-height: 18px;font-family: HelveticaNeue, Helvetica, Arial, sans-serif;" class="mail-surface mail-text">
     <%
       _templateContext.put("header_title", _ctx.appRes("Notification.title.CalendarEditedNotificationPlugin", _ctx.escapeHTML(calendarName)));
       _ctx.include("war:/notification/templates/mail/NotificationHeader.gtmpl", _templateContext);
     %>
     <tr>
-        <td bgcolor="#ffffff" style="background-color: #ffffff;">
-            <table cellpadding="0" cellspacing="0" width="100%"  bgcolor="#ffffff" style="background-color: #ffffff; border-bottom:1px solid #d8d8d8;border-left:1px solid #d8d8d8;border-right:1px solid #d8d8d8;">
+        <td bgcolor="${palette.surface}" style="background-color: ${palette.surface};" class="mail-surface">
+            <table cellpadding="0" cellspacing="0" width="100%"  bgcolor="${palette.surface}" style="background-color: ${palette.surface}; border-bottom:1px solid ${palette.border};border-left:1px solid ${palette.border};border-right:1px solid ${palette.border};" class="mail-surface mail-border">
                 <tr>
                     <td>
-                        <table border="0" cellpadding="0" cellspacing="0" width="92%" bgcolor="#ffffff" align="center" style="background-color: #ffffff; color:#333333;line-height:20px;">
+                        <table border="0" cellpadding="0" cellspacing="0" width="92%" bgcolor="${palette.surface}" align="center" style="background-color: ${palette.surface}; color:${palette.text};line-height:20px;" class="mail-surface mail-text">
                             <tr>
-                                <td align="left" bgcolor="#ffffff" style="background-color: #ffffff;padding: 10px 0;">
+                                <td align="left" bgcolor="${palette.surface}" style="background-color: ${palette.surface};padding: 10px 0;" class="mail-surface">
                                     <p style="margin: 10px 0;"><%=_ctx.appRes("Notification.label.SayHello")%> <%=_ctx.escapeHTML(FIRSTNAME)%>,</p>
                                     <p style="margin: 10px 0 13px;">
                                         <%
-                                        String bold = "color: #2f5e92; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif";
-                                        String modifier = "<span style=\"" + bold + "\">" + _ctx.escapeHTML(modifierName) + "</span>";
-                                        String calendar = "<span style=\"" + bold + "\">" + _ctx.escapeHTML(calendarName) + "</span>";
-                                        String summary = "<span style=\"" + bold + "\">" + _ctx.escapeHTML(changedEventSummary) + "</span>";
+                                        String bold = "color: ${palette.link}; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif";
+                                        String modifier = "<span class=\"mail-link\" style=\"" + bold + "\">" + _ctx.escapeHTML(modifierName) + "</span>";
+                                        String calendar = "<span class=\"mail-link\" style=\"" + bold + "\">" + _ctx.escapeHTML(calendarName) + "</span>";
+                                        String summary = "<span class=\"mail-link\" style=\"" + bold + "\">" + _ctx.escapeHTML(changedEventSummary) + "</span>";
                                         // One sentence per kind of change; a
                                         // removal names no event when the
                                         // deleted one carried no summary
@@ -34,7 +35,7 @@
                                             ? _ctx.appRes(key, modifier, calendar)
                                             : _ctx.appRes(key, modifier, summary, calendar) %>
                                     </p>
-                                    <p style="margin: 0 0 13px; color:#999999;">
+                                    <p style="margin: 0 0 13px; color:${palette.secondaryText};" class="mail-secondary-text">
                                         <%= _ctx.appRes("Notification.agenda.calendar.edited.explanation") %>
                                     </p>
                                     <p style="margin: 0 0 20px;">
@@ -43,17 +44,17 @@
                                             text-decoration: none;
                                             font-size: 11px;
                                             font-family:HelveticaNeue,arial,tahoma,serif;
-                                            color: #333333;
+                                            color: ${palette.text};
                                             padding: 5px 8px;
                                             line-height: 100%;
                                             text-align: center;
                                             vertical-align: middle;"
-                                           href="<%= agendaURL %>">
+                                           href="<%= agendaURL %>" class="mail-text">
                                               <%= _ctx.appRes("Notification.agenda.calendar.edited.open") %>
                                         </a>
                                     </p>
-                                    <p style="margin:30px 0 10px 0; color: #999999;font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif">
-                                        <%=_ctx.appRes("Notification.label.footer", FOOTER_LINK)%>
+                                    <p style="margin:30px 0 10px 0; color: ${palette.secondaryText};font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif" class="mail-secondary-text">
+                                        <%=_ctx.appRes("Notification.label.footer", FOOTER_LINK).replace("color: #2f5e92;", "color: ${palette.link};").replace("<a ", "<a class=\"mail-link\" ")%>
                                     </p>
                                 </td>
                             </tr>
