@@ -7,13 +7,21 @@
     width="300"
     eager
     @keydown="keepEscape">
-    <v-card class="elevation-12 transparent">
+    <v-card
+      ref="card"
+      class="elevation-12 transparent"
+      role="alertdialog"
+      aria-modal="true"
+      :aria-labelledby="confirmDialogTitleId">
       <div class="ignore-vuetify-classes popupHeader ClearFix layout-drawer">
-        <a
-          class="uiIconClose pull-right"
-          aria-hidden="true"
-          @click="dismiss"></a>
-        <span class="ignore-vuetify-classes PopupTitle popupTitle text-title text-truncate">
+        <button
+          type="button"
+          class="uiIconClose pull-right no-border pa-0 transparent clickable"
+          :aria-label="$t('agenda.button.close')"
+          @click="dismiss"></button>
+        <span
+          :id="confirmDialogTitleId"
+          class="ignore-vuetify-classes PopupTitle popupTitle text-title text-truncate">
           {{ $t('agenda.confirmSaveRecurrentEventTitle') }}
         </span>
       </div>
@@ -26,6 +34,8 @@
       </v-card-text>
       <v-card-actions class="d-flex flex-wrap justify-center center">
         <button
+          ref="cancelButton"
+          type="button"
           :disabled="busy"
           :loading="busy"
           class="ignore-vuetify-classes btn me-2 mb-1"
@@ -46,7 +56,10 @@
 </template>
 
 <script>
+import confirmDialogFocusMixin from '../../../js/ConfirmDialogFocusMixin.js';
+
 export default {
+  mixins: [confirmDialogFocusMixin],
   props: {
     /**
      * The fields the host is changing, when it is changing named fields rather

@@ -4,13 +4,21 @@
     :width="width"
     content-class="response-scope-dialog uiPopup width-auto layout-drawer"
     max-width="100vw">
-    <v-card class="elevation-12 transparent">
+    <v-card
+      ref="card"
+      class="elevation-12 transparent"
+      role="alertdialog"
+      aria-modal="true"
+      :aria-labelledby="confirmDialogTitleId">
       <div class="ignore-vuetify-classes popupHeader ClearFix layout-drawer">
-        <a
-          class="uiIconClose pull-right"
-          aria-hidden="true"
-          @click="close"></a>
-        <span class="ignore-vuetify-classes PopupTitle popupTitle text-title text-truncate">
+        <button
+          type="button"
+          class="uiIconClose pull-right no-border pa-0 transparent clickable"
+          :aria-label="$t('agenda.button.close')"
+          @click="close"></button>
+        <span
+          :id="confirmDialogTitleId"
+          class="ignore-vuetify-classes PopupTitle popupTitle text-title text-truncate">
           {{ $t('agenda.title.confirmSaveRecurrentEvent') }}
         </span>
       </div>
@@ -32,6 +40,8 @@
       </v-card-text>
       <v-card-actions class="d-flex flex-wrap justify-center center">
         <button
+          ref="cancelButton"
+          type="button"
           :disabled="loading"
           :loading="loading"
           class="ignore-vuetify-classes btn me-2 mb-1"
@@ -51,7 +61,10 @@
 </template>
 
 <script>
+import confirmDialogFocusMixin from '../../../js/ConfirmDialogFocusMixin.js';
+
 export default {
+  mixins: [confirmDialogFocusMixin],
   props: {
     event: {
       type: Object,
