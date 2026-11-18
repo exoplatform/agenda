@@ -22,13 +22,11 @@ import java.util.Map;
 import org.exoplatform.ws.frameworks.json.impl.JsonException;
 import org.exoplatform.ws.frameworks.json.impl.JsonGeneratorImpl;
 
-import groovy.transform.ToString;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
 @Data
 @AllArgsConstructor
-@ToString
 public class WebSocketMessage {
 
   String              wsEventName;
