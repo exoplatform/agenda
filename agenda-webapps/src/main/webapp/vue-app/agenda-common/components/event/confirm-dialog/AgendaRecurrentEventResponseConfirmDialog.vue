@@ -9,7 +9,8 @@
       class="elevation-12 transparent"
       role="alertdialog"
       aria-modal="true"
-      :aria-labelledby="confirmDialogTitleId">
+      :aria-labelledby="confirmDialogTitleId"
+      :aria-describedby="confirmDialogQuestionId">
       <div class="ignore-vuetify-classes popupHeader ClearFix layout-drawer">
         <button
           type="button"
@@ -24,6 +25,10 @@
       </div>
       <v-card-text>
         <v-radio-group v-model="recurrenceResponseType">
+          <!-- the question the radios answer: the group's name, and the dialog's description -->
+          <template #label>
+            <span :id="confirmDialogQuestionId" class="d-sr-only">{{ $t('agenda.recurrentEventChoiceQuestion') }}</span>
+          </template>
           <v-radio
             :label="$t('agenda.onlyThisEvent')"
             class="response-scope-single"
@@ -101,6 +106,7 @@ export default {
         eventObject.preventDefault();
         eventObject.stopPropagation();
       }
+      this.confirmDialogConfirmed();
       if (this.recurrenceResponseType === 'single') {
         this.confirmOccurrenceEvent();
       } else if (this.recurrenceResponseType === 'all') {
@@ -150,6 +156,7 @@ export default {
       this.dialog = false;
     },
     open(eventResponse) {
+      this.captureConfirmDialogOpener();
       this.eventResponse = eventResponse;
       this.dialog = true;
     },
