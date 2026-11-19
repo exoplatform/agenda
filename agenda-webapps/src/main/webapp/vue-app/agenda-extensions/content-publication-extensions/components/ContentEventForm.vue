@@ -350,7 +350,7 @@ export default {
     enabledConferenceProviderName() {
       return this.conferenceProviders
           && this.conferenceProviders.length > 0
-          && this.conferenceProviders.find((provider) => provider.configured);
+          && this.conferenceProviders.find((provider) => provider.isInitialized && provider.configured);
     },
     conferenceProvider() {
       return this.conferenceProviders && this.enabledConferenceProviderName
