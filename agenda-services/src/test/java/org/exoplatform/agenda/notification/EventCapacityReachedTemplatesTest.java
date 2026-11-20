@@ -62,7 +62,8 @@ public class EventCapacityReachedTemplatesTest {
 
     assertTrue(mail.contains("[Notification.agenda.event.capacityReached]"));
     assertTrue(mail.contains("Weekly sync"));
-    assertTrue(mail.contains("href=\"" + EVENT_URL + "\""));
+    // the address of the button is written as HTML, where an ampersand is &amp;
+    assertTrue(mail.contains("href=\"" + EVENT_URL.replace("&", "&amp;") + "\""));
     assertTrue(mail.contains("[Notification.agenda.event.checkParticipants]"));
     assertTrue(mail.contains("Alice"));
     assertTrue(mail.contains(FOOTER_KEY));
