@@ -7,18 +7,31 @@
     width="300"
     eager
     @keydown="keepEscape">
-    <v-card class="elevation-12 transparent">
+    <v-card
+      ref="card"
+      class="elevation-12 transparent"
+      role="alertdialog"
+      aria-modal="true"
+      :aria-labelledby="confirmDialogTitleId"
+      :aria-describedby="confirmDialogQuestionId">
       <div class="ignore-vuetify-classes popupHeader ClearFix layout-drawer">
-        <a
-          class="uiIconClose pull-right"
-          aria-hidden="true"
-          @click="dismiss"></a>
-        <span class="ignore-vuetify-classes PopupTitle popupTitle text-title text-truncate">
+        <button
+          type="button"
+          class="uiIconClose pull-right no-border pa-0 transparent clickable"
+          :aria-label="$t('agenda.button.close')"
+          @click="dismiss"></button>
+        <span
+          :id="confirmDialogTitleId"
+          class="ignore-vuetify-classes PopupTitle popupTitle text-title text-truncate">
           {{ $t('agenda.confirmSaveRecurrentEventTitle') }}
         </span>
       </div>
       <v-card-text>
         <v-radio-group v-model="recurrenceModificationType">
+          <!-- the question the radios answer: the group's name, and the dialog's description -->
+          <template #label>
+            <span :id="confirmDialogQuestionId" class="d-sr-only">{{ $t('agenda.recurrentEventChoiceQuestion') }}</span>
+          </template>
           <v-radio :label="$t('agenda.onlyThisEvent')" value="single" />
           <v-radio :label="$t('agenda.thisAndUpcomingEvents')" value="upcoming" />
           <v-radio :label="$t('agenda.allEvents')" value="all" />
@@ -26,6 +39,8 @@
       </v-card-text>
       <v-card-actions class="d-flex flex-wrap justify-center center">
         <button
+          ref="cancelButton"
+          type="button"
           :disabled="busy"
           :loading="busy"
           class="ignore-vuetify-classes btn me-2 mb-1"
@@ -46,7 +61,10 @@
 </template>
 
 <script>
+import confirmDialogFocusMixin from '../../../js/ConfirmDialogFocusMixin.js';
+
 export default {
+  mixins: [confirmDialogFocusMixin],
   props: {
     /**
      * The fields the host is changing, when it is changing named fields rather
@@ -168,6 +186,7 @@ export default {
       if (this.busy) {
         return;
       }
+      this.confirmDialogConfirmed();
       this.loading = true;
       let work = null;
       if (this.recurrenceModificationType === 'single') {
@@ -499,6 +518,7 @@ export default {
      * @returns {void}
      */
     open(event, changeDatesOnly, formAttendeesDelta, confirmClose) {
+      this.captureConfirmDialogOpener();
       this.event = event;
       this.recurrenceModificationType = 'single';
       this.changeDatesOnly = changeDatesOnly;
