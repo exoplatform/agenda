@@ -1,4 +1,4 @@
-<table border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="#ffffff" align="center" style="width:100%;overflow-wrap:anywhere;word-break:break-word;background-color: #ffffff; font-size: 15px;color: #1d2327;line-height: 1.7;font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()};" dir="${io.meeds.portal.mail.EmailLayout.dir(_ctx.language)}">
+<table border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="#ffffff" align="center" style="width:100%;overflow-wrap:anywhere;word-break:break-word;background-color: #ffffff; font-size: 15px;color: #1d2327;line-height: 1.7;font-family: ${io.meeds.portal.mail.util.EmailLayout.fontStack()};" dir="${io.meeds.portal.mail.util.EmailLayout.dir(_ctx.language)}">
     <%
       String headerTitle = "";
       if(org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType) && isCreator){
@@ -28,28 +28,28 @@
                     <td>
                         <table border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="#ffffff" style="background-color: #ffffff; color: #1d2327;line-height: 1.7;">
                             <tr>
-                                <td align="${io.meeds.portal.mail.EmailLayout.start(_ctx.language)}" bgcolor="#ffffff" style="background-color: #ffffff;padding: 30px 0 10px 0;">
-                                    <p style="margin: 0 0 14px; font-size: 15px; color: #1d2327; font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()};"><%=io.meeds.portal.mail.EmailLayout.greeting(_ctx.appRes("Notification.label.SayHello"), isGuest ? null : _ctx.escapeHTML(FIRSTNAME))%>
+                                <td align="${io.meeds.portal.mail.util.EmailLayout.start(_ctx.language)}" bgcolor="#ffffff" style="background-color: #ffffff;padding: 30px 0 10px 0;">
+                                    <p style="margin: 0 0 14px; font-size: 15px; color: #1d2327; font-family: ${io.meeds.portal.mail.util.EmailLayout.fontStack()};"><%=io.meeds.portal.mail.util.EmailLayout.greeting(_ctx.appRes("Notification.label.SayHello"), isGuest ? null : _ctx.escapeHTML(FIRSTNAME))%>
                                     </p>
                                     <table border="0" cellpadding="0" cellspacing="0" >
                                         <tr>
                                             <td dir="auto">
-                                                <p style="margin:0; color:#1d2327; line-height:1.7; font-size:15px; font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()};" dir="auto">
+                                                <p style="margin:0; color:#1d2327; line-height:1.7; font-size:15px; font-family: ${io.meeds.portal.mail.util.EmailLayout.fontStack()};" dir="auto">
                                                     <%
-                                                    String eventTitle = io.meeds.portal.mail.EmailLayout.entityLink(eventTitle, eventURL);
-                                                    String creatorName = io.meeds.portal.mail.EmailLayout.entityLink(creatorName, null);
+                                                    String eventTitle = io.meeds.portal.mail.util.EmailLayout.entityLink(eventTitle, eventURL);
+                                                    String creatorName = io.meeds.portal.mail.util.EmailLayout.entityLink(creatorName, null);
                                                     if (org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType) && isCreator) { %>
                                                       <%= _ctx.appRes("Notification.agenda.event.createdForCreator", eventTitle, creatorName) %>
                                                     <% } else if (org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType)) { %>
                                                       <%= _ctx.appRes("Notification.agenda.event.created", eventTitle, creatorName) %>
                                                       <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType) && org.exoplatform.agenda.constant.EventStatus.CONFIRMED.name().equals(eventStatus) && isCreator){ %>
                                                       <%
-                                                        String profileModifierUrl = "<a target=\"_blank\" style=\"color: ${io.meeds.portal.mail.EmailLayout.linkColor()}; text-decoration: none; font-weight: bold; font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()}\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
+                                                        String profileModifierUrl = "<a target=\"_blank\" style=\"color: ${io.meeds.portal.mail.util.EmailLayout.linkColor()}; text-decoration: none; font-weight: bold; font-family: ${io.meeds.portal.mail.util.EmailLayout.fontStack()}\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
                                                       %>
                                                       <%= _ctx.appRes("Notification.agenda.event.mail.body.updatedForUpdater", eventTitle, profileModifierUrl) %>
                                                       <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType) && org.exoplatform.agenda.constant.EventStatus.CONFIRMED.name().equals(eventStatus)){ %>
                                                       <%
-                                                        String profileModifierUrl = "<a target=\"_blank\" style=\"color: ${io.meeds.portal.mail.EmailLayout.linkColor()}; text-decoration: none; font-weight: bold; font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()}\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
+                                                        String profileModifierUrl = "<a target=\"_blank\" style=\"color: ${io.meeds.portal.mail.util.EmailLayout.linkColor()}; text-decoration: none; font-weight: bold; font-family: ${io.meeds.portal.mail.util.EmailLayout.fontStack()}\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
                                                       %>
                                                       <%= _ctx.appRes("Notification.agenda.event.mail.body.updated", eventTitle, profileModifierUrl) %>
                                                       <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType) && org.exoplatform.agenda.constant.EventStatus.CONFIRMED.name().equals(eventStatus)){ %>
@@ -58,12 +58,12 @@
                                                         <%= _ctx.appRes("Notification.agenda.event.mail.body.datePoll.deleted", eventTitle) %>
                                                       <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DATES_UPDATED.name().equals(modificationType) && isCreator){ %>
                                                       <%
-                                                        String profileModifierUrl = "<a target=\"_blank\" style=\"color: ${io.meeds.portal.mail.EmailLayout.linkColor()}; text-decoration: none; font-weight: bold; font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()}\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
+                                                        String profileModifierUrl = "<a target=\"_blank\" style=\"color: ${io.meeds.portal.mail.util.EmailLayout.linkColor()}; text-decoration: none; font-weight: bold; font-family: ${io.meeds.portal.mail.util.EmailLayout.fontStack()}\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
                                                       %>
                                                       <%= _ctx.appRes("Notification.agenda.event.mail.body.updatedForUpdater", eventTitle) %>
                                                                 <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DATES_UPDATED.name().equals(modificationType)){ %>
                                                       <%
-                                                        String profileModifierUrl = "<a target=\"_blank\" style=\"color: ${io.meeds.portal.mail.EmailLayout.linkColor()}; text-decoration: none; font-weight: bold; font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()}\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
+                                                        String profileModifierUrl = "<a target=\"_blank\" style=\"color: ${io.meeds.portal.mail.util.EmailLayout.linkColor()}; text-decoration: none; font-weight: bold; font-family: ${io.meeds.portal.mail.util.EmailLayout.fontStack()}\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
                                                       %>
                                                       <%= _ctx.appRes("Notification.agenda.event.mail.body.dates.updated", eventTitle, profileModifierUrl) %>
                                                                 <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.DATES_UPDATED.name().equals(modificationType) && org.exoplatform.agenda.constant.EventStatus.TENTATIVE.name().equals(eventStatus)){ %>
@@ -72,30 +72,30 @@
                                                          <%= _ctx.appRes("Notification.agenda.event.datePoll.updated", eventTitle) %>
                                                     <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.SWITCHED_EVENT_TO_DATE_POLL.name().equals(modificationType)){ %>
                                                       <%
-                                                        String profileModifierUrl = "<a target=\"_blank\" style=\"color: ${io.meeds.portal.mail.EmailLayout.linkColor()}; text-decoration: none; font-weight: bold; font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()}\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
+                                                        String profileModifierUrl = "<a target=\"_blank\" style=\"color: ${io.meeds.portal.mail.util.EmailLayout.linkColor()}; text-decoration: none; font-weight: bold; font-family: ${io.meeds.portal.mail.util.EmailLayout.fontStack()}\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
                                                       %>
                                                       <%= _ctx.appRes("Notification.agenda.event.mail.body.switchedToDatePoll", eventTitle, profileModifierUrl) %>
                                                     <% } else if(org.exoplatform.agenda.constant.AgendaEventModificationType.SWITCHED_DATE_POLL_TO_EVENT.name().equals(modificationType)){ %>
                                                       <%
-                                                        String profileModifierUrl = "<a target=\"_blank\" style=\"color: ${io.meeds.portal.mail.EmailLayout.linkColor()}; text-decoration: none; font-weight: bold; font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()}\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
+                                                        String profileModifierUrl = "<a target=\"_blank\" style=\"color: ${io.meeds.portal.mail.util.EmailLayout.linkColor()}; text-decoration: none; font-weight: bold; font-family: ${io.meeds.portal.mail.util.EmailLayout.fontStack()}\" href=\""+ modifierProfileUrl + "\">" + _ctx.escapeHTML(modifierName) + "</a>";
                                                       %>
                                                       <%= _ctx.appRes("Notification.agenda.event.mail.body.switchedToEvent", eventTitle, profileModifierUrl) %>
                                                     <% } %>
                                                 </p>
                                                 <%
                                                 if (!org.exoplatform.agenda.constant.AgendaEventModificationType.DELETED.name().equals(modificationType) && !isCreator) { %>
-                                                <div dir="${io.meeds.portal.mail.EmailLayout.dir(_ctx.language)}" style="margin: 20px 0 8px 0;">
-                                                    <%=io.meeds.portal.mail.EmailLayout.actionLink(_ctx.appRes("Notification.agenda.event.accepted"), acceptedResponseURL, true)%>
+                                                <div dir="${io.meeds.portal.mail.util.EmailLayout.dir(_ctx.language)}" style="margin: 20px 0 8px 0;">
+                                                    <%=io.meeds.portal.mail.util.EmailLayout.actionLink(_ctx.appRes("Notification.agenda.event.accepted"), acceptedResponseURL, true)%>
 
-                                                    <%=io.meeds.portal.mail.EmailLayout.actionLink(_ctx.appRes("Notification.agenda.event.declined"), declinedResponseURL, false)%>
+                                                    <%=io.meeds.portal.mail.util.EmailLayout.actionLink(_ctx.appRes("Notification.agenda.event.declined"), declinedResponseURL, false)%>
 
-                                                    <%=io.meeds.portal.mail.EmailLayout.actionLink(_ctx.appRes("Notification.agenda.event.tentative"), tentativeResponseURL, false)%>
+                                                    <%=io.meeds.portal.mail.util.EmailLayout.actionLink(_ctx.appRes("Notification.agenda.event.tentative"), tentativeResponseURL, false)%>
 
                                                     <%
                                                     boolean addedEvent = org.exoplatform.agenda.constant.AgendaEventModificationType.ADDED.name().equals(modificationType);
                                                     boolean updatedEvent = org.exoplatform.agenda.constant.AgendaEventModificationType.UPDATED.name().equals(modificationType);
                                                     if (!isGuest && (addedEvent || updatedEvent)) { %>
-                                                                                           <%=io.meeds.portal.mail.EmailLayout.actionLink(addedEvent ? _ctx.appRes("Notification.agenda.event.reply") : _ctx.appRes("Notification.agenda.event.view"), eventURL, false)%>
+                                                                                           <%=io.meeds.portal.mail.util.EmailLayout.actionLink(addedEvent ? _ctx.appRes("Notification.agenda.event.reply") : _ctx.appRes("Notification.agenda.event.view"), eventURL, false)%>
                                                     <% } %>
                                                 </div>
                                                <% } %>
@@ -115,12 +115,12 @@
         <td style="padding:0 24px;">
             <table role="presentation" cellpadding="0" cellspacing="0" width="100%" bgcolor="#ffffff" style="max-width:600px;margin:0 auto;background-color: #ffffff;">
                 <tr>
-                    <td align="${io.meeds.portal.mail.EmailLayout.start(_ctx.language)}" bgcolor="#ffffff" style="background-color: #ffffff;padding: 10px 0 0 0;" dir="auto">
+                    <td align="${io.meeds.portal.mail.util.EmailLayout.start(_ctx.language)}" bgcolor="#ffffff" style="background-color: #ffffff;padding: 10px 0 0 0;" dir="auto">
         <%
           String conferenceHtml = "";
           try {
             if (conference != null) {
-              conferenceHtml = io.meeds.portal.mail.EmailLayout.entityLink(_ctx.appRes("Notification.agenda.event.webconference.link"), conference);
+              conferenceHtml = io.meeds.portal.mail.util.EmailLayout.entityLink(_ctx.appRes("Notification.agenda.event.webconference.link"), conference);
             }
           } catch (MissingPropertyException e) {
             // no web conference for this event
@@ -132,16 +132,16 @@
             whenHtml += "<br><span style=\"font-size:13px;color:#5d676d;\">" + _ctx.escapeHTML(recurrenceDetails.toString()) + "</span>";
           }
         %>
-                        <p style="margin:0 0 8px; color:#1d2327; line-height:1.7; font-size:15px; font-weight:bold; font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()};" dir="auto"><%=_ctx.appRes("Notification.agenda.event.details")%></p>
-                        <%=io.meeds.portal.mail.EmailLayout.factsIn(_ctx.language,
+                        <p style="margin:0 0 8px; color:#1d2327; line-height:1.7; font-size:15px; font-weight:bold; font-family: ${io.meeds.portal.mail.util.EmailLayout.fontStack()};" dir="auto"><%=_ctx.appRes("Notification.agenda.event.details")%></p>
+                        <%=io.meeds.portal.mail.util.EmailLayout.factsIn(_ctx.language,
               _ctx.appRes("Notification.agenda.event.space.name"), _ctx.escapeHTML(agendaName),
               _ctx.appRes("Notification.agenda.event.date"), whenHtml,
               _ctx.appRes("Notification.agenda.event.location"), _ctx.escapeHTML(eventLocation),
               _ctx.appRes("Notification.agenda.event.description"), eventDescription,
               _ctx.appRes("Notification.agenda.event.attendees"), _ctx.escapeHTML(attendees),
               _ctx.appRes("Notification.agenda.event.webconference"), conferenceHtml)%>
-                        <% if (!isGuest) { %><p style="margin:28px 0 0 0; color: #5d676d;font-size: 13px;font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()}">
-                            <%=io.meeds.portal.mail.EmailLayout.linkStyled(_ctx.appRes("Notification.label.footer", FOOTER_LINK))%>
+                        <% if (!isGuest) { %><p style="margin:28px 0 0 0; color: #5d676d;font-size: 13px;font-family: ${io.meeds.portal.mail.util.EmailLayout.fontStack()}">
+                            <%=io.meeds.portal.mail.util.EmailLayout.linkStyled(_ctx.appRes("Notification.label.footer", FOOTER_LINK))%>
                         </p><% } %>
                     </td>
                 </tr>

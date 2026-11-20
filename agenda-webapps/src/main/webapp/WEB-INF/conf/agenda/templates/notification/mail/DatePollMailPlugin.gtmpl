@@ -1,4 +1,4 @@
-<table border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="#ffffff" align="center" style="width:100%;overflow-wrap:anywhere;word-break:break-word;background-color: #ffffff; font-size: 15px;color: #1d2327;line-height: 1.7;font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()};" dir="${io.meeds.portal.mail.EmailLayout.dir(_ctx.language)}">
+<table border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="#ffffff" align="center" style="width:100%;overflow-wrap:anywhere;word-break:break-word;background-color: #ffffff; font-size: 15px;color: #1d2327;line-height: 1.7;font-family: ${io.meeds.portal.mail.util.EmailLayout.fontStack()};" dir="${io.meeds.portal.mail.util.EmailLayout.dir(_ctx.language)}">
     <%
       _templateContext.put("header_title", _ctx.appRes("Notification.title.DatePollNotificationPlugin"));
       _ctx.include("war:/notification/templates/mail/NotificationHeader.gtmpl", _templateContext);
@@ -10,27 +10,27 @@
                     <td>
                         <table border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="#ffffff" style="background-color: #ffffff; color: #1d2327;line-height: 1.7;">
                             <tr>
-                                <td align="${io.meeds.portal.mail.EmailLayout.start(_ctx.language)}" bgcolor="#ffffff" style="background-color: #ffffff;padding: 30px 0 10px 0;">
-                                    <p style="margin: 0 0 14px; font-size: 15px; color: #1d2327; font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()};"><%=_ctx.appRes("Notification.label.SayHello")%> <%=_ctx.escapeHTML(FIRSTNAME)%>,</p>
+                                <td align="${io.meeds.portal.mail.util.EmailLayout.start(_ctx.language)}" bgcolor="#ffffff" style="background-color: #ffffff;padding: 30px 0 10px 0;">
+                                    <p style="margin: 0 0 14px; font-size: 15px; color: #1d2327; font-family: ${io.meeds.portal.mail.util.EmailLayout.fontStack()};"><%=_ctx.appRes("Notification.label.SayHello")%> <%=_ctx.escapeHTML(FIRSTNAME)%>,</p>
                                     <table border="0" cellpadding="0" cellspacing="0" >
                                         <tr>
                                             <td dir="auto">
-                                                <p style="margin:0; color:#1d2327; line-height:1.7; font-size:15px; font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()};" dir="auto">
+                                                <p style="margin:0; color:#1d2327; line-height:1.7; font-size:15px; font-family: ${io.meeds.portal.mail.util.EmailLayout.fontStack()};" dir="auto">
                                                     <%
-                                                    String eventTitle = io.meeds.portal.mail.EmailLayout.entityLink(eventTitle, eventURL);
-                                                    String agendaName = io.meeds.portal.mail.EmailLayout.entityLink(agendaName, null);
-                                                    String creatorName = io.meeds.portal.mail.EmailLayout.entityLink(creatorName, null);
+                                                    String eventTitle = io.meeds.portal.mail.util.EmailLayout.entityLink(eventTitle, eventURL);
+                                                    String agendaName = io.meeds.portal.mail.util.EmailLayout.entityLink(agendaName, null);
+                                                    String creatorName = io.meeds.portal.mail.util.EmailLayout.entityLink(creatorName, null);
                                                     %>
                                                     <%= _ctx.appRes("Notification.agenda.event.mail.body.datePoll", creatorName, eventTitle, agendaName) %>
                                                 </p>
-                                                <div dir="${io.meeds.portal.mail.EmailLayout.dir(_ctx.language)}" style="margin: 20px 0 8px 0;">
-                                                    <%=io.meeds.portal.mail.EmailLayout.actionLink(_ctx.appRes("Notification.agenda.event.viewPoll"), eventURL, true)%>
+                                                <div dir="${io.meeds.portal.mail.util.EmailLayout.dir(_ctx.language)}" style="margin: 20px 0 8px 0;">
+                                                    <%=io.meeds.portal.mail.util.EmailLayout.actionLink(_ctx.appRes("Notification.agenda.event.viewPoll"), eventURL, true)%>
                                                 </div>
                                             </td>
                                         </tr>
                                     </table>
-                                    <p style="margin:28px 0 0 0; color: #5d676d;font-size: 13px;font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()}">
-                                        <%=io.meeds.portal.mail.EmailLayout.linkStyled(_ctx.appRes("Notification.label.footer", FOOTER_LINK))%>
+                                    <p style="margin:28px 0 0 0; color: #5d676d;font-size: 13px;font-family: ${io.meeds.portal.mail.util.EmailLayout.fontStack()}">
+                                        <%=io.meeds.portal.mail.util.EmailLayout.linkStyled(_ctx.appRes("Notification.label.footer", FOOTER_LINK))%>
                                     </p>
                                 </td>
                             </tr>
