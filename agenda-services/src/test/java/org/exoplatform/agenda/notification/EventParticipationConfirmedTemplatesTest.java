@@ -64,7 +64,8 @@ public class EventParticipationConfirmedTemplatesTest {
 
     assertTrue(mail.contains("[Notification.agenda.event.participationConfirmed]"));
     assertTrue(mail.contains("Weekly sync"));
-    assertTrue(mail.contains("href=\"" + EVENT_URL + "\""));
+    // the address of the button is written as HTML, where an ampersand is &amp;
+    assertTrue(mail.contains("href=\"" + EVENT_URL.replace("&", "&amp;") + "\""));
     assertTrue(mail.contains("[Notification.agenda.event.open]"));
     assertTrue(mail.contains("Alice"));
     assertTrue(mail.contains(FOOTER_KEY));
@@ -167,6 +168,16 @@ public class EventParticipationConfirmedTemplatesTest {
    * which label is used with what.
    */
   public static class TemplateContextStub {
+
+    /**
+     * Stands for the language of the notification, which the templates read
+     * to set the direction of the email.
+     *
+     * @return the English language, written from left to right
+     */
+    public String getLanguage() {
+      return "en";
+    }
 
     /**
      * @param key key of the label to resolve
