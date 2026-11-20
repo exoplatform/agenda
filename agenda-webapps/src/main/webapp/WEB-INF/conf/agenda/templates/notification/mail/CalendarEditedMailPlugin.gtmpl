@@ -1,23 +1,22 @@
-<table border="0" cellpadding="0" cellspacing="0" width="600" bgcolor="#ffffff" align="center" style="background-color: #ffffff; font-size: 12px;color:#333333;line-height: 18px;font-family: HelveticaNeue, Helvetica, Arial, sans-serif;">
+<table border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="#ffffff" align="center" style="width:100%;overflow-wrap:anywhere;word-break:break-word;background-color: #ffffff; font-size: 15px;color: #1d2327;line-height: 1.7;font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()};" dir="${io.meeds.portal.mail.EmailLayout.dir(_ctx.language)}">
     <%
       _templateContext.put("header_title", _ctx.appRes("Notification.title.CalendarEditedNotificationPlugin", _ctx.escapeHTML(calendarName)));
       _ctx.include("war:/notification/templates/mail/NotificationHeader.gtmpl", _templateContext);
     %>
     <tr>
-        <td bgcolor="#ffffff" style="background-color: #ffffff;">
-            <table cellpadding="0" cellspacing="0" width="100%"  bgcolor="#ffffff" style="background-color: #ffffff; border-bottom:1px solid #d8d8d8;border-left:1px solid #d8d8d8;border-right:1px solid #d8d8d8;">
+        <td style="padding:0 24px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" width="100%" bgcolor="#ffffff" style="max-width:600px;margin:0 auto;background-color: #ffffff;">
                 <tr>
                     <td>
-                        <table border="0" cellpadding="0" cellspacing="0" width="92%" bgcolor="#ffffff" align="center" style="background-color: #ffffff; color:#333333;line-height:20px;">
+                        <table border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="#ffffff" style="background-color: #ffffff; color: #1d2327;line-height: 1.7;">
                             <tr>
-                                <td align="left" bgcolor="#ffffff" style="background-color: #ffffff;padding: 10px 0;">
-                                    <p style="margin: 10px 0;"><%=_ctx.appRes("Notification.label.SayHello")%> <%=_ctx.escapeHTML(FIRSTNAME)%>,</p>
-                                    <p style="margin: 10px 0 13px;">
+                                <td align="${io.meeds.portal.mail.EmailLayout.start(_ctx.language)}" bgcolor="#ffffff" style="background-color: #ffffff;padding: 30px 0 10px 0;" dir="auto">
+                                    <p style="margin: 0 0 14px; font-size: 15px; color: #1d2327; font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()};"><%=_ctx.appRes("Notification.label.SayHello")%> <%=_ctx.escapeHTML(FIRSTNAME)%>,</p>
+                                    <p style="margin:0 0 14px; color:#1d2327; line-height:1.7; font-size:15px; font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()};" dir="auto">
                                         <%
-                                        String bold = "color: #2f5e92; font-family: 'HelveticaNeue Bold', Helvetica, Arial, sans-serif";
-                                        String modifier = "<span style=\"" + bold + "\">" + _ctx.escapeHTML(modifierName) + "</span>";
-                                        String calendar = "<span style=\"" + bold + "\">" + _ctx.escapeHTML(calendarName) + "</span>";
-                                        String summary = "<span style=\"" + bold + "\">" + _ctx.escapeHTML(changedEventSummary) + "</span>";
+                                        String modifier = io.meeds.portal.mail.EmailLayout.entityLink(modifierName, null);
+                                        String calendar = io.meeds.portal.mail.EmailLayout.entityLink(calendarName, agendaURL);
+                                        String summary = io.meeds.portal.mail.EmailLayout.entityLink(changedEventSummary, null);
                                         // One sentence per kind of change; a
                                         // removal names no event when the
                                         // deleted one carried no summary
@@ -34,26 +33,14 @@
                                             ? _ctx.appRes(key, modifier, calendar)
                                             : _ctx.appRes(key, modifier, summary, calendar) %>
                                     </p>
-                                    <p style="margin: 0 0 13px; color:#999999;">
+                                    <p style="margin:0; color:#5d676d; line-height:1.7; font-size:15px; font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()};" dir="auto">
                                         <%= _ctx.appRes("Notification.agenda.calendar.edited.explanation") %>
                                     </p>
-                                    <p style="margin: 0 0 20px;">
-                                        <a target="_blank" style="
-                                            display: inline-block;
-                                            text-decoration: none;
-                                            font-size: 11px;
-                                            font-family:HelveticaNeue,arial,tahoma,serif;
-                                            color: #333333;
-                                            padding: 5px 8px;
-                                            line-height: 100%;
-                                            text-align: center;
-                                            vertical-align: middle;"
-                                           href="<%= agendaURL %>">
-                                              <%= _ctx.appRes("Notification.agenda.calendar.edited.open") %>
-                                        </a>
-                                    </p>
-                                    <p style="margin:30px 0 10px 0; color: #999999;font-size:13px;font-family:HelveticaNeue,arial,tahoma,serif">
-                                        <%=_ctx.appRes("Notification.label.footer", FOOTER_LINK)%>
+                                    <div dir="${io.meeds.portal.mail.EmailLayout.dir(_ctx.language)}" style="margin: 20px 0 8px 0;">
+                                        <%=io.meeds.portal.mail.EmailLayout.actionLink(_ctx.appRes("Notification.agenda.calendar.edited.open"), agendaURL, true)%>
+                                    </div>
+                                    <p style="margin:28px 0 0 0; color: #5d676d;font-size: 13px;font-family: ${io.meeds.portal.mail.EmailLayout.fontStack()}">
+                                        <%=io.meeds.portal.mail.EmailLayout.linkStyled(_ctx.appRes("Notification.label.footer", FOOTER_LINK))%>
                                     </p>
                                 </td>
                             </tr>
