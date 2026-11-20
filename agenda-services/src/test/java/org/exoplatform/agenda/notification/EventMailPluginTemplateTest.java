@@ -150,9 +150,19 @@ public class EventMailPluginTemplateTest {
 
   /**
    * Minimal stand-in for the notification template context, exposing only the
-   * three methods the invitation mail template calls on it.
+   * four members the invitation mail template calls on it.
    */
   public static class TemplateContextStub {
+
+    /**
+     * Stands for the language of the notification, which the templates read
+     * to set the direction of the email.
+     *
+     * @return the English language, written from left to right
+     */
+    public String getLanguage() {
+      return "en";
+    }
 
     /**
      * Stands for the resolution of an internationalized label, echoing the key
