@@ -146,6 +146,31 @@ public class RestUtilsParentConferencesTest extends BaseAgendaEventTest {
                eventEntity.getParent().getConferences());
   }
 
+  /**
+   * A link stored before links that run a script were refused is not on the
+   * entity, whose other links are.
+   *
+   * @throws Exception when a service call fails unexpectedly
+   */
+  @Test
+  public void aScriptLinkStoredBeforeIsNotReturnedByTheConferencesExpand() throws Exception { // NOSONAR
+    Event event = createRecurrentEventWithConference();
+    Event occurrence = firstOccurrenceOf(event);
+    org.exoplatform.agenda.model.EventConference script =
+                                                       new org.exoplatform.agenda.model.EventConference(0, event.getId(), "web", "javascript:alert(1)", null, null, null);
+    org.exoplatform.agenda.model.EventConference https =
+                                                      new org.exoplatform.agenda.model.EventConference(0, event.getId(), "web", "https://meet.example.com/room", null, null, null);
+    org.exoplatform.agenda.storage.AgendaEventConferenceStorage storage =
+                                                                         container.getComponentInstanceOfType(org.exoplatform.agenda.storage.AgendaEventConferenceStorage.class);
+    storage.saveEventConference(script);
+    storage.saveEventConference(https);
+
+    EventEntity eventEntity = buildEntity(event, occurrence, Arrays.asList("all", "conferences"));
+
+    List<String> urls = eventEntity.getConferences().stream().map(org.exoplatform.agenda.model.EventConference::getUrl).toList();
+    assertEquals(Arrays.asList("conf_uri", "https://meet.example.com/room"), urls);
+  }
+
   private Event createRecurrentEventWithConference() throws Exception { // NOSONAR
     ZonedDateTime start = ZonedDateTime.now().withNano(0).plusDays(1);
     Event event = newEventInstance(start, start.plusHours(1), false);

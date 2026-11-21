@@ -13,7 +13,8 @@ public interface AgendaEventConferenceService {
    * Return the list of conferences of an event
    * 
    * @param eventId agenda {@link Event} identifier
-   * @return {@link List} of {@link EventConference}
+   * @return {@link List} of {@link EventConference}, without a link that runs a
+   *         script, which stays stored
    */
   public List<EventConference> getEventConferences(long eventId);
 

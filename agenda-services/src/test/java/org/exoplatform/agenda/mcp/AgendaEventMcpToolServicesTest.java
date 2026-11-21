@@ -18,6 +18,7 @@ package org.exoplatform.agenda.mcp;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -41,10 +42,12 @@ import org.exoplatform.agenda.mcp.model.AgendaEventModel;
 import org.exoplatform.agenda.model.AvailabilityConflicts;
 import org.exoplatform.agenda.model.Event;
 import org.exoplatform.agenda.model.EventAttendee;
+import org.exoplatform.agenda.model.EventConference;
 import org.exoplatform.agenda.model.RemoteEvent;
 import org.exoplatform.agenda.service.AgendaAvailabilityService;
 import org.exoplatform.agenda.service.AgendaScheduleConflictService;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
+import org.exoplatform.agenda.storage.AgendaEventConferenceStorage;
 import org.exoplatform.agenda.util.AgendaDateUtils;
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.portal.config.UserPortalConfigService;
@@ -326,6 +329,31 @@ public class AgendaEventMcpToolServicesTest extends BaseAgendaEventTest {
     AgendaEventModel model = listed.stream().filter(listedEvent -> listedEvent.getId() == eventId).findFirst().orElse(null);
     assertNotNull("the event the user is waiting for is listed", model);
     assertEquals(EventAttendeeResponse.WAITING, model.getUserAnswer());
+  }
+
+  /**
+   * A link stored before links that run a script were refused is returned by
+   * neither the conference tool nor the event model, whose other links are.
+   *
+   * @throws Exception when the event can't be created or read
+   */
+  @Test
+  public void aScriptLinkStoredBeforeIsNotReturnedNextToAnHttpsLink() throws Exception {
+    ZonedDateTime start = getDate().withZoneSameInstant(ZoneOffset.UTC).plusDays(3);
+    Event event = newEventInstance(start, start.plusHours(1), false);
+    event.setRecurrence(null);
+    long eventId = createEvent(event, Long.parseLong(testuser1Identity.getId())).getId();
+    AgendaEventConferenceStorage storage =
+                                                                         container.getComponentInstanceOfType(AgendaEventConferenceStorage.class);
+    storage.removeEventConference(agendaEventConferenceService.getEventConferences(eventId).get(0).getId());
+    storage.saveEventConference(new EventConference(0, eventId, "web", "javascript:alert(1)", null, null, null));
+    assertNull(tool.getEventConference(eventId).getUrl());
+    assertNull(tool.getAgendaEventById(eventId).getConferenceUrl());
+
+    storage.saveEventConference(new EventConference(0, eventId, "web", "https://meet.example.com/room", null, null, null));
+
+    assertEquals("https://meet.example.com/room", tool.getEventConference(eventId).getUrl());
+    assertEquals("https://meet.example.com/room", tool.getAgendaEventById(eventId).getConferenceUrl());
   }
 
   /**

@@ -38,9 +38,10 @@ import org.exoplatform.agenda.util.ConferenceLinkSchemeTest;
 
 /**
  * Pins that a web conference link running a script is refused by every save
- * of an event's conferences, before anything is written, while a link the
- * event already holds keeps flowing through the saves that pass the stored
- * list back.
+ * of an event's conferences, before anything is written, including one
+ * read back from storage, and that a link the event already holds is returned
+ * by no read, stays stored across the saves that pass the returned list back
+ * and is never deleted by a conference save.
  */
 public class AgendaEventConferenceLinkTest extends BaseAgendaEventTest {
 
@@ -56,7 +57,7 @@ public class AgendaEventConferenceLinkTest extends BaseAgendaEventTest {
       List<EventConference> conferences = Collections.singletonList(conference(url));
       assertThrows(url, IllegalArgumentException.class,
                    () -> agendaEventConferenceService.saveEventConferences(eventId, conferences));
-      assertStoredUrls(eventId, "conf_uri");
+      assertReturnedUrls(eventId, "conf_uri");
     }
   }
 
@@ -69,11 +70,11 @@ public class AgendaEventConferenceLinkTest extends BaseAgendaEventTest {
                                                                            .collect(Collectors.toList());
     agendaEventConferenceService.saveEventConferences(eventId, conferences);
 
-    assertStoredUrls(eventId, ConferenceLinkSchemeTest.OTHER_URLS.toArray(new String[0]));
+    assertReturnedUrls(eventId, ConferenceLinkSchemeTest.OTHER_URLS.toArray(new String[0]));
   }
 
   @Test
-  public void testSaveEventConferencesKeepsAStoredScriptLinkPassedBackUnchanged() throws Exception {
+  public void testSaveEventConferencesKeepsAStoredScriptLinkHiddenAcrossASave() throws Exception {
     long eventId = createEventWithConference().getId();
     storeLegacyScriptLink(eventId);
 
@@ -81,7 +82,60 @@ public class AgendaEventConferenceLinkTest extends BaseAgendaEventTest {
     conferences.add(conference("https://meet.example.com/room"));
     agendaEventConferenceService.saveEventConferences(eventId, conferences);
 
-    assertStoredUrls(eventId, "conf_uri", SCRIPT_URL, "https://meet.example.com/room");
+    assertReturnedUrls(eventId, "conf_uri", "https://meet.example.com/room");
+    assertHeldUrls(eventId, "conf_uri", SCRIPT_URL, "https://meet.example.com/room");
+  }
+
+  @Test
+  public void testAScriptLinkStoredBeforeIsNotReturnedNextToAnHttpsLink() throws Exception {
+    long eventId = createEventWithConference().getId();
+    storeLegacyScriptLink(eventId);
+    EventConference https = conference("https://meet.example.com/room");
+    https.setEventId(eventId);
+    container.getComponentInstanceOfType(AgendaEventConferenceStorage.class).saveEventConference(https);
+
+    assertReturnedUrls(eventId, "conf_uri", "https://meet.example.com/room");
+  }
+
+  @Test
+  public void testASaveThatEmptiesTheLinksLeavesAScriptLinkStoredBeforeAndReturnsNone() throws Exception {
+    long eventId = createEventWithConference().getId();
+    storeLegacyScriptLink(eventId);
+
+    agendaEventConferenceService.saveEventConferences(eventId, Collections.emptyList());
+
+    assertReturnedUrls(eventId);
+    assertHeldUrls(eventId, SCRIPT_URL);
+  }
+
+  @Test
+  public void testAStoredScriptLinkReadFromStorageIsRefusedWhenSentBackAndWritesNothing() throws Exception {
+    long userIdentityId = Long.parseLong(testuser1Identity.getId());
+    long eventId = createEventWithConference().getId();
+    storeLegacyScriptLink(eventId);
+    List<EventConference> held = new ArrayList<>(container.getComponentInstanceOfType(AgendaEventConferenceStorage.class)
+                                                          .getEventConferences(eventId));
+    held.add(conference("https://meet.example.com/room"));
+    Event updatedEvent = agendaEventService.getEventById(eventId, ZoneOffset.UTC, userIdentityId).clone();
+    updatedEvent.setSummary("updatedSummary");
+
+    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class,
+                                                    () -> agendaEventService.updateEvent(updatedEvent,
+                                                                                         Collections.emptyList(),
+                                                                                         held,
+                                                                                         Collections.emptyList(),
+                                                                                         null,
+                                                                                         null,
+                                                                                         false,
+                                                                                         userIdentityId));
+    assertEquals("agenda.conferenceUrlNotAllowed", refusal.getMessage());
+    assertEquals("eventSummary", agendaEventService.getEventById(eventId).getSummary());
+    assertHeldUrls(eventId, "conf_uri", SCRIPT_URL);
+
+    refusal = assertThrows(IllegalArgumentException.class,
+                           () -> agendaEventConferenceService.saveEventConferences(eventId, held));
+    assertEquals("agenda.conferenceUrlNotAllowed", refusal.getMessage());
+    assertHeldUrls(eventId, "conf_uri", SCRIPT_URL);
   }
 
   @Test
@@ -119,11 +173,11 @@ public class AgendaEventConferenceLinkTest extends BaseAgendaEventTest {
                                                       false,
                                                       userIdentityId));
     assertEquals("eventSummary", agendaEventService.getEventById(eventId).getSummary());
-    assertStoredUrls(eventId, "conf_uri");
+    assertReturnedUrls(eventId, "conf_uri");
   }
 
   @Test
-  public void testUpdateEventKeepsAStoredScriptLinkPassedBackUnchanged() throws Exception {
+  public void testUpdateEventKeepsAStoredScriptLinkHiddenAcrossASave() throws Exception {
     long userIdentityId = Long.parseLong(testuser1Identity.getId());
     long eventId = createEventWithConference().getId();
     storeLegacyScriptLink(eventId);
@@ -140,7 +194,8 @@ public class AgendaEventConferenceLinkTest extends BaseAgendaEventTest {
                                    userIdentityId);
 
     assertEquals("updatedSummary", agendaEventService.getEventById(eventId).getSummary());
-    assertStoredUrls(eventId, "conf_uri", SCRIPT_URL);
+    assertReturnedUrls(eventId, "conf_uri");
+    assertHeldUrls(eventId, "conf_uri", SCRIPT_URL);
   }
 
   @Test
@@ -152,7 +207,7 @@ public class AgendaEventConferenceLinkTest extends BaseAgendaEventTest {
     Event exceptionalOccurrence = agendaEventService.saveEventExceptionalOccurrence(seriesId, start);
 
     assertNotNull(exceptionalOccurrence);
-    assertStoredUrls(exceptionalOccurrence.getId(), "conf_uri");
+    assertReturnedUrls(exceptionalOccurrence.getId(), "conf_uri");
   }
 
   @Test
@@ -190,7 +245,7 @@ public class AgendaEventConferenceLinkTest extends BaseAgendaEventTest {
     // Dropped as a plain copy of the series, then copied again from it
     assertNull(agendaEventStorage.getEventById(copiedDate.getId()));
     Event copiedAgain = agendaEventService.saveEventExceptionalOccurrence(seriesId, occurrenceId);
-    assertStoredUrls(copiedAgain.getId(), NEW_URL);
+    assertReturnedUrls(copiedAgain.getId(), NEW_URL);
   }
 
   /**
@@ -210,7 +265,7 @@ public class AgendaEventConferenceLinkTest extends BaseAgendaEventTest {
     updateSeriesConferences(seriesId, userIdentityId, Collections.singletonList(conference(NEW_URL)));
 
     assertEquals("dateSummary", agendaEventService.getEventById(date.getId()).getSummary());
-    assertStoredUrls(date.getId(), NEW_URL);
+    assertReturnedUrls(date.getId(), NEW_URL);
   }
 
   /**
@@ -231,8 +286,9 @@ public class AgendaEventConferenceLinkTest extends BaseAgendaEventTest {
     conferences.add(conference(NEW_URL));
     updateSeriesConferences(seriesId, userIdentityId, conferences);
 
-    assertStoredUrls(seriesId, "conf_uri", SCRIPT_URL, NEW_URL);
-    assertStoredUrls(date.getId(), "conf_uri", NEW_URL);
+    assertReturnedUrls(seriesId, "conf_uri", NEW_URL);
+    assertHeldUrls(seriesId, "conf_uri", SCRIPT_URL, NEW_URL);
+    assertReturnedUrls(date.getId(), "conf_uri", NEW_URL);
   }
 
   private void updateSeriesConferences(long seriesId,
@@ -262,7 +318,22 @@ public class AgendaEventConferenceLinkTest extends BaseAgendaEventTest {
     container.getComponentInstanceOfType(AgendaEventConferenceStorage.class).saveEventConference(conference);
   }
 
-  private void assertStoredUrls(long eventId, String... expectedUrls) {
+  /**
+   * Asserts the rows the event holds, whatever the reads return.
+   */
+  private void assertHeldUrls(long eventId, String... expectedUrls) {
+    List<String> heldUrls = container.getComponentInstanceOfType(AgendaEventConferenceStorage.class)
+                                     .getEventConferences(eventId)
+                                     .stream()
+                                     .map(EventConference::getUrl)
+                                     .sorted()
+                                     .collect(Collectors.toList());
+    List<String> urls = new ArrayList<>(List.of(expectedUrls));
+    Collections.sort(urls);
+    assertEquals(urls, heldUrls);
+  }
+
+  private void assertReturnedUrls(long eventId, String... expectedUrls) {
     List<String> storedUrls = agendaEventConferenceService.getEventConferences(eventId)
                                                           .stream()
                                                           .map(EventConference::getUrl)

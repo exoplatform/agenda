@@ -1106,8 +1106,7 @@ public class AgendaEventServiceImpl implements AgendaEventService {
       // the reminder job materialised for the next days.
       if (conferencesChanged && hasSeriesConferences(rowLists.conferences(), seriesConferencesBefore)) {
         conferenceService.saveEventConferences(storedOccurrence.getId(),
-                                               copyConferencesTo(withoutScriptUrls(seriesConferencesAfter),
-                                                                 storedOccurrence.getId()));
+                                               copyConferencesTo(seriesConferencesAfter, storedOccurrence.getId()));
       }
 
       applySeriesMembershipChange(storedOccurrence,
@@ -1410,29 +1409,10 @@ public class AgendaEventServiceImpl implements AgendaEventService {
   /**
    * @param rowConferences the conferences of a date of the series
    * @param seriesConferences the series' conferences
-   * @return whether the date holds the series' conferences, as they are or as
-   *         {@link #saveEventExceptionalOccurrence(long, ZonedDateTime)}
-   *         copies them, without the links it leaves out
+   * @return whether the date holds the series' conferences
    */
   private boolean hasSeriesConferences(List<EventConference> rowConferences, List<EventConference> seriesConferences) {
-    Set<String> rowKeys = conferenceKeys(rowConferences);
-    return rowKeys.equals(conferenceKeys(seriesConferences))
-        || rowKeys.equals(conferenceKeys(withoutScriptUrls(seriesConferences)));
-  }
-
-  /**
-   * @param conferences a conference list, may be null
-   * @return the conferences whose link is not one
-   *         {@link Utils#isScriptUrl(String)} recognises, which are the ones
-   *         the series' links are copied as to a date
-   */
-  private List<EventConference> withoutScriptUrls(List<EventConference> conferences) {
-    if (conferences == null) {
-      return new ArrayList<>();
-    }
-    return conferences.stream()
-                      .filter(conference -> !isScriptUrl(conference.getUrl()))
-                      .collect(Collectors.toList());
+    return conferenceKeys(rowConferences).equals(conferenceKeys(seriesConferences));
   }
 
   /**
@@ -1803,8 +1783,9 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     checkExternalGuests(series, continuation, rows, splitFrom);
     // The links the request names are checked like any other save's. With
     // none named, the continuation takes the series' links as each of its
-    // dates does, without a link that runs a script
-    List<EventConference> continuationConferences = split.conferences() == null ? withoutScriptUrls(conferenceService.getEventConferences(seriesId))
+    // dates does; AgendaEventConferenceServiceImpl#getEventConferences never
+    // returns a link that runs a script
+    List<EventConference> continuationConferences = split.conferences() == null ? conferenceService.getEventConferences(seriesId)
                                                                                 : split.conferences();
     checkConferenceUrls(continuationConferences);
 
@@ -2423,10 +2404,11 @@ public class AgendaEventServiceImpl implements AgendaEventService {
     List<EventAttendee> attendees = attendeesOfDate(attendeeService.getEventAttendees(eventId), occurrenceId);
     cleanupAttendeeIds(attendees);
     // Here the platform copies the series' stored links to the new date itself,
-    // whoever asked for the date: a stored link that is no longer accepted is
-    // left out of the copy rather than refused. A save posted by a client, the
-    // copy of a series included, is checked like any other in createEvent
-    List<EventConference> conferences = withoutScriptUrls(conferenceService.getEventConferences(eventId));
+    // whoever asked for the date. A save posted by a client, the copy of a
+    // series included, is checked like any other in createEvent;
+    // AgendaEventConferenceServiceImpl#getEventConferences never returns a link
+    // that runs a script
+    List<EventConference> conferences = conferenceService.getEventConferences(eventId);
     cleanupConferenceIds(conferences);
     List<EventReminder> reminders = reminderService.getEventReminders(eventId);
     cleanupReminderIds(reminders);
