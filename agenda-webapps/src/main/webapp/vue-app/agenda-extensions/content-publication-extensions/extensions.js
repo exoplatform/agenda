@@ -84,10 +84,10 @@ export function registerExtensions() {
  * @returns {string} the escaped value
  */
 function escapeHtml(value) {
-  return `${value ?? ''}`.replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return `${value ?? ''}`.replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
 }
 
 function generateContentActionLink({ objectType, objectId, activityId, iconClass, text }) {
