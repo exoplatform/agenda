@@ -55,8 +55,8 @@ public class AgendaEventConferenceServiceImpl implements AgendaEventConferenceSe
     conferencesToDelete.removeAll(newConferences);
     List<EventConference> conferencesToCreate = new ArrayList<>(newConferences);
     conferencesToCreate.removeAll(savedConferences);
-    // Checked on the conferences to create only: one the event already holds
-    // is passed back unchanged by the flows that re-save the stored list
+    // Checked on the conferences to create only: one the event holds and
+    // returns is passed back unchanged by the flows that re-save the list
     Utils.checkConferenceUrls(conferencesToCreate);
 
     // Delete conferences

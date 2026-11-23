@@ -343,8 +343,7 @@ public class AgendaEventMcpToolServicesTest extends BaseAgendaEventTest {
     Event event = newEventInstance(start, start.plusHours(1), false);
     event.setRecurrence(null);
     long eventId = createEvent(event, Long.parseLong(testuser1Identity.getId())).getId();
-    AgendaEventConferenceStorage storage =
-                                                                         container.getComponentInstanceOfType(AgendaEventConferenceStorage.class);
+    AgendaEventConferenceStorage storage = container.getComponentInstanceOfType(AgendaEventConferenceStorage.class);
     storage.removeEventConference(agendaEventConferenceService.getEventConferences(eventId).get(0).getId());
     storage.saveEventConference(new EventConference(0, eventId, "web", "javascript:alert(1)", null, null, null));
     assertNull(tool.getEventConference(eventId).getUrl());

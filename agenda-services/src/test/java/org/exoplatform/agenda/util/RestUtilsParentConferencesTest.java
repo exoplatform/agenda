@@ -30,8 +30,10 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import org.exoplatform.agenda.model.Event;
+import org.exoplatform.agenda.model.EventConference;
 import org.exoplatform.agenda.rest.model.EventEntity;
 import org.exoplatform.agenda.service.BaseAgendaEventTest;
+import org.exoplatform.agenda.storage.AgendaEventConferenceStorage;
 import org.exoplatform.services.rest.ApplicationContext;
 import org.exoplatform.services.rest.impl.ApplicationContextImpl;
 import org.exoplatform.services.security.ConversationState;
@@ -156,18 +158,16 @@ public class RestUtilsParentConferencesTest extends BaseAgendaEventTest {
   public void aScriptLinkStoredBeforeIsNotReturnedByTheConferencesExpand() throws Exception { // NOSONAR
     Event event = createRecurrentEventWithConference();
     Event occurrence = firstOccurrenceOf(event);
-    org.exoplatform.agenda.model.EventConference script =
-                                                       new org.exoplatform.agenda.model.EventConference(0, event.getId(), "web", "javascript:alert(1)", null, null, null);
-    org.exoplatform.agenda.model.EventConference https =
-                                                      new org.exoplatform.agenda.model.EventConference(0, event.getId(), "web", "https://meet.example.com/room", null, null, null);
-    org.exoplatform.agenda.storage.AgendaEventConferenceStorage storage =
-                                                                         container.getComponentInstanceOfType(org.exoplatform.agenda.storage.AgendaEventConferenceStorage.class);
+    EventConference script = new EventConference(0, event.getId(), "web", "javascript:alert(1)", null, null, null);
+    EventConference https = new EventConference(0, event.getId(), "web", "https://meet.example.com/room", null, null, null);
+    AgendaEventConferenceStorage storage = container.getComponentInstanceOfType(AgendaEventConferenceStorage.class);
     storage.saveEventConference(script);
     storage.saveEventConference(https);
 
     EventEntity eventEntity = buildEntity(event, occurrence, Arrays.asList("all", "conferences"));
 
-    List<String> urls = eventEntity.getConferences().stream().map(org.exoplatform.agenda.model.EventConference::getUrl).toList();
+    // sorted: the query that lists an event's conferences sets no order
+    List<String> urls = eventEntity.getConferences().stream().map(EventConference::getUrl).sorted().toList();
     assertEquals(Arrays.asList("conf_uri", "https://meet.example.com/room"), urls);
   }
 
