@@ -10,6 +10,10 @@
   <packaging>pom</packaging>
   <name>eXo Agenda - Packaging</name>
   <description>eXo Agenda - Packaging</description>
+  <properties>
+    <!-- Generate and publish the CycloneDX SBOM of the deliverable zip -->
+    <sbom.skip>false</sbom.skip>
+  </properties>
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
