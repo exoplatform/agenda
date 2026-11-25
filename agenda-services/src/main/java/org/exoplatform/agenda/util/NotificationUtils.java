@@ -421,7 +421,9 @@ public class NotificationUtils {
         }
       } else if (identity.getProviderId().equals(OrganizationIdentityProvider.NAME)
           || identity.getProviderId().equals(AgendaGuestUserIdentityProvider.NAME)) {
-        recipients.add(identity.getRemoteId());
+        if (!identity.isDeleted()) {
+          recipients.add(identity.getRemoteId());
+        }
         participants.add(identity.getId());
       }
     }
@@ -437,7 +439,8 @@ public class NotificationUtils {
     List<String> receivers = new ArrayList<>();
     for (Long receiverId : receiverIds) {
       Identity identity = Utils.getIdentityById(identityManager, receiverId);
-      if (identity != null && StringUtils.equals(OrganizationIdentityProvider.NAME, identity.getProviderId())) {
+      if (identity != null && !identity.isDeleted()
+          && StringUtils.equals(OrganizationIdentityProvider.NAME, identity.getProviderId())) {
         receivers.add(identity.getRemoteId());
       }
     }
