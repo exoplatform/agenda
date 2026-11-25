@@ -75,15 +75,30 @@ export function registerExtensions() {
   document.dispatchEvent(new CustomEvent('content-publication-extensions-updated'));
 }
 
+/**
+ * Escapes a value written into the link, as a double-quoted attribute or as
+ * text: the characters that open markup or close the attribute, and only
+ * them, so that a value holding none is written unchanged.
+ *
+ * @param {*} value the value to write, none written as an empty string
+ * @returns {string} the escaped value
+ */
+function escapeHtml(value) {
+  return `${value ?? ''}`.replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+}
+
 function generateContentActionLink({ objectType, objectId, activityId, iconClass, text }) {
   return `<a 
-           data-object="${objectType}:${objectId}" 
+           data-object="${escapeHtml(objectType)}:${escapeHtml(objectId)}" 
            data-content-link="true" contenteditable="false" 
            class="content-link" 
-           href="/portal/dw/activity?id=${activityId}">
+           href="/portal/dw/activity?id=${escapeHtml(activityId)}">
            <i aria-hidden="true" 
-           class="v-icon notranslate fa fa ${iconClass} theme--light icon-default-color" 
+           class="v-icon notranslate fa fa ${escapeHtml(iconClass)} theme--light icon-default-color" 
            style="font-size: 16px; margin: 0 4px;"></i>
-           ${text}
+           ${escapeHtml(text)}
           </a>`;
 }
