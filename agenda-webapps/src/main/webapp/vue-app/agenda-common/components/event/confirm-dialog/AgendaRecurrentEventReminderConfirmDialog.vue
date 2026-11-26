@@ -4,18 +4,31 @@
     :width="width"
     content-class="uiPopup width-auto layout-drawer"
     max-width="100vw">
-    <v-card class="elevation-12 transparent">
+    <v-card
+      ref="card"
+      class="elevation-12 transparent"
+      role="alertdialog"
+      aria-modal="true"
+      :aria-labelledby="confirmDialogTitleId"
+      :aria-describedby="confirmDialogQuestionId">
       <div class="ignore-vuetify-classes popupHeader ClearFix layout-drawer">
-        <a
-          class="uiIconClose pull-right"
-          aria-hidden="true"
-          @click="close"></a>
-        <span class="ignore-vuetify-classes PopupTitle popupTitle text-title text-truncate">
+        <button
+          type="button"
+          class="uiIconClose pull-right no-border pa-0 transparent clickable"
+          :aria-label="$t('agenda.button.close')"
+          @click="close"></button>
+        <span
+          :id="confirmDialogTitleId"
+          class="ignore-vuetify-classes PopupTitle popupTitle text-title text-truncate">
           {{ $t('agenda.confirmSaveRecurrentEventTitle') }}
         </span>
       </div>
       <v-card-text>
         <v-radio-group v-model="recurrenceModificationType">
+          <!-- the question the radios answer: the group's name, and the dialog's description -->
+          <template #label>
+            <span :id="confirmDialogQuestionId" class="d-sr-only">{{ $t('agenda.recurrentEventChoiceQuestion') }}</span>
+          </template>
           <v-radio :label="$t('agenda.onlyThisEvent')" value="single" />
           <v-radio :label="$t('agenda.thisAndUpcomingEvents')" value="upcoming" />
           <v-radio :label="$t('agenda.allEvents')" value="all" />
@@ -23,6 +36,8 @@
       </v-card-text>
       <v-card-actions class="d-flex flex-wrap justify-center center">
         <button
+          ref="cancelButton"
+          type="button"
           :disabled="loading"
           :loading="loading"
           class="ignore-vuetify-classes btn me-2 mb-1"
@@ -42,7 +57,10 @@
 </template>
 
 <script>
+import confirmDialogFocusMixin from '../../../js/ConfirmDialogFocusMixin.js';
+
 export default {
+  mixins: [confirmDialogFocusMixin],
   props: {
     event: {
       type: Object,
@@ -79,6 +97,7 @@ export default {
         eventObject.preventDefault();
         eventObject.stopPropagation();
       }
+      this.confirmDialogConfirmed();
 
       if (this.recurrenceModificationType === 'single') {
         this.confirmOccurrenceEvent();
@@ -139,6 +158,7 @@ export default {
       this.dialog = false;
     },
     open(reminders) {
+      this.captureConfirmDialogOpener();
       this.reminders = reminders;
       this.dialog = true;
     },
