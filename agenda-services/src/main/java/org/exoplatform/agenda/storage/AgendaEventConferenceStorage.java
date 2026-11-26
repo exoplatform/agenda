@@ -9,6 +9,7 @@ import org.exoplatform.agenda.dao.EventDAO;
 import org.exoplatform.agenda.entity.EventConferenceEntity;
 import org.exoplatform.agenda.entity.EventEntity;
 import org.exoplatform.agenda.model.EventConference;
+import org.exoplatform.agenda.model.EventConferenceMatch;
 import org.exoplatform.agenda.util.EntityMapper;
 import org.exoplatform.agenda.util.Utils;
 import org.exoplatform.services.listener.ListenerService;
@@ -35,6 +36,42 @@ public class AgendaEventConferenceStorage {
       return Collections.emptyList();
     }
     return eventConferenceEntities.stream().map(EntityMapper::fromEntity).collect(Collectors.toList());
+  }
+
+  /**
+   * Lists the meeting links of a conference type holding a path segment, each
+   * with the series of the events holding it: the segment followed by the end
+   * of the link, a query string, a fragment or another segment. The segment is
+   * matched literally: the LIKE wildcards it holds, <code>%</code> and
+   * <code>_</code>, are escaped. The links come by series, the earliest
+   * created first, so the limit keeps the series created first, whenever
+   * their links were saved.
+   * <p>
+   * The segment is searched anywhere in the link, which no index serves: each
+   * call reads the whole conference table. It is meant for one lookup at a
+   * time, such as opening one recording, never for each item of a list.
+   *
+   * @param type conference type, the web conferencing provider type
+   * @param segment the segment, such as <code>/</code> and a call identifier
+   * @param limit maximum number of links to return
+   * @return the links found, possibly empty
+   */
+  public List<EventConferenceMatch> findConferencesHoldingSegment(String type, String segment, int limit) {
+    return eventConferenceDAO.findByTypeAndUrlSegment(type, escapeLikeWildcards(segment), limit)
+                             .stream()
+                             .map(row -> new EventConferenceMatch((String) row[0], ((Number) row[1]).longValue()))
+                             .toList();
+  }
+
+  /**
+   * Escapes the LIKE wildcards of a text, and the escape character itself,
+   * with <code>!</code>, the escape character the conference queries declare.
+   *
+   * @param text the text to match literally
+   * @return the escaped text
+   */
+  static String escapeLikeWildcards(String text) {
+    return text.replace("!", "!!").replace("%", "!%").replace("_", "!_");
   }
 
   public EventConference saveEventConference(EventConference eventConference) {
