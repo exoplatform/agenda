@@ -1,6 +1,7 @@
 package org.exoplatform.agenda.service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -54,8 +55,8 @@ public class AgendaEventConferenceServiceImpl implements AgendaEventConferenceSe
     conferencesToDelete.removeAll(newConferences);
     List<EventConference> conferencesToCreate = new ArrayList<>(newConferences);
     conferencesToCreate.removeAll(savedConferences);
-    // Checked on the conferences to create only: one the event already holds
-    // is passed back unchanged by the flows that re-save the stored list
+    // Checked on the conferences to create only: one the event holds and
+    // returns is passed back unchanged by the flows that re-save the list
     Utils.checkConferenceUrls(conferencesToCreate);
 
     // Delete conferences
@@ -82,7 +83,15 @@ public class AgendaEventConferenceServiceImpl implements AgendaEventConferenceSe
 
   @Override
   public List<EventConference> getEventConferences(long eventId) {
-    return conferenceStorage.getEventConferences(eventId);
+    // A link stored before links that run a script were refused stays stored
+    // and is not returned: neither the readers nor the saves, which compare the
+    // stored list with the submitted one, see it, so a conference save never
+    // deletes it; deleting the event, or a date row a series save drops,
+    // removes it with the row
+    return conferenceStorage.getEventConferences(eventId)
+                            .stream()
+                            .filter(conference -> !Utils.isScriptUrl(conference.getUrl()))
+                            .collect(Collectors.toList());
   }
 
 }
